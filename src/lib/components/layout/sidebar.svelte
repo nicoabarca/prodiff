@@ -1,95 +1,99 @@
 <script lang="ts">
-	import { page } from '$app/state';
-	import { goto } from '$app/navigation';
-	import * as Sidebar from '$lib/components/ui/sidebar/index.js';
-	import type { Project } from '$lib/types';
-	import Network from '@lucide/svelte/icons/network';
-	import FolderKanban from '@lucide/svelte/icons/folder-kanban';
-	import Plus from '@lucide/svelte/icons/plus';
-	import Settings from '@lucide/svelte/icons/settings';
-	import GitBranch from '@lucide/svelte/icons/git-branch';
-	import BarChart3 from '@lucide/svelte/icons/bar-chart-3';
-	import Table2 from '@lucide/svelte/icons/table-2';
+  import { page } from "$app/state";
+  import { goto } from "$app/navigation";
+  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import type { Project } from "$lib/types";
+  import Network from "@lucide/svelte/icons/network";
+  import FolderKanban from "@lucide/svelte/icons/folder-kanban";
+  import Plus from "@lucide/svelte/icons/plus";
+  import Settings from "@lucide/svelte/icons/settings";
+  import GitBranch from "@lucide/svelte/icons/git-branch";
+  import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
+  import Table2 from "@lucide/svelte/icons/table-2";
 
-	let { activeProject }: { activeProject: Project | null } = $props();
+  let { activeProject }: { activeProject: Project | null } = $props();
 
-	const appNav = [
-		{ href: '/app/projects', label: 'Projects', icon: FolderKanban },
-		{ href: '/app/projects/new', label: 'New project', icon: Plus },
-		{ href: '/app/settings', label: 'Settings', icon: Settings }
-	];
+  const appNav = [
+    { href: "/app/projects", label: "Projects", icon: FolderKanban },
+    { href: "/app/projects/new", label: "New project", icon: Plus },
+    { href: "/app/settings", label: "Settings", icon: Settings }
+  ];
 
-	// ponytail: process-map is the only project view built so far; the other
-	// three route to nothing yet, so they render disabled until those views land.
-	const projectNav = $derived([
-		{
-			href: activeProject ? `/app/projects/${activeProject.id}` : null,
-			label: 'Process map',
-			icon: Network
-		},
-		{ href: null, label: 'Variants', icon: GitBranch },
-		{ href: null, label: 'Statistics', icon: BarChart3 },
-		{ href: null, label: 'Data table', icon: Table2 }
-	]);
+  // ponytail: process-map is the only project view built so far; the other
+  // three route to nothing yet, so they render disabled until those views land.
+  const projectNav = $derived([
+    {
+      href: activeProject ? `/app/projects/${activeProject.id}` : null,
+      label: "Process map",
+      icon: Network
+    },
+    { href: null, label: "Variants", icon: GitBranch },
+    { href: null, label: "Statistics", icon: BarChart3 },
+    { href: null, label: "Data table", icon: Table2 }
+  ]);
 </script>
 
 <Sidebar.Root collapsible="icon">
-	<Sidebar.Header>
-		<div class="flex items-center justify-between">
-			<div class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
-				<div class="flex h-7 w-7 items-center justify-center bg-sidebar-primary text-sidebar-primary-foreground">
-					<Network class="h-4 w-4" aria-hidden="true" />
-				</div>
-				<span class="font-heading text-sm font-bold uppercase tracking-tight">Procept</span>
-			</div>
-			<Sidebar.Trigger />
-		</div>
-	</Sidebar.Header>
+  <Sidebar.Header>
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
+        <div
+          class="bg-sidebar-primary text-sidebar-primary-foreground flex h-7 w-7 items-center justify-center"
+        >
+          <Network class="h-4 w-4" aria-hidden="true" />
+        </div>
+        <span class="font-heading text-sm font-bold tracking-tight uppercase">Procept</span>
+      </div>
+      <Sidebar.Trigger />
+    </div>
+  </Sidebar.Header>
 
-	<Sidebar.Content>
-		<Sidebar.Group>
-			<Sidebar.GroupLabel>Workspace</Sidebar.GroupLabel>
-			<Sidebar.Menu>
-				{#each appNav as { href, label, icon: Icon } (href)}
-					<Sidebar.MenuItem>
-						<Sidebar.MenuButton
-							isActive={!activeProject && page.url.pathname === href}
-							tooltipContent={label}
-							onclick={() => goto(href)}
-						>
-							<Icon />
-							<span>{label}</span>
-						</Sidebar.MenuButton>
-					</Sidebar.MenuItem>
-				{/each}
-			</Sidebar.Menu>
-		</Sidebar.Group>
+  <Sidebar.Content>
+    <Sidebar.Group>
+      <Sidebar.GroupLabel>Workspace</Sidebar.GroupLabel>
+      <Sidebar.Menu>
+        {#each appNav as { href, label, icon: Icon } (href)}
+          <Sidebar.MenuItem>
+            <Sidebar.MenuButton
+              isActive={!activeProject && page.url.pathname === href}
+              tooltipContent={label}
+              onclick={() => goto(href)}
+            >
+              <Icon />
+              <span>{label}</span>
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+        {/each}
+      </Sidebar.Menu>
+    </Sidebar.Group>
 
-		{#if activeProject}
-			<Sidebar.Group>
-				<Sidebar.GroupLabel class="truncate">{activeProject.name}</Sidebar.GroupLabel>
-				<Sidebar.Menu>
-					{#each projectNav as { href, label, icon: Icon } (label)}
-						<Sidebar.MenuItem>
-							<Sidebar.MenuButton
-								aria-disabled={!href}
-								class={!href ? 'pointer-events-none opacity-40' : undefined}
-								isActive={href !== null && page.url.pathname === href}
-								tooltipContent={label}
-								onclick={() => href && goto(href)}
-							>
-								<Icon />
-								<span>{label}</span>
-							</Sidebar.MenuButton>
-						</Sidebar.MenuItem>
-					{/each}
-				</Sidebar.Menu>
-			</Sidebar.Group>
-		{/if}
-	</Sidebar.Content>
+    {#if activeProject}
+      <Sidebar.Group>
+        <Sidebar.GroupLabel class="truncate">{activeProject.name}</Sidebar.GroupLabel>
+        <Sidebar.Menu>
+          {#each projectNav as { href, label, icon: Icon } (label)}
+            <Sidebar.MenuItem>
+              <Sidebar.MenuButton
+                aria-disabled={!href}
+                class={!href ? "pointer-events-none opacity-40" : undefined}
+                isActive={href !== null && page.url.pathname === href}
+                tooltipContent={label}
+                onclick={() => href && goto(href)}
+              >
+                <Icon />
+                <span>{label}</span>
+              </Sidebar.MenuButton>
+            </Sidebar.MenuItem>
+          {/each}
+        </Sidebar.Menu>
+      </Sidebar.Group>
+    {/if}
+  </Sidebar.Content>
 
-	<Sidebar.Footer class="group-data-[collapsible=icon]:hidden">
-		<p class="px-2 text-[0.625rem] uppercase tracking-widest text-muted-foreground">Local analysis</p>
-		<p class="px-2 text-xs text-muted-foreground">All data stays on device</p>
-	</Sidebar.Footer>
+  <Sidebar.Footer class="group-data-[collapsible=icon]:hidden">
+    <p class="text-muted-foreground px-2 text-[0.625rem] tracking-widest uppercase">
+      Local analysis
+    </p>
+    <p class="text-muted-foreground px-2 text-xs">All data stays on device</p>
+  </Sidebar.Footer>
 </Sidebar.Root>

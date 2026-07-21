@@ -73,9 +73,7 @@ If you need a success/positive color that doesn't exist as a semantic token, use
   import { Button } from "$lib/components/ui/button";
 </script>
 
-<Button class="border-input hover:bg-accent border bg-transparent"
-  >Click me</Button
->
+<Button class="border-input hover:bg-accent border bg-transparent">Click me</Button>
 ```
 
 **Correct:**

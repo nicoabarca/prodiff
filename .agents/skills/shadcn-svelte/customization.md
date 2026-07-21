@@ -110,17 +110,15 @@ module.exports = {
     extend: {
       colors: {
         warning: "oklch(var(--warning) / <alpha-value>)",
-        "warning-foreground":
-          "oklch(var(--warning-foreground) / <alpha-value>)",
-      },
-    },
-  },
+        "warning-foreground": "oklch(var(--warning-foreground) / <alpha-value>)"
+      }
+    }
+  }
 };
 ```
 
 ```svelte
-<!-- 3. Use in components. -->
-<div class="bg-warning text-warning-foreground">Warning</div>
+<!-- 3. Use in components. --><div class="bg-warning text-warning-foreground">Warning</div>
 ```
 
 ---

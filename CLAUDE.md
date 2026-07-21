@@ -20,6 +20,7 @@ Tauri v2 desktop app with a SvelteKit (Svelte 5, runes) frontend, Tailwind CSS v
 **SPA mode, not SSR.** `src/routes/+layout.ts` sets `export const ssr = false` and `svelte.config.js` uses `@sveltejs/adapter-static` with `fallback: "index.html"` — Tauri has no Node server, so the whole app is client-rendered and all routing happens in the browser after load.
 
 **Route structure** (`src/routes/`):
+
 - `/` — the welcome/landing screen, outside the app shell (no sidebar).
 - `/app/+layout.svelte` — the app shell: wraps every `/app/*` route in `Sidebar.Provider` + the custom `AppSidebar` (`src/lib/components/layout/sidebar.svelte`) + `Sidebar.Inset`. It derives `activeProject` reactively from `page.params.id`, so any nested route with a `[id]` param automatically gets the project-scoped sidebar section.
 - `/app/projects` — dashboard (grid of `ProjectCard`s).
@@ -31,6 +32,7 @@ Tauri v2 desktop app with a SvelteKit (Svelte 5, runes) frontend, Tailwind CSS v
 **Cross-route state** lives in `src/lib/state/projects.svelte.ts` as module-level `$state` (Svelte 5 runes), not a store or context. `projects` (the list) and `draftUpload` (the in-progress upload/mapping flow) are exported directly and mutated by whichever route needs them — this is how state survives navigating between `/app/projects/new` and `/app/projects/new/mapping` without prop-drilling or URL params. `src/lib/types.ts` holds the `Project` type and mock seed data.
 
 **Component split** — three tiers under `src/lib/components/`:
+
 - `ui/` — shadcn-svelte primitives only, CLI-managed, never hand-edit (see Commands above).
 - `layout/` — app-chrome components (sidebar, topbar, view-placeholder) composed from `ui/` primitives.
 - `projects/` — feature-specific components (e.g. the project card).

@@ -197,9 +197,7 @@ Use `Field.FieldSet` + `Field.FieldLegend` for related checkboxes, radios, or sw
   <Field.FieldGroup class="gap-3">
     <Field.Field orientation="horizontal">
       <Checkbox id="dark" />
-      <Field.FieldLabel for="dark" class="font-normal"
-        >Dark mode</Field.FieldLabel
-      >
+      <Field.FieldLabel for="dark" class="font-normal">Dark mode</Field.FieldLabel>
     </Field.Field>
   </Field.FieldGroup>
 </Field.FieldSet>
