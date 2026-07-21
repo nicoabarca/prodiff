@@ -1,10 +1,7 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
-  import { Button } from "$lib/components/ui/button/index.js";
   import type { Project } from "$lib/types";
   import Home from "@lucide/svelte/icons/home";
-  import CalendarRange from "@lucide/svelte/icons/calendar-range";
-  import Filter from "@lucide/svelte/icons/filter";
 
   type ProjectView = "process-map" | "variants" | "statistics" | "data";
 
@@ -19,9 +16,7 @@
     $props();
 </script>
 
-<header
-  class="border-border bg-background flex h-14 shrink-0 items-center justify-between border-b px-4"
->
+<header class="border-border bg-background flex h-14 shrink-0 items-center border-b px-4">
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item>
@@ -40,16 +35,4 @@
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
-
-  <div class="flex items-center gap-2">
-    <Button variant="outline" size="sm">
-      <CalendarRange data-icon="inline-start" />
-      Time range: All time
-    </Button>
-    <Button variant="outline" size="sm">
-      <Filter data-icon="inline-start" />
-      Filters: None
-    </Button>
-    <Button size="sm">Apply</Button>
-  </div>
 </header>

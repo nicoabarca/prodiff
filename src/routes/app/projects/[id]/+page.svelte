@@ -1,7 +1,7 @@
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { projects } from "$lib/state/projects.svelte";
+  import { projects, projectsLoaded } from "$lib/state/projects.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import ViewPlaceholder from "$lib/components/layout/view-placeholder.svelte";
   import Network from "@lucide/svelte/icons/network";
@@ -9,7 +9,7 @@
   const project = $derived(projects.find((p) => p.id === page.params.id) ?? null);
 
   $effect(() => {
-    if (!project) goto("/app/projects");
+    if (!project && projectsLoaded.value) goto("/app/projects");
   });
 </script>
 

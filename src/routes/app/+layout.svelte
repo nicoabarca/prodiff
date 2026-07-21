@@ -2,9 +2,11 @@
   import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import AppSidebar from "$lib/components/layout/sidebar.svelte";
-  import { projects } from "$lib/state/projects.svelte";
+  import { projects, loadProjects } from "$lib/state/projects.svelte";
 
   let { children } = $props();
+
+  loadProjects();
 
   const activeProject = $derived(
     page.params.id ? (projects.find((p) => p.id === page.params.id) ?? null) : null
