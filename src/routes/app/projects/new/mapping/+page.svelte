@@ -4,6 +4,7 @@
   import { draftUpload } from "$lib/state/projects.svelte";
   import { createProject } from "$lib/projects/create";
   import type { ColumnMapping, ColumnType, ColumnRole } from "$lib/column-mapping";
+  import WizardSteps from "$lib/components/projects/wizard-steps.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
   import Check from "@lucide/svelte/icons/check";
@@ -12,10 +13,7 @@
 
   // The roles this step can assign. Every other ColumnRole — start_timestamp,
   // other — has no picker yet; unassigned columns fall through to "other".
-  type AssignableRole = Extract<
-    ColumnRole,
-    "case_id" | "activity_name" | "complete_timestamp"
-  >;
+  type AssignableRole = Extract<ColumnRole, "case_id" | "activity_name" | "complete_timestamp">;
 
   const roleOrder: AssignableRole[] = ["case_id", "activity_name", "complete_timestamp"];
 
@@ -63,6 +61,15 @@
     complete_timestamp: null
   });
   let activeRole = $state<AssignableRole | null>("case_id");
+  let hoveredCol = $state<number | null>(null);
+
+  function setHoveredCol(i: number) {
+    hoveredCol = i;
+  }
+
+  function clearHoveredCol(i: number) {
+    if (hoveredCol === i) hoveredCol = null;
+  }
 
   const roleByColumn = $derived.by(() => {
     const map: Record<string, AssignableRole> = {};
@@ -124,10 +131,7 @@
     submitting = true;
     submitError = null;
     try {
-      const project = await createProject(
-        { filePath, fileName },
-        buildColumnMapping()
-      );
+      const project = await createProject({ filePath, fileName }, buildColumnMapping());
       draftUpload.filePath = null;
       draftUpload.fileName = null;
       goto(`/app/projects/${project.id}`);
@@ -140,6 +144,8 @@
 </script>
 
 <main class="mx-auto min-h-0 w-full max-w-6xl flex-1 overflow-auto px-6 py-8">
+  <WizardSteps active={2} />
+
   <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
     <h1 class="font-heading text-xl font-bold tracking-tight">Map columns</h1>
     <Button variant="outline" size="sm" onclick={reset}>
@@ -174,8 +180,8 @@
           {roleMeta[activeRole].step}
         </span>
         <span class="text-pretty">
-          <span class="font-semibold tracking-wide uppercase"
-            >Click the {roleMeta[activeRole].label} column</span
+          <span class="font-semibold tracking-wide"
+            >Select the <span class="font-bold">{roleMeta[activeRole].label.toUpperCase()}</span> column</span
           >
           {" — "}
           {roleMeta[activeRole].hint}
@@ -224,20 +230,24 @@
         >
         <span class="text-muted-foreground text-xs">First {rows.length} rows</span>
       </div>
-      <div class="max-h-105 overflow-auto">
-        <Table.Root class="border-collapse">
+      <div class="h-105 overflow-hidden [&>div]:h-full [&>div]:overflow-y-auto">
+        <Table.Root class="w-max min-w-full border-collapse">
           <Table.Header class="sticky top-0 z-10">
             <Table.Row class="hover:bg-transparent">
-              {#each columns as { name: col }}
+              {#each columns as { name: col }, c}
                 {@const role = roleByColumn[col]}
                 <Table.Head class="p-0">
                   <button
                     type="button"
                     onclick={() => handleColumnClick(col)}
+                    onmouseenter={() => setHoveredCol(c)}
+                    onmouseleave={() => clearHoveredCol(c)}
                     class={`border-border flex w-full items-center gap-2 border-b px-3 py-2 text-left font-mono text-xs whitespace-nowrap transition-colors ${
                       role
                         ? "bg-primary text-primary-foreground"
-                        : "bg-card text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        : hoveredCol === c
+                          ? "bg-primary/10 text-foreground"
+                          : "bg-card text-muted-foreground"
                     }`}
                   >
                     {#if role}
@@ -264,16 +274,18 @@
           </Table.Header>
           <Table.Body>
             {#each rows as row}
-              <Table.Row>
+              <Table.Row class="hover:bg-transparent">
                 {#each row as cell, j}
                   {@const colName = columns[j].name}
                   {@const mapped = !!roleByColumn[colName]}
                   <Table.Cell
                     onclick={() => handleColumnClick(colName)}
+                    onmouseenter={() => setHoveredCol(j)}
+                    onmouseleave={() => clearHoveredCol(j)}
                     class={`cursor-pointer px-3 py-1.5 font-mono text-xs whitespace-nowrap transition-colors ${
                       mapped
-                        ? "bg-accent text-accent-foreground hover:bg-accent/70"
-                        : "text-muted-foreground hover:bg-muted"
+                        ? `text-accent-foreground ${hoveredCol === j ? "bg-accent/70" : "bg-accent"}`
+                        : `text-muted-foreground ${hoveredCol === j ? "bg-primary/10" : ""}`
                     }`}
                   >
                     {cell}

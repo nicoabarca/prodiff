@@ -32,11 +32,16 @@
 {:else}
   <main class="mx-auto min-h-0 w-full max-w-5xl flex-1 overflow-auto px-6 py-10">
     <div class="border-border mb-8 flex items-end justify-between border-b pb-6">
-      <div>
-        <h1 class="font-heading text-2xl font-bold tracking-tight">Projects</h1>
-        <p class="text-muted-foreground mt-1 text-sm">
-          {projects.length} event log{projects.length === 1 ? "" : "s"} on this device
-        </p>
+      <div class="flex items-center gap-3">
+        <div class="bg-primary text-primary-foreground flex h-9 w-9 shrink-0 items-center justify-center">
+          <FolderKanban class="h-4.5 w-4.5" aria-hidden="true" />
+        </div>
+        <div>
+          <h1 class="font-heading text-2xl font-bold tracking-tight">Projects</h1>
+          <p class="text-muted-foreground mt-1 text-sm">
+            {projects.length} event log{projects.length === 1 ? "" : "s"} on this device
+          </p>
+        </div>
       </div>
       <Button onclick={() => goto("/app/projects/new")}>
         <Plus data-icon="inline-start" />
