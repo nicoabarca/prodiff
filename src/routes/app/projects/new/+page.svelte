@@ -4,6 +4,7 @@
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import type { UnlistenFn } from "@tauri-apps/api/event";
   import { draftUpload } from "$lib/state/projects.svelte";
+  import WizardSteps from "$lib/components/projects/wizard-steps.svelte";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import UploadCloud from "@lucide/svelte/icons/upload-cloud";
@@ -68,6 +69,8 @@
 <main
   class="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col items-center justify-center overflow-auto px-6 py-10"
 >
+  <WizardSteps active={1} />
+
   <div class="mb-6 w-full text-center">
     <h1 class="font-heading text-xl font-bold tracking-tight">New project</h1>
     <p class="text-muted-foreground mt-1 text-sm text-pretty">
