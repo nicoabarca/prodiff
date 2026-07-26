@@ -19,8 +19,10 @@ pub(crate) fn create_project_dir(
     Ok(dir)
 }
 
-/// Copies the raw upload into the project directory, kept alongside the Parquet conversion
-pub(crate) fn copy_original(source_path: &str, project_dir: &Path) -> Result<(), String> {
+/// Copies the raw upload into the project directory, kept alongside the Parquet conversion.
+/// Returns the copy's path — the frontend persists it as the project's reference to the
+/// original file.
+pub(crate) fn copy_original(source_path: &str, project_dir: &Path) -> Result<PathBuf, String> {
     let extension = PathBuf::from(source_path)
         .extension()
         .and_then(|e| e.to_str())
@@ -28,16 +30,18 @@ pub(crate) fn copy_original(source_path: &str, project_dir: &Path) -> Result<(),
         .to_string();
     let dest = project_dir.join(format!("original.{extension}"));
     fs::copy(source_path, &dest).map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(dest)
 }
 
-pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<(), String> {
+/// Writes the normalized Event Log as Parquet. Returns its path — this is the file all future
+/// analysis reads from, so the frontend persists it as the project's source of truth.
+pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<PathBuf, String> {
     let path = project_dir.join("event_log.parquet");
     let file = fs::File::create(&path).map_err(|e| e.to_string())?;
     ParquetWriter::new(file)
         .finish(df)
         .map_err(|e| e.to_string())?;
-    Ok(())
+    Ok(path)
 }
 
 /// Deletes `{app_data}/projects/{project_id}/` and everything in it. No-op if

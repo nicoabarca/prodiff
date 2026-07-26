@@ -1,14 +1,14 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import type { ColumnMapping } from "$lib/column-mapping";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   fileName: text("file_name").notNull(),
-  // JSON-encoded ColumnMapping[]. Not Drizzle's built-in blob(json) mapper —
-  // that calls Buffer.from() unconditionally, which doesn't exist in this
-  // browser/webview runtime. Stringify/parse by hand, same as hiddenColumns.
-  columns: text("columns").notNull(),
-  hiddenColumns: text("hidden_columns").notNull(), // JSON-encoded string[]
+  originalPath: text("original_path").notNull(),
+  eventLogPath: text("event_log_path").notNull(),
+  columns: text("columns", { mode: "json" }).$type<ColumnMapping[]>().notNull(),
+  hiddenColumns: text("hidden_columns", { mode: "json" }).$type<string[]>().notNull(),
   events: integer("events").notNull(),
   cases: integer("cases").notNull(),
   activities: integer("activities").notNull(),

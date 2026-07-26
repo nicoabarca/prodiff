@@ -14,7 +14,7 @@ pub struct EventLogPreview {
 
 #[tauri::command]
 pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
-    let preview_rows = 15;
+    let preview_rows = 50;
     let df = read_csv(&path, Some(preview_rows)).map_err(|e| e.to_string())?;
 
     let columns: Vec<ColumnPreview> = df

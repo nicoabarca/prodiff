@@ -3,12 +3,12 @@
   import { open } from "@tauri-apps/plugin-dialog";
   import { getCurrentWebview } from "@tauri-apps/api/webview";
   import type { UnlistenFn } from "@tauri-apps/api/event";
-  import { draftUpload } from "$lib/state/projects.svelte";
-  import WizardSteps from "$lib/components/projects/wizard-steps.svelte";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import UploadCloud from "@lucide/svelte/icons/upload-cloud";
   import FileUp from "@lucide/svelte/icons/file-up";
+
+  let { onAccepted }: { onAccepted: (filePath: string, fileName: string) => void } = $props();
 
   let hovering = $state(false);
   let dropError = $state<string | null>(null);
@@ -19,9 +19,7 @@
       return;
     }
     dropError = null;
-    draftUpload.filePath = path;
-    draftUpload.fileName = path.split(/[/\\]/).pop() ?? path;
-    goto("/app/projects/new/mapping");
+    onAccepted(path, path.split(/[/\\]/).pop() ?? path);
   }
 
   async function chooseFile() {
@@ -66,49 +64,40 @@
   });
 </script>
 
-<main
-  class="mx-auto flex min-h-0 w-full max-w-2xl flex-1 flex-col items-center justify-center overflow-auto px-6 py-10"
+<div class="mb-6 w-full text-center">
+  <h1 class="font-heading text-xl font-bold tracking-tight">New project</h1>
+  <p class="text-muted-foreground mt-1 text-sm text-pretty">
+    Upload an event log to analyze. Files are parsed locally and never leave your device.
+  </p>
+</div>
+
+<Empty.Root
+  class={`w-full flex-none border border-dashed py-12 transition-colors ${
+    hovering ? "border-primary bg-primary/5" : "border-border"
+  }`}
 >
-  <WizardSteps active={1} />
+  <Empty.Header>
+    <Empty.Media variant="icon"><UploadCloud /></Empty.Media>
+    <Empty.Title>{hovering ? "Drop to upload" : "Drag and drop your event log"}</Empty.Title>
+    <Empty.Description>CSV</Empty.Description>
+  </Empty.Header>
+  <Empty.Content>
+    <Button onclick={chooseFile}>
+      <FileUp data-icon="inline-start" />
+      Choose file
+    </Button>
+  </Empty.Content>
+</Empty.Root>
 
-  <div class="mb-6 w-full text-center">
-    <h1 class="font-heading text-xl font-bold tracking-tight">New project</h1>
-    <p class="text-muted-foreground mt-1 text-sm text-pretty">
-      Upload an event log to analyze. Files are parsed locally and never leave your device.
-    </p>
-  </div>
-
-  <Empty.Root
-    class={`w-full flex-none border border-dashed py-12 transition-colors ${
-      hovering ? "border-primary bg-primary/5" : "border-border"
-    }`}
+{#if dropError}
+  <p
+    class="border-destructive/40 bg-destructive/10 text-destructive mt-4 w-full border px-4 py-3 text-sm"
   >
-    <Empty.Header>
-      <Empty.Media variant="icon"><UploadCloud /></Empty.Media>
-      <Empty.Title>{hovering ? "Drop to upload" : "Drag and drop your event log"}</Empty.Title>
-      <Empty.Description>CSV</Empty.Description>
-    </Empty.Header>
-    <Empty.Content>
-      <Button onclick={chooseFile}>
-        <FileUp data-icon="inline-start" />
-        Choose file
-      </Button>
-    </Empty.Content>
-  </Empty.Root>
+    {dropError}
+  </p>
+{/if}
 
-  {#if dropError}
-    <p
-      class="border-destructive/40 bg-destructive/10 text-destructive mt-4 w-full border px-4 py-3 text-sm"
-    >
-      {dropError}
-    </p>
-  {/if}
-
-  <div class="mt-4 flex w-full items-center justify-between gap-3">
-    <p class="text-muted-foreground text-xs text-pretty">
-      After upload you'll map columns to the required process mining fields — a project is created
-      once mapping is confirmed.
-    </p>
-    <Button variant="outline" onclick={() => goto("/app/projects")}>Cancel</Button>
-  </div>
-</main>
+<div class="mt-4 flex w-full items-center justify-between gap-3">
+  <p></p>
+  <Button variant="outline" onclick={() => goto("/app/projects")}>Cancel</Button>
+</div>

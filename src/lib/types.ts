@@ -4,6 +4,8 @@ export interface Project {
   id: string;
   name: string;
   fileName: string;
+  originalPath: string;
+  eventLogPath: string;
   columns: ColumnMapping[];
   hiddenColumns: string[];
   events: number;

@@ -42,13 +42,13 @@ pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFr
 pub(crate) fn column_to_strings(df: &DataFrame, name: &str) -> Result<Vec<String>, String> {
     let series = df.column(name).map_err(|e| e.to_string())?;
     // AnyValue's Display impl wraps String values in literal quotes (it's
-    // meant for debug-printing); str_value() gives the raw value instead.
+    // meant for debug-printing); str_value() gives the raw value instead. Its
+    // Null variant str_value()s to the literal text "null", which reads like
+    // real data in a preview — surface missing values as empty instead.
     Ok((0..series.len())
-        .map(|i| {
-            series
-                .get(i)
-                .map(|v| v.str_value().into_owned())
-                .unwrap_or_default()
+        .map(|i| match series.get(i) {
+            Ok(AnyValue::Null) | Err(_) => String::new(),
+            Ok(v) => v.str_value().into_owned()
         })
         .collect())
 }

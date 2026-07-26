@@ -40,6 +40,7 @@ export function validateColumnMapping(
   let caseIdCount = 0;
   let activityCount = 0;
   let completeTimestampCount = 0;
+  let startTimestampCount = 0;
 
   for (const entry of mapping) {
     if (typeof entry !== "object" || entry === null) {
@@ -71,6 +72,7 @@ export function validateColumnMapping(
     if (role === "case_id") caseIdCount++;
     if (role === "activity_name") activityCount++;
     if (role === "complete_timestamp") completeTimestampCount++;
+    if (role === "start_timestamp") startTimestampCount++;
   }
 
   if (seenNames.size !== expectedColumnNames.length) {
@@ -80,5 +82,8 @@ export function validateColumnMapping(
   if (activityCount !== 1) throw new Error("Exactly one column must have the activity_name role.");
   if (completeTimestampCount !== 1) {
     throw new Error("Exactly one column must have the complete_timestamp role.");
+  }
+  if (startTimestampCount > 1) {
+    throw new Error("At most one column can have the start_timestamp role.");
   }
 }

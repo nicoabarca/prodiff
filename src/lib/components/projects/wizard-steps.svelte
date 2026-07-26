@@ -1,13 +1,16 @@
 <script lang="ts">
-  let { active }: { active: 1 | 2 } = $props();
+  let { active }: { active: 1 | 2 | 3 | 4 | 5 } = $props();
 
   const steps = [
-    { n: 1, label: "Upload" },
-    { n: 2, label: "Map & confirm" }
+    { n: 1, label: "Upload Event Log" },
+    { n: 2, label: "Required fields" },
+    { n: 3, label: "Other fields" },
+    { n: 4, label: "Field settings" },
+    { n: 5, label: "Review" }
   ] as const;
 </script>
 
-<ol class="mb-6 flex items-center gap-3">
+<ol class="mb-6 flex items-center justify-center gap-3">
   {#each steps as step, i}
     <li class="flex items-center gap-2">
       <span

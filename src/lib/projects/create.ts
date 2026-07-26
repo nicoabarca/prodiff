@@ -9,10 +9,17 @@ export interface ProjectDraft {
   fileName: string;
 }
 
-/** Statistics computed by the Rust side while writing the Event Log. */
-type EventLogStats = Pick<
+/** Result of writing the Event Log: stats plus where the files ended up on disk. */
+type CreateEventLogResult = Pick<
   Project,
-  "events" | "cases" | "activities" | "variants" | "timespanStart" | "timespanEnd"
+  | "events"
+  | "cases"
+  | "activities"
+  | "variants"
+  | "timespanStart"
+  | "timespanEnd"
+  | "originalPath"
+  | "eventLogPath"
 >;
 
 function deriveProjectName(fileName: string): string {
@@ -28,7 +35,8 @@ function deriveProjectName(fileName: string): string {
  */
 export async function createProject(
   draft: ProjectDraft,
-  columns: ColumnMapping[]
+  columns: ColumnMapping[],
+  hiddenColumns: string[] = []
 ): Promise<Project> {
   validateColumnMapping(
     columns,
@@ -36,7 +44,7 @@ export async function createProject(
   );
 
   const id = crypto.randomUUID();
-  const stats = await invoke<EventLogStats>("create_event_log", {
+  const result = await invoke<CreateEventLogResult>("create_event_log", {
     projectId: id,
     sourcePath: draft.filePath,
     columns
@@ -47,9 +55,9 @@ export async function createProject(
     name: deriveProjectName(draft.fileName),
     fileName: draft.fileName,
     columns,
-    hiddenColumns: [],
+    hiddenColumns,
     createdAt: new Date().toISOString(),
-    ...stats
+    ...result
   };
 
   await addProject(project);
