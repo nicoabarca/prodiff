@@ -10,7 +10,8 @@
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write .",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "dev:port": "bash -c 'tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"tauri-test-app ($1)\\\",\\\"width\\\":800,\\\"height\\\":600}]}}\"' _"
   },
   "license": "MIT",
   "dependencies": {

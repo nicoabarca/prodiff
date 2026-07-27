@@ -14,11 +14,11 @@ export const slices = $state<Slice[]>([]);
 export const slicesLoaded = $state<{ projectId: string | null }>({ projectId: null });
 
 /**
- * Slice accents in fixed order — blue, orange, green. Complementary hues, so
- * two populations charted side by side are never mistaken for each other. The
- * palette is why slices are capped: a fourth would have to reuse a hue.
+ * Slice accents in fixed order — blue, orange. Complementary hues, so two
+ * populations charted side by side are never mistaken for each other. The
+ * palette is why slices are capped: a third would have to reuse a hue.
  */
-const SLICE_COLORS = ["slice-1", "slice-2", "slice-3"];
+const SLICE_COLORS = ["slice-1", "slice-2"];
 /** Base is the reference population, so it reads as grey next to the accents. */
 const BASE_COLOR = "slice-base";
 
