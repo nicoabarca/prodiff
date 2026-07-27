@@ -4,6 +4,7 @@ mod filters;
 mod parsing;
 mod stats;
 mod time;
+mod tree;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -18,7 +19,8 @@ pub fn run() {
             filters::commands::slice_stats,
             filters::commands::chain_impact,
             filters::commands::slice_preview,
-            filters::commands::distinct_values
+            filters::commands::distinct_values,
+            tree::commands::directed_tree
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

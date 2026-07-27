@@ -1,0 +1,279 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { ColumnMapping } from "$lib/column-mapping";
+import type { Filter } from "$lib/filters";
+import type { Project } from "$lib/types";
+
+/**
+ * The Comparison Directed Tree as Rust ships it — mirrors `DirectedTree` in
+ * `src-tauri/src/tree/mod.rs`. Everything the view can show arrives in one
+ * payload: the frontend filters, toggles and lays out, but never re-aggregates.
+ */
+export interface DirectedTree {
+  nodes: TreeNode[];
+  groupA: GroupBlock;
+  groupB: GroupBlock | null;
+  caseLevelTests: Record<string, Test>;
+  /** Cases in both Groups. Non-zero breaks the independence both tests assume. */
+  overlapCases: number;
+  variantsTotal: number;
+  variantsIncluded: number;
+  caseCoverage: number;
+  cappedByCeiling: boolean;
+  transitionTimeBasis: "startComplete" | "completeOnly";
+  hasActivityDuration: boolean;
+}
+
+export interface TreeNode {
+  id: number;
+  /** `null` only for the synthetic Start root. */
+  parent: number | null;
+  label: string;
+  groupACases: number;
+  groupBCases: number;
+  eventLevel: Record<string, AttributeBlock>;
+  /** The edge from the parent, not the node — `null` at the root. */
+  transitionTime: AttributeBlock | null;
+  comovement: Comovement[];
+}
+
+export interface AttributeBlock {
+  groupA: Summary | null;
+  groupB: Summary | null;
+  /** `null` when either Group has fewer than five cases here. */
+  test: Test | null;
+}
+
+export type Summary =
+  | {
+      type: "numerical";
+      n: number;
+      mean: number;
+      std: number;
+      min: number;
+      q1: number;
+      median: number;
+      q3: number;
+      max: number;
+    }
+  | { type: "categorical"; n: number; counts: Record<string, number> };
+
+export interface Test {
+  test: "mannwhitney" | "chi2";
+  statistic: number;
+  pValue: number;
+  /** Magnitude only; `effectSigned` carries the Effect Direction. */
+  effectSize: number;
+  effectSigned: number | null;
+  significant: boolean;
+  direction: "aHigher" | "bHigher" | null;
+}
+
+export interface Comovement {
+  attributeX: string;
+  attributeY: string;
+  relationship: "concordant" | "divergent";
+}
+
+export interface GroupBlock {
+  caseCount: number;
+  caseLevel: Record<string, Summary>;
+}
+
+/** Derived attributes — not columns, but selectable like any other. */
+export const ACTIVITY_DURATION = "Activity Duration";
+export const TRANSITION_TIME = "Transition Time";
+
+/**
+ * What the user can ask the backend to test. Columns hidden from the project
+ * are left out: a column the user has taken off screen everywhere else has no
+ * business consuming test budget here.
+ */
+export function attributeOptions(columns: ColumnMapping[], hidden: string[] = []): string[] {
+  const mapped = columns
+    .filter((c) => c.role === "other" && !hidden.includes(c.name))
+    .map((c) => c.name);
+  const hasStart = columns.some((c) => c.role === "start_timestamp");
+  return [...mapped, ...(hasStart ? [ACTIVITY_DURATION] : []), TRANSITION_TIME];
+}
+
+export function isNumericAttribute(columns: ColumnMapping[], attribute: string): boolean {
+  if (attribute === ACTIVITY_DURATION || attribute === TRANSITION_TIME) return true;
+  const column = columns.find((c) => c.name === attribute);
+  return column?.type === "integer" || column?.type === "float";
+}
+
+/** Attributes whose values are milliseconds, so the panel formats them as durations. */
+export function isDurationAttribute(attribute: string): boolean {
+  return attribute === ACTIVITY_DURATION || attribute === TRANSITION_TIME;
+}
+
+export interface TreeSettings {
+  attributes: string[];
+  /** Fraction of the two Groups' combined cases to keep, 0–1. */
+  coverage: number;
+}
+
+export const defaultTreeSettings: TreeSettings = { attributes: [], coverage: 0.8 };
+
+/**
+ * Builds the tree. Both chains arrive already composed (base first) — the
+ * ordering rule lives in `effectiveChain`, as it does for every other command.
+ * `groupB` is `null` in one-Group mode, where nothing is compared.
+ */
+export function directedTree(
+  project: Project,
+  groupA: Filter[],
+  groupB: Filter[] | null,
+  settings: TreeSettings
+): Promise<DirectedTree> {
+  return invoke<DirectedTree>("directed_tree", {
+    projectId: project.id,
+    groupA,
+    groupB,
+    attributes: settings.attributes,
+    coverage: settings.coverage,
+    columns: project.columns
+  });
+}
+
+/** Identifies the numbers a build produces, for the in-memory cache. */
+export function treeKey(
+  groupA: Filter[],
+  groupB: Filter[] | null,
+  settings: TreeSettings
+): string {
+  return JSON.stringify([groupA, groupB, settings.attributes, settings.coverage]);
+}
+
+export type Direction = "TB" | "LR";
+
+/** What the node face shows under the activity name. */
+export type Secondary = "cases" | "casesA" | "casesB" | (string & {});
+
+/** Which Groups stay at full opacity; the rest are dimmed, never removed. */
+export type GroupFocus = "all" | "a" | "b" | "shared";
+
+/**
+ * Everything the view decides on its own. None of it reaches the backend — the
+ * whole tree already shipped, so these only pick what is drawn from it.
+ */
+export interface TreeView {
+  /** Variants whose end node has fewer than this many cases are dropped whole. */
+  minCases: number;
+  /** Keep only Variants containing at least one significant Significance Test. */
+  significantOnly: boolean;
+  /** Nodes whose subtree is folded away. */
+  collapsed: Set<number>;
+  direction: Direction;
+  secondary: Secondary;
+  focus: GroupFocus;
+}
+
+export const defaultTreeView: TreeView = {
+  minCases: 0,
+  significantOnly: false,
+  collapsed: new Set(),
+  direction: "TB",
+  secondary: "cases",
+  focus: "all"
+};
+
+export function nodeCases(node: TreeNode): number {
+  return node.groupACases + node.groupBCases;
+}
+
+/** True when any attribute at this node came out significant. */
+export function hasSignificant(node: TreeNode): boolean {
+  const blocks = [...Object.values(node.eventLevel), node.transitionTime];
+  return blocks.some((block) => block?.test?.significant);
+}
+
+export function isDivergent(node: TreeNode): boolean {
+  return node.comovement.some((pair) => pair.relationship === "divergent");
+}
+
+/** Which Groups reach a node — the tree's primary colour channel. */
+export function membership(node: TreeNode): "a" | "b" | "shared" {
+  if (node.groupBCases === 0) return "a";
+  if (node.groupACases === 0) return "b";
+  return "shared";
+}
+
+export function children(tree: DirectedTree): Map<number, number[]> {
+  const map = new Map<number, number[]>();
+  for (const node of tree.nodes) {
+    if (node.parent === null) continue;
+    const siblings = map.get(node.parent);
+    if (siblings) siblings.push(node.id);
+    else map.set(node.parent, [node.id]);
+  }
+  return map;
+}
+
+/** The path from the root down to `id`, inclusive — a node's full trace. */
+export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
+  const byId = new Map(tree.nodes.map((n) => [n.id, n]));
+  const path: TreeNode[] = [];
+  let current: TreeNode | undefined = byId.get(id);
+  while (current) {
+    path.unshift(current);
+    current = current.parent === null ? undefined : byId.get(current.parent);
+  }
+  return path;
+}
+
+export interface Visible {
+  ids: Set<number>;
+  /** Nodes folded into a collapsed ancestor, for the "+n" badge. */
+  hiddenBelow: Map<number, number>;
+  variantsShown: number;
+  variantsHidden: number;
+}
+
+/**
+ * Which nodes render. Both pruning filters work on whole Variants — a path from
+ * root to leaf — rather than on nodes, so a surviving path is always a trace
+ * some case actually followed. Collapsing is applied afterwards: it hides a
+ * subtree without claiming those Variants don't exist.
+ */
+export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
+  const kids = children(tree);
+  const leaves = tree.nodes.filter((n) => !kids.has(n.id));
+
+  const kept = new Set<number>();
+  let variantsShown = 0;
+  for (const leaf of leaves) {
+    if (nodeCases(leaf) < view.minCases) continue;
+    const path = pathTo(tree, leaf.id);
+    if (view.significantOnly && !path.some(hasSignificant)) continue;
+    variantsShown += 1;
+    for (const node of path) kept.add(node.id);
+  }
+
+  // A collapsed node stays; everything under it goes, and the count of what
+  // went is what the badge shows.
+  const hiddenBelow = new Map<number, number>();
+  const ids = new Set(kept);
+  for (const id of view.collapsed) {
+    if (!kept.has(id)) continue;
+    let hidden = 0;
+    const stack = [...(kids.get(id) ?? [])];
+    while (stack.length) {
+      const next = stack.pop() as number;
+      if (!kept.has(next)) continue;
+      ids.delete(next);
+      hidden += 1;
+      stack.push(...(kids.get(next) ?? []));
+    }
+    if (hidden > 0) hiddenBelow.set(id, hidden);
+  }
+  // Nested collapses can strip a node that also carries a badge; drop those.
+  for (const id of [...hiddenBelow.keys()]) if (!ids.has(id)) hiddenBelow.delete(id);
+
+  return {
+    ids,
+    hiddenBelow,
+    variantsShown,
+    variantsHidden: leaves.length - variantsShown
+  };
+}

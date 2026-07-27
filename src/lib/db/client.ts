@@ -38,6 +38,7 @@ export function initDb(): Promise<Db> {
       const sqlite = await Database.load("sqlite:procept.db");
       await sqlite.execute(createTableSql(schema.projects));
       await sqlite.execute(createTableSql(schema.slices));
+      await sqlite.execute(createTableSql(schema.treeSettings));
 
       instance = drizzle(
         async (sql, params, method) => {

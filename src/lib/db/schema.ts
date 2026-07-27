@@ -1,7 +1,8 @@
-import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import type { ColumnMapping } from "$lib/column-mapping";
 import type { Filter } from "$lib/filters";
 import type { EventLogStats, SliceKind } from "$lib/types";
+import type { TreeSettings } from "$lib/tree";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -35,4 +36,19 @@ export const slices = sqliteTable("slices", {
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
   stats: text("stats", { mode: "json" }).$type<EventLogStats | null>(),
   statsKey: text("stats_key")
+});
+
+/**
+ * What the Comparison Directed Tree is built from — the attributes to test and
+ * how much of the log to cover. Its own table rather than columns on
+ * `projects`: every table is created idempotently at startup, so a new table
+ * needs no migration where a new column would.
+ *
+ * The tree itself is not cached here. It is megabytes of JSON, cheap to
+ * rebuild, and lives in memory for as long as the app is open.
+ */
+export const treeSettings = sqliteTable("tree_settings", {
+  projectId: text("project_id").primaryKey(),
+  attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),
+  coverage: real("coverage").notNull()
 });

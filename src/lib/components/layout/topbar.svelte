@@ -4,11 +4,10 @@
   import type { Project } from "$lib/types";
   import Home from "@lucide/svelte/icons/home";
 
-  type ProjectView = "process-map" | "variants" | "statistics" | "data" | "filters";
+  type ProjectView = "tree" | "statistics" | "data" | "filters";
 
   const viewLabels: Record<ProjectView, string> = {
-    "process-map": "Process map",
-    variants: "Variants",
+    tree: "Comparison Directed Rooted Tree",
     statistics: "Statistics & data",
     data: "Data table",
     filters: "Filters"
@@ -16,7 +15,7 @@
 
   let {
     project,
-    projectView = "process-map",
+    projectView = "statistics",
     actions
   }: { project: Project; projectView?: ProjectView; actions?: Snippet } = $props();
 </script>

@@ -5,7 +5,6 @@
   import type { Project } from "$lib/types";
   import Network from "@lucide/svelte/icons/network";
   import FolderKanban from "@lucide/svelte/icons/folder-kanban";
-  import GitBranch from "@lucide/svelte/icons/git-branch";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
@@ -13,20 +12,23 @@
 
   const appNav = [{ href: "/app/projects", label: "Projects", icon: FolderKanban }];
 
-  // ponytail: filters and statistics are the views built so far; process map and
-  // variants route to nothing yet, so they render disabled until they land.
+  // In the order a project is worked through: look at the data, narrow it into
+  // groups, then compare them.
   const projectNav = $derived([
+    {
+      href: activeProject ? `/app/projects/${activeProject.id}/statistics` : null,
+      label: "Statistics & data",
+      icon: BarChart3
+    },
     {
       href: activeProject ? `/app/projects/${activeProject.id}/filters` : null,
       label: "Filters",
       icon: SlidersHorizontal
     },
-    { href: null, label: "Process map", icon: Network },
-    { href: null, label: "Variants", icon: GitBranch },
     {
-      href: activeProject ? `/app/projects/${activeProject.id}/statistics` : null,
-      label: "Statistics & data",
-      icon: BarChart3
+      href: activeProject ? `/app/projects/${activeProject.id}/tree` : null,
+      label: "Comparison Directed Rooted Tree",
+      icon: Network
     }
   ]);
 </script>

@@ -12,6 +12,9 @@
 
   const project = $derived(currentProject());
   const onFilters = $derived(page.url.pathname.endsWith("/filters"));
+  const view = $derived(
+    onFilters ? "filters" : page.url.pathname.endsWith("/tree") ? "tree" : "statistics"
+  );
 
   $effect(() => {
     if (!project && projectsLoaded.value) goto("/app/projects");
@@ -26,7 +29,7 @@
 </script>
 
 {#if project}
-  <ProjectTopbar {project} projectView={onFilters ? "filters" : "statistics"}>
+  <ProjectTopbar {project} projectView={view}>
     {#snippet actions()}
       {#if !onFilters}
         <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">

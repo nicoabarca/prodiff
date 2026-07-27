@@ -25,12 +25,43 @@ impl ColumnRole {
     }
 }
 
-/// One mapped column. The frontend also sends `type` and `granularity` on each
-/// entry; serde ignores them until Rust has a use for them.
+/// Mirrors `ColumnType` in `src/lib/column-mapping.ts`. Only the split between
+/// numeric and everything else matters here — it picks which Significance Test
+/// an attribute gets.
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnType {
+    #[default]
+    String,
+    Integer,
+    Float,
+    Boolean,
+    Date,
+    Datetime,
+}
+
+/// Mirrors `ColumnGranularity` in `src/lib/column-mapping.ts`. Event-level
+/// attributes produce Node Aggregates; case-level ones aggregate per Group.
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum ColumnGranularity {
+    #[default]
+    Event,
+    Case,
+    CaseAndEvent,
+}
+
+/// One mapped column.
 #[derive(serde::Deserialize, Debug, Clone)]
 pub struct ColumnMapping {
     pub name: String,
     pub role: ColumnRole,
+    /// Older payloads and the filter tests omit these; both default rather
+    /// than failing the whole mapping.
+    #[serde(rename = "type", default)]
+    pub column_type: ColumnType,
+    #[serde(default)]
+    pub granularity: ColumnGranularity,
 }
 
 pub fn find_role(mapping: &[ColumnMapping], role: ColumnRole) -> Option<&str> {
