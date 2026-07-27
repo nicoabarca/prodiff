@@ -23,6 +23,7 @@
       direction: view.direction,
       secondary: view.secondary,
       focus: view.focus,
+      edgeLabels: view.edgeLabels,
       selected: selected.id,
       onToggleCollapse: toggleCollapse
     })

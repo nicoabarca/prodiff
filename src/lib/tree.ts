@@ -167,6 +167,8 @@ export interface TreeView {
   direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
+  /** Mean Transition Time on each edge. Only has an effect when it was built. */
+  edgeLabels: boolean;
 }
 
 export const defaultTreeView: TreeView = {
@@ -175,7 +177,8 @@ export const defaultTreeView: TreeView = {
   collapsed: new Set(),
   direction: "TB",
   secondary: "cases",
-  focus: "all"
+  focus: "all",
+  edgeLabels: true
 };
 
 export function nodeCases(node: TreeNode): number {

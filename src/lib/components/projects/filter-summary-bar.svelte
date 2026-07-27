@@ -13,9 +13,16 @@
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project, Slice } from "$lib/types";
+  import type { Snippet } from "svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
-  let { project }: { project: Project } = $props();
+  /**
+   * `trailing` is for whatever the current view wants to say about the same
+   * populations — the tree's variant coverage, for instance. It keeps that
+   * figure on the one bar that already names the slices, instead of a second
+   * bar repeating them.
+   */
+  let { project, trailing }: { project: Project; trailing?: Snippet } = $props();
   const projectId = $derived(project.id);
 
   const entries = $derived(
@@ -110,5 +117,10 @@
         </HoverCard.Content>
       </HoverCard.Root>
     {/each}
+  {/if}
+  {#if trailing}
+    <div class="text-muted-foreground ml-auto font-mono text-[0.6875rem]">
+      {@render trailing()}
+    </div>
   {/if}
 </div>

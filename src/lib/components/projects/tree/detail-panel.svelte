@@ -13,9 +13,15 @@
     type DirectedTree,
     type Test
   } from "$lib/tree";
+  import { Button } from "$lib/components/ui/button/index.js";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
+  import X from "@lucide/svelte/icons/x";
 
-  let { tree, nodeId }: { tree: DirectedTree; nodeId: number | null } = $props();
+  let {
+    tree,
+    nodeId,
+    onClose
+  }: { tree: DirectedTree; nodeId: number | null; onClose: () => void } = $props();
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
@@ -53,7 +59,12 @@
 
 <aside class="border-border bg-sidebar flex w-96 shrink-0 flex-col border-l">
   {#if !node}
-    <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6">
+    <div class="flex items-center justify-end p-2">
+      <Button variant="ghost" size="icon" aria-label="Hide details" onclick={onClose}>
+        <X />
+      </Button>
+    </div>
+    <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6 pt-0">
       <MousePointerClick class="size-5" aria-hidden="true" />
       <p class="text-center text-xs">Select a node to compare its aggregates.</p>
     </div>
@@ -61,9 +72,16 @@
     <div class="border-border flex flex-col gap-2 border-b p-4">
       <div class="flex items-start justify-between gap-2">
         <h2 class="text-sm font-semibold">{node.label}</h2>
-        <Badge variant="secondary">
-          {membership(node) === "shared" ? "Both groups" : `Group ${membership(node).toUpperCase()} only`}
-        </Badge>
+        <div class="flex shrink-0 items-center gap-1">
+          <Badge variant="secondary">
+            {membership(node) === "shared"
+              ? "Both groups"
+              : `Group ${membership(node).toUpperCase()} only`}
+          </Badge>
+          <Button variant="ghost" size="icon" aria-label="Hide details" onclick={onClose}>
+            <X />
+          </Button>
+        </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
         A {formatNumber(node.groupACases)} · B {formatNumber(node.groupBCases)} cases

@@ -78,8 +78,23 @@ export interface FlowOptions {
   direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
+  edgeLabels: boolean;
   selected: number | null;
   onToggleCollapse: (id: number) => void;
+}
+
+/**
+ * The edge's label: mean Transition Time per Group, which is what the edge
+ * physically is — the wait between the parent activity and this one. Empty
+ * unless Transition Time was one of the attributes built.
+ */
+function edgeLabel(node: TreeNode): string | undefined {
+  const block = node.transitionTime;
+  if (!block) return undefined;
+  const side = (summary: typeof block.groupA, name: string) =>
+    summary?.type === "numerical" ? `${name} ${formatDuration(summary.mean)}` : null;
+  const parts = [side(block.groupA, "A"), side(block.groupB, "B")].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
 /**
@@ -145,6 +160,9 @@ export function toFlow(
       source: String(node.parent),
       target: String(node.id),
       type: vertical ? "smoothstep" : "bezier",
+      label: options.edgeLabels ? edgeLabel(node) : undefined,
+      labelStyle:
+        "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap",
       style: `stroke-width:${(0.5 + (nodeCases(node) / busiest) * 5).toFixed(2)}`,
       // Significance is a property of nodes, so dimming follows the child.
       class: dimmed(node, options.focus) ? "opacity-25" : undefined

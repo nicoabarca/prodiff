@@ -46,6 +46,7 @@
     shared: "Shared"
   };
 
+  const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
   const visible = $derived(visibleNodes(tree, view));
 </script>
 
@@ -123,6 +124,22 @@
           oninput={(event) => (view.minCases = Number(event.currentTarget.value) || 0)}
         />
       </div>
+
+      <label class="flex items-start gap-2 text-xs">
+        <Checkbox
+          checked={view.edgeLabels}
+          disabled={!hasTransitionTime}
+          onCheckedChange={(checked) => (view.edgeLabels = checked === true)}
+        />
+        <span>
+          Transition time on edges
+          <span class="text-muted-foreground block text-[0.625rem]">
+            {hasTransitionTime
+              ? "Mean wait between the two activities, per group."
+              : "Build with Transition Time selected to show this."}
+          </span>
+        </span>
+      </label>
 
       <label class="flex items-start gap-2 text-xs">
         <Checkbox

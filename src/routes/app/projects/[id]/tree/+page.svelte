@@ -18,17 +18,21 @@
   import DetailPanel from "$lib/components/projects/tree/detail-panel.svelte";
   import GroupHeader from "$lib/components/projects/tree/group-header.svelte";
   import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
-  import GitBranch from "@lucide/svelte/icons/git-branch";
+  import Network from "@lucide/svelte/icons/network";
+  import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   const project = $derived(currentProject());
   const groups = $derived(groupSlices());
   const stale = $derived(isStale());
-  const names = $derived<[string, string | null]>([
-    groups[0]?.name ?? "Group A",
-    groups[1]?.name ?? null
-  ]);
+
+  let panelOpen = $state(true);
+  // Clicking a node is a request to read it, so it reopens a closed panel —
+  // otherwise the click would look like it did nothing.
+  $effect(() => {
+    if (selected.id !== null) panelOpen = true;
+  });
 
   $effect(() => {
     if (!project) return;
@@ -44,11 +48,7 @@
       {#if built.tree}
         <VisualizationSettings tree={built.tree} />
       {/if}
-      <Button
-        size="sm"
-        disabled={built.building || !groups[0]}
-        onclick={() => build(project)}
-      >
+      <Button size="sm" disabled={built.building || !groups[0]} onclick={() => build(project)}>
         {#if built.tree}
           <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
           Rebuild
@@ -65,20 +65,34 @@
       {#if built.error}
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
+      {#if built.tree}
+        <Button
+          variant="outline"
+          size="sm"
+          class="ml-auto"
+          aria-pressed={panelOpen}
+          onclick={() => (panelOpen = !panelOpen)}
+        >
+          <PanelRight data-icon="inline-start" />
+          {panelOpen ? "Hide details" : "Show details"}
+        </Button>
+      {/if}
     </div>
 
     {#if built.tree}
-      <GroupHeader tree={built.tree} {names} />
+      <GroupHeader tree={built.tree} />
       <div class="flex min-h-0 flex-1">
         <Canvas tree={built.tree} {stale} />
-        <DetailPanel tree={built.tree} nodeId={selected.id} />
+        {#if panelOpen}
+          <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (panelOpen = false)} />
+        {/if}
       </div>
     {:else}
       <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
         <Empty.Root>
           <Empty.Header>
             <Empty.Media variant="icon">
-              <GitBranch />
+              <Network />
             </Empty.Media>
             <Empty.Title>No tree built yet</Empty.Title>
             <Empty.Description>
