@@ -3,10 +3,8 @@
 //! the dashboard shows.
 
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
-use crate::parsing::column_to_strings;
 use crate::time::millis_to_iso;
 use polars::prelude::*;
-use std::collections::{HashMap, HashSet};
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -58,11 +56,9 @@ pub(crate) fn summarize(
         .n_unique()
         .map_err(|e| e.to_string())? as i64;
 
-    let case_ids = column_to_strings(&valid, case_col)?;
-    let activity_names = column_to_strings(&valid, activity_col)?;
     let timestamps = timestamps_as_millis(&valid, timestamp_col)?;
 
-    let variants = count_variants(&case_ids, &timestamps, &activity_names) as i64;
+    let variants = count_variants(&valid, case_col, timestamp_col, activity_col)? as i64;
     let (timespan_start, timespan_end) = match (timestamps.iter().min(), timestamps.iter().max()) {
         (Some(min), Some(max)) => (Some(millis_to_iso(*min)), Some(millis_to_iso(*max))),
         _ => (None, None),
@@ -93,27 +89,28 @@ fn timestamps_as_millis(df: &DataFrame, column: &str) -> Result<Vec<i64>, String
 }
 
 /// A variant is a distinct ordered sequence of activities within a case.
-// ponytail: manual group+sort+join rather than polars' list API — simpler to
-// get right at our stated scale (not tens of millions of rows).
-fn count_variants(cases: &[String], timestamps: &[i64], activities: &[String]) -> usize {
-    let mut by_case: HashMap<&str, Vec<(i64, &str)>> = HashMap::new();
-    for i in 0..cases.len() {
-        by_case
-            .entry(cases[i].as_str())
-            .or_default()
-            .push((timestamps[i], activities[i].as_str()));
-    }
-    let mut traces: HashSet<String> = HashSet::new();
-    for events in by_case.values_mut() {
-        events.sort_by_key(|(ts, _)| *ts);
-        let trace = events
-            .iter()
-            .map(|(_, a)| *a)
-            .collect::<Vec<_>>()
-            .join("\u{2192}");
-        traces.insert(trace);
-    }
-    traces.len()
+fn count_variants(
+    df: &DataFrame,
+    case_col: &str,
+    timestamp_col: &str,
+    activity_col: &str,
+) -> Result<usize, String> {
+    let traces = df
+        .clone()
+        .lazy()
+        .group_by([col(case_col)])
+        .agg([col(activity_col)
+            .sort_by([col(timestamp_col)], SortMultipleOptions::default())
+            .alias("trace")])
+        .select([col("trace").list().join(lit("\u{2192}"), true)])
+        .collect()
+        .map_err(|e| e.to_string())?;
+
+    traces
+        .column("trace")
+        .map_err(|e| e.to_string())?
+        .n_unique()
+        .map_err(|e| e.to_string())
 }
 
 #[cfg(test)]
