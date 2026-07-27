@@ -1,19 +1,24 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+  import type { Snippet } from "svelte";
   import type { Project } from "$lib/types";
   import Home from "@lucide/svelte/icons/home";
 
-  type ProjectView = "process-map" | "variants" | "statistics" | "data";
+  type ProjectView = "process-map" | "variants" | "statistics" | "data" | "filters";
 
   const viewLabels: Record<ProjectView, string> = {
     "process-map": "Process map",
     variants: "Variants",
-    statistics: "Statistics",
-    data: "Data table"
+    statistics: "Statistics & data",
+    data: "Data table",
+    filters: "Filters"
   };
 
-  let { project, projectView = "process-map" }: { project: Project; projectView?: ProjectView } =
-    $props();
+  let {
+    project,
+    projectView = "process-map",
+    actions
+  }: { project: Project; projectView?: ProjectView; actions?: Snippet } = $props();
 </script>
 
 <header class="border-border bg-background flex h-14 shrink-0 items-center border-b px-4">
@@ -35,4 +40,9 @@
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
+  {#if actions}
+    <div class="ml-auto flex items-center gap-2">
+      {@render actions()}
+    </div>
+  {/if}
 </header>

@@ -1,2 +1,2 @@
 pub mod commands;
-mod storage;
+pub(crate) mod storage;

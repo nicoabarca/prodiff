@@ -66,6 +66,14 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
+  /* Slice accents. Complementary hues so two populations are never confused
+     when charted side by side; capped at three, matching the slice limit. */
+  --slice-1: oklch(0.55 0.196 258);
+
+  --slice-2: oklch(0.67 0.16 55);
+
+  --slice-3: oklch(0.55 0.14 152);
+
   --radius: 0rem;
 
   --sidebar: oklch(0.965 0.005 85);
@@ -132,6 +140,12 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
+  --slice-1: oklch(0.68 0.16 258);
+
+  --slice-2: oklch(0.76 0.15 60);
+
+  --slice-3: oklch(0.7 0.14 152);
+
   --sidebar: oklch(0.205 0 0);
 
   --sidebar-foreground: oklch(0.985 0 0);
@@ -179,6 +193,12 @@
   --color-chart-2: var(--chart-2);
 
   --color-chart-1: var(--chart-1);
+
+  --color-slice-1: var(--slice-1);
+
+  --color-slice-2: var(--slice-2);
+
+  --color-slice-3: var(--slice-3);
 
   --color-ring: var(--ring);
 

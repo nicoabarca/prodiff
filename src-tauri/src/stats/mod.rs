@@ -13,6 +13,14 @@ pub struct EventLogStats {
     pub cases: i64,
     pub activities: i64,
     pub variants: i64,
+    pub avg_events_per_case: f64,
+    /// Case duration = last event timestamp − first, in milliseconds. `None`
+    /// when there are no cases at all (an over-narrow filter chain).
+    pub avg_case_duration_ms: Option<f64>,
+    pub median_case_duration_ms: Option<f64>,
+    /// Distinct activities that cases begin / end with.
+    pub start_activities: i64,
+    pub end_activities: i64,
     pub timespan_start: Option<String>,
     pub timespan_end: Option<String>,
 }
@@ -58,7 +66,16 @@ pub(crate) fn summarize(
 
     let timestamps = timestamps_as_millis(&valid, timestamp_col)?;
 
-    let variants = count_variants(&valid, case_col, timestamp_col, activity_col)? as i64;
+    let per_case = per_case(&valid, case_col, timestamp_col, activity_col)?;
+    let n_unique = |name: &str| -> Result<i64, String> {
+        Ok(per_case
+            .column(name)
+            .map_err(|e| e.to_string())?
+            .n_unique()
+            .map_err(|e| e.to_string())? as i64)
+    };
+    let (avg_case_duration_ms, median_case_duration_ms) = duration_summary(&per_case)?;
+
     let (timespan_start, timespan_end) = match (timestamps.iter().min(), timestamps.iter().max()) {
         (Some(min), Some(max)) => (Some(millis_to_iso(*min)), Some(millis_to_iso(*max))),
         _ => (None, None),
@@ -68,7 +85,16 @@ pub(crate) fn summarize(
         events,
         cases,
         activities,
-        variants,
+        variants: n_unique("trace")?,
+        avg_events_per_case: if cases == 0 {
+            0.0
+        } else {
+            events as f64 / cases as f64
+        },
+        avg_case_duration_ms,
+        median_case_duration_ms,
+        start_activities: n_unique("start_activity")?,
+        end_activities: n_unique("end_activity")?,
         timespan_start,
         timespan_end,
     })
@@ -88,28 +114,62 @@ fn timestamps_as_millis(df: &DataFrame, column: &str) -> Result<Vec<i64>, String
         .collect())
 }
 
-/// A variant is a distinct ordered sequence of activities within a case.
-fn count_variants(
+/// Mean and median case duration, both `None` for an empty log. Aggregated in
+/// Polars rather than over a collected column so the empty case falls out
+/// naturally instead of dividing by zero.
+fn duration_summary(per_case: &DataFrame) -> Result<(Option<f64>, Option<f64>), String> {
+    let summary = per_case
+        .clone()
+        .lazy()
+        .select([
+            col("duration_ms").mean().alias("avg"),
+            col("duration_ms").median().alias("median"),
+        ])
+        .collect()
+        .map_err(|e| e.to_string())?;
+
+    let scalar = |name: &str| -> Result<Option<f64>, String> {
+        Ok(summary
+            .column(name)
+            .map_err(|e| e.to_string())?
+            .as_materialized_series()
+            .f64()
+            .map_err(|e| e.to_string())?
+            .get(0))
+    };
+    Ok((scalar("avg")?, scalar("median")?))
+}
+
+/// One row per case: its trace, its endpoints and its duration. Every
+/// case-shaped metric is derived from this single frame rather than a group_by
+/// each — a variant is a distinct ordered sequence of activities within a case.
+fn per_case(
     df: &DataFrame,
     case_col: &str,
     timestamp_col: &str,
     activity_col: &str,
-) -> Result<usize, String> {
-    let traces = df
-        .clone()
+) -> Result<DataFrame, String> {
+    let ordered = col(activity_col).sort_by([col(timestamp_col)], SortMultipleOptions::default());
+    let millis = col(timestamp_col)
+        .cast(DataType::Datetime(TimeUnit::Milliseconds, None))
+        .cast(DataType::Int64);
+
+    df.clone()
         .lazy()
         .group_by([col(case_col)])
-        .agg([col(activity_col)
-            .sort_by([col(timestamp_col)], SortMultipleOptions::default())
-            .alias("trace")])
-        .select([col("trace").list().join(lit("\u{2192}"), true)])
+        .agg([
+            ordered.clone().alias("trace_activities"),
+            ordered.clone().first().alias("start_activity"),
+            ordered.last().alias("end_activity"),
+            (millis.clone().max() - millis.min()).alias("duration_ms"),
+        ])
+        .with_column(
+            col("trace_activities")
+                .list()
+                .join(lit("\u{2192}"), true)
+                .alias("trace"),
+        )
         .collect()
-        .map_err(|e| e.to_string())?;
-
-    traces
-        .column("trace")
-        .map_err(|e| e.to_string())?
-        .n_unique()
         .map_err(|e| e.to_string())
 }
 
@@ -157,6 +217,29 @@ mod tests {
         assert_eq!(stats.variants, 2);
         assert_eq!(stats.timespan_start.as_deref(), Some("1970-01-01T00:00:00Z"));
         assert_eq!(stats.timespan_end.as_deref(), Some("1970-01-01T00:00:04Z"));
+    }
+
+    #[test]
+    fn summarizes_the_per_case_metrics() {
+        let stats = summarize(&sample_log(), &frontend_mapping()).unwrap();
+        // 5 events over 3 cases.
+        assert!((stats.avg_events_per_case - 5.0 / 3.0).abs() < 1e-9);
+        // Durations are 1000ms, 1000ms and 0ms (case 3 is a single event).
+        assert_eq!(stats.avg_case_duration_ms, Some(2000.0 / 3.0));
+        assert_eq!(stats.median_case_duration_ms, Some(1000.0));
+        // Every case starts with A; two end with B and one with A.
+        assert_eq!(stats.start_activities, 1);
+        assert_eq!(stats.end_activities, 2);
+    }
+
+    #[test]
+    fn an_empty_log_yields_zeroed_metrics_rather_than_nan() {
+        let empty = sample_log().slice(0, 0);
+        let stats = summarize(&empty, &frontend_mapping()).unwrap();
+        assert_eq!(stats.cases, 0);
+        assert_eq!(stats.avg_events_per_case, 0.0);
+        assert_eq!(stats.avg_case_duration_ms, None);
+        assert_eq!(stats.timespan_start, None);
     }
 
     #[test]

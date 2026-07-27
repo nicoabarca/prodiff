@@ -44,6 +44,16 @@ pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<Pa
     Ok(path)
 }
 
+/// Where a project's persisted Event Log lives. Rust derives this from the
+/// project id rather than trusting a path from the frontend.
+pub(crate) fn event_log_path(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
+    let path = project_dir_path(app, project_id)?.join("event_log.parquet");
+    if !path.exists() {
+        return Err(format!("No event log found for project {project_id}."));
+    }
+    Ok(path)
+}
+
 /// Deletes `{app_data}/projects/{project_id}/` and everything in it. No-op if
 /// the directory is already gone (deleting an already-deleted project).
 pub(crate) fn delete_project_dir(app: &tauri::AppHandle, project_id: &str) -> Result<(), String> {

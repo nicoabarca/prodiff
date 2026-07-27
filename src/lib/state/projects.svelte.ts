@@ -1,11 +1,23 @@
 import { eq } from "drizzle-orm";
 import { invoke } from "@tauri-apps/api/core";
+import { page } from "$app/state";
 import { db } from "$lib/db/client";
 import { projects as projectsTable } from "$lib/db/schema";
+import { removeSlicesForProject } from "$lib/state/slices.svelte";
 import type { Project } from "$lib/types";
 
 export const projects = $state<Project[]>([]);
 export const projectsLoaded = $state<{ value: boolean }>({ value: false });
+
+/**
+ * The project the current route addresses, or `null` while the list is still
+ * loading (or if the id doesn't exist). Call inside a `$derived` — every
+ * `/app/projects/[id]/*` view needs this and none of them should re-implement
+ * the lookup.
+ */
+export function currentProject(): Project | null {
+  return projects.find((p) => p.id === page.params.id) ?? null;
+}
 
 export async function loadProjects() {
   const rows = await db().select().from(projectsTable).orderBy(projectsTable.createdAt);
@@ -20,6 +32,7 @@ export async function addProject(project: Project) {
 
 export async function removeProject(id: string) {
   await invoke("delete_project_files", { projectId: id });
+  await removeSlicesForProject(id);
   await db().delete(projectsTable).where(eq(projectsTable.id, id));
   const index = projects.findIndex((p) => p.id === id);
   if (index !== -1) projects.splice(index, 1);

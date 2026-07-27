@@ -9,7 +9,12 @@ export interface ProjectDraft {
   fileName: string;
 }
 
-/** Result of writing the Event Log: stats plus where the files ended up on disk. */
+/**
+ * Result of writing the Event Log: stats plus where the files ended up on disk.
+ * Rust returns the full `EventLogStats` — the per-case metrics beyond these are
+ * recomputed per population by the Statistics view rather than stored on the
+ * project, so they are picked off here instead of spread into the row.
+ */
 type CreateEventLogResult = Pick<
   Project,
   | "events"
@@ -57,7 +62,14 @@ export async function createProject(
     columns,
     hiddenColumns,
     createdAt: new Date().toISOString(),
-    ...result
+    events: result.events,
+    cases: result.cases,
+    activities: result.activities,
+    variants: result.variants,
+    timespanStart: result.timespanStart,
+    timespanEnd: result.timespanEnd,
+    originalPath: result.originalPath,
+    eventLogPath: result.eventLogPath
   };
 
   await addProject(project);

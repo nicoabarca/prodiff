@@ -4,7 +4,7 @@ import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
 
 // Single source of truth is schema.ts — DDL is derived from it so the two
-// never drift apart. No drizzle-kit/migrations here: one table, generated
+// never drift apart. No drizzle-kit/migrations here: every table is generated
 // idempotently (CREATE TABLE IF NOT EXISTS) on every startup.
 function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   const { name, columns } = getTableConfig(table);
@@ -37,6 +37,7 @@ export function initDb(): Promise<Db> {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:procept.db");
       await sqlite.execute(createTableSql(schema.projects));
+      await sqlite.execute(createTableSql(schema.slices));
 
       instance = drizzle(
         async (sql, params, method) => {
