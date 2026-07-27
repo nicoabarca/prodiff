@@ -4,7 +4,6 @@
   import { roleMeta } from "$lib/projects/roles";
   import { GRANULARITY_LABELS } from "$lib/projects/field-settings";
   import * as Table from "$lib/components/ui/table/index.js";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import FileCheck from "@lucide/svelte/icons/file-check";
   import Info from "@lucide/svelte/icons/info";
 
@@ -22,9 +21,7 @@
 
   const hiddenSet = $derived(new Set(hiddenColumnNames));
 
-  const sortedMapping = $derived(
-    [...mapping].sort((a, b) => Number(hiddenSet.has(a.name)) - Number(hiddenSet.has(b.name)))
-  );
+  const visibleMapping = $derived(mapping.filter((col) => !hiddenSet.has(col.name)));
 
   function roleLabel(name: string): string {
     const role = roleByColumn[name];
@@ -48,14 +45,14 @@
   </p>
 </div>
 
-<div class="border-border bg-card flex min-h-0 flex-1 flex-col border">
+<div class="border-border bg-card flex max-h-105 min-h-0 flex-col border">
   <div
     class="border-border bg-primary/5 border-b-primary/30 flex shrink-0 items-center justify-between border-b-2 px-4 py-2"
   >
     <span class="text-primary text-xs font-semibold tracking-widest uppercase">Column mapping</span
     >
     <span class="text-muted-foreground text-xs"
-      >{mapping.length} column{mapping.length === 1 ? "" : "s"}</span
+      >{visibleMapping.length} column{visibleMapping.length === 1 ? "" : "s"}</span
     >
   </div>
   <div class="min-h-0 flex-1 overflow-y-auto">
@@ -66,12 +63,10 @@
           <Table.Head>Role</Table.Head>
           <Table.Head>Granularity</Table.Head>
           <Table.Head>Data type</Table.Head>
-          <Table.Head>Visibility</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each sortedMapping as { name, type, granularity }}
-          {@const hidden = hiddenSet.has(name)}
+        {#each visibleMapping as { name, type, granularity }}
           {@const required = roleByColumn[name] !== undefined}
           <Table.Row class="hover:bg-primary/5">
             <Table.Cell class="font-mono text-xs">{name}</Table.Cell>
@@ -82,13 +77,6 @@
             </Table.Cell>
             <Table.Cell class="text-xs">{GRANULARITY_LABELS[granularity]}</Table.Cell>
             <Table.Cell class="font-mono text-xs">{type}</Table.Cell>
-            <Table.Cell>
-              {#if hidden}
-                <Badge variant="outline">Hidden</Badge>
-              {:else}
-                <Badge>Visible</Badge>
-              {/if}
-            </Table.Cell>
           </Table.Row>
         {/each}
       </Table.Body>
