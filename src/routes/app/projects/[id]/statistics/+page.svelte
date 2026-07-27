@@ -42,7 +42,7 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <div class="mx-auto flex max-w-4xl flex-col gap-5">
+    <div class="flex w-full flex-col gap-5">
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}

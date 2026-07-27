@@ -19,10 +19,21 @@ export const slicesLoaded = $state<{ projectId: string | null }>({ projectId: nu
  * palette is why slices are capped: a fourth would have to reuse a hue.
  */
 const SLICE_COLORS = ["slice-1", "slice-2", "slice-3"];
-const BASE_COLOR = "foreground";
+/** Base is the reference population, so it reads as grey next to the accents. */
+const BASE_COLOR = "slice-base";
 
 /** Slices a project may have, beyond the base. */
 export const MAX_SLICES = SLICE_COLORS.length;
+
+/**
+ * A slice's accent, derived from its kind and position rather than read back
+ * from the stored `color`. The column is still written for older readers, but
+ * deriving here means retuning the palette re-colours slices that already
+ * exist instead of only the ones created afterwards.
+ */
+export function sliceColor(slice: Slice): string {
+  return slice.kind === "base" ? BASE_COLOR : SLICE_COLORS[slice.position % SLICE_COLORS.length];
+}
 
 function byPosition(a: Slice, b: Slice): number {
   if (a.kind !== b.kind) return a.kind === "base" ? -1 : 1;
@@ -180,6 +191,32 @@ export function chainImpact(project: Project, chain: Filter[]): Promise<ChainSte
 }
 
 /**
+ * Measured chains, keyed by slice id. Shared so the filter rows and the
+ * comparison summary read one scan of the log rather than each running their
+ * own; the stored `key` is what makes a stale measurement detectable.
+ */
+export const impacts = $state<Record<string, { key: string; steps: ChainStep[] }>>({});
+
+export async function loadImpact(project: Project, slice: Slice) {
+  const key = chainKey(effectiveChain(slice));
+  if (impacts[slice.id]?.key === key) return;
+  const steps = await chainImpact(project, effectiveChain(slice));
+  impacts[slice.id] = { key, steps };
+}
+
+/** A slice's measured chain, or null while it is stale or still in flight. */
+export function sliceSteps(slice: Slice): ChainStep[] | null {
+  const measured = impacts[slice.id];
+  return measured?.key === chainKey(effectiveChain(slice)) ? measured.steps : null;
+}
+
+/** Cases remaining after a slice's whole chain. */
+export function sliceCases(slice: Slice): number | null {
+  const steps = sliceSteps(slice);
+  return steps ? (steps[steps.length - 1]?.cases ?? null) : null;
+}
+
+/**
  * One population in the Statistics view. The whole log is included as a
  * chainless population, so it is not a slice row and never needs storing.
  */
@@ -203,7 +240,7 @@ export function populations(): Population[] {
   const fromSlice = (slice: Slice): Population => ({
     id: slice.id,
     name: slice.name,
-    color: slice.color,
+    color: sliceColor(slice),
     chain: effectiveChain(slice),
     stats: slice.statsKey === chainKey(effectiveChain(slice)) ? slice.stats : null
   });

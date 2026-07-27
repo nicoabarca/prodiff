@@ -67,12 +67,17 @@
   --chart-5: oklch(0.424 0.199 265.638);
 
   /* Slice accents. Complementary hues so two populations are never confused
-     when charted side by side; capped at three, matching the slice limit. */
+     when charted side by side; capped at three, matching the slice limit.
+     Steps are validated for colour-vision separation against this surface —
+     slice-2 vs slice-3 is the binding pair, so don't retune either by eye. */
   --slice-1: oklch(0.55 0.196 258);
 
   --slice-2: oklch(0.67 0.16 55);
 
-  --slice-3: oklch(0.55 0.14 152);
+  --slice-3: oklch(0.47 0.13 152);
+
+  /* Base is context rather than an identity, so it stays deliberately grey. */
+  --slice-base: oklch(0.45 0.007 85);
 
   --radius: 0rem;
 
@@ -144,7 +149,11 @@
 
   --slice-2: oklch(0.76 0.15 60);
 
-  --slice-3: oklch(0.7 0.14 152);
+  /* Lighter than its light-mode step: separation from slice-2 has to be
+     re-earned against the dark surface, not inherited. */
+  --slice-3: oklch(0.75 0.12 155);
+
+  --slice-base: oklch(0.708 0 0);
 
   --sidebar: oklch(0.205 0 0);
 
@@ -199,6 +208,8 @@
   --color-slice-2: var(--slice-2);
 
   --color-slice-3: var(--slice-3);
+
+  --color-slice-base: var(--slice-base);
 
   --color-ring: var(--ring);
 

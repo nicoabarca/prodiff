@@ -41,3 +41,14 @@ export function formatDuration(millis: number | null): string {
 export function colorVar(token: string): string {
   return `var(--${token})`;
 }
+
+/**
+ * A washed-out version of a population's colour, for tinting the column that
+ * belongs to it. The whole log is left untinted so the filtered populations
+ * read as the ones being compared; Base tints grey because its token is the
+ * plain foreground.
+ */
+export function colorTint(token: string, percent = 7): string {
+  if (token === "muted-foreground") return "transparent";
+  return `color-mix(in oklab, var(--${token}) ${percent}%, transparent)`;
+}

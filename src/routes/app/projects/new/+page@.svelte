@@ -21,6 +21,7 @@
   import FieldSettingsStep from "$lib/components/projects/stepper/field-settings-step.svelte";
   import ReviewStep from "$lib/components/projects/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   let step = $state<1 | 2 | 3 | 4 | 5>(1);
 
@@ -116,11 +117,7 @@
     submitting = true;
     submitError = null;
     try {
-      const project = await createProject(
-        { filePath, fileName },
-        columnMapping,
-        hiddenColumnNames
-      );
+      const project = await createProject({ filePath, fileName }, columnMapping, hiddenColumnNames);
       goto(`/app/projects/${project.id}`);
     } catch (err) {
       submitError = String(err);
@@ -150,6 +147,11 @@
         >
           Couldn't read this file: {loadError}
         </p>
+      {:else if columns.length === 0}
+        <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3">
+          <LoaderCircle class="h-6 w-6 animate-spin" aria-hidden="true" />
+          <p class="text-sm">Reading <span class="font-mono">{fileName}</span>…</p>
+        </div>
       {:else}
         <RequiredFieldsStep
           fileName={fileName ?? "event_log.csv"}
@@ -219,7 +221,12 @@
     <div class="mt-5 flex items-center justify-between gap-3">
       <Button variant="outline" size="lg" onclick={() => (step = 4)}>Back</Button>
       <Button size="lg" disabled={submitting} onclick={confirm}>
-        {submitting ? "Creating…" : "Confirm mapping"}
+        {#if submitting}
+          <LoaderCircle data-icon="inline-start" class="animate-spin" />
+          Creating…
+        {:else}
+          Confirm
+        {/if}
       </Button>
     </div>
   {/if}

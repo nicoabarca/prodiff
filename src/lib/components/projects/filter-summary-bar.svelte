@@ -2,13 +2,14 @@
   import * as HoverCard from "$lib/components/ui/hover-card/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
-  import { baseSlice, effectiveChain, namedSlices } from "$lib/state/slices.svelte";
+  import { baseSlice, namedSlices, sliceColor } from "$lib/state/slices.svelte";
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
-  import type { Slice } from "$lib/types";
+  import type { Project, Slice } from "$lib/types";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
-  let { projectId }: { projectId: string } = $props();
+  let { project }: { project: Project } = $props();
+  const projectId = $derived(project.id);
 
   // Case counts come from the stats cache and stay blank until a view has
   // computed them, so the bar never triggers analysis of its own.
@@ -24,7 +25,12 @@
       No filters — every view shows the whole event log.
     </p>
   {:else}
-    {#each entries as slice (slice.id)}
+    {#each entries as slice, index (slice.id)}
+      {#if index > 0}
+        <!-- Explicit height: a vertical separator has none of its own in a
+             flex row that only stretches to its content. -->
+        <Separator orientation="vertical" class="h-4" />
+      {/if}
       <HoverCard.Root openDelay={120}>
         <HoverCard.Trigger
           href="/app/projects/{projectId}/filters"
@@ -32,7 +38,7 @@
         >
           <span
             class="size-2 shrink-0 rounded-full"
-            style="background:{colorVar(slice.color)}"
+            style="background:{colorVar(sliceColor(slice))}"
             aria-hidden="true"
           ></span>
           <span class="text-xs font-semibold">{slice.name}</span>
@@ -40,6 +46,9 @@
           {#if slice.stats}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
               {formatNumber(slice.stats.cases)} cases
+              {#if project.cases > 0}
+                ({Math.round((slice.stats.cases / project.cases) * 100)}%)
+              {/if}
             </span>
           {/if}
         </HoverCard.Trigger>
@@ -48,36 +57,29 @@
             <div class="flex items-center gap-1.5">
               <span
                 class="size-2 shrink-0 rounded-full"
-                style="background:{colorVar(slice.color)}"
+                style="background:{colorVar(sliceColor(slice))}"
                 aria-hidden="true"
               ></span>
               <span class="text-sm font-semibold">{slice.name}</span>
-              <span class="text-muted-foreground ml-auto text-xs">
-                {slice.kind === "base" ? "applies to every slice" : "chains on top of Base"}
-              </span>
             </div>
             <Separator />
-            {#if effectiveChain(slice).length === 0}
+            <!-- The slice's own filters only. Base's are listed on Base's own
+                 chip, so repeating them here was noise on every slice. -->
+            {#if slice.filters.length === 0}
               <p class="text-muted-foreground text-xs">
                 No filters — this population is the
                 {slice.kind === "base" ? "whole event log" : "base population"}.
               </p>
             {:else}
               <ol class="flex flex-col gap-2">
-                {#each effectiveChain(slice) as filter, index (index)}
+                {#each slice.filters as filter, index (index)}
                   {@const described = describeFilter(filter)}
-                  {@const inherited = index < effectiveChain(slice).length - slice.filters.length}
                   <li class="flex items-start gap-2">
                     <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs">
                       {index + 1}
                     </span>
                     <div class="min-w-0">
-                      <p class="text-xs font-medium">
-                        {described.title}
-                        {#if inherited}
-                          <span class="text-muted-foreground font-normal">· from Base</span>
-                        {/if}
-                      </p>
+                      <p class="text-xs font-medium">{described.title}</p>
                       <p class="text-muted-foreground truncate font-mono text-[0.6875rem]">
                         {described.detail}
                       </p>

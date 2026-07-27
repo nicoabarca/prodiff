@@ -8,9 +8,11 @@
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import {
-    chainImpact,
     effectiveChain,
+    loadImpact,
     renameSlice,
+    sliceColor,
+    sliceSteps,
     type ChainStep
   } from "$lib/state/slices.svelte";
   import { describeFilter } from "$lib/filters";
@@ -42,22 +44,14 @@
   /** Filters inherited from Base sit in front of this slice's own. */
   const inherited = $derived(chain.length - slice.filters.length);
 
-  let steps = $state<ChainStep[] | null>(null);
+  const accent = $derived(colorVar(sliceColor(slice)));
+
+  // Measurement lives in the shared cache, so the comparison summary reads the
+  // same scan instead of asking Rust for it a second time.
+  const steps = $derived(sliceSteps(slice));
 
   $effect(() => {
-    const current = chain;
-    let stale = false;
-    steps = null;
-    chainImpact(project, current)
-      .then((result) => {
-        if (!stale) steps = result;
-      })
-      .catch(() => {
-        if (!stale) steps = null;
-      });
-    return () => {
-      stale = true;
-    };
+    loadImpact(project, slice).catch(() => {});
   });
 
   /** Cases before and after the filter at this slice-local index. */
@@ -100,7 +94,7 @@
       <span class="flex items-center gap-2">
         <span
           class="size-2.5 shrink-0 rounded-full"
-          style="background:{colorVar(slice.color)}"
+          style="background:{colorVar(sliceColor(slice))}"
           aria-hidden="true"
         ></span>
         {#if slice.kind === "base"}
@@ -118,13 +112,15 @@
             class="h-7 w-48"
           />
         {:else}
+          {slice.name}
           <button
             type="button"
             onclick={startRename}
-            class="hover:bg-muted focus-visible:ring-ring -mx-1 px-1 text-left focus-visible:ring-1 focus-visible:outline-none"
+            class="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 focus-visible:ring-1 focus-visible:outline-none"
             title="Rename slice"
+            aria-label="Rename slice"
           >
-            {slice.name}
+            <Pencil class="size-3.5" />
           </button>
         {/if}
       </span>
@@ -202,7 +198,13 @@
             <div class="w-40 shrink-0">
               {#if measured && pct !== null}
                 <div class="flex items-center gap-2">
-                  <Progress value={pct} class="h-1.5" />
+                  <!-- The kept portion wears the slice's own colour; the
+                       indicator's default is the primary accent. -->
+                  <Progress
+                    value={pct}
+                    class="h-1.5 [&_[data-slot=progress-indicator]]:bg-(--slice-accent)"
+                    style="--slice-accent: {accent}"
+                  />
                   <span class="text-muted-foreground w-9 shrink-0 text-right font-mono text-xs">
                     {pct}%
                   </span>

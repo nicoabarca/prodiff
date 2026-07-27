@@ -1,7 +1,6 @@
 <script lang="ts">
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
-  import { Alert, AlertDescription } from "$lib/components/ui/alert/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { currentProject } from "$lib/state/projects.svelte";
   import {
@@ -18,8 +17,8 @@
   import type { Filter } from "$lib/filters";
   import FilterEditor from "$lib/components/projects/filter-editor.svelte";
   import SliceCard from "$lib/components/projects/slice-card.svelte";
+  import SliceComparison from "$lib/components/projects/slice-comparison.svelte";
   import type { Slice } from "$lib/types";
-  import Info from "@lucide/svelte/icons/info";
   import Plus from "@lucide/svelte/icons/plus";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
@@ -81,9 +80,9 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <div class="mx-auto grid max-w-6xl grid-cols-1 items-start gap-5 lg:grid-cols-3">
-      <!-- Filters: two thirds -->
-      <div class="flex flex-col gap-5 lg:col-span-2">
+    <div class="grid w-full grid-cols-1 items-start gap-5 lg:grid-cols-5">
+      <!-- Filters: three fifths -->
+      <div class="flex flex-col gap-5 lg:col-span-3">
         <div class="flex flex-wrap items-center gap-3">
           <div>
             <h1 class="text-sm font-semibold">Filters</h1>
@@ -92,13 +91,19 @@
               order.
             </p>
           </div>
-          <div class="ml-auto">
+          <div class="ml-auto flex items-center gap-3">
             {#if cards.length === 0}
               <Button variant="outline" size="sm" onclick={() => ensureBase(project.id)}>
                 <Plus data-icon="inline-start" />
                 Add base filters
               </Button>
             {:else}
+              <p class="text-muted-foreground text-xs">
+                You can create up to {MAX_SLICES} slices.
+                {#if !canCreateSlice()}
+                  Delete one to add another.
+                {/if}
+              </p>
               <Button
                 variant="outline"
                 size="sm"
@@ -132,6 +137,7 @@
             </Empty.Content>
           </Empty.Root>
         {:else}
+          <SliceComparison slices={namedSlices()} />
           {#each cards as slice (slice.id)}
             <SliceCard
               {project}
@@ -142,21 +148,11 @@
               onremoveslice={deleteSlice}
             />
           {/each}
-
-          <Alert>
-            <Info />
-            <AlertDescription>
-              You can create up to {MAX_SLICES} slices.
-              {#if !canCreateSlice()}
-                Delete one to add another.
-              {/if}
-            </AlertDescription>
-          </Alert>
         {/if}
       </div>
 
-      <!-- Configuration: one third -->
-      <div class="lg:sticky lg:top-0">
+      <!-- Configuration: two fifths -->
+      <div class="lg:sticky lg:top-0 lg:col-span-2">
         <Card.Root>
           <Card.Header>
             <Card.Title>

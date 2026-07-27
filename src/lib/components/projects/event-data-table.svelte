@@ -90,9 +90,10 @@
       </Tabs.Root>
     </Card.Action>
   </Card.Header>
-  <Card.Content class="px-0">
+  <!-- pb-0: the table runs to the card's edge, no blank band under the last row. -->
+  <Card.Content class="px-0 pb-0">
     {#if error}
-      <div class="px-6">
+      <div class="px-(--card-spacing) pb-(--card-spacing)">
         <Alert variant="destructive">
           <CircleAlert />
           <AlertTitle>Could not read the event log</AlertTitle>
@@ -100,7 +101,7 @@
         </Alert>
       </div>
     {:else if !preview}
-      <div class="flex flex-col gap-2 px-6">
+      <div class="flex flex-col gap-2 px-(--card-spacing) pb-(--card-spacing)">
         {#each { length: 6 } as _, row (row)}
           <Skeleton class="h-6 w-full" />
         {/each}
@@ -118,26 +119,24 @@
         </Empty.Header>
       </Empty.Root>
     {:else}
-      <div class="overflow-x-auto">
-        <Table.Root>
-          <Table.Header>
+      <Table.Root>
+        <Table.Header>
+          <Table.Row>
+            {#each visible as column (column.name)}
+              <Table.Head class="whitespace-nowrap">{column.name}</Table.Head>
+            {/each}
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {#each preview.rows as row, rowIndex (rowIndex)}
             <Table.Row>
               {#each visible as column (column.name)}
-                <Table.Head class="whitespace-nowrap">{column.name}</Table.Head>
+                <Table.Cell class="font-mono whitespace-nowrap">{row[column.index]}</Table.Cell>
               {/each}
             </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each preview.rows as row, rowIndex (rowIndex)}
-              <Table.Row>
-                {#each visible as column (column.name)}
-                  <Table.Cell class="font-mono whitespace-nowrap">{row[column.index]}</Table.Cell>
-                {/each}
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </div>
+          {/each}
+        </Table.Body>
+      </Table.Root>
     {/if}
   </Card.Content>
 </Card.Root>

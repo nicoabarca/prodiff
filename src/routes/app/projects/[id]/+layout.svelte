@@ -36,6 +36,6 @@
       {/if}
     {/snippet}
   </ProjectTopbar>
-  <FilterSummaryBar projectId={project.id} />
+  <FilterSummaryBar {project} />
   {@render children()}
 {/if}

@@ -2,7 +2,7 @@
 //! and hands over whole filter chains, so these commands never touch sqlite and
 //! nothing derived from a chain is persisted.
 
-use super::{apply, Filter};
+use super::{apply, Endpoint, Filter};
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::event_log_path;
 use crate::stats::{summarize, EventLogStats};
@@ -157,6 +157,11 @@ pub struct DistinctValues {
     pub truncated: bool,
 }
 
+/// Distinct values of a column, most common first.
+///
+/// `endpoint` narrows the picker to what an endpoint filter can actually match:
+/// only the activities cases begin (or end) with. Offering every activity there
+/// invites selections that silently keep nothing.
 #[tauri::command]
 pub fn distinct_values(
     app: tauri::AppHandle,
@@ -164,16 +169,42 @@ pub fn distinct_values(
     column: String,
     columns: Vec<ColumnMapping>,
     limit: usize,
+    endpoint: Option<Endpoint>,
 ) -> Result<DistinctValues, String> {
     let df = read_event_log(&app, &project_id)?;
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    if df.column(&column).is_err() {
+    count_values(df, &column, case_col, endpoint, limit)
+}
+
+fn count_values(
+    df: DataFrame,
+    column: &str,
+    case_col: &str,
+    endpoint: Option<Endpoint>,
+    limit: usize,
+) -> Result<DistinctValues, String> {
+    if df.column(column).is_err() {
         return Err(format!("Column \"{column}\" is not in this event log."));
     }
 
-    let counted = df
-        .lazy()
-        .group_by([col(&column)])
+    // Rows are persisted sorted by (case, timestamp), so first/last within the
+    // case group are the case's endpoints — one row per case, then counted as
+    // usual so `cases` reads as "cases starting/ending with this activity".
+    let base = match endpoint {
+        None => df.lazy(),
+        Some(position) => {
+            let pick = match position {
+                Endpoint::Start => col(column).first(),
+                Endpoint::End => col(column).last(),
+            };
+            df.lazy()
+                .group_by([col(case_col)])
+                .agg([pick.alias(column)])
+        }
+    };
+
+    let counted = base
+        .group_by([col(column)])
         .agg([col(case_col).n_unique().alias("cases")])
         .sort(
             ["cases"],
@@ -184,7 +215,7 @@ pub fn distinct_values(
 
     let total = counted.height();
     let page = counted.head(Some(limit));
-    let value_column = page.column(&column).map_err(|e| e.to_string())?;
+    let value_column = page.column(column).map_err(|e| e.to_string())?;
     let cases = page
         .column("cases")
         .map_err(|e| e.to_string())?
@@ -209,4 +240,51 @@ pub fn distinct_values(
             .collect(),
         truncated: total > limit,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// case 1: A → B    case 2: A → C    case 3: B
+    fn log() -> DataFrame {
+        DataFrame::new(
+            5,
+            vec![
+                Column::new("case".into(), ["1", "1", "2", "2", "3"]),
+                Column::new("act".into(), ["A", "B", "A", "C", "B"]),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn values(endpoint: Option<Endpoint>) -> Vec<(String, i64)> {
+        let mut out: Vec<(String, i64)> = count_values(log(), "act", "case", endpoint, 100)
+            .unwrap()
+            .values
+            .into_iter()
+            .map(|v| (v.value, v.cases))
+            .collect();
+        out.sort();
+        out
+    }
+
+    #[test]
+    fn endpoint_narrows_to_activities_cases_actually_begin_and_end_with() {
+        // Unconstrained, every activity is offered.
+        assert_eq!(
+            values(None),
+            [("A".into(), 2), ("B".into(), 2), ("C".into(), 1)]
+        );
+        // C never starts a case; A never ends one. Case 3 is one event long, so
+        // its B counts on both sides.
+        assert_eq!(
+            values(Some(Endpoint::Start)),
+            [("A".into(), 2), ("B".into(), 1)]
+        );
+        assert_eq!(
+            values(Some(Endpoint::End)),
+            [("B".into(), 2), ("C".into(), 1)]
+        );
+    }
 }
