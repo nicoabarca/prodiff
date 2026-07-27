@@ -11,7 +11,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { view } from "$lib/state/tree.svelte";
+  import { groupSlices, view } from "$lib/state/tree.svelte";
   import {
     visibleNodes,
     TRANSITION_TIME,
@@ -32,19 +32,25 @@
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
+  // The slices the Groups come from, so every control names them the way the
+  // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
+  const groups = $derived(groupSlices());
+  const nameA = $derived(groups[0]?.name ?? "Group A");
+  const nameB = $derived(groups[1]?.name ?? "Group B");
+
   const secondaryOptions = $derived([
-    { value: "cases", label: "Cases (A · B)" },
-    { value: "casesA", label: "Cases — Group A" },
-    { value: "casesB", label: "Cases — Group B" },
+    { value: "cases", label: `Cases (${nameA} · ${nameB})` },
+    { value: "casesA", label: `Cases — ${nameA}` },
+    { value: "casesB", label: `Cases — ${nameB}` },
     ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))
   ]);
 
-  const focusLabels: Record<GroupFocus, string> = {
+  const focusLabels = $derived<Record<GroupFocus, string>>({
     all: "All nodes",
-    a: "Group A only",
-    b: "Group B only",
+    a: `${nameA} only`,
+    b: `${nameB} only`,
     shared: "Shared"
-  };
+  });
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
   const visible = $derived(visibleNodes(tree, view));

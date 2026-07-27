@@ -114,14 +114,26 @@ export async function build(project: Project) {
   }
 }
 
+function clear() {
+  built.projectId = null;
+  built.key = null;
+  built.tree = null;
+  built.error = null;
+  selected.id = null;
+  view.collapsed = new Set();
+}
+
 /** Drops a tree belonging to another project when the route changes. */
 export function forgetOtherProject(projectId: string) {
-  if (built.projectId && built.projectId !== projectId) {
-    built.projectId = null;
-    built.key = null;
-    built.tree = null;
-    built.error = null;
-    selected.id = null;
-    view.collapsed = new Set();
-  }
+  if (built.projectId && built.projectId !== projectId) clear();
+}
+
+/**
+ * Drops the tree outright. Called when the Column Mapping changes: an
+ * attribute's type picks which Significance Test ran and its granularity
+ * decides whether it aggregated per node or per Group, so a tree built under
+ * the old declarations cannot be reinterpreted — only rebuilt.
+ */
+export function invalidateTree() {
+  clear();
 }

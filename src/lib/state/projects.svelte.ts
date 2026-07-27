@@ -30,6 +30,16 @@ export async function addProject(project: Project) {
   projects.unshift(project);
 }
 
+/**
+ * Persists an edit to a project and reflects it in the loaded array. Used by
+ * the event log settings — renaming, and re-declaring what a column means.
+ */
+export async function updateProject(id: string, changes: Partial<Project>) {
+  await db().update(projectsTable).set(changes).where(eq(projectsTable.id, id));
+  const project = projects.find((p) => p.id === id);
+  if (project) Object.assign(project, changes);
+}
+
 export async function removeProject(id: string) {
   await invoke("delete_project_files", { projectId: id });
   await removeSlicesForProject(id);

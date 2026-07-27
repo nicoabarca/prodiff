@@ -3,6 +3,7 @@
   import { chainKey, computeStats, populations, type Population } from "$lib/state/slices.svelte";
   import MetricsTable from "$lib/components/projects/metrics-table.svelte";
   import EventDataTable from "$lib/components/projects/event-data-table.svelte";
+  import EventLogSettings from "$lib/components/projects/event-log-settings.svelte";
   import type { EventLogStats } from "$lib/types";
 
   const project = $derived(currentProject());
@@ -46,6 +47,7 @@
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}
+      <EventLogSettings {project} />
       <MetricsTable populations={pops} {stats} />
       <EventDataTable {project} populations={pops} />
     </div>

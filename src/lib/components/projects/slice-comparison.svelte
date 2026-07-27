@@ -31,11 +31,14 @@
           style="background:{colorVar(sliceColor(entry.slice))}"
           aria-hidden="true"
         ></span>
+        <span class="text-sm font-semibold" style="color:{colorVar(sliceColor(entry.slice))}">
+          {entry.slice.name}
+        </span>
         <span
           class="font-mono text-sm font-semibold"
           style="color:{colorVar(sliceColor(entry.slice))}"
         >
-          {formatNumber(entry.cases)}
+          ({formatNumber(entry.cases)})
         </span>
       </span>
     {/each}

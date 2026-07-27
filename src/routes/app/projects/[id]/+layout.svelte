@@ -31,21 +31,20 @@
 </script>
 
 {#if project}
-  <ProjectTopbar {project} projectView={view}>
+  <ProjectTopbar {project} projectView={view} />
+  <FilterSummaryBar {project}>
+    {#snippet trailing()}
+      {#if view === "tree" && built.tree && built.projectId === project.id}
+        {formatNumber(built.tree.variantsIncluded)} of {formatNumber(built.tree.variantsTotal)}
+        variants · {Math.round(built.tree.caseCoverage * 100)}% of cases
+      {/if}
+    {/snippet}
     {#snippet actions()}
       {#if !onFilters}
         <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">
           <SlidersHorizontal data-icon="inline-start" />
           Edit filters
         </Button>
-      {/if}
-    {/snippet}
-  </ProjectTopbar>
-  <FilterSummaryBar {project}>
-    {#snippet trailing()}
-      {#if view === "tree" && built.tree && built.projectId === project.id}
-        {formatNumber(built.tree.variantsIncluded)} of {formatNumber(built.tree.variantsTotal)}
-        variants · {Math.round(built.tree.caseCoverage * 100)}% of cases
       {/if}
     {/snippet}
   </FilterSummaryBar>

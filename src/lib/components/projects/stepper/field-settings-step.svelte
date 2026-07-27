@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { ColumnGranularity, ColumnType } from "$lib/column-mapping";
-  import type { AssignableRole } from "$lib/projects/roles";
+  import { roleMeta, type AssignableRole } from "$lib/projects/roles";
   import {
     EXTRA_FIELD_TYPES,
     EXTRA_FIELD_TYPE_LABELS,
@@ -36,7 +36,24 @@
       .filter((c) => !roleByColumn[c.name] && visibleColumns.has(c.name))
   );
 
-  const previewRows = $derived(rows.map((row) => fieldRows.map(({ index }) => row[index])));
+  /**
+   * The case id and activity always lead the preview, whatever the user chose
+   * to keep: a column of bare values means nothing until you can see which case
+   * and which step it belongs to.
+   */
+  const contextRows = $derived(
+    (["case_id", "activity_name"] as AssignableRole[]).flatMap((role) => {
+      const index = columns.findIndex((c) => roleByColumn[c.name] === role);
+      return index === -1 ? [] : [{ ...columns[index], index, role }];
+    })
+  );
+
+  const previewColumns = $derived([
+    ...contextRows,
+    ...fieldRows.map((column) => ({ ...column, role: undefined }))
+  ]);
+
+  const previewRows = $derived(rows.map((row) => previewColumns.map(({ index }) => row[index])));
 
   function granularityFor(col: string): ColumnGranularity {
     return columnGranularity[col] ?? "event";
@@ -181,8 +198,15 @@
         <Table.Root class="w-max min-w-full border-collapse">
           <Table.Header class="sticky top-0 z-10">
             <Table.Row class="hover:bg-transparent">
-              {#each fieldRows as { name }}
-                <Table.Head class="font-mono text-xs whitespace-nowrap">{name}</Table.Head>
+              {#each previewColumns as { name, role } (name)}
+                <Table.Head class="font-mono text-xs whitespace-nowrap">
+                  {name}
+                  {#if role}
+                    <span class="text-primary ml-1 font-sans text-[0.625rem] tracking-wide uppercase">
+                      {roleMeta[role].label}
+                    </span>
+                  {/if}
+                </Table.Head>
               {/each}
             </Table.Row>
           </Table.Header>

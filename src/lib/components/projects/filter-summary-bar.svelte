@@ -22,7 +22,11 @@
    * figure on the one bar that already names the slices, instead of a second
    * bar repeating them.
    */
-  let { project, trailing }: { project: Project; trailing?: Snippet } = $props();
+  let {
+    project,
+    trailing,
+    actions
+  }: { project: Project; trailing?: Snippet; actions?: Snippet } = $props();
   const projectId = $derived(project.id);
 
   const entries = $derived(
@@ -118,9 +122,12 @@
       </HoverCard.Root>
     {/each}
   {/if}
-  {#if trailing}
-    <div class="text-muted-foreground ml-auto font-mono text-[0.6875rem]">
-      {@render trailing()}
-    </div>
-  {/if}
+  <div class="ml-auto flex items-center gap-3">
+    {#if trailing}
+      <span class="text-muted-foreground font-mono text-[0.6875rem]">{@render trailing()}</span>
+    {/if}
+    {#if actions}
+      {@render actions()}
+    {/if}
+  </div>
 </div>
