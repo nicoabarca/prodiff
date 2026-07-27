@@ -91,30 +91,17 @@
               order.
             </p>
           </div>
-          <div class="ml-auto flex items-center gap-3">
-            {#if cards.length === 0}
-              <Button variant="outline" size="sm" onclick={() => ensureBase(project.id)}>
-                <Plus data-icon="inline-start" />
-                Add base filters
-              </Button>
-            {:else}
-              <p class="text-muted-foreground text-xs">
-                You can create up to {MAX_SLICES} slices.
-                {#if !canCreateSlice()}
-                  Delete one to add another.
-                {/if}
-              </p>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={!canCreateSlice()}
-                onclick={() => createSlice(project.id)}
-              >
-                <Plus data-icon="inline-start" />
-                New slice
-              </Button>
-            {/if}
-          </div>
+          {#if cards.length === 0}
+            <Button
+              variant="outline"
+              size="sm"
+              class="ml-auto"
+              onclick={() => ensureBase(project.id)}
+            >
+              <Plus data-icon="inline-start" />
+              Add base filters
+            </Button>
+          {/if}
         </div>
 
         {#if cards.length === 0}
@@ -148,6 +135,24 @@
               onremoveslice={deleteSlice}
             />
           {/each}
+
+          <div class="flex flex-wrap items-center justify-end gap-3">
+            <p class="text-muted-foreground text-xs">
+              You can create up to {MAX_SLICES} slices.
+              {#if !canCreateSlice()}
+                Delete one to add another.
+              {/if}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!canCreateSlice()}
+              onclick={() => createSlice(project.id)}
+            >
+              <Plus data-icon="inline-start" />
+              New slice
+            </Button>
+          </div>
         {/if}
       </div>
 

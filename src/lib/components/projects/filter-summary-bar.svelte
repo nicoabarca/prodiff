@@ -2,7 +2,14 @@
   import * as HoverCard from "$lib/components/ui/hover-card/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
-  import { baseSlice, namedSlices, sliceColor } from "$lib/state/slices.svelte";
+  import {
+    baseSlice,
+    chainKey,
+    effectiveChain,
+    namedSlices,
+    sliceCases,
+    sliceColor
+  } from "$lib/state/slices.svelte";
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project, Slice } from "$lib/types";
@@ -11,11 +18,21 @@
   let { project }: { project: Project } = $props();
   const projectId = $derived(project.id);
 
-  // Case counts come from the stats cache and stay blank until a view has
-  // computed them, so the bar never triggers analysis of its own.
   const entries = $derived(
     [baseSlice(), ...namedSlices()].filter((slice): slice is Slice => slice !== null)
   );
+
+  /**
+   * Cases for the chain as it stands right now: the Filters view's live
+   * measurement when it has one, otherwise the stats cache — but only when its
+   * key still matches, or an edit would leave the old count on screen. Blank
+   * while neither is current, so the bar never runs analysis of its own.
+   */
+  function currentCases(slice: Slice): number | null {
+    const measured = sliceCases(slice);
+    if (measured !== null) return measured;
+    return slice.statsKey === chainKey(effectiveChain(slice)) ? (slice.stats?.cases ?? null) : null;
+  }
 </script>
 
 <div class="border-border bg-sidebar flex shrink-0 flex-wrap items-center gap-1 border-b px-3 py-2">
@@ -43,11 +60,12 @@
           ></span>
           <span class="text-xs font-semibold">{slice.name}</span>
           <Badge variant="secondary">{slice.filters.length}</Badge>
-          {#if slice.stats}
+          {@const cases = currentCases(slice)}
+          {#if cases !== null}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(slice.stats.cases)} cases
+              {formatNumber(cases)} cases
               {#if project.cases > 0}
-                ({Math.round((slice.stats.cases / project.cases) * 100)}%)
+                ({Math.round((cases / project.cases) * 100)}%)
               {/if}
             </span>
           {/if}

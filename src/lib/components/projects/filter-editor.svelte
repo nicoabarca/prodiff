@@ -457,28 +457,34 @@
        draft has no impact worth naming. -->
   {#if valid}
     <Field.FieldSeparator />
-
-    <Field.Field>
-      <Field.FieldLabel>Impact</Field.FieldLabel>
-      {#if measuring || !impact}
-        <Skeleton class="h-4 w-48" />
-      {:else}
-        <Field.FieldDescription>
-          Keeps <span class="text-foreground font-mono font-medium">
-            {formatNumber(impact.after.cases)}
-          </span>
-          of {formatNumber(impact.before.cases)} cases
-          {#if retainedPct !== null}
-            <span class="text-foreground font-medium">({retainedPct}%)</span>
-          {/if}
-          and {formatNumber(impact.after.events)} of {formatNumber(impact.before.events)} events.
-        </Field.FieldDescription>
-      {/if}
-    </Field.Field>
   {/if}
 
-  <div class="flex justify-end gap-2">
-    <Button variant="ghost" onclick={oncancel}>Cancel</Button>
-    <Button disabled={!valid} onclick={save}>{filter ? "Save filter" : "Add filter"}</Button>
+  <!-- Impact and the actions share one row, so the measurement reads as the
+       thing being confirmed rather than a note above the buttons. -->
+  <div class="flex flex-wrap items-center justify-between gap-3">
+    {#if valid}
+      <Field.Field class="min-w-48 flex-1">
+        <Field.FieldLabel>Impact</Field.FieldLabel>
+        {#if measuring || !impact}
+          <Skeleton class="h-4 w-48" />
+        {:else}
+          <Field.FieldDescription>
+            Keeps <span class="text-foreground font-mono font-medium">
+              {formatNumber(impact.after.cases)}
+            </span>
+            of {formatNumber(impact.before.cases)} cases
+            {#if retainedPct !== null}
+              <span class="text-foreground font-medium">({retainedPct}%)</span>
+            {/if}
+            and {formatNumber(impact.after.events)} of {formatNumber(impact.before.events)} events.
+          </Field.FieldDescription>
+        {/if}
+      </Field.Field>
+    {/if}
+
+    <div class="ml-auto flex shrink-0 gap-2">
+      <Button variant="ghost" onclick={oncancel}>Cancel</Button>
+      <Button disabled={!valid} onclick={save}>{filter ? "Save filter" : "Add filter"}</Button>
+    </div>
   </div>
 </Field.FieldGroup>

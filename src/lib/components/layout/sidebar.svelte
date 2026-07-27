@@ -40,7 +40,7 @@
         >
           <Network class="h-4 w-4" aria-hidden="true" />
         </div>
-        <span class="font-heading text-sm font-bold tracking-tight uppercase">Procept</span>
+        <span class="font-heading text-sm font-bold tracking-tight uppercase">compare</span>
       </div>
       <Sidebar.Trigger />
     </div>

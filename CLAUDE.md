@@ -21,6 +21,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Cross-route state** lives in `src/lib/state/projects.svelte.ts` as module-level `$state` (Svelte 5 runes), not a store or context. `projects` (the list) and `draftUpload` (the in-progress upload/mapping flow) are exported directly and mutated by whichever route needs them — this is how state survives navigating between `/app/projects/new` and `/app/projects/new/mapping` without prop-drilling or URL params. `src/lib/types.ts` holds the `Project` type and mock seed data.
 
+**Slices and their two measurement caches** live in `src/lib/state/slices.svelte.ts`. A slice's effective chain is the Base chain followed by its own (`effectiveChain`), and results are cached two different ways: `impacts` (per-slice `{key, steps}`, in memory, filled by the Filters view via `loadImpact`, read with `sliceSteps`/`sliceCases`) and the persisted `stats`/`statsKey` columns filled by the Statistics view via `computeStats`. Both are keyed by `chainKey(effectiveChain(slice))` — anything showing a case count must compare that key before displaying, or an edited chain leaves the previous numbers on screen (see `filter-summary-bar.svelte`, which prefers the live `sliceCases` and falls back to keyed `stats`).
+
 **Component split** — three tiers under `src/lib/components/`:
 
 - `ui/` — shadcn-svelte primitives only, CLI-managed, never hand-edit (see Commands above).

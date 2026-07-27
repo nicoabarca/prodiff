@@ -2,7 +2,6 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
@@ -241,14 +240,4 @@
     {/if}
   </Card.Content>
 
-  {#if steps && steps.length > 0}
-    <Card.Footer class="text-muted-foreground justify-between text-xs">
-      <span>Population after applying filters</span>
-      <span class="text-foreground font-mono">
-        <Badge variant="secondary">
-          {formatNumber(steps[steps.length - 1].cases)} cases
-        </Badge>
-      </span>
-    </Card.Footer>
-  {/if}
 </Card.Root>

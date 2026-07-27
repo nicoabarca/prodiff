@@ -1,4 +1,4 @@
-# Procept
+# compare
 
 A local-first process mining desktop app (Tauri). Users upload event logs, the app derives process maps, variants, statistics, and a data table from them. All data stays on-device.
 
