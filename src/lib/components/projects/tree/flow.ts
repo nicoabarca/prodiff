@@ -20,13 +20,17 @@ import {
 } from "$lib/tree";
 import { formatDuration, formatNumber } from "$lib/format";
 
-export const NODE_WIDTH = 260;
-export const NODE_HEIGHT = 72;
+// Narrow enough that a deep tree fits on screen; activity names wrap to three
+// lines inside it rather than widening every node to the longest one.
+export const NODE_WIDTH = 170;
+export const NODE_HEIGHT = 80;
 
 export interface TreeNodeData {
   label: string;
   membership: "a" | "b" | "shared";
-  secondary: string;
+  /** Per-Group halves of the node's second line, each in its Group's colour. */
+  secondaryA: string | null;
+  secondaryB: string | null;
   significantCount: number;
   divergent: boolean;
   dimmed: boolean;
@@ -43,22 +47,26 @@ function significantCount(node: TreeNode): number {
   return blocks.filter((block) => block?.test?.significant).length;
 }
 
-/** The node's second line. Means come straight off the shipped aggregates. */
-function secondaryLabel(node: TreeNode, secondary: Secondary): string {
-  if (secondary === "cases") {
-    return `A ${formatNumber(node.groupACases)} · B ${formatNumber(node.groupBCases)}`;
+/**
+ * The node's second line, split per Group so each half can carry its Group's
+ * colour. A half is `null` when that Group has nothing here — a node one Group
+ * never reaches shows one figure, not a figure and a dash.
+ */
+function secondaryLabels(node: TreeNode, secondary: Secondary): [string | null, string | null] {
+  if (secondary === "cases" || secondary === "casesA" || secondary === "casesB") {
+    const a = secondary === "casesB" || node.groupACases === 0 ? null : formatNumber(node.groupACases);
+    const b = secondary === "casesA" || node.groupBCases === 0 ? null : formatNumber(node.groupBCases);
+    return [a, b];
   }
-  if (secondary === "casesA") return `A ${formatNumber(node.groupACases)}`;
-  if (secondary === "casesB") return `B ${formatNumber(node.groupBCases)}`;
 
   const block = secondary === "Transition Time" ? node.transitionTime : node.eventLevel[secondary];
   const format = (value: number) =>
     isDurationAttribute(secondary) ? formatDuration(value) : formatNumber(Math.round(value));
   const mean = (side: "groupA" | "groupB") => {
     const summary = block?.[side];
-    return summary?.type === "numerical" ? format(summary.mean) : "—";
+    return summary?.type === "numerical" ? format(summary.mean) : null;
   };
-  return `A ${mean("groupA")} · B ${mean("groupB")}`;
+  return [mean("groupA"), mean("groupB")];
 }
 
 function dimmed(node: TreeNode, focus: GroupFocus): boolean {
@@ -104,6 +112,7 @@ export function toFlow(
 
   const nodes: Node[] = shown.map((node) => {
     const placed = graph.node(String(node.id));
+    const [secondaryA, secondaryB] = secondaryLabels(node, options.secondary);
     return {
       id: String(node.id),
       type: "activity",
@@ -115,7 +124,8 @@ export function toFlow(
       data: {
         label: node.label,
         membership: membership(node),
-        secondary: secondaryLabel(node, options.secondary),
+        secondaryA,
+        secondaryB,
         significantCount: significantCount(node),
         divergent: isDivergent(node),
         dimmed: dimmed(node, options.focus),

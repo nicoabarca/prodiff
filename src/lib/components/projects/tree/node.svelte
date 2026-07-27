@@ -9,10 +9,16 @@
   let { data }: { data: TreeNodeData } = $props();
 
   // Group membership is the primary channel: a path only one Group follows
-  // reads in that Group's accent, a shared one in Base grey.
+  // reads in that Group's accent, a shared one in Base grey. Washed right down
+  // — it tints a whole node face, which has to stay readable behind text.
   const accent = $derived(
     data.membership === "a" ? "--slice-1" : data.membership === "b" ? "--slice-2" : "--slice-base"
   );
+  // A wash for the face, a firmer version of the same hue for the border, and
+  // the accent itself for the label — so membership reads at a glance without
+  // any of the three fighting the text.
+  const fill = $derived(`color-mix(in oklab, var(${accent}) 8%, var(--card))`);
+  const border = $derived(`color-mix(in oklab, var(${accent}) 45%, var(--card))`);
   const vertical = $derived(data.direction === "TB");
 </script>
 
@@ -23,18 +29,22 @@
   isConnectable={false}
 />
 
+<!-- Explicit radius: the app's theme is square (`--radius: 0`), so `rounded-lg`
+     would resolve to nothing here. -->
 <div
-  class="bg-card relative flex h-full w-full flex-col justify-center gap-1 border-l-4 px-2.5 py-1.5 text-left transition-opacity {data.dimmed
+  class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-opacity {data.dimmed
     ? 'opacity-25'
     : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
-    ? 'border-destructive ring-destructive/60 ring-2'
-    : 'border-border'}"
-  style="border-left-color:var({accent})"
+    ? 'ring-destructive/60 ring-2'
+    : ''}"
+  style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
 >
-  <div class="flex items-start gap-1">
+  <div class="flex w-full items-start justify-center gap-1">
     <Tooltip.Root>
-      <Tooltip.Trigger class="min-w-0 flex-1 text-left">
-        <span class="line-clamp-2 text-xs leading-tight font-medium">{data.label}</span>
+      <Tooltip.Trigger class="min-w-0 text-center">
+        <span class="line-clamp-3 text-[0.6875rem] leading-tight font-medium" style="color:var({accent})">
+          {data.label}
+        </span>
       </Tooltip.Trigger>
       <Tooltip.Content>{data.label}</Tooltip.Content>
     </Tooltip.Root>
@@ -48,12 +58,29 @@
     {/if}
   </div>
 
-  <div class="text-muted-foreground flex items-center gap-2 font-mono text-[0.625rem]">
-    <span>{data.secondary}</span>
-    {#if data.significantCount > 0}
-      <span class="text-foreground ml-auto font-semibold">{data.significantCount} sig</span>
+  <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
+    {#if data.secondaryA !== null}
+      <span style="color:var(--slice-1)">A: {data.secondaryA}</span>
+    {/if}
+    {#if data.secondaryB !== null}
+      <span style="color:var(--slice-2)">B: {data.secondaryB}</span>
     {/if}
   </div>
+
+  {#if data.significantCount > 0}
+    <!-- Outside the node box, so a count never competes with the figures for
+         the little horizontal room a narrow node has. -->
+    <Tooltip.Root>
+      <Tooltip.Trigger
+        class="bg-foreground text-background absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+      >
+        {data.significantCount}
+      </Tooltip.Trigger>
+      <Tooltip.Content>
+        {data.significantCount} significant difference{data.significantCount === 1 ? "" : "s"} here
+      </Tooltip.Content>
+    </Tooltip.Root>
+  {/if}
 
   {#if data.hiddenBelow > 0 || data.hasChildren}
     <button
