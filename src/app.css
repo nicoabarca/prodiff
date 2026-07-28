@@ -79,6 +79,23 @@
   /* Base is context rather than an identity, so it stays deliberately grey. */
   --slice-base: oklch(0.45 0.007 85);
 
+  /* Effect magnitude — a sequential ramp, one hue, rising in weight from a
+     negligible difference to a large one. Deliberately not the slice accents:
+     this answers "how big", not "whose", so it must never be mistaken for a
+     Group. The foreground flips at step 3, where the fill goes dark enough
+     that dark text stops carrying. */
+  --effect-1: oklch(0.95 0.035 25);
+  --effect-1-foreground: oklch(0.42 0.16 25);
+
+  --effect-2: oklch(0.88 0.08 25);
+  --effect-2-foreground: oklch(0.4 0.17 25);
+
+  --effect-3: oklch(0.55 0.2 25);
+  --effect-3-foreground: oklch(0.99 0.01 25);
+
+  --effect-4: oklch(0.43 0.17 25);
+  --effect-4-foreground: oklch(0.99 0.01 25);
+
   --radius: 0rem;
 
   --sidebar: oklch(0.965 0.005 85);
@@ -154,6 +171,21 @@
   --slice-3: oklch(0.75 0.12 155);
 
   --slice-base: oklch(0.708 0 0);
+
+  /* The ramp runs the other way against a dark surface: weight is gained by
+     getting brighter, not darker, so the foreground flips at the same step
+     but to dark text. Re-stepped rather than inverted from the light values. */
+  --effect-1: oklch(0.28 0.05 25);
+  --effect-1-foreground: oklch(0.85 0.07 25);
+
+  --effect-2: oklch(0.37 0.11 25);
+  --effect-2-foreground: oklch(0.93 0.05 25);
+
+  --effect-3: oklch(0.65 0.19 25);
+  --effect-3-foreground: oklch(0.16 0.03 25);
+
+  --effect-4: oklch(0.75 0.16 25);
+  --effect-4-foreground: oklch(0.16 0.03 25);
 
   --sidebar: oklch(0.205 0 0);
 

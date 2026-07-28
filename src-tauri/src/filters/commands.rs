@@ -96,6 +96,33 @@ pub fn chain_impact(
     Ok(steps)
 }
 
+/// Cases present in both chains — the two are unrelated slices (Base is
+/// prepended by the frontend into each already), so overlap can only come
+/// from a case matching both sets of filters.
+#[tauri::command]
+pub fn shared_cases(
+    app: tauri::AppHandle,
+    project_id: String,
+    chain_a: Vec<Filter>,
+    chain_b: Vec<Filter>,
+    columns: Vec<ColumnMapping>,
+) -> Result<i64, String> {
+    let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let df = read_event_log(&app, &project_id)?;
+
+    let ids = |chain: &[Filter]| -> Result<std::collections::HashSet<String>, String> {
+        let filtered = filtered(&df, chain, &columns)?;
+        let column = filtered.column(case_col).map_err(|e| e.to_string())?;
+        Ok((0..filtered.height())
+            .map(|i| cell_to_string(column, i))
+            .collect())
+    };
+
+    let a = ids(&chain_a)?;
+    let b = ids(&chain_b)?;
+    Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
+}
+
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PreviewTable {

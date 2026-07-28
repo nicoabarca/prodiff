@@ -1,104 +1,384 @@
 <script lang="ts">
   /**
-   * One attribute's Group A vs Group B comparison. Numeric attributes draw as
-   * two box plots on a shared axis — the five-number summary the backend ships
-   * *is* a box plot, so nothing needs fetching or recomputing here. Categorical
-   * ones draw as paired bars over the shipped counts.
+   * One attribute's Group A vs Group B comparison, drawn as the difference
+   * rather than as two distributions side by side.
+   *
+   * Categorical attributes chart the *share gap* — how many percentage points
+   * more common a value is in one Group than the other — diverging from a zero
+   * rule, ranked by that gap. Charting the shares themselves is what made this
+   * unreadable before: forty resources each hold ~2% of the cases, so every bar
+   * came out a two-pixel sliver and the ranking surfaced the biggest values
+   * instead of the most different ones. Scaling to the largest gap makes a
+   * sliver impossible by construction.
+   *
+   * Numeric attributes lead with the median difference in words, then draw two
+   * box plots on a shared axis — the five-number summary the backend ships *is*
+   * a box plot, so nothing is fetched or recomputed here.
    */
+  import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Text, Tooltip } from "layerchart";
+  import * as Chart from "$lib/components/ui/chart/index.js";
   import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
+  import { groupSlices } from "$lib/state/tree.svelte";
   import type { Summary } from "$lib/tree";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import ChevronUp from "@lucide/svelte/icons/chevron-up";
 
   let {
     groupA,
     groupB,
+    compare = true,
     duration = false
-  }: { groupA: Summary | null; groupB: Summary | null; duration?: boolean } = $props();
+  }: {
+    groupA: Summary | null;
+    groupB: Summary | null;
+    /** False in one-Group mode, where there is no difference to draw. */
+    compare?: boolean;
+    duration?: boolean;
+  } = $props();
+
+  // The Groups keep the colours the tree nodes give them, and the names the
+  // user gave their slices — "Group A"/"Group B" only if a slice has gone.
+  const COLOR_A = "var(--slice-1)";
+  const COLOR_B = "var(--slice-2)";
+  const groups = $derived(groupSlices());
+  const nameA = $derived(groups[0]?.name ?? "Group A");
+  const nameB = $derived(groups[1]?.name ?? "Group B");
+
+  /** How many categories fit before the rest go behind the disclosure. */
+  const TOP = 6;
+
+  // The label gutter and the value gutter are fixed, so the zero rule sits at a
+  // position the layout can compute: halfway between them.
+  const PAD_LEFT = 84;
+  const PAD_RIGHT = 60;
 
   const format = (value: number) =>
-    duration ? formatDuration(value) : formatDecimal(value, value < 10 ? 2 : 0);
+    duration ? formatDuration(value) : formatDecimal(value, Math.abs(value) < 10 ? 2 : 0);
 
-  const numeric = $derived(
-    [groupA, groupB].filter((s): s is Extract<Summary, { type: "numerical" }> => {
-      return s?.type === "numerical";
-    })
-  );
-  const scale = $derived({
-    min: Math.min(...numeric.map((s) => s.min)),
-    max: Math.max(...numeric.map((s) => s.max))
+  // ---------------------------------------------------------------- numeric
+
+  const numericA = $derived(groupA?.type === "numerical" ? groupA : null);
+  const numericB = $derived(groupB?.type === "numerical" ? groupB : null);
+  const isNumeric = $derived(numericA !== null || numericB !== null);
+
+  /**
+   * The axis spans the two Groups' quartiles, not their full range: a duration
+   * whose max is ten times its q3 would otherwise squeeze both boxes into a few
+   * pixels — the same failure the category bars had. Whiskers that run past the
+   * edge are clamped and marked, never silently cut.
+   */
+  const span = $derived.by(() => {
+    const present = [numericA, numericB].filter((s) => s !== null);
+    if (present.length === 0) return null;
+    const lowest = Math.min(...present.map((s) => s.min));
+    const highest = Math.max(...present.map((s) => s.max));
+    const q1 = Math.min(...present.map((s) => s.q1));
+    const q3 = Math.max(...present.map((s) => s.q3));
+    // A zero-width IQR (every case identical) still needs a drawable axis.
+    const pad = (q3 - q1) * 0.15 || Math.max(Math.abs(q3) * 0.1, 1);
+    return {
+      lo: Math.max(q1 - pad, lowest),
+      hi: Math.min(q3 + pad, highest),
+      lowest,
+      highest
+    };
   });
-  /** Position along the shared axis, as a percentage. */
-  const at = (value: number) => {
-    const span = scale.max - scale.min;
-    return span === 0 ? 0 : ((value - scale.min) / span) * 100;
-  };
+
+  const boxes = $derived(
+    [
+      numericA && { group: nameA, color: COLOR_A, ...numericA },
+      numericB && { group: nameB, color: COLOR_B, ...numericB }
+    ].filter((row) => row !== null)
+  );
+
+  const clamp = (value: number) =>
+    span ? Math.min(Math.max(value, span.lo), span.hi) : value;
+
+  /** The headline the numeric block leads with, in the user's own group names. */
+  const delta = $derived.by(() => {
+    if (!compare || !numericA || !numericB) return null;
+    const difference = numericB.median - numericA.median;
+    if (difference === 0) return { same: true } as const;
+    const percent =
+      numericA.median === 0 ? null : (difference / Math.abs(numericA.median)) * 100;
+    return {
+      same: false,
+      leader: difference > 0 ? nameB : nameA,
+      word: duration ? "longer" : "higher",
+      amount: format(Math.abs(difference)),
+      percent
+    } as const;
+  });
+
+  // ------------------------------------------------------------ categorical
 
   const categories = $derived.by(() => {
     const counts = [groupA, groupB].map((s) =>
       s?.type === "categorical" ? s.counts : ({} as Record<string, number>)
     );
-    const names = [...new Set(counts.flatMap((c) => Object.keys(c)))];
     const totals = counts.map((c) => Object.values(c).reduce((sum, n) => sum + n, 0) || 1);
-    return names
-      .map((name) => ({
-        name,
-        a: counts[0][name] ?? 0,
-        b: counts[1][name] ?? 0,
-        shareA: ((counts[0][name] ?? 0) / totals[0]) * 100,
-        shareB: ((counts[1][name] ?? 0) / totals[1]) * 100
-      }))
-      .sort((x, y) => y.a + y.b - (x.a + x.b));
+    const names = [...new Set(counts.flatMap((c) => Object.keys(c)))];
+    return names.map((name) => {
+      const a = counts[0][name] ?? 0;
+      const b = counts[1][name] ?? 0;
+      const shareA = (a / totals[0]) * 100;
+      const shareB = (b / totals[1]) * 100;
+      return { name, a, b, shareA, shareB, gap: shareB - shareA };
+    });
   });
+
+  /**
+   * What the bars encode: the gap when there are two Groups to compare, plain
+   * share when there is only one and a gap would mean nothing. Colour follows
+   * the Group the value leans towards, so it agrees with the side it sits on.
+   */
+  const bars = $derived(
+    compare
+      ? categories
+          .map((c) => ({ ...c, value: c.gap, side: c.gap < 0 ? "a" : "b" }))
+          .sort((x, y) => Math.abs(y.value) - Math.abs(x.value))
+      : categories
+          .map((c) => ({ ...c, value: c.shareA, side: "a" }))
+          .sort((x, y) => y.value - x.value)
+  );
+
+  let expanded = $state(false);
+  const shown = $derived(expanded ? bars : bars.slice(0, TOP));
+
+  /**
+   * Scaled to the largest gap across *every* category, not just the shown ones,
+   * so expanding the list never rescales the bars already read. The headroom
+   * keeps the longest bar's label inside the plot: without it the label runs
+   * back into the category-name gutter and the two collide.
+   */
+  const domain = $derived.by((): [number, number] => {
+    const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);
+    return compare ? [-largest * 1.55, largest * 1.55] : [0, largest * 1.3];
+  });
+
+  const barLabel = (value: number) => {
+    if (!compare) return `${value.toFixed(1)}%`;
+    // Rounding to one decimal turns a −0.04 gap into "−0.0", which reads as a
+    // direction the number does not actually have.
+    const sign = Math.abs(value) < 0.05 ? "" : value > 0 ? "+" : "−";
+    return `${sign}${Math.abs(value).toFixed(1)} pp`;
+  };
+
+  const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
 </script>
 
-{#if groupA?.type === "numerical" || groupB?.type === "numerical"}
+{#if isNumeric && span}
   <div class="flex flex-col gap-2">
-    {#each [{ summary: groupA, token: "--slice-1", name: "A" }, { summary: groupB, token: "--slice-2", name: "B" }] as row (row.name)}
-      {#if row.summary?.type === "numerical"}
-        {@const s = row.summary}
-        <div class="flex items-center gap-2">
-          <span class="text-muted-foreground w-3 font-mono text-[0.625rem]">{row.name}</span>
-          <div class="relative h-6 flex-1">
-            <!-- Whiskers span min–max; the box is q1–q3 with the median inside. -->
-            <div
-              class="absolute top-1/2 h-px"
-              style="left:{at(s.min)}%;width:{at(s.max) - at(s.min)}%;background:var({row.token})"
-            ></div>
-            <div
-              class="absolute top-1/2 h-4 -translate-y-1/2 opacity-40"
-              style="left:{at(s.q1)}%;width:{Math.max(at(s.q3) - at(s.q1), 0.5)}%;background:var({row.token})"
-            ></div>
-            <div
-              class="absolute top-1/2 h-4 w-0.5 -translate-y-1/2"
-              style="left:{at(s.median)}%;background:var({row.token})"
-            ></div>
-          </div>
-          <span class="text-muted-foreground w-28 shrink-0 text-right font-mono text-[0.625rem]">
-            {format(s.median)} · n={formatNumber(s.n)}
+    {#if delta}
+      <p class="text-[0.6875rem]">
+        {#if delta.same}
+          Same median in both groups.
+        {:else}
+          <span class="font-semibold">{delta.leader}</span>
+          {delta.word} by {delta.amount} at the median
+          {#if delta.percent !== null}
+            <!-- Magnitude only: the sentence already names which group leads, so
+                 a sign here would contradict it half the time. -->
+            <span class="text-muted-foreground">· {Math.abs(delta.percent).toFixed(0)}%</span>
+          {/if}
+        {/if}
+      </p>
+    {/if}
+
+    <div class="flex items-stretch">
+      <Chart.Container
+        config={{}}
+        class="aspect-auto h-[calc(1.75rem*var(--rows)+1.25rem)] w-full"
+        style="--rows:{boxes.length}"
+      >
+        <ChartRoot
+          data={boxes}
+          x="median"
+          y="group"
+          xDomain={[span.lo, span.hi]}
+          valueAxis="x"
+          bandPadding={0.35}
+          padding={{ left: 76, right: 8, bottom: 20 }}
+          tooltipContext={{ mode: "manual" }}
+        >
+          {#snippet children({ context })}
+            <Svg>
+              <Axis
+                placement="left"
+                rule={false}
+                grid={false}
+                format={truncate}
+                tickLabelProps={{ svgProps: { x: -8 } }}
+              />
+              <Axis placement="bottom" rule={false} grid={false} ticks={3} {format} />
+              {#each boxes as row (row.group)}
+                <BoxPlot
+                  data={row}
+                  min={(d) => clamp(d.min)}
+                  q1={(d) => clamp(d.q1)}
+                  median={(d) => d.median}
+                  q3={(d) => clamp(d.q3)}
+                  max={(d) => clamp(d.max)}
+                  fill={row.color}
+                  fillOpacity={0.35}
+                  stroke={row.color}
+                  strokeWidth={1.5}
+                  radius={2}
+                  capWidth={0.7}
+                  tooltip
+                />
+                <!-- The whisker stops at the axis edge, so say so rather than
+                     let a clipped range read as the real one. -->
+                {#if row.max > span.hi}
+                  <Text
+                    value="›"
+                    x={context.width - 1}
+                    y={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
+                    textAnchor="end"
+                    verticalAnchor="middle"
+                    class="fill-muted-foreground"
+                  />
+                {/if}
+              {/each}
+            </Svg>
+
+            <Tooltip.Root>
+              {#snippet children({ data })}
+                <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
+                  <p class="mb-1 text-[0.6875rem] font-semibold">{data.group}</p>
+                  <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
+                    {#each [["min", data.min], ["q1", data.q1], ["median", data.median], ["q3", data.q3], ["max", data.max]] as [label, value] (label)}
+                      <dt class="text-muted-foreground">{label}</dt>
+                      <dd class="text-right">{format(value as number)}</dd>
+                    {/each}
+                    <dt class="text-muted-foreground">n</dt>
+                    <dd class="text-right">{formatNumber(data.n)}</dd>
+                  </dl>
+                </div>
+              {/snippet}
+            </Tooltip.Root>
+          {/snippet}
+        </ChartRoot>
+      </Chart.Container>
+
+      <!-- Medians sit outside the plot so the axis keeps its full width. The
+           rows are fixed-height and the band scale centres in the same boxes,
+           so the two columns line up without measuring anything. -->
+      <div class="flex shrink-0 flex-col pb-5">
+        {#each boxes as row (row.group)}
+          <span
+            class="text-muted-foreground flex h-7 w-20 items-center justify-end font-mono text-[0.625rem]"
+          >
+            {format(row.median)}
           </span>
-        </div>
-      {/if}
-    {/each}
-    {#if numeric.length > 0}
-      <div class="text-muted-foreground flex justify-between font-mono text-[0.625rem]">
-        <span>{format(scale.min)}</span>
-        <span>{format(scale.max)}</span>
+        {/each}
       </div>
+    </div>
+
+    {#if span.highest > span.hi || span.lowest < span.lo}
+      <p class="text-muted-foreground text-[0.625rem]">
+        Axis covers the quartiles; full range {format(span.lowest)} – {format(span.highest)}.
+      </p>
     {/if}
   </div>
-{:else if categories.length > 0}
+{:else if bars.length > 0}
   <div class="flex flex-col gap-1.5">
-    {#each categories as category (category.name)}
-      <div class="flex items-center gap-2">
-        <span class="w-24 shrink-0 truncate text-[0.6875rem]">{category.name}</span>
-        <div class="flex flex-1 flex-col gap-0.5">
-          <div class="h-1.5" style="width:{category.shareA}%;background:var(--slice-1)"></div>
-          <div class="h-1.5" style="width:{category.shareB}%;background:var(--slice-2)"></div>
-        </div>
-        <span class="text-muted-foreground w-16 shrink-0 text-right font-mono text-[0.625rem]">
-          {formatNumber(category.a)}/{formatNumber(category.b)}
+    <div class="text-muted-foreground flex items-center justify-between gap-2 text-[0.625rem]">
+      {#if compare}
+        <span class="inline-flex min-w-0 items-center gap-1">
+          <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
+          <span class="truncate">◀ {nameA}</span>
         </span>
-      </div>
-    {/each}
+        <span class="inline-flex min-w-0 items-center gap-1">
+          <span class="truncate">{nameB} ▶</span>
+          <span class="size-2 shrink-0" style="background:{COLOR_B}" aria-hidden="true"></span>
+        </span>
+      {:else}
+        <span class="inline-flex min-w-0 items-center gap-1">
+          <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
+          <span class="truncate">{nameA} — share of cases</span>
+        </span>
+      {/if}
+    </div>
+
+    <div class="relative">
+      {#if compare}
+        <!-- Above the bars, in the surface colour: every bar starts at zero, so
+             behind them the rule would never be visible. As a gap it reads as
+             the baseline the two sides are measured from. -->
+        <div
+          class="bg-sidebar pointer-events-none absolute inset-y-0 z-10 w-0.5"
+          style="left:calc(50% + {(PAD_LEFT - PAD_RIGHT) / 2 - 1}px)"
+          aria-hidden="true"
+        ></div>
+      {/if}
+      <Chart.Container
+        config={{}}
+        class="aspect-auto h-[calc(1.375rem*var(--rows))] w-full"
+        style="--rows:{shown.length}"
+      >
+        <BarChart
+          data={shown}
+          orientation="horizontal"
+          x="value"
+          y="name"
+          c="side"
+          cDomain={["a", "b"]}
+          cRange={[COLOR_A, COLOR_B]}
+          xDomain={domain}
+          axis="y"
+          grid={false}
+          rule={false}
+          legend={false}
+          bandPadding={0.3}
+          padding={{ left: PAD_LEFT, right: PAD_RIGHT }}
+          props={{
+            bars: { stroke: "none", radius: 2, rounded: "all" },
+            highlight: { area: { fill: "none" } },
+            yAxis: { format: truncate, tickLabelProps: { svgProps: { x: -10 } } }
+          }}
+          labels={{ placement: "outside", format: barLabel }}
+        >
+          <!-- The `tooltip` snippet, not `children`: children would replace the
+               chart's own layout wholesale rather than add to it. -->
+          {#snippet tooltip()}
+            <Tooltip.Root>
+              {#snippet children({ data })}
+                <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
+                  <p class="mb-1 text-[0.6875rem] font-semibold">{data.name}</p>
+                  <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
+                    <dt class="text-muted-foreground truncate">{nameA}</dt>
+                    <dd class="text-right">{formatNumber(data.a)} · {data.shareA.toFixed(1)}%</dd>
+                    {#if compare}
+                      <dt class="text-muted-foreground truncate">{nameB}</dt>
+                      <dd class="text-right">{formatNumber(data.b)} · {data.shareB.toFixed(1)}%</dd>
+                      <dt class="text-muted-foreground">gap</dt>
+                      <dd class="text-right">{barLabel(data.gap)}</dd>
+                    {/if}
+                  </dl>
+                </div>
+              {/snippet}
+            </Tooltip.Root>
+          {/snippet}
+        </BarChart>
+      </Chart.Container>
+    </div>
+
+    {#if bars.length > TOP}
+      <button
+        type="button"
+        class="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 self-start text-[0.625rem]"
+        onclick={() => (expanded = !expanded)}
+      >
+        {#if expanded}
+          <ChevronUp class="size-3" aria-hidden="true" />
+          Show top {TOP}
+        {:else}
+          <ChevronDown class="size-3" aria-hidden="true" />
+          {bars.length - TOP} more {compare ? "categories" : "values"}
+        {/if}
+      </button>
+    {/if}
   </div>
 {:else}
   <p class="text-muted-foreground text-xs">No values at this node.</p>

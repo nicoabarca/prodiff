@@ -7,11 +7,15 @@ import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/svelte";
 import {
   children,
+  effectBand,
+  effectStep,
   isDivergent,
   isDurationAttribute,
   membership,
+  peakEffect,
   type Direction,
   type DirectedTree,
+  type EffectBand,
   type GroupFocus,
   type Secondary,
   type TreeNode,
@@ -31,6 +35,9 @@ export interface TreeNodeData {
   secondaryA: string | null;
   secondaryB: string | null;
   significantCount: number;
+  /** Strongest significant effect here, in words and as a ramp step. */
+  peakBand: EffectBand | null;
+  peakStep: 1 | 2 | 3 | 4 | null;
   divergent: boolean;
   dimmed: boolean;
   selected: boolean;
@@ -136,6 +143,7 @@ export function toFlow(
     const placed = graph.node(String(node.id));
     const cases = visible.cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 };
     const [secondaryA, secondaryB] = secondaryLabels(node, options.secondary, cases);
+    const peak = peakEffect(node);
     return {
       id: String(node.id),
       type: "activity",
@@ -150,6 +158,8 @@ export function toFlow(
         secondaryA,
         secondaryB,
         significantCount: significantCount(node),
+        peakBand: peak === null ? null : effectBand(peak),
+        peakStep: peak === null ? null : effectStep(peak),
         divergent: isDivergent(node),
         dimmed: dimmed(node, options.focus),
         selected: options.selected === node.id,

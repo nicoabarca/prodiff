@@ -6,7 +6,9 @@
     baseSlice,
     chainKey,
     effectiveChain,
+    loadSharedCases,
     namedSlices,
+    sharedCases,
     sliceCases,
     sliceColor,
     sliceEvents
@@ -33,6 +35,14 @@
   const entries = $derived(
     [baseSlice(), ...namedSlices()].filter((slice): slice is Slice => slice !== null)
   );
+
+  /** Both groups, only once there are two — nothing to share with one. */
+  const groupA = $derived(namedSlices()[0] ?? null);
+  const groupB = $derived(namedSlices()[1] ?? null);
+
+  $effect(() => {
+    if (groupA && groupB) loadSharedCases(project, groupA, groupB);
+  });
 
   /**
    * A size of the chain as it stands right now: the Filters view's live
@@ -62,9 +72,10 @@
   {:else}
     {#each entries as slice, index (slice.id)}
       {#if index > 0}
-        <!-- Explicit height: a vertical separator has none of its own in a
-             flex row that only stretches to its content. -->
-        <Separator orientation="vertical" class="h-4" />
+        <!-- self-stretch: a vertical separator has no height of its own in a
+             flex row that only stretches to its content, so it stops short
+             of the bar's own top and bottom without this. -->
+        <Separator orientation="vertical" class="self-stretch" />
       {/if}
       <HoverCard.Root openDelay={120}>
         <HoverCard.Trigger
@@ -129,6 +140,17 @@
         </HoverCard.Content>
       </HoverCard.Root>
     {/each}
+    {#if groupA && groupB}
+      {@const shared = sharedCases(groupA, groupB)}
+      <Separator orientation="vertical" class="self-stretch" />
+      <span class="text-muted-foreground flex items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap">
+        <span class="relative flex size-3 shrink-0 items-center" aria-hidden="true">
+          <span class="border-muted-foreground absolute left-0 size-2.5 rounded-full border"></span>
+          <span class="border-muted-foreground absolute left-1 size-2.5 rounded-full border"></span>
+        </span>
+        {shared === null ? "" : shared > 0 ? `${formatNumber(shared)} cases shared` : "No cases shared"}
+      </span>
+    {/if}
   {/if}
   <div class="ml-auto flex items-center gap-3">
     {#if trailing}

@@ -92,7 +92,7 @@
             onclick={() => (panelOpen = !panelOpen)}
           >
             <PanelRight data-icon="inline-start" />
-            {panelOpen ? "Hide details" : "Show details"}
+            {panelOpen ? "Hide" : "Show"} differences panel
           </Button>
         </div>
         {#if panelOpen}

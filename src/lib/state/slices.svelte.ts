@@ -223,6 +223,35 @@ export function sliceEvents(slice: Slice): number | null {
 }
 
 /**
+ * Cases in both named slices' chains, keyed by the pair's combined chain key
+ * so an edit to either slice invalidates it. In memory only — the filter
+ * summary bar is the only reader and it re-asks on every navigation anyway.
+ */
+const sharedCasesCache = $state<Record<string, number>>({});
+
+function sharedCasesKey(a: Slice, b: Slice): string {
+  return chainKey([effectiveChain(a), effectiveChain(b)] as unknown as Filter[]);
+}
+
+export async function loadSharedCases(project: Project, a: Slice, b: Slice) {
+  const key = sharedCasesKey(a, b);
+  if (key in sharedCasesCache) return;
+  const count = await invoke<number>("shared_cases", {
+    projectId: project.id,
+    chainA: effectiveChain(a),
+    chainB: effectiveChain(b),
+    columns: project.columns
+  });
+  sharedCasesCache[key] = count;
+}
+
+/** Cases shared between two named slices, or null while unmeasured. */
+export function sharedCases(a: Slice, b: Slice): number | null {
+  const key = sharedCasesKey(a, b);
+  return key in sharedCasesCache ? sharedCasesCache[key] : null;
+}
+
+/**
  * One population in the Statistics view. The whole log is included as a
  * chainless population, so it is not a slice row and never needs storing.
  */

@@ -1,21 +1,25 @@
 <script lang="ts">
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { Separator } from "$lib/components/ui/separator/index.js";
+  import * as Popover from "$lib/components/ui/popover/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
+  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
   import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
+  import { groupSlices } from "$lib/state/tree.svelte";
   import {
+    effectBand,
     isDurationAttribute,
     membership,
     pathTo,
+    rankedBlocks,
     visibleNodes,
     TRANSITION_TIME,
     type AttributeBlock,
-    type DirectedTree,
-    type Test
+    type DirectedTree
   } from "$lib/tree";
   import { view } from "$lib/state/tree.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
+  import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
   import X from "@lucide/svelte/icons/x";
 
@@ -27,42 +31,89 @@
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
+  const compare = $derived(tree.groupB !== null);
+  /** Restricted to the surviving Variants — a node's raw totals over-count
+      once the slider has pruned some of its siblings away. */
   const cases = $derived(
     node ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 }) : null
   );
 
-  /** Every attribute at this node, Transition Time last as the edge into it. */
-  const blocks = $derived.by((): [string, AttributeBlock][] => {
+  const groups = $derived(groupSlices());
+  const nameA = $derived(groups[0]?.name ?? "Group A");
+  const nameB = $derived(groups[1]?.name ?? "Group B");
+
+  /**
+   * Attributes strongest first, with the ones that came out negligible or
+   * untestable folded away. At a few thousand cases per Group nearly every test
+   * is significant, so a panel ordered by anything else buries its own finding.
+   */
+  const ranked = $derived(
+    node
+      ? rankedBlocks(node)
+      : { finding: [], weak: [], untested: [] as [string, AttributeBlock][] }
+  );
+
+  /**
+   * One-Group mode has no differences to rank, so the attributes stay in the
+   * order they were built in and every one is shown — ranking them by a test
+   * that never ran would file all of them under "could not be tested".
+   */
+  const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
     const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
     if (node.transitionTime) entries.push([TRANSITION_TIME, node.transitionTime]);
     return entries;
   });
 
-  function testLine(test: Test): string {
-    const name = test.test === "chi2" ? "Chi-square" : "Mann-Whitney U";
-    const direction =
-      test.direction === "aHigher"
-        ? " · A higher"
-        : test.direction === "bHigher"
-          ? " · B higher"
-          : "";
-    const p = test.pValue < 0.001 ? test.pValue.toExponential(1) : test.pValue.toFixed(3);
-    return `${name} · p = ${p} · effect ${test.effectSize.toFixed(2)}${direction}`;
-  }
-
   /** Why a block carries no Significance Test, in the user's terms. */
   function untestable(block: AttributeBlock): string {
-    if (!tree.groupB) return "One-group mode — nothing to compare against.";
+    if (!compare) return "One-group mode — nothing to compare against.";
     const n = (side: "groupA" | "groupB") => block[side]?.n ?? 0;
     if (n("groupA") < 5 || n("groupB") < 5) {
-      return `Too few cases to test — Group A: ${n("groupA")}, Group B: ${n("groupB")} (minimum 5 each).`;
+      return `Too few cases to test — ${nameA}: ${n("groupA")}, ${nameB}: ${n("groupB")} (minimum 5 each).`;
     }
     return "Not enough distinct values to compare.";
   }
 </script>
 
-<aside class="border-border bg-sidebar flex w-96 shrink-0 flex-col border-l">
+{#snippet attribute(name: string, block: AttributeBlock)}
+  <div class="border-border flex flex-col gap-2 border-b px-4 py-3.5">
+    <div class="flex items-center justify-between gap-2">
+      <h3 class="truncate text-xs font-semibold" title={name}>{name}</h3>
+      <EffectChip test={block.test} />
+    </div>
+
+    {#if name === TRANSITION_TIME}
+      <p class="text-muted-foreground text-[0.625rem]">
+        Time on the edge from {path.at(-2)?.label ?? "Start"}, measured as
+        {tree.transitionTimeBasis === "startComplete"
+          ? "start of this activity − completion of the previous one."
+          : "completion of this activity − completion of the previous one."}
+      </p>
+    {/if}
+
+    <SummaryCompare
+      groupA={block.groupA}
+      groupB={block.groupB}
+      {compare}
+      duration={isDurationAttribute(name)}
+    />
+
+    {#if !block.test}
+      <!-- In one-Group mode every block is untestable for the same reason, said
+           once at the top rather than under each attribute. -->
+      {#if compare}
+        <p class="text-muted-foreground text-[0.625rem]">{untestable(block)}</p>
+      {/if}
+    {:else if block.test.significant && effectBand(block.test.effectSize) === "negligible"}
+      <p class="text-muted-foreground text-[0.625rem]">
+        The test is confident this gap is real, but it is too small to act on.
+      </p>
+    {/if}
+  </div>
+{/snippet}
+
+<aside class="border-border bg-sidebar flex w-[28rem] shrink-0 flex-col border-l">
   {#if !node}
     <div class="flex items-center justify-end p-2">
       <Button variant="ghost" size="icon" aria-label="Hide details" onclick={onClose}>
@@ -74,81 +125,127 @@
       <p class="text-center text-xs">Select a node to compare its aggregates.</p>
     </div>
   {:else}
-    <div class="border-border flex flex-col gap-2 border-b p-4">
+    <div class="border-border flex shrink-0 flex-col gap-2 border-b p-4">
       <div class="flex items-start justify-between gap-2">
         <h2 class="text-sm font-semibold">{node.label}</h2>
         <div class="flex shrink-0 items-center gap-1">
           <Badge variant="secondary">
             {membership(node) === "shared"
               ? "Both groups"
-              : `Group ${membership(node).toUpperCase()} only`}
+              : `${membership(node) === "a" ? nameA : nameB} only`}
           </Badge>
+          <Popover.Root>
+            <Popover.Trigger>
+              {#snippet child({ props })}
+                <Button variant="ghost" size="icon" aria-label="How to read this" {...props}>
+                  <CircleQuestionMark />
+                </Button>
+              {/snippet}
+            </Popover.Trigger>
+            <Popover.Content class="flex w-80 flex-col gap-2.5 text-[0.6875rem]" align="end">
+              <p class="text-xs font-semibold">How to read this</p>
+              <p>
+                Bars show how much more common a value is in one group than the other, in
+                percentage points. Longer means a bigger gap. Numeric attributes show the two
+                groups' quartiles instead, with the median difference stated above them.
+              </p>
+              <p>
+                <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible
+                below 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up. The chip
+                deepens with it, and a node's badge on the canvas takes the colour of its strongest
+                difference — so the tree shows which differences are worth walking to.
+              </p>
+              <div class="flex items-center gap-1">
+                {#each [1, 2, 3, 4] as step (step)}
+                  <span class="h-2 flex-1" style="background:var(--effect-{step})"></span>
+                {/each}
+              </div>
+              <p class="text-muted-foreground flex justify-between text-[0.625rem]">
+                <span>negligible</span>
+                <span>large</span>
+              </p>
+              <p>
+                With thousands of cases almost any gap tests as real, so magnitude leads and the
+                test only gates it — an attribute has to clear both to appear as a finding.
+                p-values are corrected for the number of attributes tested.
+              </p>
+              <p>
+                <span class="font-semibold">Divergent</span> co-movement means two attributes shift
+                opposite ways between the groups.
+              </p>
+            </Popover.Content>
+          </Popover.Root>
           <Button variant="ghost" size="icon" aria-label="Hide details" onclick={onClose}>
             <X />
           </Button>
         </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
-        A {formatNumber(cases?.groupACases ?? 0)} · B {formatNumber(cases?.groupBCases ?? 0)} cases
+        {nameA}
+        {formatNumber(cases?.groupACases ?? 0)}
+        {#if compare}· {nameB} {formatNumber(cases?.groupBCases ?? 0)}{/if} cases
       </p>
       <p class="text-muted-foreground truncate text-[0.625rem]" title={path.map((n) => n.label).join(" → ")}>
         {path.map((n) => n.label).join(" → ")}
       </p>
     </div>
 
-    <ScrollArea.Root class="flex-1">
-      <div class="flex flex-col gap-4 p-4">
+    <!-- `min-h-0` is load-bearing: a flex item's automatic minimum size is its
+         content, so without it the scroll root grows past the panel and the
+         viewport never has anything to scroll. -->
+    <ScrollArea.Root class="min-h-0 flex-1">
+      <div class="flex flex-col">
         {#if node.comovement.length > 0}
-          <div class="flex flex-col gap-1.5">
+          <div class="border-border flex flex-col gap-1.5 border-b px-4 py-3.5">
             <h3 class="text-xs font-semibold">Attribute co-movement</h3>
             {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
               <div class="flex items-center gap-2 text-[0.6875rem]">
-                <Badge variant={pair.relationship === "divergent" ? "destructive" : "secondary"}>
-                  {pair.relationship}
-                </Badge>
+                <Badge variant="secondary">{pair.relationship}</Badge>
                 <span class="truncate">{pair.attributeX} · {pair.attributeY}</span>
               </div>
             {/each}
-            <p class="text-muted-foreground text-[0.625rem]">
-              Divergent means the two attributes shift opposite ways between the groups.
-            </p>
           </div>
-          <Separator />
         {/if}
 
-        {#each blocks as [name, block] (name)}
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center justify-between gap-2">
-              <h3 class="text-xs font-semibold">{name}</h3>
-              {#if block.test?.significant}
-                <Badge>significant</Badge>
-              {/if}
-            </div>
-            {#if name === TRANSITION_TIME}
-              <p class="text-muted-foreground text-[0.625rem]">
-                Time on the edge from {path.at(-2)?.label ?? "Start"}, measured as
-                {tree.transitionTimeBasis === "startComplete"
-                  ? "start of this activity − completion of the previous one."
-                  : "completion of this activity − completion of the previous one."}
-              </p>
-            {/if}
-            <SummaryCompare
-              groupA={block.groupA}
-              groupB={block.groupB}
-              duration={isDurationAttribute(name)}
-            />
-            {#if block.test}
-              <p class="text-muted-foreground font-mono text-[0.625rem]">{testLine(block.test)}</p>
-            {:else}
-              <p class="text-muted-foreground text-[0.625rem]">{untestable(block)}</p>
-            {/if}
-          </div>
-          <Separator />
+        {#if !compare}
+          <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
+            One group — these are its distributions, with nothing to compare them against.
+          </p>
+          {#each flat as [name, block] (name)}
+            {@render attribute(name, block)}
+          {/each}
         {:else}
-          <p class="text-muted-foreground text-xs">
+          {#each ranked.finding as [name, block] (name)}
+            {@render attribute(name, block)}
+          {/each}
+
+          {#if ranked.finding.length === 0 && flat.length > 0}
+            <p class="text-muted-foreground px-4 py-3.5 text-xs">
+              No attribute differs meaningfully between the groups at this node.
+            </p>
+          {/if}
+
+          {#each [["No meaningful difference", ranked.weak], ["Could not be tested", ranked.untested]] as const as [title, blocks] (title)}
+            {#if blocks.length > 0}
+              <details class="border-border border-b">
+                <summary
+                  class="text-muted-foreground hover:text-foreground cursor-pointer px-4 py-3 text-xs"
+                >
+                  {title} ({blocks.length})
+                </summary>
+                {#each blocks as [name, block] (name)}
+                  {@render attribute(name, block)}
+                {/each}
+              </details>
+            {/if}
+          {/each}
+        {/if}
+
+        {#if flat.length === 0}
+          <p class="text-muted-foreground px-4 py-3.5 text-xs">
             No attributes selected — pick some in Build settings and rebuild.
           </p>
-        {/each}
+        {/if}
       </div>
     </ScrollArea.Root>
   {/if}
