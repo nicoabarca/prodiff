@@ -7,7 +7,6 @@ import {
   defaultTreeView,
   directedTree,
   treeKey,
-  variantsCovering,
   type DirectedTree,
   type TreeSettings,
   type TreeView
@@ -38,7 +37,11 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
   value: { ...defaultTreeSettings }
 });
 
-/** Pure view state: what is hidden, collapsed or dimmed. Never hits the backend. */
+/**
+ * What is hidden, collapsed or dimmed. Only `maxVariants` reaches the backend,
+ * and only through `build` — the Significance Tests are computed over the
+ * Variants included, so changing how many are included is a rebuild.
+ */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
 /** The node whose aggregates the detail panel is showing. */
@@ -83,7 +86,7 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
 /** The key the tree on screen would need to match to still be current. */
 export function currentKey(): string | null {
   const chains = groupChains();
-  return chains ? treeKey(chains.a, chains.b, settings.value) : null;
+  return chains ? treeKey(chains.a, chains.b, settings.value, view.maxVariants) : null;
 }
 
 export function isStale(): boolean {
@@ -91,9 +94,14 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups and settings. Explicit rather than
- * automatic: this is the most expensive operation in the app, and the Filters
- * view edits chains live, so an auto-build would fire on every keystroke.
+ * Builds the tree for the current Groups, settings and Variant count. Explicit
+ * rather than automatic: this is the most expensive operation in the app, and
+ * the Filters view edits chains live, so an auto-build would fire on every
+ * keystroke. The slider is the one exception — it calls this on release,
+ * because its cut decides what the Significance Tests are computed over.
+ *
+ * With no tree yet there is no slider position to honour, so the backend picks
+ * the Variants covering most of the cases; a rebuild keeps where the user is.
  */
 export async function build(project: Project) {
   const chains = groupChains();
@@ -102,14 +110,17 @@ export async function build(project: Project) {
   built.building = true;
   built.error = null;
   try {
-    const tree = await directedTree(project, chains.a, chains.b, settings.value);
+    const limit = built.tree ? view.maxVariants : null;
+    const tree = await directedTree(project, chains.a, chains.b, settings.value, limit);
     built.projectId = project.id;
-    built.key = treeKey(chains.a, chains.b, settings.value);
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
-    // Open on the common behaviour: the fewest Variants holding 80% of cases.
-    view.maxVariants = variantsCovering(tree);
+    // What the backend included, not what was asked for: the ceiling and the
+    // log's own Variant count both cut a request short.
+    view.maxVariants = tree.variantsIncluded;
+    // Keyed after the slider lands on the truth, so the tree reads as current.
+    built.key = currentKey();
   } catch (cause) {
     built.error = String(cause);
   } finally {
@@ -124,6 +135,8 @@ function clear() {
   built.error = null;
   selected.id = null;
   view.collapsed = new Set();
+  // No tree means no position to honour: let the next build choose again.
+  view.maxVariants = defaultTreeView.maxVariants;
 }
 
 /** Drops a tree belonging to another project when the route changes. */

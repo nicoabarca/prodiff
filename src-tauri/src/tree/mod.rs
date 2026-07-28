@@ -29,6 +29,10 @@ const MIN_GROUP_CASES: usize = 5;
 /// How many Variants a build ships at most, so a pathological log can't hand
 /// the renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
 const MAX_VARIANTS: usize = 400;
+/// What a build with no explicit limit opens on: the fewest Variants holding
+/// this share of the cases, so a first look is the common behaviour rather
+/// than the tail.
+const DEFAULT_COVERAGE: f64 = 0.8;
 const ALPHA: f64 = 0.05;
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -392,10 +396,17 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
     rows.activities[from..to].join("\u{1}")
 }
 
-/// The Variants to include: most cases first, up to the ceiling. How many of
-/// these actually render is the view's call — the slider cuts into what ships
-/// here without a rebuild.
-fn cut_variants(groups: &[Option<GroupRows>; 2]) -> (Vec<String>, usize, f64, bool) {
+/// The Variants to include: most cases first, up to the ceiling. This cut runs
+/// *before* anything is accumulated, so every Node Aggregate and Significance
+/// Test downstream describes exactly the Variants included and no others —
+/// which is why the slider asks for a rebuild rather than filtering locally.
+///
+/// `limit` is the slider's count. `None` is a cold build with nothing to
+/// honour yet, and opens on `DEFAULT_COVERAGE` of the cases.
+fn cut_variants(
+    groups: &[Option<GroupRows>; 2],
+    limit: Option<usize>,
+) -> (Vec<String>, usize, f64, bool) {
     let mut counts: HashMap<String, i64> = HashMap::new();
     for rows in groups.iter().flatten() {
         for case in 0..rows.case_ids.len() {
@@ -409,10 +420,18 @@ fn cut_variants(groups: &[Option<GroupRows>; 2]) -> (Vec<String>, usize, f64, bo
     // Case count first, then key, so the same log always cuts the same way.
     ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
+    // The ceiling binds whatever the slider asks for. At least one Variant
+    // always survives: an empty tree is never what the user meant.
+    let cap = limit.unwrap_or(usize::MAX).clamp(1, MAX_VARIANTS);
+    let target = (total_cases as f64 * DEFAULT_COVERAGE).ceil() as i64;
+
     let mut included = Vec::new();
     let mut covered = 0;
     for (key, count) in ordered {
-        if included.len() >= MAX_VARIANTS {
+        if included.len() >= cap {
+            break;
+        }
+        if limit.is_none() && covered >= target {
             break;
         }
         covered += count;
@@ -429,12 +448,14 @@ fn cut_variants(groups: &[Option<GroupRows>; 2]) -> (Vec<String>, usize, f64, bo
 }
 
 /// Builds the tree and everything hanging off it. `group_b` is `None` in
-/// one-Group mode, where no test runs anywhere.
+/// one-Group mode, where no test runs anywhere. `max_variants` is the slider's
+/// count — see `cut_variants` for what `None` means.
 pub fn build(
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
     mapping: &[ColumnMapping],
     attributes: &[String],
+    max_variants: Option<usize>,
 ) -> Result<DirectedTree, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attrs, case_attrs, wants_transition) = plan_attributes(attributes, mapping, has_start);
@@ -447,7 +468,7 @@ pub fn build(
     let groups = [Some(rows_a), rows_b];
 
     let (included, variants_total, case_coverage, capped_by_ceiling) =
-        cut_variants(&groups);
+        cut_variants(&groups, max_variants);
     let included: std::collections::HashSet<String> = included.into_iter().collect();
 
     // Index `attrs.len()` is the transition into the node, which is scoped to
@@ -795,8 +816,17 @@ mod tests {
     }
 
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
+        build_limited(a, b, attrs, None)
+    }
+
+    fn build_limited(
+        a: &DataFrame,
+        b: Option<&DataFrame>,
+        attrs: &[&str],
+        limit: Option<usize>,
+    ) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(a, b, &mapping(), &attributes).unwrap()
+        build(a, b, &mapping(), &attributes, limit).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {
@@ -843,9 +873,13 @@ mod tests {
         );
     }
 
+    /// A build with no limit opens on the common behaviour rather than the
+    /// tail, and reports the whole log's Variant count so the slider knows how
+    /// far it can travel.
     #[test]
-    fn every_variant_ships_with_its_share_of_the_cases_reported() {
-        // Nine cases share the variant `A`; `B` and `C` are one case each.
+    fn an_unlimited_build_opens_on_the_default_coverage() {
+        // Nine cases share the variant `A`; `B` and `C` are one case each, so
+        // `A` alone already clears 80%.
         let owned: Vec<String> = (0..9).map(|i| format!("c{i}")).collect();
         let traces: Vec<(&str, &[&str], &[i64])> = owned
             .iter()
@@ -857,12 +891,67 @@ mod tests {
             .collect();
         let df = log(&traces);
 
-        let attributes: Vec<String> = Vec::new();
-        let tree = build(&df, None, &mapping(), &attributes).unwrap();
-        assert_eq!(tree.variants_total, 3);
-        assert_eq!(tree.variants_included, 3, "under the ceiling, nothing is cut");
-        assert_eq!(tree.nodes.len(), 4, "Start plus one leaf per variant");
-        assert!((tree.case_coverage - 1.0).abs() < 1e-9);
+        let tree = build_with(&df, None, &[]);
+        assert_eq!(tree.variants_total, 3, "the log still has three");
+        assert_eq!(tree.variants_included, 1, "`A` alone covers 9 of 11 cases");
+        assert_eq!(tree.nodes.len(), 2, "Start plus the one included leaf");
+        assert!(!tree.capped_by_ceiling);
+
+        // Asking for all three brings the tail back.
+        let full = build_limited(&df, None, &[], Some(3));
+        assert_eq!(full.variants_included, 3);
+        assert_eq!(full.nodes.len(), 4, "Start plus one leaf per variant");
+        assert!((full.case_coverage - 1.0).abs() < 1e-9);
+    }
+
+    /// The point of cutting Variants in the builder rather than in the view:
+    /// every Node Aggregate is re-derived over exactly the Variants included,
+    /// so a shared node stops describing cases that are no longer on screen.
+    #[test]
+    fn cutting_a_variant_re_derives_the_aggregates_of_the_nodes_above_it() {
+        // Six cases go `A→B` at cost 10; five go `A→C` at cost 100. `A` is
+        // shared, so what it reports depends on which Variants survive.
+        let cheap: Vec<String> = (0..6).map(|i| format!("cheap{i}")).collect();
+        let dear: Vec<String> = (0..5).map(|i| format!("dear{i}")).collect();
+        let traces: Vec<(&str, &[&str], &[i64])> = cheap
+            .iter()
+            .map(|id| (id.as_str(), &["A", "B"][..], &[10i64, 10][..]))
+            .chain(
+                dear.iter()
+                    .map(|id| (id.as_str(), &["A", "C"][..], &[100i64, 100][..])),
+            )
+            .collect();
+        let df = log(&traces);
+
+        let mean_at_a = |tree: &DirectedTree| -> f64 {
+            let node = tree.nodes.iter().find(|n| n.label == "A").unwrap();
+            match node.event_level["cost"].group_a {
+                Some(Summary::Numerical { mean, .. }) => mean,
+                _ => panic!("expected a numeric summary at `A`"),
+            }
+        };
+
+        let both = build_limited(&df, None, &["cost"], Some(2));
+        assert_eq!(both.variants_included, 2);
+        assert!(
+            (mean_at_a(&both) - (6.0 * 10.0 + 5.0 * 100.0) / 11.0).abs() < 1e-9,
+            "with both Variants `A` averages all eleven cases"
+        );
+
+        let biggest_only = build_limited(&df, None, &["cost"], Some(1));
+        assert_eq!(biggest_only.variants_included, 1, "`A→B` is the larger");
+        assert!(
+            (mean_at_a(&biggest_only) - 10.0).abs() < 1e-9,
+            "cutting `A→C` must take its cost out of `A`, not just off the canvas"
+        );
+    }
+
+    /// The ceiling still binds: the view cannot ask for more than a build ships.
+    #[test]
+    fn a_limit_above_the_ceiling_is_clamped_rather_than_honoured() {
+        let df = log(&[("1", &["A"], &[10]), ("2", &["B"], &[20])]);
+        let tree = build_limited(&df, None, &[], Some(usize::MAX));
+        assert_eq!(tree.variants_included, 2, "only two exist to include");
         assert!(!tree.capped_by_ceiling);
     }
 

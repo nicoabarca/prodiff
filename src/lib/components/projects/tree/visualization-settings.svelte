@@ -163,7 +163,9 @@
       <div class="text-muted-foreground border-border border-t pt-2 text-[0.625rem]">
         {formatNumber(visible.variantsShown)} variants shown
         {#if visible.variantsHidden > 0}
-          · {formatNumber(visible.variantsHidden)} cut by the slider or these filters
+          · {formatNumber(visible.variantsHidden)} hidden by these two filters, which draw
+          less of the built tree without rebuilding it — the aggregates and tests still
+          describe every variant the slider included.
         {/if}
         {#if view.collapsed.size > 0}
           <Button
