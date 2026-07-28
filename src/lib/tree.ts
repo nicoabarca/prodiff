@@ -117,19 +117,25 @@ export const defaultTreeSettings: TreeSettings = { attributes: [] };
  * Builds the tree. Both chains arrive already composed (base first) — the
  * ordering rule lives in `effectiveChain`, as it does for every other command.
  * `groupB` is `null` in one-Group mode, where nothing is compared.
+ *
+ * `maxVariants` is how many Variants to include. It cuts before anything is
+ * aggregated, so every Significance Test describes the Variants asked for —
+ * `null` lets the backend open on the ones covering most of the cases.
  */
 export function directedTree(
   project: Project,
   groupA: Filter[],
   groupB: Filter[] | null,
-  settings: TreeSettings
+  settings: TreeSettings,
+  maxVariants: number | null
 ): Promise<DirectedTree> {
   return invoke<DirectedTree>("directed_tree", {
     projectId: project.id,
     groupA,
     groupB,
     attributes: settings.attributes,
-    columns: project.columns
+    columns: project.columns,
+    maxVariants
   });
 }
 
@@ -137,9 +143,10 @@ export function directedTree(
 export function treeKey(
   groupA: Filter[],
   groupB: Filter[] | null,
-  settings: TreeSettings
+  settings: TreeSettings,
+  maxVariants: number
 ): string {
-  return JSON.stringify([groupA, groupB, settings.attributes]);
+  return JSON.stringify([groupA, groupB, settings.attributes, maxVariants]);
 }
 
 export type Direction = "TB" | "LR";
@@ -151,11 +158,16 @@ export type Secondary = "cases" | "casesA" | "casesB" | (string & {});
 export type GroupFocus = "all" | "a" | "b" | "shared";
 
 /**
- * Everything the view decides on its own. None of it reaches the backend — the
- * whole tree already shipped, so these only pick what is drawn from it.
+ * What the view decides. All of it but `maxVariants` is drawn from the tree
+ * already in hand; `maxVariants` is a build input, because the Significance
+ * Tests have to be computed over the Variants included to describe them.
  */
 export interface TreeView {
-  /** How many Variants render, biggest first. The tree ships them all. */
+  /**
+   * How many Variants to include, biggest first. A build input, honoured by
+   * the next one rather than as it moves: until then the local prune below
+   * draws fewer Variants than the aggregates on them describe.
+   */
   maxVariants: number;
   /** Variants whose end node has fewer than this many cases are dropped whole. */
   minCases: number;
@@ -292,6 +304,13 @@ export interface Visible {
   variantsHidden: number;
   /** Cases on the Variants that survived, both Groups together. */
   casesShown: number;
+  /**
+   * Per-node case counts restricted to the surviving Variants. A node's own
+   * `groupACases`/`groupBCases` sum over every Variant the built tree ever
+   * had — right for a node that is one Variant's private tail, wrong for a
+   * shared ancestor once the slider prunes away some of its siblings.
+   */
+  cases: Map<number, { groupACases: number; groupBCases: number }>;
 }
 
 /** One leaf per Variant: every path from the root ends at exactly one. */
@@ -303,24 +322,6 @@ export function leaves(tree: DirectedTree): TreeNode[] {
 /** Cases in both Groups before any cut — the denominator for every share. */
 export function totalCases(tree: DirectedTree): number {
   return Number(tree.groupA.caseCount) + Number(tree.groupB?.caseCount ?? 0);
-}
-
-/**
- * The fewest Variants holding `share` of the cases — where the slider starts,
- * so the first look at a tree is the common behaviour rather than its tail.
- * Falls back to everything built when the tail is all that is left.
- */
-export function variantsCovering(tree: DirectedTree, share = 0.8): number {
-  const ranked = leaves(tree)
-    .map(nodeCases)
-    .sort((a, b) => b - a);
-  const target = totalCases(tree) * share;
-  let covered = 0;
-  for (let i = 0; i < ranked.length; i += 1) {
-    covered += ranked[i];
-    if (covered >= target) return i + 1;
-  }
-  return ranked.length;
 }
 
 /**
@@ -342,10 +343,17 @@ export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
     .slice(0, Math.max(1, view.maxVariants));
 
   const kept = new Set<number>();
+  const cases = new Map<number, { groupACases: number; groupBCases: number }>();
   let casesShown = 0;
   for (const leaf of ranked) {
     casesShown += nodeCases(leaf);
-    for (const node of pathTo(tree, leaf.id)) kept.add(node.id);
+    for (const node of pathTo(tree, leaf.id)) {
+      kept.add(node.id);
+      const acc = cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 };
+      acc.groupACases += leaf.groupACases;
+      acc.groupBCases += leaf.groupBCases;
+      cases.set(node.id, acc);
+    }
   }
   const variantsShown = ranked.length;
 
@@ -374,6 +382,7 @@ export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
     hiddenBelow,
     variantsShown,
     variantsHidden: all.length - variantsShown,
-    casesShown
+    casesShown,
+    cases
   };
 }

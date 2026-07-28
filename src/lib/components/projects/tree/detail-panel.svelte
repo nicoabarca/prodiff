@@ -12,10 +12,12 @@
     membership,
     pathTo,
     rankedBlocks,
+    visibleNodes,
     TRANSITION_TIME,
     type AttributeBlock,
     type DirectedTree
   } from "$lib/tree";
+  import { view } from "$lib/state/tree.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
@@ -30,6 +32,11 @@
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
   const compare = $derived(tree.groupB !== null);
+  /** Restricted to the surviving Variants — a node's raw totals over-count
+      once the slider has pruned some of its siblings away. */
+  const cases = $derived(
+    node ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 }) : null
+  );
 
   const groups = $derived(groupSlices());
   const nameA = $derived(groups[0]?.name ?? "Group A");
@@ -175,8 +182,8 @@
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
         {nameA}
-        {formatNumber(node.groupACases)}
-        {#if compare}· {nameB} {formatNumber(node.groupBCases)}{/if} cases
+        {formatNumber(cases?.groupACases ?? 0)}
+        {#if compare}· {nameB} {formatNumber(cases?.groupBCases ?? 0)}{/if} cases
       </p>
       <p class="text-muted-foreground truncate text-[0.625rem]" title={path.map((n) => n.label).join(" → ")}>
         {path.map((n) => n.label).join(" → ")}

@@ -12,11 +12,10 @@ import {
   isDivergent,
   isDurationAttribute,
   membership,
-  nodeCases,
   peakEffect,
   type Direction,
-  type EffectBand,
   type DirectedTree,
+  type EffectBand,
   type GroupFocus,
   type Secondary,
   type TreeNode,
@@ -59,10 +58,14 @@ function significantCount(node: TreeNode): number {
  * colour. A half is `null` when that Group has nothing here — a node one Group
  * never reaches shows one figure, not a figure and a dash.
  */
-function secondaryLabels(node: TreeNode, secondary: Secondary): [string | null, string | null] {
+function secondaryLabels(
+  node: TreeNode,
+  secondary: Secondary,
+  cases: { groupACases: number; groupBCases: number }
+): [string | null, string | null] {
   if (secondary === "cases" || secondary === "casesA" || secondary === "casesB") {
-    const a = secondary === "casesB" || node.groupACases === 0 ? null : formatNumber(node.groupACases);
-    const b = secondary === "casesA" || node.groupBCases === 0 ? null : formatNumber(node.groupBCases);
+    const a = secondary === "casesB" || cases.groupACases === 0 ? null : formatNumber(cases.groupACases);
+    const b = secondary === "casesA" || cases.groupBCases === 0 ? null : formatNumber(cases.groupBCases);
     return [a, b];
   }
 
@@ -129,12 +132,17 @@ export function toFlow(
   }
   dagre.layout(graph);
 
+  const nodeCases = (node: TreeNode) => {
+    const c = visible.cases.get(node.id);
+    return c ? c.groupACases + c.groupBCases : 0;
+  };
   const busiest = Math.max(1, ...shown.map(nodeCases));
   const vertical = options.direction === "TB";
 
   const nodes: Node[] = shown.map((node) => {
     const placed = graph.node(String(node.id));
-    const [secondaryA, secondaryB] = secondaryLabels(node, options.secondary);
+    const cases = visible.cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 };
+    const [secondaryA, secondaryB] = secondaryLabels(node, options.secondary, cases);
     const peak = peakEffect(node);
     return {
       id: String(node.id),
