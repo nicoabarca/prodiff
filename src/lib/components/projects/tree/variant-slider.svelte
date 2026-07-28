@@ -1,16 +1,22 @@
 <script lang="ts">
   /**
-   * How much of the tree to draw, as a count of Variants. The build ships every
-   * Variant it kept, so this cuts locally — dragging redraws, it never rebuilds.
+   * How much of the tree to draw, as a count of Variants. Dragging only prunes
+   * what is already in memory — building is the one expensive thing in the app
+   * and stays on the button. Until the next build the Node Aggregates and
+   * Significance Tests still describe the Variants the tree was built with, so
+   * moving this marks the tree stale rather than silently recomputing.
    */
   import { Slider } from "$lib/components/ui/slider/index.js";
   import { view } from "$lib/state/tree.svelte";
   import { formatNumber } from "$lib/format";
-  import { leaves, totalCases, visibleNodes, type DirectedTree } from "$lib/tree";
+  import { totalCases, visibleNodes, type DirectedTree } from "$lib/tree";
 
   let { tree }: { tree: DirectedTree } = $props();
 
-  const max = $derived(leaves(tree).length);
+  // The whole log's Variants, not the built tree's: the build only ships the
+  // ones asked for, so the leaves on hand are the floor, never the reach.
+  // Dragging past them asks the next build for more.
+  const max = $derived(Math.max(tree.variantsTotal, tree.variantsIncluded));
   const visible = $derived(visibleNodes(tree, view));
   const total = $derived(totalCases(tree));
   const share = $derived(total > 0 ? Math.round((visible.casesShown / total) * 100) : 0);

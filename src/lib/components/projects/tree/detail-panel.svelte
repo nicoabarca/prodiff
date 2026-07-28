@@ -8,11 +8,13 @@
     isDurationAttribute,
     membership,
     pathTo,
+    visibleNodes,
     TRANSITION_TIME,
     type AttributeBlock,
     type DirectedTree,
     type Test
   } from "$lib/tree";
+  import { view } from "$lib/state/tree.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
   import X from "@lucide/svelte/icons/x";
@@ -25,6 +27,9 @@
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
+  const cases = $derived(
+    node ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 }) : null
+  );
 
   /** Every attribute at this node, Transition Time last as the edge into it. */
   const blocks = $derived.by((): [string, AttributeBlock][] => {
@@ -84,7 +89,7 @@
         </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
-        A {formatNumber(node.groupACases)} · B {formatNumber(node.groupBCases)} cases
+        A {formatNumber(cases?.groupACases ?? 0)} · B {formatNumber(cases?.groupBCases ?? 0)} cases
       </p>
       <p class="text-muted-foreground truncate text-[0.625rem]" title={path.map((n) => n.label).join(" → ")}>
         {path.map((n) => n.label).join(" → ")}
