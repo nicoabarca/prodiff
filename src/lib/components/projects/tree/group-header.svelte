@@ -6,6 +6,7 @@
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
+  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
   import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
   import type { DirectedTree } from "$lib/tree";
@@ -50,24 +51,16 @@
     {#if caseLevel.length > 0}
       <div class="grid gap-3 md:grid-cols-2">
         {#each caseLevel as name (name)}
-          {@const test = tree.caseLevelTests[name]}
           <div class="border-border flex flex-col gap-1.5 border p-2.5">
             <div class="flex items-center justify-between gap-2">
               <span class="text-xs font-semibold">{name}</span>
-              {#if test?.significant}
-                <Badge>significant</Badge>
-              {/if}
+              <EffectChip test={tree.caseLevelTests[name]} />
             </div>
             <SummaryCompare
               groupA={tree.groupA.caseLevel[name] ?? null}
               groupB={tree.groupB?.caseLevel[name] ?? null}
+              compare={tree.groupB !== null}
             />
-            {#if test}
-              <p class="text-muted-foreground font-mono text-[0.625rem]">
-                p = {test.pValue < 0.001 ? test.pValue.toExponential(1) : test.pValue.toFixed(3)} ·
-                effect {test.effectSize.toFixed(2)}
-              </p>
-            {/if}
           </div>
         {/each}
       </div>

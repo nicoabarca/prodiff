@@ -191,6 +191,47 @@ export function hasSignificant(node: TreeNode): boolean {
   return blocks.some((block) => block?.test?.significant);
 }
 
+/** How big a difference is, in words. */
+export type EffectBand = "negligible" | "small" | "moderate" | "large";
+
+/**
+ * Cohen's conventional r bands. They apply unchanged to the rank-biserial
+ * correlation Mann-Whitney ships and to Cramér's V at one degree of freedom,
+ * which two Groups always give — so one legend covers both tests.
+ */
+export function effectBand(effectSize: number): EffectBand {
+  if (effectSize < 0.1) return "negligible";
+  if (effectSize < 0.3) return "small";
+  if (effectSize < 0.5) return "moderate";
+  return "large";
+}
+
+/**
+ * Where an attribute stands in the panel. At a few thousand cases per Group
+ * nearly every test comes out significant, so magnitude leads and the test only
+ * gates it: an attribute has to clear both to be read as a finding.
+ */
+export type Standing = "finding" | "weak" | "untested";
+
+export function standing(block: AttributeBlock): Standing {
+  if (!block.test) return "untested";
+  if (!block.test.significant) return "weak";
+  return effectBand(block.test.effectSize) === "negligible" ? "weak" : "finding";
+}
+
+/**
+ * Every attribute at a node — Transition Time last, as the edge into it —
+ * ordered strongest first and split by Standing, which is the order the detail
+ * panel reads in. Untested blocks sort below every tested one.
+ */
+export function rankedBlocks(node: TreeNode): Record<Standing, [string, AttributeBlock][]> {
+  const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
+  if (node.transitionTime) entries.push([TRANSITION_TIME, node.transitionTime]);
+  entries.sort((x, y) => (y[1].test?.effectSize ?? -1) - (x[1].test?.effectSize ?? -1));
+  const of = (which: Standing) => entries.filter(([, block]) => standing(block) === which);
+  return { finding: of("finding"), weak: of("weak"), untested: of("untested") };
+}
+
 export function isDivergent(node: TreeNode): boolean {
   return node.comovement.some((pair) => pair.relationship === "divergent");
 }
