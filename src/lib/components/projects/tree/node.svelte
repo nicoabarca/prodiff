@@ -67,17 +67,21 @@
     {/if}
   </div>
 
-  {#if data.significantCount > 0}
+  {#if data.significantCount > 0 && data.peakStep}
     <!-- Outside the node box, so a count never competes with the figures for
-         the little horizontal room a narrow node has. -->
+         the little horizontal room a narrow node has. The count says how many
+         differences are here; the fill says whether the biggest one is worth
+         crossing the canvas for, which the count alone never could. -->
     <Tooltip.Root>
       <Tooltip.Trigger
-        class="bg-foreground text-background absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+        class="absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full bg-(--fill) font-mono text-[0.625rem] font-semibold text-(--ink) ring-1 ring-(--ink)/30"
+        style="--fill:var(--effect-{data.peakStep});--ink:var(--effect-{data.peakStep}-foreground)"
       >
         {data.significantCount}
       </Tooltip.Trigger>
       <Tooltip.Content>
-        {data.significantCount} significant difference{data.significantCount === 1 ? "" : "s"} here
+        {data.significantCount} significant difference{data.significantCount === 1 ? "" : "s"} here ·
+        strongest is {data.peakBand}
       </Tooltip.Content>
     </Tooltip.Root>
   {/if}

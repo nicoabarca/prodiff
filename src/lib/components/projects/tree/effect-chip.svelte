@@ -8,7 +8,7 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { groupSlices } from "$lib/state/tree.svelte";
-  import { effectBand, type Test } from "$lib/tree";
+  import { effectBand, effectStep, type Test } from "$lib/tree";
 
   let { test }: { test: Test | null | undefined } = $props();
 
@@ -17,10 +17,10 @@
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
-  const label = $derived(
-    !test ? "" : !test.significant ? "no difference" : (band ?? "")
-  );
-  const strong = $derived(Boolean(test?.significant) && band !== "negligible");
+  const label = $derived(!test ? "" : !test.significant ? "no difference" : (band ?? ""));
+  // A failed test has no magnitude to place on the ramp, so it stays neutral —
+  // colouring it would put "nothing here" on the same scale as a finding.
+  const step = $derived(test?.significant ? effectStep(test.effectSize) : null);
 
   const detail = $derived.by(() => {
     if (!test) return "";
@@ -41,7 +41,16 @@
   <Tooltip.Provider>
     <Tooltip.Root>
       <Tooltip.Trigger>
-        <Badge variant={strong ? "default" : "secondary"}>{label}</Badge>
+        {#if step}
+          <Badge
+            class="border-(--ink)/20 bg-(--fill) text-(--ink)"
+            style="--fill:var(--effect-{step});--ink:var(--effect-{step}-foreground)"
+          >
+            {label}
+          </Badge>
+        {:else}
+          <Badge variant="secondary">{label}</Badge>
+        {/if}
       </Tooltip.Trigger>
       <Tooltip.Content class="max-w-64 text-[0.6875rem]">{detail}</Tooltip.Content>
     </Tooltip.Root>

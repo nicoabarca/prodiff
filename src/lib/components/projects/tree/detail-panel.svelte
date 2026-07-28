@@ -7,11 +7,11 @@
   import { formatNumber } from "$lib/format";
   import { groupSlices } from "$lib/state/tree.svelte";
   import {
+    effectBand,
     isDurationAttribute,
     membership,
     pathTo,
     rankedBlocks,
-    standing,
     TRANSITION_TIME,
     type AttributeBlock,
     type DirectedTree
@@ -98,7 +98,7 @@
       {#if compare}
         <p class="text-muted-foreground text-[0.625rem]">{untestable(block)}</p>
       {/if}
-    {:else if standing(block) === "weak" && block.test.significant}
+    {:else if block.test.significant && effectBand(block.test.effectSize) === "negligible"}
       <p class="text-muted-foreground text-[0.625rem]">
         The test is confident this gap is real, but it is too small to act on.
       </p>
@@ -144,7 +144,18 @@
               </p>
               <p>
                 <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible
-                below 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up.
+                below 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up. The chip
+                deepens with it, and a node's badge on the canvas takes the colour of its strongest
+                difference — so the tree shows which differences are worth walking to.
+              </p>
+              <div class="flex items-center gap-1">
+                {#each [1, 2, 3, 4] as step (step)}
+                  <span class="h-2 flex-1" style="background:var(--effect-{step})"></span>
+                {/each}
+              </div>
+              <p class="text-muted-foreground flex justify-between text-[0.625rem]">
+                <span>negligible</span>
+                <span>large</span>
               </p>
               <p>
                 With thousands of cases almost any gap tests as real, so magnitude leads and the

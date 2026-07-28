@@ -40,8 +40,19 @@
   );
 </script>
 
-<div class="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[60%] flex-wrap gap-1">
+<div class="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[60%] flex-wrap items-center gap-1">
   {#each items as item (item)}
     <Badge variant="secondary" class="bg-background/90 backdrop-blur">{item}</Badge>
   {/each}
+  <!-- The badge on a node is coloured, not just counted, so the ramp needs a
+       key on the canvas itself — the panel's is behind a click. -->
+  <Badge variant="secondary" class="bg-background/90 gap-1.5 backdrop-blur">
+    Difference size
+    <span class="flex items-center gap-px" aria-hidden="true">
+      {#each [1, 2, 3, 4] as step (step)}
+        <span class="size-2 rounded-full" style="background:var(--effect-{step})"></span>
+      {/each}
+    </span>
+    <span class="text-muted-foreground">negligible → large</span>
+  </Badge>
 </div>
