@@ -4,8 +4,6 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { currentProject, projectsLoaded } from "$lib/state/projects.svelte";
   import { loadSlices, slicesLoaded } from "$lib/state/slices.svelte";
-  import { built } from "$lib/state/tree.svelte";
-  import { formatNumber } from "$lib/format";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/components/projects/filter-summary-bar.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
@@ -33,12 +31,6 @@
 {#if project}
   <ProjectTopbar {project} projectView={view} />
   <FilterSummaryBar {project}>
-    {#snippet trailing()}
-      {#if view === "tree" && built.tree && built.projectId === project.id}
-        {formatNumber(built.tree.variantsIncluded)} of {formatNumber(built.tree.variantsTotal)}
-        variants · {Math.round(built.tree.caseCoverage * 100)}% of cases
-      {/if}
-    {/snippet}
     {#snippet actions()}
       {#if !onFilters}
         <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">

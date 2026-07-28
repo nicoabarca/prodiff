@@ -163,7 +163,7 @@
       <div class="text-muted-foreground border-border border-t pt-2 text-[0.625rem]">
         {formatNumber(visible.variantsShown)} variants shown
         {#if visible.variantsHidden > 0}
-          · {formatNumber(visible.variantsHidden)} filtered out
+          · {formatNumber(visible.variantsHidden)} cut by the slider or these filters
         {/if}
         {#if view.collapsed.size > 0}
           <Button

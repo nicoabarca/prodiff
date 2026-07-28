@@ -31,7 +31,6 @@ pub fn directed_tree(
     group_a: Vec<Filter>,
     group_b: Option<Vec<Filter>>,
     attributes: Vec<String>,
-    coverage: f64,
     columns: Vec<ColumnMapping>,
 ) -> Result<DirectedTree, String> {
     let path = event_log_path(&app, &project_id)?;
@@ -46,5 +45,5 @@ pub fn directed_tree(
         None => None,
     };
 
-    build(&a, b.as_ref(), &columns, &attributes, coverage)
+    build(&a, b.as_ref(), &columns, &attributes)
 }

@@ -26,8 +26,8 @@ pub const TRANSITION_TIME: &str = "Transition Time";
 /// Neither test says anything below this. Hardcoded rather than exposed:
 /// lowering it manufactures findings instead of revealing them.
 const MIN_GROUP_CASES: usize = 5;
-/// Ceiling behind the coverage target, so a pathological log can't hand the
-/// renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
+/// How many Variants a build ships at most, so a pathological log can't hand
+/// the renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
 const MAX_VARIANTS: usize = 400;
 const ALPHA: f64 = 0.05;
 
@@ -115,7 +115,7 @@ pub struct TreeNode {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupBlock {
-    /// Cases surviving the Group's filter chain — before the coverage cut, so
+    /// Cases surviving the Group's filter chain — before the variant cut, so
     /// it can exceed the root node's count.
     pub case_count: i64,
     pub case_level: HashMap<String, Summary>,
@@ -134,9 +134,9 @@ pub struct DirectedTree {
     pub overlap_cases: i64,
     pub variants_total: usize,
     pub variants_included: usize,
-    /// Fraction of the two Groups' combined cases actually on screen.
+    /// Fraction of the two Groups' combined cases the included Variants hold.
     pub case_coverage: f64,
-    /// True when `MAX_VARIANTS` stopped the cut before the coverage target.
+    /// True when the log has more Variants than `MAX_VARIANTS` ships.
     pub capped_by_ceiling: bool,
     /// `startComplete` = start(N) − complete(N−1); `completeOnly` =
     /// complete(N) − complete(N−1), which absorbs the activity's own duration.
@@ -392,9 +392,10 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
     rows.activities[from..to].join("\u{1}")
 }
 
-/// The Variants to include: most cases first, until `coverage` of the combined
-/// case count is on screen or the ceiling stops it.
-fn cut_variants(groups: &[Option<GroupRows>; 2], coverage: f64) -> (Vec<String>, usize, f64, bool) {
+/// The Variants to include: most cases first, up to the ceiling. How many of
+/// these actually render is the view's call — the slider cuts into what ships
+/// here without a rebuild.
+fn cut_variants(groups: &[Option<GroupRows>; 2]) -> (Vec<String>, usize, f64, bool) {
     let mut counts: HashMap<String, i64> = HashMap::new();
     for rows in groups.iter().flatten() {
         for case in 0..rows.case_ids.len() {
@@ -408,18 +409,17 @@ fn cut_variants(groups: &[Option<GroupRows>; 2], coverage: f64) -> (Vec<String>,
     // Case count first, then key, so the same log always cuts the same way.
     ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
-    let target = (total_cases as f64 * coverage).ceil() as i64;
     let mut included = Vec::new();
     let mut covered = 0;
     for (key, count) in ordered {
-        if covered >= target || included.len() >= MAX_VARIANTS {
+        if included.len() >= MAX_VARIANTS {
             break;
         }
         covered += count;
         included.push(key);
     }
 
-    let capped = included.len() >= MAX_VARIANTS && covered < target;
+    let capped = total_variants > MAX_VARIANTS;
     let achieved = if total_cases == 0 {
         0.0
     } else {
@@ -435,7 +435,6 @@ pub fn build(
     group_b: Option<&DataFrame>,
     mapping: &[ColumnMapping],
     attributes: &[String],
-    coverage: f64,
 ) -> Result<DirectedTree, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attrs, case_attrs, wants_transition) = plan_attributes(attributes, mapping, has_start);
@@ -448,7 +447,7 @@ pub fn build(
     let groups = [Some(rows_a), rows_b];
 
     let (included, variants_total, case_coverage, capped_by_ceiling) =
-        cut_variants(&groups, coverage);
+        cut_variants(&groups);
     let included: std::collections::HashSet<String> = included.into_iter().collect();
 
     // Index `attrs.len()` is the transition into the node, which is scoped to
@@ -797,7 +796,7 @@ mod tests {
 
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(a, b, &mapping(), &attributes, 1.0).unwrap()
+        build(a, b, &mapping(), &attributes).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {
@@ -845,7 +844,7 @@ mod tests {
     }
 
     #[test]
-    fn coverage_keeps_the_biggest_variants_and_reports_what_it_cut() {
+    fn every_variant_ships_with_its_share_of_the_cases_reported() {
         // Nine cases share the variant `A`; `B` and `C` are one case each.
         let owned: Vec<String> = (0..9).map(|i| format!("c{i}")).collect();
         let traces: Vec<(&str, &[&str], &[i64])> = owned
@@ -859,11 +858,11 @@ mod tests {
         let df = log(&traces);
 
         let attributes: Vec<String> = Vec::new();
-        let tree = build(&df, None, &mapping(), &attributes, 0.8).unwrap();
+        let tree = build(&df, None, &mapping(), &attributes).unwrap();
         assert_eq!(tree.variants_total, 3);
-        assert_eq!(tree.variants_included, 1);
-        assert_eq!(tree.nodes.len(), 2, "Start plus the one kept variant");
-        assert!((tree.case_coverage - 9.0 / 11.0).abs() < 1e-9);
+        assert_eq!(tree.variants_included, 3, "under the ceiling, nothing is cut");
+        assert_eq!(tree.nodes.len(), 4, "Start plus one leaf per variant");
+        assert!((tree.case_coverage - 1.0).abs() < 1e-9);
         assert!(!tree.capped_by_ceiling);
     }
 

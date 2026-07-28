@@ -109,11 +109,9 @@ export function isDurationAttribute(attribute: string): boolean {
 
 export interface TreeSettings {
   attributes: string[];
-  /** Fraction of the two Groups' combined cases to keep, 0–1. */
-  coverage: number;
 }
 
-export const defaultTreeSettings: TreeSettings = { attributes: [], coverage: 0.8 };
+export const defaultTreeSettings: TreeSettings = { attributes: [] };
 
 /**
  * Builds the tree. Both chains arrive already composed (base first) — the
@@ -131,7 +129,6 @@ export function directedTree(
     groupA,
     groupB,
     attributes: settings.attributes,
-    coverage: settings.coverage,
     columns: project.columns
   });
 }
@@ -142,7 +139,7 @@ export function treeKey(
   groupB: Filter[] | null,
   settings: TreeSettings
 ): string {
-  return JSON.stringify([groupA, groupB, settings.attributes, settings.coverage]);
+  return JSON.stringify([groupA, groupB, settings.attributes]);
 }
 
 export type Direction = "TB" | "LR";
@@ -158,6 +155,8 @@ export type GroupFocus = "all" | "a" | "b" | "shared";
  * whole tree already shipped, so these only pick what is drawn from it.
  */
 export interface TreeView {
+  /** How many Variants render, biggest first. The tree ships them all. */
+  maxVariants: number;
   /** Variants whose end node has fewer than this many cases are dropped whole. */
   minCases: number;
   /** Keep only Variants containing at least one significant Significance Test. */
@@ -172,6 +171,7 @@ export interface TreeView {
 }
 
 export const defaultTreeView: TreeView = {
+  maxVariants: Number.MAX_SAFE_INTEGER,
   minCases: 0,
   significantOnly: false,
   collapsed: new Set(),
@@ -231,6 +231,37 @@ export interface Visible {
   hiddenBelow: Map<number, number>;
   variantsShown: number;
   variantsHidden: number;
+  /** Cases on the Variants that survived, both Groups together. */
+  casesShown: number;
+}
+
+/** One leaf per Variant: every path from the root ends at exactly one. */
+export function leaves(tree: DirectedTree): TreeNode[] {
+  const kids = children(tree);
+  return tree.nodes.filter((n) => !kids.has(n.id));
+}
+
+/** Cases in both Groups before any cut — the denominator for every share. */
+export function totalCases(tree: DirectedTree): number {
+  return Number(tree.groupA.caseCount) + Number(tree.groupB?.caseCount ?? 0);
+}
+
+/**
+ * The fewest Variants holding `share` of the cases — where the slider starts,
+ * so the first look at a tree is the common behaviour rather than its tail.
+ * Falls back to everything built when the tail is all that is left.
+ */
+export function variantsCovering(tree: DirectedTree, share = 0.8): number {
+  const ranked = leaves(tree)
+    .map(nodeCases)
+    .sort((a, b) => b - a);
+  const target = totalCases(tree) * share;
+  let covered = 0;
+  for (let i = 0; i < ranked.length; i += 1) {
+    covered += ranked[i];
+    if (covered >= target) return i + 1;
+  }
+  return ranked.length;
 }
 
 /**
@@ -241,17 +272,23 @@ export interface Visible {
  */
 export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
   const kids = children(tree);
-  const leaves = tree.nodes.filter((n) => !kids.has(n.id));
+  const all = leaves(tree);
+
+  // Biggest Variants first, so the slider always cuts the tail rather than an
+  // arbitrary slice. Case count then label keeps ties stable across renders.
+  const ranked = all
+    .filter((leaf) => nodeCases(leaf) >= view.minCases)
+    .filter((leaf) => !view.significantOnly || pathTo(tree, leaf.id).some(hasSignificant))
+    .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id)
+    .slice(0, Math.max(1, view.maxVariants));
 
   const kept = new Set<number>();
-  let variantsShown = 0;
-  for (const leaf of leaves) {
-    if (nodeCases(leaf) < view.minCases) continue;
-    const path = pathTo(tree, leaf.id);
-    if (view.significantOnly && !path.some(hasSignificant)) continue;
-    variantsShown += 1;
-    for (const node of path) kept.add(node.id);
+  let casesShown = 0;
+  for (const leaf of ranked) {
+    casesShown += nodeCases(leaf);
+    for (const node of pathTo(tree, leaf.id)) kept.add(node.id);
   }
+  const variantsShown = ranked.length;
 
   // A collapsed node stays; everything under it goes, and the count of what
   // went is what the badge shows.
@@ -277,6 +314,7 @@ export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
     ids,
     hiddenBelow,
     variantsShown,
-    variantsHidden: leaves.length - variantsShown
+    variantsHidden: all.length - variantsShown,
+    casesShown
   };
 }

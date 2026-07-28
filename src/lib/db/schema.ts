@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { ColumnMapping } from "$lib/column-mapping";
 import type { Filter } from "$lib/filters";
 import type { EventLogStats, SliceKind } from "$lib/types";
@@ -39,8 +39,8 @@ export const slices = sqliteTable("slices", {
 });
 
 /**
- * What the Comparison Directed Tree is built from — the attributes to test and
- * how much of the log to cover. Its own table rather than columns on
+ * What the Comparison Directed Tree is built from — the attributes to test.
+ * Its own table rather than columns on
  * `projects`: every table is created idempotently at startup, so a new table
  * needs no migration where a new column would.
  *
@@ -49,6 +49,5 @@ export const slices = sqliteTable("slices", {
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),
-  attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),
-  coverage: real("coverage").notNull()
+  attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull()
 });

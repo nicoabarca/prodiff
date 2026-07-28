@@ -7,6 +7,7 @@ import {
   defaultTreeView,
   directedTree,
   treeKey,
+  variantsCovering,
   type DirectedTree,
   type TreeSettings,
   type TreeView
@@ -65,14 +66,14 @@ export async function loadSettings(projectId: string) {
   const row = rows[0];
   settings.projectId = projectId;
   settings.value = row
-    ? { attributes: row.attributes, coverage: row.coverage }
+    ? { attributes: row.attributes }
     : { ...defaultTreeSettings };
 }
 
 export async function saveSettings(projectId: string, value: TreeSettings) {
   settings.value = value;
   settings.projectId = projectId;
-  const row = { projectId, attributes: value.attributes, coverage: value.coverage };
+  const row = { projectId, attributes: value.attributes };
   await db().insert(settingsTable).values(row).onConflictDoUpdate({
     target: settingsTable.projectId,
     set: row
@@ -107,6 +108,8 @@ export async function build(project: Project) {
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
+    // Open on the common behaviour: the fewest Variants holding 80% of cases.
+    view.maxVariants = variantsCovering(tree);
   } catch (cause) {
     built.error = String(cause);
   } finally {

@@ -17,6 +17,8 @@
   import Canvas from "$lib/components/projects/tree/canvas.svelte";
   import DetailPanel from "$lib/components/projects/tree/detail-panel.svelte";
   import GroupHeader from "$lib/components/projects/tree/group-header.svelte";
+  import VariantSlider from "$lib/components/projects/tree/variant-slider.svelte";
+  import ViewLegend from "$lib/components/projects/tree/view-legend.svelte";
   import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
@@ -43,20 +45,12 @@
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="border-border bg-background flex shrink-0 items-center gap-2 border-b px-4 py-2">
-      <BuildSettings {project} />
+    <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
       {#if built.tree}
-        <VisualizationSettings tree={built.tree} />
+        <!-- The size of what is on screen, and the control over it, first thing
+             on the bar: the tree itself never says what it left out. -->
+        <VariantSlider tree={built.tree} />
       {/if}
-      <Button size="sm" disabled={built.building || !groups[0]} onclick={() => build(project)}>
-        {#if built.tree}
-          <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
-          Rebuild
-        {:else}
-          <Play data-icon="inline-start" />
-          {built.building ? "Building…" : "Build tree"}
-        {/if}
-      </Button>
       {#if stale}
         <p class="text-destructive text-xs">
           Filters or settings changed since this tree was built.
@@ -65,24 +59,40 @@
       {#if built.error}
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
-      {#if built.tree}
-        <Button
-          variant="outline"
-          size="sm"
-          class="ml-auto"
-          aria-pressed={panelOpen}
-          onclick={() => (panelOpen = !panelOpen)}
-        >
-          <PanelRight data-icon="inline-start" />
-          {panelOpen ? "Hide details" : "Show details"}
+      <div class="ml-auto flex items-center gap-2">
+        <BuildSettings {project} />
+        {#if built.tree}
+          <VisualizationSettings tree={built.tree} />
+        {/if}
+        <Button size="sm" disabled={built.building || !groups[0]} onclick={() => build(project)}>
+          {#if built.tree}
+            <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
+            Rebuild
+          {:else}
+            <Play data-icon="inline-start" />
+            {built.building ? "Building…" : "Build tree"}
+          {/if}
         </Button>
-      {/if}
+      </div>
     </div>
 
     {#if built.tree}
       <GroupHeader tree={built.tree} />
       <div class="flex min-h-0 flex-1">
-        <Canvas tree={built.tree} {stale} />
+        <div class="relative flex min-h-0 flex-1">
+          <Canvas tree={built.tree} {stale} />
+          <ViewLegend />
+          <Button
+            variant="outline"
+            size="sm"
+            class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
+            aria-pressed={panelOpen}
+            onclick={() => (panelOpen = !panelOpen)}
+          >
+            <PanelRight data-icon="inline-start" />
+            {panelOpen ? "Hide details" : "Show details"}
+          </Button>
+        </div>
         {#if panelOpen}
           <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (panelOpen = false)} />
         {/if}
