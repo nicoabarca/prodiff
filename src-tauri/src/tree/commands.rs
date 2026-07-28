@@ -26,8 +26,8 @@ fn filtered(
 /// counts and aggregates but no comparison anywhere.
 ///
 /// `max_variants` is how many Variants the view is asking to see. It cuts
-/// before any aggregation, so the Significance Tests describe the Variants on
-/// screen — which is why moving the slider comes back through here.
+/// before any aggregation, so the Significance Tests describe the Variants
+/// included rather than every Variant the log has.
 #[tauri::command]
 pub fn directed_tree(
     app: tauri::AppHandle,

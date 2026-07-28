@@ -39,8 +39,8 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
 
 /**
  * What is hidden, collapsed or dimmed. Only `maxVariants` reaches the backend,
- * and only through `build` — the Significance Tests are computed over the
- * Variants included, so changing how many are included is a rebuild.
+ * and only when `build` next runs — the Significance Tests are computed over
+ * the Variants included, so moving it makes the tree stale until then.
  */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
@@ -94,11 +94,11 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and Variant count. Explicit
- * rather than automatic: this is the most expensive operation in the app, and
- * the Filters view edits chains live, so an auto-build would fire on every
- * keystroke. The slider is the one exception — it calls this on release,
- * because its cut decides what the Significance Tests are computed over.
+ * Builds the tree for the current Groups, settings and Variant count. Always
+ * explicit: this is the most expensive operation in the app, the Filters view
+ * edits chains live, and the slider moves continuously, so anything automatic
+ * would fire on every keystroke or drag. Every input here — the Variant count
+ * included — waits for the button.
  *
  * With no tree yet there is no slider position to honour, so the backend picks
  * the Variants covering most of the cases; a rebuild keeps where the user is.

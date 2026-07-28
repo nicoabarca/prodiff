@@ -49,10 +49,10 @@
       {#if built.tree}
         <!-- The size of what is on screen, and the control over it, first thing
              on the bar: the tree itself never says what it left out. -->
-        <VariantSlider tree={built.tree} {project} />
+        <VariantSlider tree={built.tree} />
       {/if}
-      <!-- Silent while building: the slider rebuilds on release, and its own
-           spinner already says the numbers are catching up. -->
+      <!-- Silent while building: the button's own spinner already says the
+           numbers are catching up. -->
       {#if stale && !built.building}
         <p class="text-destructive text-xs">
           Filters or settings changed since this tree was built.

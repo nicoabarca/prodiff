@@ -399,10 +399,11 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
 /// The Variants to include: most cases first, up to the ceiling. This cut runs
 /// *before* anything is accumulated, so every Node Aggregate and Significance
 /// Test downstream describes exactly the Variants included and no others —
-/// which is why the slider asks for a rebuild rather than filtering locally.
+/// which is why the count is a build input and not something the view can
+/// apply to a tree already in hand.
 ///
-/// `limit` is the slider's count. `None` is a cold build with nothing to
-/// honour yet, and opens on `DEFAULT_COVERAGE` of the cases.
+/// `limit` is the slider's count, as of the last build. `None` is a cold build
+/// with nothing to honour yet, and opens on `DEFAULT_COVERAGE` of the cases.
 fn cut_variants(
     groups: &[Option<GroupRows>; 2],
     limit: Option<usize>,

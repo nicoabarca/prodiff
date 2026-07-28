@@ -165,7 +165,7 @@
         {#if visible.variantsHidden > 0}
           · {formatNumber(visible.variantsHidden)} hidden by these two filters, which draw
           less of the built tree without rebuilding it — the aggregates and tests still
-          describe every variant the slider included.
+          describe every variant the last build included.
         {/if}
         {#if view.collapsed.size > 0}
           <Button

@@ -164,8 +164,9 @@ export type GroupFocus = "all" | "a" | "b" | "shared";
  */
 export interface TreeView {
   /**
-   * How many Variants to include, biggest first. Changing it rebuilds — the
-   * local prune below is the preview until the new numbers land.
+   * How many Variants to include, biggest first. A build input, honoured by
+   * the next one rather than as it moves: until then the local prune below
+   * draws fewer Variants than the aggregates on them describe.
    */
   maxVariants: number;
   /** Variants whose end node has fewer than this many cases are dropped whole. */
