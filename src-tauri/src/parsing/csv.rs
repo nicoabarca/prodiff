@@ -48,7 +48,7 @@ pub(crate) fn column_to_strings(df: &DataFrame, name: &str) -> Result<Vec<String
     Ok((0..series.len())
         .map(|i| match series.get(i) {
             Ok(AnyValue::Null) | Err(_) => String::new(),
-            Ok(v) => v.str_value().into_owned()
+            Ok(v) => v.str_value().into_owned(),
         })
         .collect())
 }

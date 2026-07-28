@@ -97,9 +97,9 @@ pub enum Filter {
 /// `column` is one of `values`. Built as an OR chain rather than `is_in` so the
 /// expression is independent of Polars' shifting `is_in` signature.
 fn matches_any(column: &str, values: &[String]) -> Expr {
-    values.iter().fold(lit(false), |acc, v| {
-        acc.or(col(column).eq(lit(v.as_str())))
-    })
+    values
+        .iter()
+        .fold(lit(false), |acc, v| acc.or(col(column).eq(lit(v.as_str()))))
 }
 
 fn timestamp_millis(column: &str) -> Expr {
@@ -194,9 +194,13 @@ fn apply_one(
             // Rows are persisted sorted by (case, timestamp) at Event Log
             // creation and filtering preserves order, so first/last over the
             // case window are the case's endpoints without re-sorting.
+            // Compared as text: the activities arrive as the display strings
+            // the picker showed, and an activity column of numeric codes is
+            // stored as a number, which would fail the comparison outright.
+            let as_text = col(activity_col).cast(DataType::String);
             let endpoint = match position {
-                Endpoint::Start => col(activity_col).first(),
-                Endpoint::End => col(activity_col).last(),
+                Endpoint::Start => as_text.first(),
+                Endpoint::End => as_text.last(),
             }
             .over([col(case_col)])
             .map_err(|e| e.to_string())?;
@@ -300,7 +304,11 @@ mod tests {
             r#"[{"kind":"attribute","column":"type","mode":"mandatory","values":["Silver"]}]"#,
         ));
         assert_eq!(cases(&df), ["2"]);
-        assert_eq!(df.height(), 2, "the whole case is retained, not just the hit");
+        assert_eq!(
+            df.height(),
+            2,
+            "the whole case is retained, not just the hit"
+        );
     }
 
     #[test]
@@ -328,6 +336,74 @@ mod tests {
         ));
         // Case 1 (10) and case 2 (20) each have an event on a limit.
         assert_eq!(cases(&df), ["1", "2"]);
+    }
+
+    /// A log whose activities are numeric codes. The declared type is honoured
+    /// at ingest, so the column really is an i64 here — the endpoint filter still
+    /// has to match the picker's "10" against it.
+    #[test]
+    fn endpoint_filter_reads_a_numeric_activity_column_as_text() {
+        let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 3_000, 4_000])
+            .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+            .unwrap();
+        let df = DataFrame::new(
+            5,
+            vec![
+                Column::new("case".into(), ["1", "1", "2", "2", "3"]),
+                ts,
+                Column::new("act_num".into(), [10i64, 20, 10, 30, 20]),
+            ],
+        )
+        .unwrap();
+        let numeric_activity: Vec<ColumnMapping> = serde_json::from_str(
+            r#"[
+              {"name":"case","role":"case_id"},
+              {"name":"act_num","role":"activity_name","type":"integer"},
+              {"name":"ts","role":"complete_timestamp"}
+            ]"#,
+        )
+        .unwrap();
+        let out = apply(
+            df.lazy(),
+            &parse(
+                r#"[{"kind":"endpoint","position":"start","mode":"mandatory","activities":["10"]}]"#,
+            ),
+            &numeric_activity,
+        )
+        .unwrap()
+        .collect()
+        .expect("a numeric activity column must not fail the comparison");
+        assert_eq!(cases(&out), ["1", "2"]);
+    }
+
+    /// The attribute picker offers text and boolean columns only, and Polars
+    /// coerces the literal for the boolean one — so no cast is needed there.
+    #[test]
+    fn attribute_filter_matches_a_boolean_column() {
+        let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 3_000, 4_000])
+            .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+            .unwrap();
+        let df = DataFrame::new(
+            5,
+            vec![
+                Column::new("case".into(), ["1", "1", "2", "2", "3"]),
+                Column::new("act".into(), ["A", "B", "A", "C", "B"]),
+                ts,
+                Column::new("flag".into(), [true, true, false, false, true]),
+            ],
+        )
+        .unwrap();
+        let out = apply(
+            df.lazy(),
+            &parse(
+                r#"[{"kind":"attribute","column":"flag","mode":"mandatory","values":["true"]}]"#,
+            ),
+            &mapping(),
+        )
+        .unwrap()
+        .collect()
+        .unwrap();
+        assert_eq!(cases(&out), ["1", "3"]);
     }
 
     #[test]

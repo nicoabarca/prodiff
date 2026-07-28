@@ -296,7 +296,7 @@
 
   {#if kind === "attribute" || kind === "numeric"}
     {@const options = kind === "numeric" ? numericColumns : categorical}
-    <Field.Field>
+    <Field.Field class="w-1/2">
       <Field.FieldLabel for="filter-column">Column</Field.FieldLabel>
       <Select.Root
         type="single"
@@ -374,7 +374,7 @@
   </Field.FieldSet>
 
   {#if kind === "numeric"}
-    <div class="flex gap-3">
+    <div class="flex w-1/2 gap-3">
       {#if numericMode !== "below"}
         <Field.Field>
           <Field.FieldLabel for="filter-min">
@@ -393,7 +393,7 @@
       {/if}
     </div>
   {:else if kind === "timeframe"}
-    <div class="flex gap-3">
+    <div class="flex w-1/2 gap-3">
       <Field.Field>
         <Field.FieldLabel for="filter-from">From</Field.FieldLabel>
         <Input id="filter-from" type="date" bind:value={from} />
@@ -404,7 +404,7 @@
       </Field.Field>
     </div>
   {:else}
-    <Field.Field>
+    <Field.Field class="w-1/2">
       <div class="flex items-center gap-2">
         <Field.FieldLabel>{kind === "endpoint" ? "Activities" : "Values"}</Field.FieldLabel>
         <span class="text-muted-foreground ml-auto text-xs">

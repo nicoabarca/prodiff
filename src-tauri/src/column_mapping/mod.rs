@@ -40,6 +40,19 @@ pub enum ColumnType {
     Datetime,
 }
 
+impl ColumnType {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::String => "text",
+            Self::Integer => "a whole number",
+            Self::Float => "a decimal number",
+            Self::Boolean => "true/false",
+            Self::Date => "a date",
+            Self::Datetime => "a timestamp",
+        }
+    }
+}
+
 /// Mirrors `ColumnGranularity` in `src/lib/column-mapping.ts`. Event-level
 /// attributes produce Node Aggregates; case-level ones aggregate per Group.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]

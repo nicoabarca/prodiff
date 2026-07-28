@@ -36,7 +36,9 @@ pub fn directed_tree(
 ) -> Result<DirectedTree, String> {
     let path = event_log_path(&app, &project_id)?;
     let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
-    let df = ParquetReader::new(file).finish().map_err(|e| e.to_string())?;
+    let df = ParquetReader::new(file)
+        .finish()
+        .map_err(|e| e.to_string())?;
 
     let a = filtered(&df, &group_a, &columns)?;
     let b = match &group_b {

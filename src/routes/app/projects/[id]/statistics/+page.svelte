@@ -1,6 +1,7 @@
 <script lang="ts">
   import { currentProject } from "$lib/state/projects.svelte";
   import { chainKey, computeStats, populations, type Population } from "$lib/state/slices.svelte";
+  import ComparisonCharts from "$lib/components/projects/comparison-charts.svelte";
   import MetricsTable from "$lib/components/projects/metrics-table.svelte";
   import EventDataTable from "$lib/components/projects/event-data-table.svelte";
   import EventLogSettings from "$lib/components/projects/event-log-settings.svelte";
@@ -43,11 +44,14 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <div class="flex w-full flex-col gap-5">
+    <!-- Capped and centred: the tables are read column by column, and a grid
+         stretched to a wide window puts the figures too far apart to compare. -->
+    <div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}
       <EventLogSettings {project} />
+      <ComparisonCharts populations={pops} {stats} />
       <MetricsTable populations={pops} {stats} />
       <EventDataTable {project} populations={pops} />
     </div>

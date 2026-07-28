@@ -11,6 +11,7 @@
   import type { Population } from "$lib/state/slices.svelte";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";
+  import Info from "@lucide/svelte/icons/info";
 
   let { project, populations }: { project: Project; populations: Population[] } = $props();
 
@@ -62,38 +63,27 @@
   });
 </script>
 
-<Card.Root>
-  <Card.Header>
-    <Card.Title>Event log data</Card.Title>
-    <Card.Description>
-      {#if preview}
-        Previewing {formatNumber(preview.rows.length)} of {formatNumber(preview.totalEvents)} events in
-        {selected?.name} — the full data is never loaded into the table.
-      {:else}
-        The full data is never loaded into the table.
-      {/if}
-    </Card.Description>
-    <Card.Action>
-      <Tabs.Root bind:value={selectedId}>
-        <Tabs.List>
-          {#each populations as population (population.id)}
-            <Tabs.Trigger value={population.id}>
-              <span
-                class="size-2 shrink-0 rounded-full"
-                style="background:{colorVar(population.color)}"
-                aria-hidden="true"
-              ></span>
-              {population.name}
-            </Tabs.Trigger>
-          {/each}
-        </Tabs.List>
-      </Tabs.Root>
-    </Card.Action>
-  </Card.Header>
-  <!-- pb-0: the table runs to the card's edge, no blank band under the last row. -->
-  <Card.Content class="px-0 pb-0">
+<Card.Root class="gap-0 py-0">
+  <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
+    <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Event log data</span>
+    <Tabs.Root bind:value={selectedId} class="ml-auto">
+      <Tabs.List class="bg-card gap-0 border p-0">
+        {#each populations as population (population.id)}
+          <Tabs.Trigger value={population.id} class="data-active:bg-muted border-r px-2.5 py-1">
+            <span
+              class="size-2 shrink-0"
+              style="background:{colorVar(population.color)}"
+              aria-hidden="true"
+            ></span>
+            {population.name}
+          </Tabs.Trigger>
+        {/each}
+      </Tabs.List>
+    </Tabs.Root>
+  </div>
+  <div>
     {#if error}
-      <div class="px-(--card-spacing) pb-(--card-spacing)">
+      <div class="p-4">
         <Alert variant="destructive">
           <CircleAlert />
           <AlertTitle>Could not read the event log</AlertTitle>
@@ -101,7 +91,7 @@
         </Alert>
       </div>
     {:else if !preview}
-      <div class="flex flex-col gap-2 px-(--card-spacing) pb-(--card-spacing)">
+      <div class="flex flex-col gap-2 p-4">
         {#each { length: 6 } as _, row (row)}
           <Skeleton class="h-6 w-full" />
         {/each}
@@ -121,9 +111,13 @@
     {:else}
       <Table.Root>
         <Table.Header>
-          <Table.Row>
+          <Table.Row class="hover:bg-transparent">
             {#each visible as column (column.name)}
-              <Table.Head class="whitespace-nowrap">{column.name}</Table.Head>
+              <Table.Head
+                class="bg-sidebar text-muted-foreground sticky top-0 h-auto px-3 py-2 text-[0.625rem] font-bold tracking-[0.06em] whitespace-nowrap uppercase"
+              >
+                {column.name}
+              </Table.Head>
             {/each}
           </Table.Row>
         </Table.Header>
@@ -131,12 +125,25 @@
           {#each preview.rows as row, rowIndex (rowIndex)}
             <Table.Row>
               {#each visible as column (column.name)}
-                <Table.Cell class="font-mono whitespace-nowrap">{row[column.index]}</Table.Cell>
+                <Table.Cell class="px-3 py-1.5 font-mono whitespace-nowrap">
+                  {row[column.index]}
+                </Table.Cell>
               {/each}
             </Table.Row>
           {/each}
         </Table.Body>
       </Table.Root>
     {/if}
-  </Card.Content>
+  </div>
+  <div class="bg-sidebar text-muted-foreground flex items-center gap-2 border-t px-4 py-2.5">
+    <Info class="size-3.5 shrink-0" aria-hidden="true" />
+    <span class="text-xs">
+      {#if preview}
+        Previewing {formatNumber(preview.rows.length)} of {formatNumber(preview.totalEvents)} events in
+        {selected?.name} — the full data is never loaded into the table.
+      {:else}
+        The full data is never loaded into the table.
+      {/if}
+    </span>
+  </div>
 </Card.Root>

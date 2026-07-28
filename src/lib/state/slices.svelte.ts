@@ -216,6 +216,12 @@ export function sliceCases(slice: Slice): number | null {
   return steps ? (steps[steps.length - 1]?.cases ?? null) : null;
 }
 
+/** Events remaining after a slice's whole chain. */
+export function sliceEvents(slice: Slice): number | null {
+  const steps = sliceSteps(slice);
+  return steps ? (steps[steps.length - 1]?.events ?? null) : null;
+}
+
 /**
  * One population in the Statistics view. The whole log is included as a
  * chainless population, so it is not a slice row and never needs storing.
@@ -233,7 +239,7 @@ export function populations(): Population[] {
   const whole: Population = {
     id: "whole",
     name: "Whole log",
-    color: "muted-foreground",
+    color: "foreground",
     chain: [],
     stats: null
   };

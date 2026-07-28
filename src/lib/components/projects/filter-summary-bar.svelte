@@ -8,7 +8,8 @@
     effectiveChain,
     namedSlices,
     sliceCases,
-    sliceColor
+    sliceColor,
+    sliceEvents
   } from "$lib/state/slices.svelte";
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
@@ -34,15 +35,21 @@
   );
 
   /**
-   * Cases for the chain as it stands right now: the Filters view's live
+   * A size of the chain as it stands right now: the Filters view's live
    * measurement when it has one, otherwise the stats cache — but only when its
    * key still matches, or an edit would leave the old count on screen. Blank
    * while neither is current, so the bar never runs analysis of its own.
    */
-  function currentCases(slice: Slice): number | null {
-    const measured = sliceCases(slice);
+  function current(slice: Slice, metric: "cases" | "events"): number | null {
+    const measured = metric === "cases" ? sliceCases(slice) : sliceEvents(slice);
     if (measured !== null) return measured;
-    return slice.statsKey === chainKey(effectiveChain(slice)) ? (slice.stats?.cases ?? null) : null;
+    return slice.statsKey === chainKey(effectiveChain(slice)) ? (slice.stats?.[metric] ?? null) : null;
+  }
+
+  /** `12,345 cases (48%)` — the share omitted when there is no total to divide by. */
+  function size(value: number, total: number, unit: string): string {
+    const share = total > 0 ? ` (${Math.round((value / total) * 100)}%)` : "";
+    return `${formatNumber(value)} ${unit}${share}`;
   }
 </script>
 
@@ -71,12 +78,13 @@
           ></span>
           <span class="text-xs font-semibold">{slice.name}</span>
           <Badge variant="secondary">{slice.filters.length}</Badge>
-          {@const cases = currentCases(slice)}
+          {@const cases = current(slice, "cases")}
+          {@const events = current(slice, "events")}
           {#if cases !== null}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(cases)} cases
-              {#if project.cases > 0}
-                ({Math.round((cases / project.cases) * 100)}%)
+              {size(cases, project.cases, "cases")}
+              {#if events !== null}
+                · {size(events, project.events, "events")}
               {/if}
             </span>
           {/if}

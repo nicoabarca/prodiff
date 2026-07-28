@@ -35,7 +35,7 @@ export function db(): Db {
 export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
-      const sqlite = await Database.load("sqlite:procept.db");
+      const sqlite = await Database.load("sqlite:compare.db");
       await sqlite.execute(createTableSql(schema.projects));
       await sqlite.execute(createTableSql(schema.slices));
       await sqlite.execute(createTableSql(schema.treeSettings));

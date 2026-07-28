@@ -245,11 +245,7 @@ fn column_floats(df: &DataFrame, name: &str) -> Result<Vec<Option<f64>>, String>
         .map_err(|e| e.to_string())?
         .cast(&DataType::Float64)
         .map_err(|e| e.to_string())?;
-    Ok(series
-        .f64()
-        .map_err(|e| e.to_string())?
-        .iter()
-        .collect())
+    Ok(series.f64().map_err(|e| e.to_string())?.iter().collect())
 }
 
 fn column_millis(df: &DataFrame, name: &str) -> Result<Vec<Option<f64>>, String> {
@@ -398,10 +394,7 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
 
 /// The Variants to include: most cases first, until `coverage` of the combined
 /// case count is on screen or the ceiling stops it.
-fn cut_variants(
-    groups: &[Option<GroupRows>; 2],
-    coverage: f64,
-) -> (Vec<String>, usize, f64, bool) {
+fn cut_variants(groups: &[Option<GroupRows>; 2], coverage: f64) -> (Vec<String>, usize, f64, bool) {
     let mut counts: HashMap<String, i64> = HashMap::new();
     for rows in groups.iter().flatten() {
         for case in 0..rows.case_ids.len() {
@@ -521,9 +514,10 @@ pub fn build(
                     }
                 }
                 if wants_transition {
-                    if let (Some(value), Acc::Num(acc)) =
-                        (rows.transition[row], &mut nodes[node].acc[attrs.len()][group])
-                    {
+                    if let (Some(value), Acc::Num(acc)) = (
+                        rows.transition[row],
+                        &mut nodes[node].acc[attrs.len()][group],
+                    ) {
                         acc.push(value);
                     }
                 }
@@ -734,7 +728,13 @@ fn case_level_blocks(
         );
         for (name, test) in computed.drain(..) {
             let significant = test.p_value <= cutoff;
-            tests.insert(name, Test { significant, ..test });
+            tests.insert(
+                name,
+                Test {
+                    significant,
+                    ..test
+                },
+            );
         }
     }
 
@@ -803,23 +803,13 @@ mod tests {
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {
         tree.nodes
             .iter()
-            .map(|n| {
-                (
-                    n.parent,
-                    n.label.as_str(),
-                    n.group_a_cases,
-                    n.group_b_cases,
-                )
-            })
+            .map(|n| (n.parent, n.label.as_str(), n.group_a_cases, n.group_b_cases))
             .collect()
     }
 
     #[test]
     fn shared_prefixes_merge_and_the_tree_branches_where_variants_diverge() {
-        let df = log(&[
-            ("1", &["A", "B"], &[10, 20]),
-            ("2", &["A", "C"], &[10, 30]),
-        ]);
+        let df = log(&[("1", &["A", "B"], &[10, 20]), ("2", &["A", "C"], &[10, 30])]);
         let tree = build_with(&df, None, &[]);
         assert_eq!(
             labels(&tree),
@@ -861,7 +851,10 @@ mod tests {
         let traces: Vec<(&str, &[&str], &[i64])> = owned
             .iter()
             .map(|id| (id.as_str(), &["A"][..], &[10i64][..]))
-            .chain([("y", &["B"][..], &[10i64][..]), ("z", &["C"][..], &[10][..])])
+            .chain([
+                ("y", &["B"][..], &[10i64][..]),
+                ("z", &["C"][..], &[10][..]),
+            ])
             .collect();
         let df = log(&traces);
 
@@ -946,4 +939,3 @@ mod tests {
         assert_eq!(mean, 1_000.0);
     }
 }
-

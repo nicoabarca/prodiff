@@ -761,6 +761,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "compare"
+version = "0.1.0"
+dependencies = [
+ "polars",
+ "serde",
+ "serde_json",
+ "statrs",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-opener",
+ "tauri-plugin-sql",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6123,21 +6138,6 @@ dependencies = [
  "webview2-com",
  "windows",
  "wry",
-]
-
-[[package]]
-name = "tauri-test-app"
-version = "0.1.0"
-dependencies = [
- "polars",
- "serde",
- "serde_json",
- "statrs",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-opener",
- "tauri-plugin-sql",
 ]
 
 [[package]]

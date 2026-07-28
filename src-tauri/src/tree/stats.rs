@@ -132,7 +132,8 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
 
     let mut statistic = 0.0;
     for value in &values {
-        let row = (a.get(*value).copied().unwrap_or(0) + b.get(*value).copied().unwrap_or(0)) as f64;
+        let row =
+            (a.get(*value).copied().unwrap_or(0) + b.get(*value).copied().unwrap_or(0)) as f64;
         for (observed, column_total) in [
             (a.get(*value).copied().unwrap_or(0), total_a),
             (b.get(*value).copied().unwrap_or(0), total_b),
@@ -188,8 +189,7 @@ mod tests {
 
     #[test]
     fn quantiles_interpolate_like_a_box_plot() {
-        let Summary::Numerical { q1, median, q3, .. } =
-            numeric_summary(&[1.0, 2.0, 3.0, 4.0, 5.0])
+        let Summary::Numerical { q1, median, q3, .. } = numeric_summary(&[1.0, 2.0, 3.0, 4.0, 5.0])
         else {
             panic!("expected numeric");
         };
@@ -198,8 +198,8 @@ mod tests {
 
     #[test]
     fn mann_whitney_separates_disjoint_samples() {
-        let test = mann_whitney(&[1.0, 2.0, 3.0, 4.0, 5.0], &[10.0, 11.0, 12.0, 13.0, 14.0])
-            .unwrap();
+        let test =
+            mann_whitney(&[1.0, 2.0, 3.0, 4.0, 5.0], &[10.0, 11.0, 12.0, 13.0, 14.0]).unwrap();
         // Group A ranks entirely below B: U = 0, rank-biserial = −1.
         assert_eq!(test.statistic, 0.0);
         assert_eq!(test.effect_signed, Some(-1.0));

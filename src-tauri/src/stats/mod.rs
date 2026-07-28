@@ -215,7 +215,10 @@ mod tests {
         assert_eq!(stats.activities, 2);
         // case 1 = A→B, case 2 = A→B, case 3 = A  ⇒ two distinct traces
         assert_eq!(stats.variants, 2);
-        assert_eq!(stats.timespan_start.as_deref(), Some("1970-01-01T00:00:00Z"));
+        assert_eq!(
+            stats.timespan_start.as_deref(),
+            Some("1970-01-01T00:00:00Z")
+        );
         assert_eq!(stats.timespan_end.as_deref(), Some("1970-01-01T00:00:04Z"));
     }
 
@@ -244,8 +247,8 @@ mod tests {
 
     #[test]
     fn stats_serialize_as_camel_case_for_the_frontend() {
-        let json = serde_json::to_string(&summarize(&sample_log(), &frontend_mapping()).unwrap())
-            .unwrap();
+        let json =
+            serde_json::to_string(&summarize(&sample_log(), &frontend_mapping()).unwrap()).unwrap();
         assert!(json.contains("\"timespanStart\""), "got: {json}");
         assert!(json.contains("\"timespanEnd\""), "got: {json}");
     }
