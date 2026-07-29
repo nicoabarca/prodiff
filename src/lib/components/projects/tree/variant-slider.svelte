@@ -20,13 +20,31 @@
   const visible = $derived(visibleNodes(tree, view));
   const total = $derived(totalCases(tree));
   const share = $derived(total > 0 ? Math.round((visible.casesShown / total) * 100) : 0);
+
+  /** Clamped, and never NaN: an emptied field reverts rather than asking for zero Variants. */
+  function commit(value: number) {
+    view.maxVariants = Number.isFinite(value)
+      ? Math.min(max, Math.max(1, Math.round(value)))
+      : view.maxVariants;
+  }
 </script>
 
 <div class="flex min-w-0 items-center gap-3">
   <div class="flex flex-col gap-0.5">
     <p class="flex items-baseline gap-2 whitespace-nowrap">
       <span class="text-base leading-none font-semibold tabular-nums">
-        {formatNumber(visible.variantsShown)} of {formatNumber(tree.variantsTotal)} variants
+        <!-- Typing is the only way to reach an exact count on a log with
+             thousands of Variants: one slider pixel is worth dozens of them. -->
+        <input
+          type="number"
+          min="1"
+          {max}
+          value={visible.variantsShown}
+          onchange={(event) => commit(Number(event.currentTarget.value))}
+          class="hover:decoration-foreground focus:border-ring w-auto min-w-[2ch] border-b border-dotted border-transparent bg-transparent text-center font-semibold tabular-nums underline decoration-dotted underline-offset-4 outline-none field-sizing-content [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+          aria-label="Variants to include"
+        />
+        of {formatNumber(tree.variantsTotal)} variants
       </span>
       <span class="text-muted-foreground text-xs tabular-nums">{share}% of cases</span>
     </p>
@@ -40,7 +58,7 @@
     {max}
     step={1}
     value={Math.min(view.maxVariants, max)}
-    onValueChange={(value) => (view.maxVariants = value)}
+    onValueChange={commit}
     class="w-40 shrink-0"
     aria-label="Variants shown"
   />

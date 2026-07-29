@@ -2,6 +2,7 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
+  import * as Table from "$lib/components/ui/table/index.js";
   import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
   import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
@@ -35,7 +36,9 @@
   /** Restricted to the surviving Variants — a node's raw totals over-count
       once the slider has pruned some of its siblings away. */
   const cases = $derived(
-    node ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 }) : null
+    node
+      ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 })
+      : null
   );
 
   const groups = $derived(groupSlices());
@@ -120,7 +123,9 @@
         <X />
       </Button>
     </div>
-    <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6 pt-0">
+    <div
+      class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6 pt-0"
+    >
       <MousePointerClick class="size-5" aria-hidden="true" />
       <p class="text-center text-xs">Select a node to compare its aggregates.</p>
     </div>
@@ -145,15 +150,13 @@
             <Popover.Content class="flex w-80 flex-col gap-2.5 text-[0.6875rem]" align="end">
               <p class="text-xs font-semibold">How to read this</p>
               <p>
-                Bars show how much more common a value is in one group than the other, in
-                percentage points. Longer means a bigger gap. Numeric attributes show the two
-                groups' quartiles instead, with the median difference stated above them.
+                Bars show how much more common a value is in one group than the other, in percentage
+                points. Longer means a bigger gap. Numeric attributes show the two groups' quartiles
+                instead, with the median difference stated above them.
               </p>
               <p>
-                <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible
-                below 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up. The chip
-                deepens with it, and a node's badge on the canvas takes the colour of its strongest
-                difference — so the tree shows which differences are worth walking to.
+                <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible below
+                0.10, small below 0.30, moderate below 0.50, large at 0.50 and up.
               </p>
               <div class="flex items-center gap-1">
                 {#each [1, 2, 3, 4] as step (step)}
@@ -165,13 +168,8 @@
                 <span>large</span>
               </p>
               <p>
-                With thousands of cases almost any gap tests as real, so magnitude leads and the
-                test only gates it — an attribute has to clear both to appear as a finding.
-                p-values are corrected for the number of attributes tested.
-              </p>
-              <p>
-                <span class="font-semibold">Divergent</span> co-movement means two attributes shift
-                opposite ways between the groups.
+                <span class="font-semibold">Divergent</span> co-movement means two attributes shift opposite
+                ways between the groups.
               </p>
             </Popover.Content>
           </Popover.Root>
@@ -185,7 +183,10 @@
         {formatNumber(cases?.groupACases ?? 0)}
         {#if compare}· {nameB} {formatNumber(cases?.groupBCases ?? 0)}{/if} cases
       </p>
-      <p class="text-muted-foreground truncate text-[0.625rem]" title={path.map((n) => n.label).join(" → ")}>
+      <p
+        class="text-muted-foreground truncate text-[0.625rem]"
+        title={path.map((n) => n.label).join(" → ")}
+      >
         {path.map((n) => n.label).join(" → ")}
       </p>
     </div>
@@ -198,12 +199,28 @@
         {#if node.comovement.length > 0}
           <div class="border-border flex flex-col gap-1.5 border-b px-4 py-3.5">
             <h3 class="text-xs font-semibold">Attribute co-movement</h3>
-            {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
-              <div class="flex items-center gap-2 text-[0.6875rem]">
-                <Badge variant="secondary">{pair.relationship}</Badge>
-                <span class="truncate">{pair.attributeX} · {pair.attributeY}</span>
-              </div>
-            {/each}
+            <Table.Root class="text-[0.6875rem]">
+              <Table.Header>
+                <Table.Row class="hover:bg-transparent">
+                  <Table.Head class="h-6 px-0 text-[0.6875rem]">movement</Table.Head>
+                  <!-- The two attributes of the pair. Unlabelled: neither is
+                       first in any meaningful sense. -->
+                  <Table.Head class="h-6 px-2"></Table.Head>
+                  <Table.Head class="h-6 px-0"></Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
+                  <Table.Row class="hover:bg-transparent">
+                    <Table.Cell class="px-0 py-1">
+                      <Badge variant="secondary">{pair.relationship}</Badge>
+                    </Table.Cell>
+                    <Table.Cell class="truncate px-2 py-1">{pair.attributeX}</Table.Cell>
+                    <Table.Cell class="truncate px-0 py-1">{pair.attributeY}</Table.Cell>
+                  </Table.Row>
+                {/each}
+              </Table.Body>
+            </Table.Root>
           </div>
         {/if}
 

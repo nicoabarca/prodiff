@@ -76,12 +76,13 @@
     const q3 = Math.max(...present.map((s) => s.q3));
     // A zero-width IQR (every case identical) still needs a drawable axis.
     const pad = (q3 - q1) * 0.15 || Math.max(Math.abs(q3) * 0.1, 1);
-    return {
-      lo: Math.max(q1 - pad, lowest),
-      hi: Math.min(q3 + pad, highest),
-      lowest,
-      highest
-    };
+    const lo = Math.max(q1 - pad, lowest);
+    const hi = Math.min(q3 + pad, highest);
+    // Both Groups constant at the same value: clamping to the observed range
+    // leaves lo === hi, which is a scale with nowhere to put the mark.
+    return lo === hi
+      ? { lo: lo - pad, hi: hi + pad, lowest, highest }
+      : { lo, hi, lowest, highest };
   });
 
   const boxes = $derived(
@@ -91,16 +92,17 @@
     ].filter((row) => row !== null)
   );
 
-  const clamp = (value: number) =>
-    span ? Math.min(Math.max(value, span.lo), span.hi) : value;
+  /** Groups whose cases all share one value — drawn as a dot, not a box. */
+  const constant = $derived(boxes.filter((row) => row.min === row.max));
+
+  const clamp = (value: number) => (span ? Math.min(Math.max(value, span.lo), span.hi) : value);
 
   /** The headline the numeric block leads with, in the user's own group names. */
   const delta = $derived.by(() => {
     if (!compare || !numericA || !numericB) return null;
     const difference = numericB.median - numericA.median;
     if (difference === 0) return { same: true } as const;
-    const percent =
-      numericA.median === 0 ? null : (difference / Math.abs(numericA.median)) * 100;
+    const percent = numericA.median === 0 ? null : (difference / Math.abs(numericA.median)) * 100;
     return {
       same: false,
       leader: difference > 0 ? nameB : nameA,
@@ -212,21 +214,35 @@
               />
               <Axis placement="bottom" rule={false} grid={false} ticks={3} {format} />
               {#each boxes as row (row.group)}
-                <BoxPlot
-                  data={row}
-                  min={(d) => clamp(d.min)}
-                  q1={(d) => clamp(d.q1)}
-                  median={(d) => d.median}
-                  q3={(d) => clamp(d.q3)}
-                  max={(d) => clamp(d.max)}
-                  fill={row.color}
-                  fillOpacity={0.35}
-                  stroke={row.color}
-                  strokeWidth={1.5}
-                  radius={2}
-                  capWidth={0.7}
-                  tooltip
-                />
+                {#if row.min === row.max}
+                  <!-- Zero spread: a box with no width reads as a truncated
+                       one, so draw the single value the cases actually share. -->
+                  <circle
+                    cx={context.xScale(clamp(row.median))}
+                    cy={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
+                    r="4"
+                    fill={row.color}
+                    stroke={row.color}
+                    stroke-width="1.5"
+                    fill-opacity="0.35"
+                  />
+                {:else}
+                  <BoxPlot
+                    data={row}
+                    min={(d) => clamp(d.min)}
+                    q1={(d) => clamp(d.q1)}
+                    median={(d) => d.median}
+                    q3={(d) => clamp(d.q3)}
+                    max={(d) => clamp(d.max)}
+                    fill={row.color}
+                    fillOpacity={0.35}
+                    stroke={row.color}
+                    strokeWidth={1.5}
+                    radius={2}
+                    capWidth={0.7}
+                    tooltip
+                  />
+                {/if}
                 <!-- The whisker stops at the axis edge, so say so rather than
                      let a clipped range read as the real one. -->
                 {#if row.max > span.hi}
@@ -242,17 +258,26 @@
               {/each}
             </Svg>
 
-            <Tooltip.Root>
+            <!-- Wide and short on purpose, clamped to the window rather than
+                 the plot: the plot is only a few rem tall and sits inside the
+                 panel's scroll viewport, so a tall tooltip gets pushed up out
+                 of the chart and clipped at the viewport's top edge. -->
+            <!-- `w-max`: the root is absolutely positioned, so without it the
+                 box shrinks to whatever space is left at the container's right
+                 edge and the columns collapse into each other. -->
+            <Tooltip.Root contained="window" props={{ root: { class: "w-max" } }}>
               {#snippet children({ data })}
-                <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
+                <div
+                  class="bg-popover text-popover-foreground border-border border px-2 py-1.5 shadow-md"
+                >
                   <p class="mb-1 text-[0.6875rem] font-semibold">{data.group}</p>
-                  <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
-                    {#each [["min", data.min], ["q1", data.q1], ["median", data.median], ["q3", data.q3], ["max", data.max]] as [label, value] (label)}
-                      <dt class="text-muted-foreground">{label}</dt>
-                      <dd class="text-right">{format(value as number)}</dd>
+                  <dl class="grid grid-cols-3 gap-x-3 gap-y-1 font-mono text-[0.625rem]">
+                    {#each [["min", format(data.min)], ["median", format(data.median)], ["max", format(data.max)], ["q1", format(data.q1)], ["q3", format(data.q3)], ["n", formatNumber(data.n)]] as [label, value] (label)}
+                      <div>
+                        <dt class="text-muted-foreground">{label}</dt>
+                        <dd class="whitespace-nowrap">{value}</dd>
+                      </div>
                     {/each}
-                    <dt class="text-muted-foreground">n</dt>
-                    <dd class="text-right">{formatNumber(data.n)}</dd>
                   </dl>
                 </div>
               {/snippet}
@@ -274,6 +299,12 @@
         {/each}
       </div>
     </div>
+
+    {#if constant.length > 0}
+      <p class="text-muted-foreground text-[0.625rem]">
+        {constant.map((row) => `${row.group} constant at ${format(row.median)}`).join(" · ")}
+      </p>
+    {/if}
 
     {#if span.highest > span.hi || span.lowest < span.lo}
       <p class="text-muted-foreground text-[0.625rem]">
@@ -342,7 +373,7 @@
           <!-- The `tooltip` snippet, not `children`: children would replace the
                chart's own layout wholesale rather than add to it. -->
           {#snippet tooltip()}
-            <Tooltip.Root>
+            <Tooltip.Root props={{ root: { class: "w-max" } }}>
               {#snippet children({ data })}
                 <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
                   <p class="mb-1 text-[0.6875rem] font-semibold">{data.name}</p>
