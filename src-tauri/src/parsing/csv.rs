@@ -25,7 +25,7 @@ fn detect_separator(path: &str) -> u8 {
 
 pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFrame> {
     let mut options = CsvReadOptions::default()
-        .with_infer_schema_length(Some(500))
+        .with_infer_schema_length(Some(100))
         .with_parse_options(
             CsvParseOptions::default()
                 .with_try_parse_dates(true)

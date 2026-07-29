@@ -1,5 +1,5 @@
 use super::storage::{copy_original, create_project_dir, delete_project_dir, write_parquet};
-use crate::column_mapping::{require_role, ColumnMapping, ColumnRole, ColumnType};
+use crate::column_mapping::{find_role, require_role, ColumnMapping, ColumnRole, ColumnType};
 use crate::parsing::read_csv;
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
@@ -80,9 +80,13 @@ pub fn create_event_log(
     // case/activity/variant counts and any later trace analysis all assume
     // each case's events run in timestamp order, so enforce it once here.
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    let ts_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+    let end_ts_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+    let mut sort_cols = vec![case_col, end_ts_col];
+    if let Some(start_ts_col) = find_role(&columns, ColumnRole::StartTimestamp) {
+        sort_cols.push(start_ts_col);
+    }
     df = df
-        .sort([case_col, ts_col], SortMultipleOptions::default())
+        .sort(sort_cols, SortMultipleOptions::default())
         .map_err(|e| e.to_string())?;
 
     let stats = summarize(&df, &columns)?;

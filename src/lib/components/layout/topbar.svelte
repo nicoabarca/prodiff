@@ -20,7 +20,7 @@
   }: { project: Project; projectView?: ProjectView; actions?: Snippet } = $props();
 </script>
 
-<header class="border-border bg-background flex h-14 shrink-0 items-center border-b px-4">
+<header class="border-border bg-background flex h-10 shrink-0 items-center border-b px-4">
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item>
