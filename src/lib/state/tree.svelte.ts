@@ -122,6 +122,13 @@ export function setSelectedVariants(project: Project, keys: Iterable<string>) {
 export const selected = $state<{ id: number | null }>({ id: null });
 
 /**
+ * The Variant the canvas lights up — a row the user clicked in the picker. It
+ * outlives the picker itself, so the lit path can be read with the panel out
+ * of the way.
+ */
+export const shownVariant = $state<{ key: string | null }>({ key: null });
+
+/**
  * Group A and Group B are the two named slices, in position order — Base is
  * never a Group. A slice's chain already contains the base chain, so comparing
  * Base against a slice would compare a set with its own subset, which both

@@ -468,3 +468,15 @@ export function visibleNodes(
     cases
   };
 }
+
+/**
+ * The nodes one Variant runs through, restricted to what is on screen. Empty
+ * when that Variant isn't in this tree — unselected, pruned, or built before
+ * it existed — so hovering it highlights nothing rather than lying about a
+ * partial path.
+ */
+export function variantPath(tree: DirectedTree, visible: Visible, key: string): Set<number> {
+  const leaf = tree.nodes.find((node) => node.variantKey === key);
+  if (!leaf || !visible.ids.has(leaf.id)) return new Set();
+  return new Set(pathTo(tree, leaf.id).map((node) => node.id));
+}

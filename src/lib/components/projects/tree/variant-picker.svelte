@@ -13,20 +13,27 @@
    * Variant the filtered log has — including the ones no build ever included,
    * which is what the slider could never do.
    *
-   * A row can only ever preview a Variant — one truncated line. Hovering it
-   * flies the trace out to the right, top to bottom, one card per activity,
-   * which is the shape a case actually followed.
+   * A row names a Variant but cannot show one. Clicking it does: lit up on the
+   * canvas when the tree already draws that Variant, and otherwise as a trace
+   * beside the panel — one card per activity, top to bottom, which is the
+   * shape a case actually followed.
    */
-  import * as HoverCard from "$lib/components/ui/hover-card/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list.svelte";
   import { formatNumber } from "$lib/format";
-  import { totalCases, visibleNodes, type DirectedTree, type VariantRow } from "$lib/tree";
+  import {
+    totalCases,
+    variantPath,
+    visibleNodes,
+    type DirectedTree,
+    type VariantRow
+  } from "$lib/tree";
   import {
     groupSlices,
+    shownVariant,
     loadVariants,
     selectedVariants,
     setSelectedVariants,
@@ -35,14 +42,18 @@
     variants,
     view
   } from "$lib/state/tree.svelte";
+  import { baseSlice, loadImpact, sliceCases } from "$lib/state/slices.svelte";
   import type { Project } from "$lib/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import X from "@lucide/svelte/icons/x";
 
   let { project, tree }: { project: Project; tree: DirectedTree | null } = $props();
 
   let open = $state(false);
   let selectedOnly = $state(false);
+  /** The Variant whose trace is on screen — clicked open, clicked closed. */
+  let preview = $state<string | null>(null);
 
   const selected = $derived(selectedVariants());
 
@@ -50,6 +61,12 @@
   // never pays for the scan.
   $effect(() => {
     if (open) loadVariants(project);
+    // Closing the picker puts the tree back the way it was: a dimmed canvas
+    // with no panel in sight has nothing left to explain it.
+    else {
+      preview = null;
+      shownVariant.key = null;
+    }
   });
 
   const totals = $derived({
@@ -70,6 +87,17 @@
   }
 
   /**
+   * Cases in the Base slice — the population both Groups are carved out of.
+   * Measured lazily and cached by `loadImpact`, so it is `null` until the scan
+   * lands and the share it feeds simply isn't drawn until then.
+   */
+  const base = $derived(baseSlice());
+  const baseCases = $derived(base ? sliceCases(base) : null);
+  $effect(() => {
+    if (open && base) loadImpact(project, base);
+  });
+
+  /**
    * A Variant's number is its rank in the full list — most cases first, the
    * order `list_variants` ships. Numbering the rendered rows instead would
    * renumber everything whenever the list is narrowed.
@@ -80,10 +108,31 @@
     selectedOnly ? variants.rows.filter((row) => selected.has(row.key)) : variants.rows
   );
 
+  // Looked up rather than stored, so a reload that drops the Variant closes
+  // its trace instead of showing a stale one.
+  const previewRow = $derived(variants.rows.find((row) => row.key === preview) ?? null);
+
+  const visible = $derived(tree ? visibleNodes(tree, view, selected) : null);
+
+  /**
+   * Clicking a row shows the Variant where it is most useful. One the tree
+   * already draws is lit up on the canvas — the trace pane would only cover
+   * the thing it describes. One the tree doesn't have gets the pane, since
+   * there is nothing on screen to point at.
+   */
+  function show(key: string) {
+    if (tree && visible && variantPath(tree, visible, key).size > 0) {
+      preview = null;
+      shownVariant.key = shownVariant.key === key ? null : key;
+      return;
+    }
+    shownVariant.key = null;
+    preview = preview === key ? null : key;
+  }
+
   /** What the toolbar says: the tree on screen, not the selection pending on it. */
   const onScreen = $derived.by(() => {
-    if (!tree) return null;
-    const visible = visibleNodes(tree, view, selected);
+    if (!tree || !visible) return null;
     const total = totalCases(tree);
     return {
       variantsShown: visible.variantsShown,
@@ -126,7 +175,7 @@
   </Popover.Trigger>
 
   <!-- Anchored left so the hover flyout has room on the right. -->
-  <Popover.Content align="start" class="flex max-h-[70vh] w-80 flex-col gap-3 p-3">
+  <Popover.Content align="start" class="relative flex max-h-[70vh] w-80 flex-col gap-3 p-3">
     <div class="flex shrink-0 flex-wrap items-center gap-3">
       <Button
         size="sm"
@@ -148,6 +197,15 @@
       </label>
     </div>
 
+    <p class="text-muted-foreground shrink-0 text-[0.625rem] leading-relaxed">
+      Click a row to show its variant — lit on the tree, or listed step by step when the tree has no
+      such path. The checkbox includes it in the build.
+      <br />
+      Per cell: cases · <span class="opacity-70">% of that group</span> ·
+      <span class="text-foreground">% of base </span>{#if baseCases}
+        ({formatNumber(baseCases)} cases){/if}.
+    </p>
+
     {#if variants.dropped > 0}
       <p class="text-muted-foreground shrink-0 text-xs">
         {formatNumber(variants.dropped)} selected {variants.dropped === 1 ? "variant" : "variants"}
@@ -163,13 +221,20 @@
     >
       <span class="w-6"></span>
       <span class="shrink-0 whitespace-nowrap">Variant</span>
+      <!-- The Group's own total, so a row's share has its denominator in
+           sight. Summed over the Variant list, which is every case the
+           filtered log has — not what any build happened to include. -->
       <span class="text-slice-1 ml-auto flex w-28 flex-col items-end truncate text-right">
         <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case opacity-70">(cases)</span>
+        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
+          ({formatNumber(totals.a)} cases)
+        </span>
       </span>
       <span class="text-slice-2 flex w-28 flex-col items-end truncate text-right">
         <span class="truncate">{comparing ? groupNames.b : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case opacity-70">(cases)</span>
+        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
+          ({formatNumber(totals.b)} cases)
+        </span>
       </span>
     </div>
 
@@ -180,77 +245,65 @@
         {/each}
       </div>
     {:else}
-      <VirtualList items={rows} rowHeight={44}>
+      <VirtualList items={rows} rowHeight={56}>
         {#snippet row(item: VariantRow)}
-          <label
-            class="hover:bg-accent/50 flex h-11 cursor-pointer items-center gap-3 rounded px-1 text-xs"
+          <!-- A row is two controls, not one: the checkbox includes the
+               Variant in the build, the rest of the row only shows its trace.
+               Hence a plain div — a `<label>` would make every click on the
+               row a selection. -->
+          <div
+            class="flex h-14 items-center gap-3 rounded px-1 text-xs {preview === item.key ||
+            shownVariant.key === item.key
+              ? 'bg-accent'
+              : 'hover:bg-accent/50'}"
           >
             <Checkbox
               checked={selected.has(item.key)}
               onCheckedChange={() => toggleVariant(project, item.key)}
-              aria-label="Include this variant"
+              aria-label="Include variant {numbers.get(item.key)} in the build"
             />
-            <!-- The anchor is the whole row, not the label: `side="right"`
-                 measures from the trigger, so a narrow trigger would drop the
-                 trace on top of the list instead of beside the panel. -->
-            <HoverCard.Root openDelay={0} closeDelay={0}>
-              <HoverCard.Trigger>
-                {#snippet child({ props })}
-                  <div {...props} class="flex min-w-0 flex-1 items-center gap-3">
-                    <span class="shrink-0 whitespace-nowrap tabular-nums">
-                      Variant {numbers.get(item.key)}
-                    </span>
-                    <!-- Same colours the canvas gives the Groups, so a column
-                         reads as the same thing as a node's A/B line. An absent
-                         Variant gets a grey dash instead of a coloured zero:
-                         "only in one group" should be visible at a glance. -->
-                    <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
-                      {#if item.casesA > 0}
-                        <span class="text-slice-1">{formatNumber(item.casesA)}</span>
-                        <span class="text-slice-1 text-[0.625rem] opacity-70">
-                          {share(item.casesA, totals.a)}
-                        </span>
-                      {:else}
-                        <span class="text-muted-foreground">—</span>
-                      {/if}
-                    </span>
-                    {#if comparing}
-                      <span class="flex w-28 flex-col items-end tabular-nums">
-                        {#if item.casesB > 0}
-                          <span class="text-slice-2">{formatNumber(item.casesB)}</span>
-                          <span class="text-slice-2 text-[0.625rem] opacity-70">
-                            {share(item.casesB, totals.b)}
-                          </span>
-                        {:else}
-                          <span class="text-muted-foreground">—</span>
-                        {/if}
-                      </span>
-                    {/if}
-                  </div>
-                {/snippet}
-              </HoverCard.Trigger>
-              <!-- The whole trace, top to bottom, out to the side of the list. -->
-              <HoverCard.Content
-                side="right"
-                align="start"
-                class="flex max-h-[70vh] w-72 flex-col gap-1 overflow-y-auto"
-              >
-                {#each item.activities as activity, i (i)}
-                  {#if i > 0}
-                    <ArrowDown class="text-muted-foreground size-3 shrink-0 self-center" />
+            <button
+              class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left"
+              aria-pressed={preview === item.key || shownVariant.key === item.key}
+              onclick={() => show(item.key)}
+            >
+              <span class="shrink-0 whitespace-nowrap tabular-nums">
+                Variant {numbers.get(item.key)}
+              </span>
+              <!-- Same colours the canvas gives the Groups, so a column reads
+                   as the same thing as a node's A/B line. An absent Variant
+                   gets a grey dash instead of a coloured zero: "only in one
+                   group" should be visible at a glance. -->
+              <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
+                {#if item.casesA > 0}
+                  <span class="text-slice-1">{formatNumber(item.casesA)}</span>
+                  <span class="text-slice-1 text-[0.625rem] opacity-70">
+                    {share(item.casesA, totals.a)}
+                  </span>
+                  {#if baseCases}
+                    <span class="text-[0.625rem]">{share(item.casesA, baseCases)}</span>
                   {/if}
-                  <div class="flex w-full items-baseline gap-1">
-                    <span class="text-muted-foreground shrink-0 text-[0.625rem] tabular-nums">
-                      {i + 1}
+                {:else}
+                  <span class="text-muted-foreground">—</span>
+                {/if}
+              </span>
+              {#if comparing}
+                <span class="flex w-28 flex-col items-end tabular-nums">
+                  {#if item.casesB > 0}
+                    <span class="text-slice-2">{formatNumber(item.casesB)}</span>
+                    <span class="text-slice-2 text-[0.625rem] opacity-70">
+                      {share(item.casesB, totals.b)}
                     </span>
-                    <div class="bg-muted/40 min-w-0 flex-1 rounded border px-2 py-1 text-center">
-                      {activity}
-                    </div>
-                  </div>
-                {/each}
-              </HoverCard.Content>
-            </HoverCard.Root>
-          </label>
+                    {#if baseCases}
+                      <span class="text-[0.625rem]">{share(item.casesB, baseCases)}</span>
+                    {/if}
+                  {:else}
+                    <span class="text-muted-foreground">—</span>
+                  {/if}
+                </span>
+              {/if}
+            </button>
+          </div>
         {/snippet}
         {#snippet empty()}
           <p class="text-muted-foreground p-4 text-xs">
@@ -266,5 +319,41 @@
         · nothing selected yet, so the tree opens on the most common variants
       {/if}
     </p>
+
+    {#if previewRow}
+      <!-- Positioned off the panel rather than off the row, so step 1 is in
+           the same place for every Variant. A child of the panel instead of a
+           second floating layer: no second dismiss handler to fight the
+           popover's own. -->
+      <div
+        class="bg-popover text-popover-foreground ring-foreground/10 absolute top-0 left-full ml-2 flex max-h-[70vh] w-72 flex-col gap-1 overflow-y-auto p-2.5 text-xs shadow-md ring-1"
+      >
+        <div class="mb-1 flex shrink-0 items-center justify-between gap-2">
+          <span class="font-semibold tabular-nums">
+            Variant {numbers.get(previewRow.key)}
+          </span>
+          <button
+            class="text-muted-foreground hover:text-foreground cursor-pointer"
+            aria-label="Close trace"
+            onclick={() => (preview = null)}
+          >
+            <X class="size-3.5" />
+          </button>
+        </div>
+        {#each previewRow.activities as activity, i (i)}
+          {#if i > 0}
+            <ArrowDown class="text-muted-foreground size-3 shrink-0 self-center" />
+          {/if}
+          <div class="flex w-full items-baseline gap-1">
+            <span class="text-muted-foreground shrink-0 text-[0.625rem] tabular-nums">
+              {i + 1}
+            </span>
+            <div class="bg-muted/40 min-w-0 flex-1 rounded border px-2 py-1 text-center">
+              {activity}
+            </div>
+          </div>
+        {/each}
+      </div>
+    {/if}
   </Popover.Content>
 </Popover.Root>

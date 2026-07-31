@@ -39,11 +39,12 @@
     variants.key !== null && settings.value.selectedVariants.length === 0
   );
 
-  let panelOpen = $state(true);
-  // Clicking a node is a request to read it, so it reopens a closed panel —
-  // otherwise the click would look like it did nothing.
+  let panelOpen = $state(false);
+  // The panel follows the selection: clicking a node is a request to read it,
+  // and clicking the empty canvas drops the selection, so there is nothing
+  // left for the panel to say.
   $effect(() => {
-    if (selected.id !== null) panelOpen = true;
+    panelOpen = selected.id !== null;
   });
 
   $effect(() => {
@@ -100,19 +101,24 @@
         <div class="relative flex min-h-0 flex-1">
           <Canvas tree={built.tree} {stale} />
           <ViewLegend />
-          <Button
-            variant="outline"
-            size="sm"
-            class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
-            aria-pressed={panelOpen}
-            onclick={() => (panelOpen = !panelOpen)}
-          >
-            <PanelRight data-icon="inline-start" />
-            {panelOpen ? "Hide" : "Show"} differences panel
-          </Button>
+          <!-- Only offered while a node is selected: with nothing selected the
+               panel has nothing to compare, so "Show" would open an empty
+               rail. -->
+          {#if selected.id !== null}
+            <Button
+              variant="outline"
+              size="sm"
+              class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
+              aria-pressed={panelOpen}
+              onclick={() => (panelOpen = !panelOpen)}
+            >
+              <PanelRight data-icon="inline-start" />
+              {panelOpen ? "Hide" : "Show"} differences panel
+            </Button>
+          {/if}
         </div>
         {#if panelOpen}
-          <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (panelOpen = false)} />
+          <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (selected.id = null)} />
         {/if}
       </div>
     {:else}

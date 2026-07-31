@@ -36,7 +36,7 @@
     ? 'opacity-25'
     : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
     ? 'ring-destructive/60 ring-2'
-    : ''}"
+    : ''} {data.highlighted ? 'ring-foreground ring-2 ring-offset-1' : ''}"
   style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
 >
   <div class="flex w-full items-start justify-center gap-1">
