@@ -18,6 +18,8 @@ pub struct EventLogStats {
     /// when there are no cases at all (an over-narrow filter chain).
     pub avg_case_duration_ms: Option<f64>,
     pub median_case_duration_ms: Option<f64>,
+    pub min_case_duration_ms: Option<f64>,
+    pub max_case_duration_ms: Option<f64>,
     /// Distinct activities that cases begin / end with.
     pub start_activities: i64,
     pub end_activities: i64,
@@ -74,7 +76,8 @@ pub(crate) fn summarize(
             .n_unique()
             .map_err(|e| e.to_string())? as i64)
     };
-    let (avg_case_duration_ms, median_case_duration_ms) = duration_summary(&per_case)?;
+    let (avg_case_duration_ms, median_case_duration_ms, min_case_duration_ms, max_case_duration_ms) =
+        duration_summary(&per_case)?;
 
     let (timespan_start, timespan_end) = match (timestamps.iter().min(), timestamps.iter().max()) {
         (Some(min), Some(max)) => (Some(millis_to_iso(*min)), Some(millis_to_iso(*max))),
@@ -93,6 +96,8 @@ pub(crate) fn summarize(
         },
         avg_case_duration_ms,
         median_case_duration_ms,
+        min_case_duration_ms,
+        max_case_duration_ms,
         start_activities: n_unique("start_activity")?,
         end_activities: n_unique("end_activity")?,
         timespan_start,
@@ -114,16 +119,20 @@ fn timestamps_as_millis(df: &DataFrame, column: &str) -> Result<Vec<i64>, String
         .collect())
 }
 
-/// Mean and median case duration, both `None` for an empty log. Aggregated in
-/// Polars rather than over a collected column so the empty case falls out
-/// naturally instead of dividing by zero.
-fn duration_summary(per_case: &DataFrame) -> Result<(Option<f64>, Option<f64>), String> {
+/// Mean, median, min and max case duration, all `None` for an empty log.
+/// Aggregated in Polars rather than over a collected column so the empty case
+/// falls out naturally instead of dividing by zero.
+type DurationSummary = (Option<f64>, Option<f64>, Option<f64>, Option<f64>);
+
+fn duration_summary(per_case: &DataFrame) -> Result<DurationSummary, String> {
     let summary = per_case
         .clone()
         .lazy()
         .select([
             col("duration_ms").mean().alias("avg"),
             col("duration_ms").median().alias("median"),
+            col("duration_ms").min().alias("min"),
+            col("duration_ms").max().alias("max"),
         ])
         .collect()
         .map_err(|e| e.to_string())?;
@@ -132,12 +141,19 @@ fn duration_summary(per_case: &DataFrame) -> Result<(Option<f64>, Option<f64>), 
         Ok(summary
             .column(name)
             .map_err(|e| e.to_string())?
+            .cast(&DataType::Float64)
+            .map_err(|e| e.to_string())?
             .as_materialized_series()
             .f64()
             .map_err(|e| e.to_string())?
             .get(0))
     };
-    Ok((scalar("avg")?, scalar("median")?))
+    Ok((
+        scalar("avg")?,
+        scalar("median")?,
+        scalar("min")?,
+        scalar("max")?,
+    ))
 }
 
 /// One row per case: its trace, its endpoints and its duration. Every
@@ -230,6 +246,8 @@ mod tests {
         // Durations are 1000ms, 1000ms and 0ms (case 3 is a single event).
         assert_eq!(stats.avg_case_duration_ms, Some(2000.0 / 3.0));
         assert_eq!(stats.median_case_duration_ms, Some(1000.0));
+        assert_eq!(stats.min_case_duration_ms, Some(0.0));
+        assert_eq!(stats.max_case_duration_ms, Some(1000.0));
         // Every case starts with A; two end with B and one with A.
         assert_eq!(stats.start_activities, 1);
         assert_eq!(stats.end_activities, 2);
@@ -242,6 +260,8 @@ mod tests {
         assert_eq!(stats.cases, 0);
         assert_eq!(stats.avg_events_per_case, 0.0);
         assert_eq!(stats.avg_case_duration_ms, None);
+        assert_eq!(stats.min_case_duration_ms, None);
+        assert_eq!(stats.max_case_duration_ms, None);
         assert_eq!(stats.timespan_start, None);
     }
 

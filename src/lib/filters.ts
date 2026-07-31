@@ -52,7 +52,20 @@ export interface EndpointFilter {
   activities: string[];
 }
 
-export type Filter = AttributeFilter | NumericFilter | TimeframeFilter | EndpointFilter;
+/** `min`/`max` are whole days; duration is a case's last event minus its first. */
+export interface DurationFilter {
+  kind: "duration";
+  mode: NumericMode;
+  min: number | null;
+  max: number | null;
+}
+
+export type Filter =
+  | AttributeFilter
+  | NumericFilter
+  | TimeframeFilter
+  | EndpointFilter
+  | DurationFilter;
 export type FilterKind = Filter["kind"];
 
 /** The explanatory text shown beside each mode in the filter editor. */
@@ -157,6 +170,19 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
           (filter.activities.join(", ") || "no activities selected") +
           (filter.mode === "forbidden" ? " (excluded)" : "")
       };
+    case "duration": {
+      const low = filter.min ?? "−∞";
+      const high = filter.max ?? "∞";
+      const detail =
+        filter.mode === "above"
+          ? `≥ ${low} days`
+          : filter.mode === "below"
+            ? `≤ ${high} days`
+            : filter.mode === "between"
+              ? `${low} … ${high} days`
+              : `< ${low} or > ${high} days`;
+      return { title: "Case duration", detail };
+    }
   }
 }
 
@@ -178,5 +204,11 @@ export function isFilterComplete(filter: Filter): boolean {
       return filter.from <= filter.to;
     case "endpoint":
       return filter.activities.length > 0;
+    case "duration":
+      return filter.mode === "above"
+        ? filter.min !== null
+        : filter.mode === "below"
+          ? filter.max !== null
+          : filter.min !== null || filter.max !== null;
   }
 }

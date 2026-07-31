@@ -31,8 +31,8 @@
     type TimeframeMode
   } from "$lib/filters";
   import { chainImpact, type ChainStep } from "$lib/state/slices.svelte";
-  import { formatNumber } from "$lib/format";
-  import type { Project } from "$lib/types";
+  import { formatDuration, formatNumber } from "$lib/format";
+  import type { EventLogStats, Project } from "$lib/types";
   import Search from "@lucide/svelte/icons/search";
 
   let {
@@ -80,7 +80,8 @@
       { kind: "attribute" as const, label: "Attribute", available: categorical.length > 0 },
       { kind: "numeric" as const, label: "Numeric", available: numericColumns.length > 0 },
       { kind: "timeframe" as const, label: "Timeframe", available: true },
-      { kind: "endpoint" as const, label: "Start / end", available: activityColumn !== "" }
+      { kind: "endpoint" as const, label: "Start / end", available: activityColumn !== "" },
+      { kind: "duration" as const, label: "Duration", available: true }
     ].filter((k) => k.available)
   );
 
@@ -121,6 +122,13 @@
   let max = $state(initial?.kind === "numeric" && initial.max !== null ? String(initial.max) : "");
   let from = $state(initial?.kind === "timeframe" ? toDateInput(initial.from) : "");
   let to = $state(initial?.kind === "timeframe" ? toDateInput(initial.to) : "");
+  let durationMode = $state<NumericMode>(initial?.kind === "duration" ? initial.mode : "between");
+  let durationMin = $state(
+    initial?.kind === "duration" && initial.min !== null ? String(initial.min) : ""
+  );
+  let durationMax = $state(
+    initial?.kind === "duration" && initial.max !== null ? String(initial.max) : ""
+  );
   let search = $state("");
 
   let values = $state<ValueCount[]>([]);
@@ -170,6 +178,27 @@
     };
   });
 
+  // Case-duration stats over the population this filter would apply to —
+  // shown so the user can pick min/max informed by what's actually in the log,
+  // rather than guessing. Measured once against `precedingChain`, independent
+  // of the draft's own min/max.
+  let durationStats = $state<EventLogStats | null>(null);
+
+  $effect(() => {
+    if (kind !== "duration") return;
+    let stale = false;
+    invoke<EventLogStats[]>("slice_stats", {
+      projectId: project.id,
+      chains: [precedingChain],
+      columns: project.columns
+    }).then((results) => {
+      if (!stale) durationStats = results[0];
+    });
+    return () => {
+      stale = true;
+    };
+  });
+
   const shown = $derived(
     values.filter((v) => v.value.toLowerCase().includes(search.trim().toLowerCase()))
   );
@@ -204,6 +233,13 @@
       }
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
+      case "duration":
+        return {
+          kind,
+          mode: durationMode,
+          min: durationMin.trim() === "" ? null : Math.round(Number(durationMin)),
+          max: durationMax.trim() === "" ? null : Math.round(Number(durationMax))
+        };
     }
   }
 
@@ -363,6 +399,13 @@
         TIMEFRAME_MODE_INFO,
         (v) => (timeframeMode = v as TimeframeMode)
       )}
+    {:else if kind === "duration"}
+      {@render modes(
+        NUMERIC_MODES,
+        durationMode,
+        NUMERIC_MODE_INFO,
+        (v) => (durationMode = v as NumericMode)
+      )}
     {:else}
       {@render modes(
         ENDPOINT_MODES,
@@ -392,6 +435,50 @@
         </Field.Field>
       {/if}
     </div>
+  {:else if kind === "duration"}
+    <div class="flex w-1/2 gap-3">
+      {#if durationMode !== "below"}
+        <Field.Field>
+          <Field.FieldLabel for="filter-duration-min">
+            {durationMode === "above" ? "Days" : "Minimum days"}
+          </Field.FieldLabel>
+          <Input
+            id="filter-duration-min"
+            type="number"
+            step="1"
+            bind:value={durationMin}
+            placeholder="—"
+          />
+        </Field.Field>
+      {/if}
+      {#if durationMode !== "above"}
+        <Field.Field>
+          <Field.FieldLabel for="filter-duration-max">
+            {durationMode === "below" ? "Days" : "Maximum days"}
+          </Field.FieldLabel>
+          <Input
+            id="filter-duration-max"
+            type="number"
+            step="1"
+            bind:value={durationMax}
+            placeholder="—"
+          />
+        </Field.Field>
+      {/if}
+    </div>
+    <Field.FieldDescription>
+      {#if !durationStats}
+        <Skeleton class="h-4 w-64" />
+      {:else if durationStats.cases === 0}
+        No cases to measure.
+      {:else}
+        Case durations range {formatDuration(durationStats.minCaseDurationMs)} – {formatDuration(
+          durationStats.maxCaseDurationMs
+        )}, mean {formatDuration(durationStats.avgCaseDurationMs)}, median {formatDuration(
+          durationStats.medianCaseDurationMs
+        )}.
+      {/if}
+    </Field.FieldDescription>
   {:else if kind === "timeframe"}
     <div class="flex w-1/2 gap-3">
       <Field.Field>

@@ -14,6 +14,8 @@ export interface EventLogStats {
   avgEventsPerCase: number;
   avgCaseDurationMs: number | null;
   medianCaseDurationMs: number | null;
+  minCaseDurationMs: number | null;
+  maxCaseDurationMs: number | null;
   startActivities: number;
   endActivities: number;
   timespanStart: string | null;
