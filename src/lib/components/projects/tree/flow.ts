@@ -41,6 +41,8 @@ export interface TreeNodeData {
   divergent: boolean;
   dimmed: boolean;
   selected: boolean;
+  /** On the Variant the picker is hovering. Set after layout, in the canvas. */
+  highlighted: boolean;
   hiddenBelow: number;
   hasChildren: boolean;
   direction: Direction;
@@ -163,6 +165,7 @@ export function toFlow(
         divergent: isDivergent(node),
         dimmed: dimmed(node, options.focus),
         selected: options.selected === node.id,
+        highlighted: false,
         hiddenBelow: visible.hiddenBelow.get(node.id) ?? 0,
         hasChildren: (kids.get(node.id) ?? []).some((id) => visible.ids.has(id)),
         direction: options.direction,

@@ -114,6 +114,12 @@ pub struct TreeNode {
     /// whenever Transition Time wasn't selected.
     pub transition_time: Option<AttributeBlock>,
     pub comovement: Vec<Comovement>,
+    /// The Variant this node terminates, `None` on every other node. Every
+    /// path from the root ends at exactly one of these, so it is what the view
+    /// tests against the selected Variants — matching on the key the build
+    /// itself used rather than re-joining node labels, which would silently
+    /// draw nothing if the two ever disagreed on separator or root handling.
+    pub variant_key: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -208,6 +214,10 @@ struct NodeBuild {
     parent: Option<usize>,
     label: String,
     cases: [i64; 2],
+    /// Set only on a terminal node, which is exactly one Variant's endpoint.
+    /// Carried through to `TreeNode` so the view can match a leaf against the
+    /// selected Variants without re-deriving the key from node labels.
+    variant_key: Option<String>,
     /// One accumulator per attribute per group. Index `attrs.len()` is the
     /// transition into this node, when Transition Time is selected.
     acc: Vec<[Acc; 2]>,
@@ -396,67 +406,135 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
     rows.activities[from..to].join("\u{1}")
 }
 
-/// The Variants to include: most cases first, up to the ceiling. This cut runs
-/// *before* anything is accumulated, so every Node Aggregate and Significance
-/// Test downstream describes exactly the Variants included and no others —
-/// which is why the count is a build input and not something the view can
-/// apply to a tree already in hand.
-///
-/// `limit` is the slider's count, as of the last build. `None` is a cold build
-/// with nothing to honour yet, and opens on `DEFAULT_COVERAGE` of the cases.
-fn cut_variants(
-    groups: &[Option<GroupRows>; 2],
-    limit: Option<usize>,
-) -> (Vec<String>, usize, f64, bool) {
-    let mut counts: HashMap<String, i64> = HashMap::new();
-    for rows in groups.iter().flatten() {
+/// Counts cases per Variant across both Groups. The census the cut and the
+/// picker both read from — `list_variants` ships it to the view so the user can
+/// choose from every Variant the filtered log has, not only the ones a previous
+/// build happened to include.
+fn variant_counts(groups: &[Option<GroupRows>; 2]) -> HashMap<String, [i64; 2]> {
+    let mut counts: HashMap<String, [i64; 2]> = HashMap::new();
+    for (group, rows) in groups.iter().enumerate() {
+        let Some(rows) = rows else { continue };
         for case in 0..rows.case_ids.len() {
-            *counts.entry(variant_key(rows, case)).or_default() += 1;
+            counts.entry(variant_key(rows, case)).or_default()[group] += 1;
         }
     }
-    let total_cases: i64 = counts.values().sum();
-    let total_variants = counts.len();
+    counts
+}
 
-    let mut ordered: Vec<(String, i64)> = counts.into_iter().collect();
-    // Case count first, then key, so the same log always cuts the same way.
+/// The Variant census for the picker. Reads only the case-id and activity
+/// columns — no attributes, no aggregation — which is what separates this from
+/// a build and keeps it cheap enough to run on opening a panel.
+pub fn variant_rows(
+    group_a: &DataFrame,
+    group_b: Option<&DataFrame>,
+    mapping: &[ColumnMapping],
+) -> Result<Vec<commands::VariantRow>, String> {
+    let rows_a = read_group(group_a, mapping, &[])?;
+    let rows_b = match group_b {
+        Some(df) => Some(read_group(df, mapping, &[])?),
+        None => None,
+    };
+    let groups = [Some(rows_a), rows_b];
+
+    Ok(variant_counts(&groups)
+        .into_iter()
+        .map(|(key, cases)| commands::VariantRow {
+            activities: key.split('\u{1}').map(str::to_string).collect(),
+            key,
+            cases_a: cases[0],
+            cases_b: cases[1],
+        })
+        .collect())
+}
+
+/// The Variants to include. This cut runs *before* anything is accumulated, so
+/// every Node Aggregate and Significance Test downstream describes exactly the
+/// Variants included and no others — which is why the selection is a build
+/// input and not something the view can apply to a tree already in hand.
+///
+/// `selection` is what the picker has checked, as of the last build. `None` is
+/// a cold build with nothing to honour yet, and opens on `DEFAULT_COVERAGE` of
+/// the cases — the same set the picker seeds itself with.
+///
+/// A selected Variant that no longer exists under these chains is dropped
+/// rather than failing the build: the frontend intersects on its side too, but
+/// the chains can change between the picker's last read and this call.
+fn cut_variants(
+    groups: &[Option<GroupRows>; 2],
+    selection: Option<&[String]>,
+) -> (Vec<String>, usize, f64, bool) {
+    let counts = variant_counts(groups);
+    let total_cases: i64 = counts.values().map(|c| c[0] + c[1]).sum();
+    let total_variants = counts.len();
+    let capped = total_variants > MAX_VARIANTS;
+
+    let covered_by = |keys: &[String]| -> i64 {
+        keys.iter()
+            .filter_map(|k| counts.get(k))
+            .map(|c| c[0] + c[1])
+            .sum()
+    };
+    let coverage = |covered: i64| {
+        if total_cases == 0 {
+            0.0
+        } else {
+            covered as f64 / total_cases as f64
+        }
+    };
+
+    if let Some(selection) = selection {
+        // The ceiling still binds: it exists to stop a pathological selection
+        // handing the renderer tens of thousands of nodes. Ordering by cases
+        // keeps the truncation predictable rather than arbitrary.
+        let mut kept: Vec<String> = selection
+            .iter()
+            .filter(|k| counts.contains_key(*k))
+            .cloned()
+            .collect();
+        kept.sort_by(|a, b| {
+            let (ca, cb) = (counts[a][0] + counts[a][1], counts[b][0] + counts[b][1]);
+            cb.cmp(&ca).then_with(|| a.cmp(b))
+        });
+        kept.truncate(MAX_VARIANTS);
+        let covered = covered_by(&kept);
+        return (kept, total_variants, coverage(covered), capped);
+    }
+
+    let mut ordered: Vec<(String, i64)> = counts
+        .iter()
+        .map(|(k, c)| (k.clone(), c[0] + c[1]))
+        .collect();
+    // Case count first, then key, so the same log always opens the same way.
     ordered.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.cmp(&b.0)));
 
-    // The ceiling binds whatever the slider asks for. At least one Variant
-    // always survives: an empty tree is never what the user meant.
-    let cap = limit.unwrap_or(usize::MAX).clamp(1, MAX_VARIANTS);
     let target = (total_cases as f64 * DEFAULT_COVERAGE).ceil() as i64;
-
     let mut included = Vec::new();
     let mut covered = 0;
     for (key, count) in ordered {
-        if included.len() >= cap {
+        // At least one Variant always survives: an empty tree is never what a
+        // cold build meant.
+        if covered >= target && !included.is_empty() {
             break;
         }
-        if limit.is_none() && covered >= target {
+        if included.len() >= MAX_VARIANTS {
             break;
         }
         covered += count;
         included.push(key);
     }
 
-    let capped = total_variants > MAX_VARIANTS;
-    let achieved = if total_cases == 0 {
-        0.0
-    } else {
-        covered as f64 / total_cases as f64
-    };
-    (included, total_variants, achieved, capped)
+    (included, total_variants, coverage(covered), capped)
 }
 
 /// Builds the tree and everything hanging off it. `group_b` is `None` in
-/// one-Group mode, where no test runs anywhere. `max_variants` is the slider's
-/// count — see `cut_variants` for what `None` means.
+/// one-Group mode, where no test runs anywhere. `selection` is the picker's
+/// checked Variants — see `cut_variants` for what `None` means.
 pub fn build(
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
     mapping: &[ColumnMapping],
     attributes: &[String],
-    max_variants: Option<usize>,
+    selection: Option<&[String]>,
 ) -> Result<DirectedTree, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attrs, case_attrs, wants_transition) = plan_attributes(attributes, mapping, has_start);
@@ -469,7 +547,7 @@ pub fn build(
     let groups = [Some(rows_a), rows_b];
 
     let (included, variants_total, case_coverage, capped_by_ceiling) =
-        cut_variants(&groups, max_variants);
+        cut_variants(&groups, selection);
     let included: std::collections::HashSet<String> = included.into_iter().collect();
 
     // Index `attrs.len()` is the transition into the node, which is scoped to
@@ -491,6 +569,7 @@ pub fn build(
         parent: None,
         label: "Start".to_string(),
         cases: [0, 0],
+        variant_key: None,
         acc: new_accs(),
     }];
     let mut index: HashMap<(usize, String, bool), usize> = HashMap::new();
@@ -498,7 +577,8 @@ pub fn build(
     for (group, rows) in groups.iter().enumerate() {
         let Some(rows) = rows else { continue };
         for case in 0..rows.case_ids.len() {
-            if !included.contains(&variant_key(rows, case)) {
+            let case_variant = variant_key(rows, case);
+            if !included.contains(&case_variant) {
                 continue;
             }
             let (from, to) = rows.bounds[case];
@@ -513,6 +593,9 @@ pub fn build(
                         parent: Some(current),
                         label: rows.activities[row].clone(),
                         cases: [0, 0],
+                        // Terminal nodes are keyed on terminating here, so every
+                        // case reaching one walked this exact Variant.
+                        variant_key: terminal.then(|| case_variant.clone()),
                         acc: new_accs(),
                     });
                     nodes.len() - 1
@@ -642,6 +725,7 @@ pub fn build(
                     .collect(),
                 transition_time,
                 comovement,
+                variant_key: node.variant_key.clone(),
             }
         })
         .collect();
@@ -817,17 +901,25 @@ mod tests {
     }
 
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
-        build_limited(a, b, attrs, None)
+        let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
+        build(a, b, &mapping(), &attributes, None).unwrap()
     }
 
-    fn build_limited(
+    /// The key the builder gives a trace — activities joined the way
+    /// `variant_key` joins them, so tests select the way the picker does.
+    fn key(activities: &[&str]) -> String {
+        activities.join("\u{1}")
+    }
+
+    fn build_selecting(
         a: &DataFrame,
         b: Option<&DataFrame>,
         attrs: &[&str],
-        limit: Option<usize>,
+        selection: &[&[&str]],
     ) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(a, b, &mapping(), &attributes, limit).unwrap()
+        let keys: Vec<String> = selection.iter().map(|v| key(v)).collect();
+        build(a, b, &mapping(), &attributes, Some(&keys)).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {
@@ -898,11 +990,70 @@ mod tests {
         assert_eq!(tree.nodes.len(), 2, "Start plus the one included leaf");
         assert!(!tree.capped_by_ceiling);
 
-        // Asking for all three brings the tail back.
-        let full = build_limited(&df, None, &[], Some(3));
+        // Selecting all three brings the tail back.
+        let full = build_selecting(&df, None, &[], &[&["A"], &["B"], &["C"]]);
         assert_eq!(full.variants_included, 3);
         assert_eq!(full.nodes.len(), 4, "Start plus one leaf per variant");
         assert!((full.case_coverage - 1.0).abs() < 1e-9);
+    }
+
+    /// The whole point of an explicit selection: the user can pick the tail,
+    /// which no coverage target or top-K count would ever have reached.
+    #[test]
+    fn an_explicit_selection_can_pick_the_rare_variants_alone() {
+        let owned: Vec<String> = (0..9).map(|i| format!("c{i}")).collect();
+        let traces: Vec<(&str, &[&str], &[i64])> = owned
+            .iter()
+            .map(|id| (id.as_str(), &["A"][..], &[10i64][..]))
+            .chain([
+                ("y", &["B"][..], &[10i64][..]),
+                ("z", &["C"][..], &[10][..]),
+            ])
+            .collect();
+        let df = log(&traces);
+
+        let tail = build_selecting(&df, None, &[], &[&["B"], &["C"]]);
+        assert_eq!(tail.variants_included, 2);
+        assert_eq!(tail.variants_total, 3, "the log still has three");
+        assert!(
+            (tail.case_coverage - 2.0 / 11.0).abs() < 1e-9,
+            "two of eleven cases"
+        );
+        let labels: Vec<&str> = tail.nodes.iter().map(|n| n.label.as_str()).collect();
+        assert!(!labels.contains(&"A"), "the big Variant was not selected");
+    }
+
+    /// A leaf carries the key the build cut on, so the view can match it
+    /// against the selection without re-deriving anything.
+    #[test]
+    fn terminal_nodes_carry_their_variant_key_and_others_do_not() {
+        let df = log(&[
+            ("1", &["A", "B"], &[10, 20]),
+            ("2", &["A", "B", "C"], &[10, 20, 30]),
+        ]);
+        let tree = build_with(&df, None, &[]);
+
+        let keys: Vec<Option<&str>> = tree
+            .nodes
+            .iter()
+            .map(|n| n.variant_key.as_deref())
+            .collect();
+        assert_eq!(keys[0], None, "the synthetic Start root terminates nothing");
+        assert_eq!(keys[1], None, "`A` is shared by both Variants");
+
+        let mut terminal: Vec<&str> = keys.into_iter().flatten().collect();
+        terminal.sort();
+        assert_eq!(terminal, [key(&["A", "B"]), key(&["A", "B", "C"])]);
+    }
+
+    /// A selected Variant that no longer exists under these chains is dropped,
+    /// not fatal: the picker's list can be a moment behind the filters.
+    #[test]
+    fn a_selected_variant_that_no_longer_exists_is_ignored() {
+        let df = log(&[("1", &["A"], &[10]), ("2", &["B"], &[20])]);
+        let tree = build_selecting(&df, None, &[], &[&["A"], &["GONE"]]);
+        assert_eq!(tree.variants_included, 1);
+        assert!((tree.case_coverage - 0.5).abs() < 1e-9);
     }
 
     /// The point of cutting Variants in the builder rather than in the view:
@@ -932,14 +1083,14 @@ mod tests {
             }
         };
 
-        let both = build_limited(&df, None, &["cost"], Some(2));
+        let both = build_selecting(&df, None, &["cost"], &[&["A", "B"], &["A", "C"]]);
         assert_eq!(both.variants_included, 2);
         assert!(
             (mean_at_a(&both) - (6.0 * 10.0 + 5.0 * 100.0) / 11.0).abs() < 1e-9,
             "with both Variants `A` averages all eleven cases"
         );
 
-        let biggest_only = build_limited(&df, None, &["cost"], Some(1));
+        let biggest_only = build_selecting(&df, None, &["cost"], &[&["A", "B"]]);
         assert_eq!(biggest_only.variants_included, 1, "`A→B` is the larger");
         assert!(
             (mean_at_a(&biggest_only) - 10.0).abs() < 1e-9,
@@ -947,13 +1098,29 @@ mod tests {
         );
     }
 
-    /// The ceiling still binds: the view cannot ask for more than a build ships.
+    /// The ceiling still binds an explicit selection: it exists to stop a
+    /// pathological pick handing the renderer tens of thousands of nodes.
     #[test]
-    fn a_limit_above_the_ceiling_is_clamped_rather_than_honoured() {
-        let df = log(&[("1", &["A"], &[10]), ("2", &["B"], &[20])]);
-        let tree = build_limited(&df, None, &[], Some(usize::MAX));
-        assert_eq!(tree.variants_included, 2, "only two exist to include");
-        assert!(!tree.capped_by_ceiling);
+    fn a_selection_larger_than_the_ceiling_is_truncated() {
+        // One distinct single-activity Variant per case, so the log is wider
+        // than the ceiling.
+        let count = MAX_VARIANTS + 10;
+        let ids: Vec<String> = (0..count).map(|i| format!("c{i}")).collect();
+        let names: Vec<String> = (0..count).map(|i| format!("A{i}")).collect();
+        let activities: Vec<[&str; 1]> = names.iter().map(|n| [n.as_str()]).collect();
+
+        let traces: Vec<(&str, &[&str], &[i64])> = ids
+            .iter()
+            .zip(&activities)
+            .map(|(id, act)| (id.as_str(), &act[..], &[10i64][..]))
+            .collect();
+        let df = log(&traces);
+
+        let all: Vec<&[&str]> = activities.iter().map(|act| &act[..]).collect();
+        let tree = build_selecting(&df, None, &[], &all);
+        assert_eq!(tree.variants_total, count);
+        assert_eq!(tree.variants_included, MAX_VARIANTS, "truncated to ceiling");
+        assert!(tree.capped_by_ceiling);
     }
 
     #[test]

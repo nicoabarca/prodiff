@@ -32,7 +32,6 @@
       view.direction === "TB" ? "Top → bottom" : "Left → right",
       secondaryLabel,
       focusLabel,
-      view.minCases > 0 ? `≥ ${view.minCases} cases per variant` : "",
       view.edgeLabels ? "Transition time on edges" : "",
       view.significantOnly ? "Significant only" : "",
       view.collapsed.size > 0 ? `${view.collapsed.size} collapsed` : ""
