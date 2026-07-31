@@ -18,7 +18,7 @@
     type AttributeBlock,
     type DirectedTree
   } from "$lib/tree";
-  import { view } from "$lib/state/tree.svelte";
+  import { selectedVariants, view } from "$lib/state/tree.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
@@ -37,7 +37,7 @@
       once the slider has pruned some of its siblings away. */
   const cases = $derived(
     node
-      ? (visibleNodes(tree, view).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 })
+      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 })
       : null
   );
 

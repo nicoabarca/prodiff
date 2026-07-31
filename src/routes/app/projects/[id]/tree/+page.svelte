@@ -11,13 +11,14 @@
     isStale,
     loadSettings,
     selected,
-    settings
+    settings,
+    variants
   } from "$lib/state/tree.svelte";
   import BuildSettings from "$lib/components/projects/tree/build-settings.svelte";
   import Canvas from "$lib/components/projects/tree/canvas.svelte";
   import DetailPanel from "$lib/components/projects/tree/detail-panel.svelte";
   import GroupHeader from "$lib/components/projects/tree/group-header.svelte";
-  import VariantSlider from "$lib/components/projects/tree/variant-slider.svelte";
+  import VariantPicker from "$lib/components/projects/tree/variant-picker.svelte";
   import ViewLegend from "$lib/components/projects/tree/view-legend.svelte";
   import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
   import Network from "@lucide/svelte/icons/network";
@@ -28,6 +29,15 @@
   const project = $derived(currentProject());
   const groups = $derived(groupSlices());
   const stale = $derived(isStale());
+
+  // An empty selection means two different things. Before the variant list has
+  // loaded it means "never chosen", and the backend opens on the most common
+  // variants — a perfectly good cold build. Once the list has loaded the
+  // selection has been seeded, so empty can only mean the user cleared it, and
+  // building would draw nothing.
+  const noVariants = $derived(
+    variants.key !== null && settings.value.selectedVariants.length === 0
+  );
 
   let panelOpen = $state(true);
   // Clicking a node is a request to read it, so it reopens a closed panel —
@@ -46,16 +56,15 @@
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      {#if built.tree}
-        <!-- The size of what is on screen, and the control over it, first thing
-             on the bar: the tree itself never says what it left out. -->
-        <VariantSlider tree={built.tree} />
-      {/if}
+      <!-- The size of what is on screen, and the control over it, first thing
+           on the bar: the tree itself never says what it left out. Available
+           before the first build too — the variant list doesn't need one. -->
+      <VariantPicker {project} tree={built.tree} />
       <!-- Silent while building: the button's own spinner already says the
            numbers are catching up. -->
       {#if stale && !built.building}
         <p class="text-destructive text-xs">
-          Filters or settings changed since this tree was built.
+          Filters, variants or settings changed since this tree was built.
         </p>
       {/if}
       {#if built.error}
@@ -66,7 +75,14 @@
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
-        <Button size="sm" disabled={built.building || !groups[0]} onclick={() => build(project)}>
+        <!-- An empty selection is prevented rather than reported: it would
+             build a tree with nothing on it. -->
+        <Button
+          size="sm"
+          disabled={built.building || !groups[0] || noVariants}
+          title={noVariants ? "Select at least one variant" : undefined}
+          onclick={() => build(project)}
+        >
           {#if built.tree}
             <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
             Rebuild

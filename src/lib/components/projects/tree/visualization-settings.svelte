@@ -11,7 +11,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, view } from "$lib/state/tree.svelte";
+  import { groupSlices, selectedVariants, view } from "$lib/state/tree.svelte";
   import {
     visibleNodes,
     TRANSITION_TIME,
@@ -53,7 +53,7 @@
   });
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
-  const visible = $derived(visibleNodes(tree, view));
+  const visible = $derived(visibleNodes(tree, view, selectedVariants()));
 </script>
 
 <Popover.Root>
@@ -117,18 +117,6 @@
         <p class="text-muted-foreground text-[0.625rem]">
           Dims the rest — the tree keeps its shape.
         </p>
-      </div>
-
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-xs" for="min-cases">Minimum cases per variant</Label>
-        <Input
-          id="min-cases"
-          type="number"
-          min="0"
-          class="h-8 text-xs"
-          value={view.minCases}
-          oninput={(event) => (view.minCases = Number(event.currentTarget.value) || 0)}
-        />
       </div>
 
       <label class="flex items-start gap-2 text-xs">

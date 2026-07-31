@@ -34,6 +34,62 @@ export interface TreeNode {
   /** The edge from the parent, not the node — `null` at the root. */
   transitionTime: AttributeBlock | null;
   comovement: Comovement[];
+  /**
+   * The Variant this node terminates, `null` on every other node. Rust sets it
+   * on the key it actually cut with, so matching a leaf against the selection
+   * never depends on the frontend re-joining labels the same way.
+   */
+  variantKey: string | null;
+}
+
+/** One Variant of the filtered log, as `list_variants` ships it. */
+export interface VariantRow {
+  key: string;
+  activities: string[];
+  casesA: number;
+  casesB: number;
+}
+
+/**
+ * Every Variant of the filtered log, most cases first. Independent of the
+ * build, so the picker works before the first one — and reaches Variants no
+ * build included, which is the whole reason it isn't derived from the tree.
+ */
+export function listVariants(
+  project: Project,
+  groupA: Filter[],
+  groupB: Filter[] | null
+): Promise<VariantRow[]> {
+  return invoke<VariantRow[]>("list_variants", {
+    projectId: project.id,
+    groupA,
+    groupB,
+    columns: project.columns
+  });
+}
+
+/** Cases on a Variant across both Groups — the ranking the backend cut uses. */
+export function variantCases(row: VariantRow): number {
+  return row.casesA + row.casesB;
+}
+
+/**
+ * The fewest Variants holding `coverage` of the cases, biggest first. Mirrors
+ * the backend's cold-build pick, so seeding the picker and letting Rust choose
+ * land on the same set.
+ */
+export function variantsCovering(rows: VariantRow[], coverage: number): Set<string> {
+  const total = rows.reduce((sum, row) => sum + variantCases(row), 0);
+  const target = total * coverage;
+  const keys = new Set<string>();
+  let covered = 0;
+  for (const row of rows) {
+    // At least one always survives: an empty selection blocks the build.
+    if (covered >= target && keys.size > 0) break;
+    covered += variantCases(row);
+    keys.add(row.key);
+  }
+  return keys;
 }
 
 export interface AttributeBlock {
@@ -107,27 +163,40 @@ export function isDurationAttribute(attribute: string): boolean {
   return attribute === ACTIVITY_DURATION || attribute === TRANSITION_TIME;
 }
 
+/**
+ * The build inputs, persisted per project. `selectedVariants` lives here rather
+ * than in `TreeView` because it is one: the cut runs before any aggregation, so
+ * the Significance Tests describe exactly these Variants. Hand-picking a set is
+ * also expensive enough to be worth surviving a restart.
+ *
+ * Empty means "not chosen yet" — the picker seeds it from the log on first
+ * load, and `build` sends `null` so the backend opens on its own default.
+ */
 export interface TreeSettings {
   attributes: string[];
+  selectedVariants: string[];
 }
 
-export const defaultTreeSettings: TreeSettings = { attributes: [] };
+export const defaultTreeSettings: TreeSettings = { attributes: [], selectedVariants: [] };
+
+/** What a cold build and a freshly seeded picker both open on. */
+export const DEFAULT_COVERAGE = 0.8;
 
 /**
  * Builds the tree. Both chains arrive already composed (base first) — the
  * ordering rule lives in `effectiveChain`, as it does for every other command.
  * `groupB` is `null` in one-Group mode, where nothing is compared.
  *
- * `maxVariants` is how many Variants to include. It cuts before anything is
- * aggregated, so every Significance Test describes the Variants asked for —
- * `null` lets the backend open on the ones covering most of the cases.
+ * `settings.selectedVariants` is which Variants to include, by key. The cut
+ * runs before anything is aggregated, so every Significance Test describes the
+ * Variants asked for — an empty set sends `null`, which lets the backend open
+ * on the ones covering most of the cases.
  */
 export function directedTree(
   project: Project,
   groupA: Filter[],
   groupB: Filter[] | null,
-  settings: TreeSettings,
-  maxVariants: number | null
+  settings: TreeSettings
 ): Promise<DirectedTree> {
   return invoke<DirectedTree>("directed_tree", {
     projectId: project.id,
@@ -135,18 +204,25 @@ export function directedTree(
     groupB,
     attributes: settings.attributes,
     columns: project.columns,
-    maxVariants
+    variants: settings.selectedVariants.length > 0 ? settings.selectedVariants : null
   });
 }
 
-/** Identifies the numbers a build produces, for the in-memory cache. */
+/**
+ * Identifies the numbers a build produces, for the in-memory cache. Sorted, so
+ * checking Variants in a different order doesn't read as a different tree.
+ */
 export function treeKey(
   groupA: Filter[],
   groupB: Filter[] | null,
-  settings: TreeSettings,
-  maxVariants: number
+  settings: TreeSettings
 ): string {
-  return JSON.stringify([groupA, groupB, settings.attributes, maxVariants]);
+  return JSON.stringify([
+    groupA,
+    groupB,
+    settings.attributes,
+    [...settings.selectedVariants].sort()
+  ]);
 }
 
 export type Direction = "TB" | "LR";
@@ -158,20 +234,17 @@ export type Secondary = "cases" | "casesA" | "casesB" | (string & {});
 export type GroupFocus = "all" | "a" | "b" | "shared";
 
 /**
- * What the view decides. All of it but `maxVariants` is drawn from the tree
- * already in hand; `maxVariants` is a build input, because the Significance
- * Tests have to be computed over the Variants included to describe them.
+ * What the view decides, all of it drawn from the tree already in hand. Which
+ * Variants to include is *not* here — it is a build input and lives in
+ * `TreeSettings`, because the Significance Tests have to be computed over the
+ * Variants included in order to describe them.
  */
 export interface TreeView {
   /**
-   * How many Variants to include, biggest first. A build input, honoured by
-   * the next one rather than as it moves: until then the local prune below
-   * draws fewer Variants than the aggregates on them describe.
+   * Keep only Variants containing at least one significant Significance Test.
+   * Stays a view filter rather than moving into the picker: significance only
+   * exists after a build, so nothing choosing Variants beforehand could ask it.
    */
-  maxVariants: number;
-  /** Variants whose end node has fewer than this many cases are dropped whole. */
-  minCases: number;
-  /** Keep only Variants containing at least one significant Significance Test. */
   significantOnly: boolean;
   /** Nodes whose subtree is folded away. */
   collapsed: Set<number>;
@@ -183,8 +256,6 @@ export interface TreeView {
 }
 
 export const defaultTreeView: TreeView = {
-  maxVariants: Number.MAX_SAFE_INTEGER,
-  minCases: 0,
   significantOnly: false,
   collapsed: new Set(),
   direction: "TB",
@@ -325,22 +396,33 @@ export function totalCases(tree: DirectedTree): number {
 }
 
 /**
- * Which nodes render. Both pruning filters work on whole Variants — a path from
- * root to leaf — rather than on nodes, so a surviving path is always a trace
- * some case actually followed. Collapsing is applied afterwards: it hides a
- * subtree without claiming those Variants don't exist.
+ * Which nodes render. Pruning works on whole Variants — a path from root to
+ * leaf — rather than on nodes, so a surviving path is always a trace some case
+ * actually followed. Collapsing is applied afterwards: it hides a subtree
+ * without claiming those Variants don't exist.
+ *
+ * `selected` is the picker's set. Unchecking a Variant prunes it here at once,
+ * but the aggregates on the nodes above it still describe it until the next
+ * build — which is why doing so marks the tree stale.
  */
-export function visibleNodes(tree: DirectedTree, view: TreeView): Visible {
+export function visibleNodes(
+  tree: DirectedTree,
+  view: TreeView,
+  selected: Set<string>
+): Visible {
   const kids = children(tree);
   const all = leaves(tree);
 
-  // Biggest Variants first, so the slider always cuts the tail rather than an
-  // arbitrary slice. Case count then label keeps ties stable across renders.
+  // An empty selection means nothing has been chosen yet, so the built tree
+  // already is the selection — filtering on it would blank the canvas.
+  const chosen = (leaf: TreeNode) =>
+    selected.size === 0 || (leaf.variantKey !== null && selected.has(leaf.variantKey));
+
+  // Biggest Variants first. Case count then id keeps ties stable across renders.
   const ranked = all
-    .filter((leaf) => nodeCases(leaf) >= view.minCases)
+    .filter(chosen)
     .filter((leaf) => !view.significantOnly || pathTo(tree, leaf.id).some(hasSignificant))
-    .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id)
-    .slice(0, Math.max(1, view.maxVariants));
+    .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id);
 
   const kept = new Set<number>();
   const cases = new Map<number, { groupACases: number; groupBCases: number }>();

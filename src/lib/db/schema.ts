@@ -39,15 +39,21 @@ export const slices = sqliteTable("slices", {
 });
 
 /**
- * What the Comparison Directed Tree is built from — the attributes to test.
- * Its own table rather than columns on
+ * What the Comparison Directed Tree is built from — the attributes to test and
+ * the Variants to include. Its own table rather than columns on
  * `projects`: every table is created idempotently at startup, so a new table
  * needs no migration where a new column would.
+ *
+ * `selected_variants` is persisted because hand-picking a set of Variants is
+ * real work, and the chains it is meaningful against persist too.
  *
  * The tree itself is not cached here. It is megabytes of JSON, cheap to
  * rebuild, and lives in memory for as long as the app is open.
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),
-  attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull()
+  attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),
+  selectedVariants: text("selected_variants", { mode: "json" })
+    .$type<TreeSettings["selectedVariants"]>()
+    .notNull()
 });

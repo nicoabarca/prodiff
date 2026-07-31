@@ -3,13 +3,13 @@
   import "@xyflow/svelte/dist/style.css";
   import ActivityNode from "$lib/components/projects/tree/node.svelte";
   import { toFlow } from "$lib/components/projects/tree/flow";
-  import { selected, view } from "$lib/state/tree.svelte";
+  import { selected, selectedVariants, view } from "$lib/state/tree.svelte";
   import { visibleNodes, type DirectedTree } from "$lib/tree";
 
   let { tree, stale }: { tree: DirectedTree; stale: boolean } = $props();
 
   const nodeTypes = { activity: ActivityNode };
-  const visible = $derived(visibleNodes(tree, view));
+  const visible = $derived(visibleNodes(tree, view, selectedVariants()));
 
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);

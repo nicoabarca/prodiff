@@ -21,7 +21,8 @@ pub fn run() {
             filters::commands::slice_preview,
             filters::commands::distinct_values,
             filters::commands::shared_cases,
-            tree::commands::directed_tree
+            tree::commands::directed_tree,
+            tree::commands::list_variants
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
