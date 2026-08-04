@@ -59,6 +59,21 @@ pub enum EndpointMode {
     Forbidden,
 }
 
+/// Whether a reference event is followed by a follower event, and how closely.
+/// The two negatives are exact complements of the two positives — a case with
+/// no reference event at all satisfies them, so a mode and its negation
+/// partition the log rather than leaving cases in neither slice.
+#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FollowerMode {
+    /// A follower event occurs anywhere after a reference event.
+    Eventually,
+    /// A follower event is the very next event after a reference event.
+    Directly,
+    NeverEventually,
+    NeverDirectly,
+}
+
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Endpoint {
@@ -99,14 +114,26 @@ pub enum Filter {
         min: Option<f64>,
         max: Option<f64>,
     },
+    /// One column read twice: a case matches when *some* event holding a
+    /// `reference` value is followed by *some* event holding a `follower` one.
+    Follower {
+        column: String,
+        mode: FollowerMode,
+        reference: Vec<String>,
+        follower: Vec<String>,
+    },
 }
 
-/// `column` is one of `values`. Built as an OR chain rather than `is_in` so the
+/// `value` is one of `values`. Built as an OR chain rather than `is_in` so the
 /// expression is independent of Polars' shifting `is_in` signature.
+fn matches_any_of(value: Expr, values: &[String]) -> Expr {
+    values.iter().fold(lit(false), |acc, v| {
+        acc.or(value.clone().eq(lit(v.as_str())))
+    })
+}
+
 fn matches_any(column: &str, values: &[String]) -> Expr {
-    values
-        .iter()
-        .fold(lit(false), |acc, v| acc.or(col(column).eq(lit(v.as_str()))))
+    matches_any_of(col(column), values)
 }
 
 fn timestamp_millis(column: &str) -> Expr {
@@ -231,6 +258,51 @@ fn apply_one(
                 .map_err(|e| e.to_string())?;
             let duration_days = span_millis.cast(DataType::Float64) / lit(86_400_000.0);
             lf.filter(numeric_predicate(duration_days, *mode, *min, *max))
+        }
+        Filter::Follower {
+            column,
+            mode,
+            reference,
+            follower,
+        } => {
+            // Compared as text for the same reason the endpoint filter does: the
+            // values arrive as the display strings the picker showed, and a
+            // column of numeric codes is stored as a number.
+            let as_text = col(column).cast(DataType::String);
+            let is_reference = matches_any_of(as_text.clone(), reference);
+            let is_follower = matches_any_of(as_text, follower);
+
+            // Rows are persisted sorted by (case, timestamp) and filtering
+            // preserves order, so "earlier in the case" is "earlier in the
+            // window" without re-sorting.
+            let pair = match mode {
+                FollowerMode::Eventually | FollowerMode::NeverEventually => {
+                    // A running count of reference events, minus this row's own
+                    // contribution: positive means one came strictly before.
+                    let counted = is_reference.clone().cast(DataType::Int32);
+                    let before = (counted.clone().cum_sum(false) - counted)
+                        .over([col(case_col)])
+                        .map_err(|e| e.to_string())?;
+                    is_follower.and(before.gt(lit(0)))
+                }
+                FollowerMode::Directly | FollowerMode::NeverDirectly => {
+                    // The first row of a case shifts in a null, which is not a
+                    // reference event.
+                    let previous = is_reference
+                        .shift(lit(1))
+                        .over([col(case_col)])
+                        .map_err(|e| e.to_string())?;
+                    is_follower.and(previous.fill_null(lit(false)))
+                }
+            };
+
+            let matched = per_case(pair, case_col, false)?;
+            match mode {
+                FollowerMode::Eventually | FollowerMode::Directly => lf.filter(matched),
+                FollowerMode::NeverEventually | FollowerMode::NeverDirectly => {
+                    lf.filter(matched.not())
+                }
+            }
         }
     })
 }
@@ -577,5 +649,64 @@ mod tests {
         assert_eq!(cases(&above), ["4"]);
         let below = run_duration(&parse(r#"[{"kind":"duration","mode":"below","max":0}]"#));
         assert_eq!(cases(&below), ["3"]);
+    }
+
+    /// case 1: A → X → B  (B follows A, but not directly)
+    /// case 2: A → B      (directly)
+    /// case 3: B → A      (the follower comes first, so no pair at all)
+    /// case 4: X → Y      (no reference event whatsoever)
+    fn follower_log() -> DataFrame {
+        let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 0, 1_000, 0, 1_000, 0, 1_000])
+            .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+            .unwrap();
+        DataFrame::new(
+            9,
+            vec![
+                Column::new(
+                    "case".into(),
+                    ["1", "1", "1", "2", "2", "3", "3", "4", "4"],
+                ),
+                Column::new("act".into(), ["A", "X", "B", "A", "B", "B", "A", "X", "Y"]),
+                ts,
+            ],
+        )
+        .unwrap()
+    }
+
+    fn run_follower(mode: &str) -> Vec<String> {
+        let filters = parse(&format!(
+            r#"[{{"kind":"follower","column":"act","mode":"{mode}","reference":["A"],"follower":["B"]}}]"#
+        ));
+        let df = apply(follower_log().lazy(), &filters, &mapping())
+            .unwrap()
+            .collect()
+            .unwrap();
+        cases(&df)
+    }
+
+    #[test]
+    fn eventually_followed_accepts_a_gap_that_directly_followed_rejects() {
+        assert_eq!(run_follower("eventually"), ["1", "2"]);
+        assert_eq!(run_follower("directly"), ["2"]);
+    }
+
+    #[test]
+    fn the_never_modes_are_the_exact_complement_and_keep_cases_without_a_reference() {
+        // Case 3 has both values but in the wrong order; case 4 has no A at all.
+        assert_eq!(run_follower("never_eventually"), ["3", "4"]);
+        assert_eq!(run_follower("never_directly"), ["1", "3", "4"]);
+    }
+
+    #[test]
+    fn a_follower_pair_is_looked_for_within_one_case_only() {
+        // Case 3's A is last, so the B of no later case may pair with it.
+        let filters = parse(
+            r#"[{"kind":"follower","column":"act","mode":"eventually","reference":["A"],"follower":["B"]}]"#,
+        );
+        let df = apply(follower_log().lazy(), &filters, &mapping())
+            .unwrap()
+            .collect()
+            .unwrap();
+        assert!(!cases(&df).contains(&"3".to_string()));
     }
 }
