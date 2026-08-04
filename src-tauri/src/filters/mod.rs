@@ -92,8 +92,8 @@ pub enum Filter {
         mode: EndpointMode,
         activities: Vec<String>,
     },
-    /// `min`/`max` are whole days; duration is a case's last event minus its
-    /// first, so the comparison is exact even though the bounds are integers.
+    /// `min`/`max` are days and may be fractional — the editor brushes them off
+    /// the duration histogram. Duration is a case's last event minus its first.
     Duration {
         mode: NumericMode,
         min: Option<f64>,

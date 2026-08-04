@@ -31,8 +31,10 @@
     type TimeframeMode
   } from "$lib/filters";
   import { chainImpact, type ChainStep } from "$lib/state/slices.svelte";
-  import { formatDuration, formatNumber } from "$lib/format";
-  import type { EventLogStats, Project } from "$lib/types";
+  import { formatDay, formatDuration, formatNumber } from "$lib/format";
+  import type { Project } from "$lib/types";
+  import DurationHistogram from "./duration-histogram.svelte";
+  import TimeframePicker from "./timeframe-picker.svelte";
   import Search from "@lucide/svelte/icons/search";
 
   let {
@@ -40,18 +42,22 @@
     filter = null,
     /** Filters applied before this one — the draft's impact is measured on top of them. */
     precedingChain = [],
+    /** The accent of the slice being edited, so its charts read as that population. */
+    color = "var(--slice-base)",
     onsave,
     oncancel
   }: {
     project: Project;
     filter?: Filter | null;
     precedingChain?: Filter[];
+    color?: string;
     onsave: (filter: Filter) => void;
     oncancel: () => void;
   } = $props();
 
   /** Distinct values shown in the picker before it truncates. */
   const VALUE_LIMIT = 500;
+  const DAY_MS = 86_400_000;
   /** Debounce before re-measuring the draft against the log, in ms. */
   const IMPACT_DEBOUNCE = 250;
 
@@ -81,13 +87,9 @@
       { kind: "numeric" as const, label: "Numeric", available: numericColumns.length > 0 },
       { kind: "timeframe" as const, label: "Timeframe", available: true },
       { kind: "endpoint" as const, label: "Start / end", available: activityColumn !== "" },
-      { kind: "duration" as const, label: "Duration", available: true }
+      { kind: "duration" as const, label: "Duration", available: true },
     ].filter((k) => k.available)
   );
-
-  function toDateInput(millis: number): string {
-    return new Date(millis).toISOString().slice(0, 10);
-  }
 
   // The form is seeded from the filter being edited and then owns its own
   // state. Callers remount the editor (via `{#key}`) to point it at a different
@@ -120,14 +122,18 @@
   );
   let min = $state(initial?.kind === "numeric" && initial.min !== null ? String(initial.min) : "");
   let max = $state(initial?.kind === "numeric" && initial.max !== null ? String(initial.max) : "");
-  let from = $state(initial?.kind === "timeframe" ? toDateInput(initial.from) : "");
-  let to = $state(initial?.kind === "timeframe" ? toDateInput(initial.to) : "");
+  // Day-aligned epoch milliseconds, the same figures the filter carries: the
+  // picker brushes them off the daily case load and shows them on a calendar.
+  let from = $state<number | null>(initial?.kind === "timeframe" ? initial.from : null);
+  let to = $state<number | null>(initial?.kind === "timeframe" ? initial.to : null);
   let durationMode = $state<NumericMode>(initial?.kind === "duration" ? initial.mode : "between");
-  let durationMin = $state(
-    initial?.kind === "duration" && initial.min !== null ? String(initial.min) : ""
+  // The filter's bounds are days; the histogram brushes them in milliseconds,
+  // which is also the unit every duration is displayed in.
+  let durationMinMs = $state(
+    initial?.kind === "duration" && initial.min !== null ? initial.min * DAY_MS : null
   );
-  let durationMax = $state(
-    initial?.kind === "duration" && initial.max !== null ? String(initial.max) : ""
+  let durationMaxMs = $state(
+    initial?.kind === "duration" && initial.max !== null ? initial.max * DAY_MS : null
   );
   let search = $state("");
 
@@ -178,25 +184,25 @@
     };
   });
 
-  // Case-duration stats over the population this filter would apply to —
-  // shown so the user can pick min/max informed by what's actually in the log,
-  // rather than guessing. Measured once against `precedingChain`, independent
-  // of the draft's own min/max.
-  let durationStats = $state<EventLogStats | null>(null);
+  const timeframeSummary = $derived(
+    from === null || to === null ? "Nothing selected" : `${formatDay(from)} → ${formatDay(to)}`
+  );
 
-  $effect(() => {
-    if (kind !== "duration") return;
-    let stale = false;
-    invoke<EventLogStats[]>("slice_stats", {
-      projectId: project.id,
-      chains: [precedingChain],
-      columns: project.columns
-    }).then((results) => {
-      if (!stale) durationStats = results[0];
-    });
-    return () => {
-      stale = true;
-    };
+  /** The brushed range as the predicate it actually stands for. */
+  const durationSummary = $derived.by(() => {
+    if (durationMinMs === null && durationMaxMs === null) return "Nothing selected";
+    const low = formatDuration(durationMinMs);
+    const high = formatDuration(durationMaxMs);
+    switch (durationMode) {
+      case "above":
+        return `≥ ${low}`;
+      case "below":
+        return `≤ ${high}`;
+      case "between":
+        return `${low} – ${high}`;
+      case "outside":
+        return `< ${low} or > ${high}`;
+    }
   });
 
   const shown = $derived(
@@ -222,14 +228,10 @@
           max: max.trim() === "" ? null : Number(max)
         };
       case "timeframe": {
-        if (!from || !to) return null;
-        // The window is inclusive, so `to` covers the whole of its last day.
-        return {
-          kind,
-          mode: timeframeMode,
-          from: new Date(`${from}T00:00:00`).getTime(),
-          to: new Date(`${to}T23:59:59.999`).getTime()
-        };
+        if (from === null || to === null) return null;
+        // The picker already hands over an inclusive window: `from` at midnight
+        // and `to` at the last millisecond of its day.
+        return { kind, mode: timeframeMode, from, to };
       }
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
@@ -237,8 +239,8 @@
         return {
           kind,
           mode: durationMode,
-          min: durationMin.trim() === "" ? null : Math.round(Number(durationMin)),
-          max: durationMax.trim() === "" ? null : Math.round(Number(durationMax))
+          min: durationMinMs === null ? null : durationMinMs / DAY_MS,
+          max: durationMaxMs === null ? null : durationMaxMs / DAY_MS
         };
     }
   }
@@ -322,10 +324,16 @@
         selected = [];
       }}
       variant="outline"
-      class="justify-start"
+      spacing={1}
+      class="grid w-full grid-cols-5"
     >
       {#each kinds as option (option.kind)}
-        <ToggleGroup.Item value={option.kind}>{option.label}</ToggleGroup.Item>
+        <ToggleGroup.Item
+          value={option.kind}
+          class="data-[state=on]:border-blue-600 data-[state=on]:bg-blue-600 data-[state=on]:text-white data-[state=on]:hover:bg-blue-600"
+        >
+          {option.label}
+        </ToggleGroup.Item>
       {/each}
     </ToggleGroup.Root>
   </Field.Field>
@@ -436,60 +444,50 @@
       {/if}
     </div>
   {:else if kind === "duration"}
-    <div class="flex w-1/2 gap-3">
-      {#if durationMode !== "below"}
-        <Field.Field>
-          <Field.FieldLabel for="filter-duration-min">
-            {durationMode === "above" ? "Days" : "Minimum days"}
-          </Field.FieldLabel>
-          <Input
-            id="filter-duration-min"
-            type="number"
-            step="1"
-            bind:value={durationMin}
-            placeholder="—"
-          />
-        </Field.Field>
-      {/if}
-      {#if durationMode !== "above"}
-        <Field.Field>
-          <Field.FieldLabel for="filter-duration-max">
-            {durationMode === "below" ? "Days" : "Maximum days"}
-          </Field.FieldLabel>
-          <Input
-            id="filter-duration-max"
-            type="number"
-            step="1"
-            bind:value={durationMax}
-            placeholder="—"
-          />
-        </Field.Field>
-      {/if}
-    </div>
-    <Field.FieldDescription>
-      {#if !durationStats}
-        <Skeleton class="h-4 w-64" />
-      {:else if durationStats.cases === 0}
-        No cases to measure.
-      {:else}
-        Case durations range {formatDuration(durationStats.minCaseDurationMs)} – {formatDuration(
-          durationStats.maxCaseDurationMs
-        )}, mean {formatDuration(durationStats.avgCaseDurationMs)}, median {formatDuration(
-          durationStats.medianCaseDurationMs
-        )}.
-      {/if}
-    </Field.FieldDescription>
+    <Field.Field>
+      <div class="flex items-center gap-2">
+        <Field.FieldLabel>Case duration</Field.FieldLabel>
+        <span class="text-muted-foreground ml-auto font-mono text-xs">{durationSummary}</span>
+        <Button
+          variant="ghost"
+          size="xs"
+          onclick={() => {
+            durationMinMs = null;
+            durationMaxMs = null;
+          }}
+        >
+          Reset
+        </Button>
+      </div>
+      <DurationHistogram
+        {project}
+        chain={precedingChain}
+        {color}
+        bind:min={durationMinMs}
+        bind:max={durationMaxMs}
+      />
+    </Field.Field>
   {:else if kind === "timeframe"}
-    <div class="flex w-1/2 gap-3">
-      <Field.Field>
-        <Field.FieldLabel for="filter-from">From</Field.FieldLabel>
-        <Input id="filter-from" type="date" bind:value={from} />
-      </Field.Field>
-      <Field.Field>
-        <Field.FieldLabel for="filter-to">To</Field.FieldLabel>
-        <Input id="filter-to" type="date" bind:value={to} />
-      </Field.Field>
-    </div>
+    <Field.Field>
+      <div class="flex items-center gap-2">
+        <Field.FieldLabel>Window</Field.FieldLabel>
+        <span class="text-muted-foreground ml-auto font-mono text-xs">{timeframeSummary}</span>
+        <Button
+          variant="ghost"
+          size="xs"
+          onclick={() => {
+            from = null;
+            to = null;
+          }}
+        >
+          Reset
+        </Button>
+      </div>
+      <TimeframePicker {project} chain={precedingChain} {color} bind:from bind:to />
+      <Field.FieldDescription>
+        Drag across the chart to select a window, or pick its first and last day on the calendar.
+      </Field.FieldDescription>
+    </Field.Field>
   {:else}
     <Field.Field class="w-1/2">
       <div class="flex items-center gap-2">

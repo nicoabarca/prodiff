@@ -12,8 +12,10 @@
     ensureBase,
     namedSlices,
     removeSlice,
-    setFilters
+    setFilters,
+    sliceColor
   } from "$lib/state/slices.svelte";
+  import { colorVar } from "$lib/format";
   import type { Filter } from "$lib/filters";
   import FilterEditor from "$lib/components/projects/filter-editor.svelte";
   import SliceCard from "$lib/components/projects/slice-card.svelte";
@@ -79,10 +81,16 @@
 </script>
 
 {#if project}
-  <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <div class="grid w-full grid-cols-1 items-start gap-5 lg:grid-cols-5">
+  <!-- Wide enough for the two columns, the page stops scrolling as a whole and
+       each column takes the height the view has left, keeping the `p-5` gap
+       under the topbar. Narrow, the columns stack and the page scrolls again. -->
+  <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5 lg:overflow-hidden">
+    <div class="grid w-full grid-cols-1 items-start gap-5 lg:h-full lg:grid-cols-5">
       <!-- Filters: three fifths -->
-      <div class="flex flex-col gap-5 lg:col-span-3">
+      <!-- A card's outline is a `ring`, which is painted outside its box and so
+           is clipped away on the left and right by this column's own scrolling.
+           One pixel of padding is exactly the room it needs. -->
+      <div class="flex flex-col gap-5 lg:col-span-3 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
         <div class="flex flex-wrap items-center gap-3">
           <div>
             <h1 class="text-sm font-semibold">Filters</h1>
@@ -156,9 +164,9 @@
         {/if}
       </div>
 
-      <!-- Configuration: two fifths -->
-      <div class="lg:sticky lg:top-0 lg:col-span-2">
-        <Card.Root>
+      <!-- Configuration: two fifths, the full height of the view -->
+      <div class="lg:col-span-2 lg:h-full lg:min-h-0">
+        <Card.Root class="lg:h-full">
           <Card.Header>
             <Card.Title>
               {editing === null
@@ -176,13 +184,17 @@
               {/if}
             </Card.Description>
           </Card.Header>
-          <Card.Content>
+          <!-- The editor is the tall thing on this page (the duration chart in
+               particular), so it scrolls inside the card rather than pushing
+               the card past the bottom of the view. -->
+          <Card.Content class="lg:min-h-0 lg:flex-1 lg:overflow-auto">
             {#if editingSlice && editing}
               {#key `${editing.sliceId}:${editing.index}`}
                 <FilterEditor
                   {project}
                   filter={editingFilter}
                   {precedingChain}
+                  color={colorVar(sliceColor(editingSlice))}
                   onsave={saveFilter}
                   oncancel={() => (editing = null)}
                 />

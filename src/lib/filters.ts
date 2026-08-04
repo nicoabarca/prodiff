@@ -7,6 +7,8 @@
  * what picks the lift. See CONTEXT.md for the Slice / Filter definitions.
  */
 
+import { formatDay, formatDuration } from "$lib/format";
+
 export const ATTRIBUTE_MODES = ["mandatory", "forbidden", "keep_selected"] as const;
 export type AttributeMode = (typeof ATTRIBUTE_MODES)[number];
 
@@ -52,7 +54,7 @@ export interface EndpointFilter {
   activities: string[];
 }
 
-/** `min`/`max` are whole days; duration is a case's last event minus its first. */
+/** `min`/`max` are days (fractional); duration is a case's last event minus its first. */
 export interface DurationFilter {
   kind: "duration";
   mode: NumericMode;
@@ -129,14 +131,6 @@ export function filterColumn(filter: Filter): string | null {
   return filter.kind === "attribute" || filter.kind === "numeric" ? filter.column : null;
 }
 
-function formatDate(millis: number): string {
-  return new Date(millis).toLocaleDateString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric"
-  });
-}
-
 /** Title/detail pair for a filter chip. */
 export function describeFilter(filter: Filter): { title: string; detail: string } {
   switch (filter.kind) {
@@ -161,7 +155,7 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
     case "timeframe":
       return {
         title: TIMEFRAME_MODE_INFO[filter.mode].label,
-        detail: `${formatDate(filter.from)} → ${formatDate(filter.to)}`
+        detail: `${formatDay(filter.from)} → ${formatDay(filter.to)}`
       };
     case "endpoint":
       return {
@@ -171,16 +165,20 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
           (filter.mode === "forbidden" ? " (excluded)" : "")
       };
     case "duration": {
-      const low = filter.min ?? "−∞";
-      const high = filter.max ?? "∞";
+      // Bounds are days but read as durations — a brushed range is rarely a
+      // whole number of them.
+      const span = (days: number | null) =>
+        days === null ? "∞" : formatDuration(days * 86_400_000);
+      const low = span(filter.min);
+      const high = span(filter.max);
       const detail =
         filter.mode === "above"
-          ? `≥ ${low} days`
+          ? `≥ ${low}`
           : filter.mode === "below"
-            ? `≤ ${high} days`
+            ? `≤ ${high}`
             : filter.mode === "between"
-              ? `${low} … ${high} days`
-              : `< ${low} or > ${high} days`;
+              ? `${low} … ${high}`
+              : `< ${low} or > ${high}`;
       return { title: "Case duration", detail };
     }
   }
