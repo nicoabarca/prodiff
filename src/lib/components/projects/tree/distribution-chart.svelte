@@ -1,18 +1,13 @@
 <script lang="ts">
   /**
-   * One attribute's Distribution at the selected node — horizontal bars, one
+   * One attribute's Distribution at the selected node — vertical columns, one
    * band per value or bin, one bar per Group within it.
    *
-   * Horizontal rather than vertical columns: the categories here are resource
-   * codes and activity names, which are long. Rotated tick labels under a
-   * column chart are unreadable at this size, and the two chart components that
-   * came before this one (`summary-compare`, `comparison-charts`) both settled
-   * on horizontal for the same reason.
-   *
-   * The plot's height is computed from the row count rather than taken from the
-   * flex parent. `Chart.Container` is `aspect-video` by default, so a chart left
-   * to fill a flex box has no resolvable height and renders its axes with no
-   * bars between them.
+   * The plot's width is computed from the column count rather than taken from
+   * the flex parent, and the card scrolls sideways when that overflows.
+   * `Chart.Container` is `aspect-video` by default, so the height is pinned
+   * explicitly — a chart left to fill a flex box has no resolvable height and
+   * renders its axes with no bars between them.
    *
    * The Scope badge is repeated here rather than left to the drawer header on
    * purpose: a card read on its own, or screenshotted out of the drawer, has to
@@ -106,9 +101,7 @@
   });
 
   const hiddenCategories = $derived(
-    distribution.type === "categorical"
-      ? Math.max(0, distribution.distinct - TOP_CATEGORIES)
-      : 0
+    distribution.type === "categorical" ? Math.max(0, distribution.distinct - TOP_CATEGORIES) : 0
   );
 
   const truncate = (label: string) => (label.length > 14 ? `${label.slice(0, 13)}…` : label);
@@ -117,7 +110,7 @@
     total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "—";
 </script>
 
-<div class="bg-card border-border flex w-[26rem] shrink-0 flex-col border">
+<div class="bg-card border-border flex w-104 shrink-0 flex-col border">
   <div class="border-border flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2">
     <div class="flex min-w-0 flex-col gap-1">
       <h3 class="truncate text-xs font-semibold" title={attribute}>{attribute}</h3>
@@ -125,7 +118,12 @@
         <Badge variant="secondary" class="text-[0.625rem]">{SCOPE_LABEL[scope]}</Badge>
         {#if distribution.type === "categorical"}
           <span class="text-muted-foreground text-[0.625rem]">
-            {formatNumber(Math.min(expanded ? distribution.values.length : TOP_CATEGORIES, distribution.distinct))}
+            {formatNumber(
+              Math.min(
+                expanded ? distribution.values.length : TOP_CATEGORIES,
+                distribution.distinct
+              )
+            )}
             of {formatNumber(distribution.distinct)} values
           </span>
         {:else if distribution.type === "numerical" && constant === null}
@@ -160,7 +158,9 @@
   {/if}
 
   {#if distribution.type === "empty"}
-    <p class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs">
+    <p
+      class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"
+    >
       Not recorded on any event counted here.
     </p>
   {:else if constant !== null}
@@ -169,41 +169,47 @@
         Every value is <span class="font-semibold">{format(constant)}</span>.
       </p>
       <p class="text-muted-foreground text-[0.625rem]">
-        {nameA} {formatNumber(totals.a)}{#if compare} · {nameB} {formatNumber(totals.b)}{/if} values —
-        no spread to plot.
+        {nameA}
+        {formatNumber(totals.a)}{#if compare}
+          · {nameB} {formatNumber(totals.b)}{/if} values — no spread to plot.
       </p>
     </div>
   {:else if data.length === 0}
-    <p class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs">
+    <p
+      class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"
+    >
       Nothing to plot here.
     </p>
   {:else}
-    <!-- The plot is as tall as its rows need; the card scrolls when that is
-         more than the drawer's current height allows. -->
-    <div class="min-h-0 flex-1 overflow-y-auto px-3 py-2">
+    <!-- The plot is as wide as its columns need; the card scrolls sideways when
+         that is more than the drawer's current width allows. -->
+    <div class="overflow-x-auto px-3 py-2">
       <Chart.Container
         {config}
-        class="aspect-auto h-[calc(1.5rem*var(--rows)+1.75rem)] w-full"
-        style="--rows:{data.length}"
+        class="aspect-auto h-64 w-[max(100%,calc(2.25rem*var(--cols)))]"
+        style="--cols:{data.length}"
       >
         <BarChart
           {data}
           {series}
           seriesLayout="group"
-          orientation="horizontal"
-          y="label"
+          orientation="vertical"
+          x="label"
           rule={false}
           legend={false}
           bandPadding={0.25}
           groupPadding={0}
-          padding={{ left: 92, right: 16, bottom: 20 }}
+          padding={{ left: 44, right: 16, bottom: 72 }}
           props={{
             bars: { stroke: "none", radius: 2, rounded: "all" },
             highlight: { area: { fill: "none" } },
             // The label gutter is fixed, so a long resource code is cut rather
             // than allowed to run off the card. The tooltip carries the full one.
-            yAxis: { format: truncate, tickLabelProps: { svgProps: { x: -8 } } },
-            xAxis: { ticks: 4, format: (value: number) => formatNumber(value) }
+            xAxis: {
+              format: truncate,
+              tickLabelProps: { rotate: -45, textAnchor: "end", svgProps: { y: 4 } }
+            },
+            yAxis: { ticks: 4, format: (value: number) => formatNumber(value) }
           }}
         >
           <!-- The `tooltip` snippet, not `children`: children would replace the
