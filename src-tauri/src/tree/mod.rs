@@ -12,6 +12,7 @@
 //!   the cases split between them rather than being counted twice.
 
 pub mod commands;
+pub mod distributions;
 mod stats;
 
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
@@ -854,7 +855,7 @@ fn case_level_blocks(
 mod tests {
     use super::*;
 
-    fn mapping() -> Vec<ColumnMapping> {
+    pub(super) fn mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
               {"name":"case","role":"case_id","type":"string","granularity":"case"},
@@ -869,7 +870,7 @@ mod tests {
 
     /// `traces` is one `(case, activities, costs)` per case, at one event per
     /// second so transitions are always 1000 ms.
-    fn log(traces: &[(&str, &[&str], &[i64])]) -> DataFrame {
+    pub(super) fn log(traces: &[(&str, &[&str], &[i64])]) -> DataFrame {
         let mut cases = Vec::new();
         let mut acts = Vec::new();
         let mut costs = Vec::new();

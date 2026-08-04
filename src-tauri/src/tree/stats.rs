@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Linear-interpolated quantile over a sorted slice — the same convention
 /// numpy and every box plot in the app use.
-fn quantile(sorted: &[f64], q: f64) -> f64 {
+pub(super) fn quantile(sorted: &[f64], q: f64) -> f64 {
     if sorted.is_empty() {
         return f64::NAN;
     }

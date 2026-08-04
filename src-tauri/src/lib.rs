@@ -22,7 +22,8 @@ pub fn run() {
             filters::commands::distinct_values,
             filters::commands::shared_cases,
             tree::commands::directed_tree,
-            tree::commands::list_variants
+            tree::commands::list_variants,
+            tree::commands::node_distributions
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

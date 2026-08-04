@@ -470,6 +470,39 @@ export function visibleNodes(
 }
 
 /**
+ * Distance from the synthetic Start root — 0 at the root, 1 at the first
+ * activity. This is the event index a node's own step sits at, offset by the
+ * root: the node at depth `d` is the `d`th activity of every case reaching it.
+ */
+export function nodeDepth(tree: DirectedTree, id: number): number {
+  return pathTo(tree, id).length - 1;
+}
+
+/**
+ * The Variant keys of every leaf under `id` that survived pruning — how a node
+ * is named to the backend when asking for its Distributions.
+ *
+ * Keyed off `visible.cases` rather than `visible.ids`: `cases` holds every node
+ * on a surviving path, while `ids` has collapsed subtrees stripped out. Folding
+ * a subtree away is a rendering choice and must not change which cases the
+ * charts describe.
+ */
+export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number): string[] {
+  const byId = new Map(tree.nodes.map((n) => [n.id, n]));
+  const kids = children(tree);
+  const keys: string[] = [];
+  const stack = [id];
+  while (stack.length) {
+    const next = stack.pop() as number;
+    if (!visible.cases.has(next)) continue;
+    const key = byId.get(next)?.variantKey;
+    if (key !== null && key !== undefined) keys.push(key);
+    stack.push(...(kids.get(next) ?? []));
+  }
+  return keys;
+}
+
+/**
  * The nodes one Variant runs through, restricted to what is on screen. Empty
  * when that Variant isn't in this tree — unselected, pruned, or built before
  * it existed — so hovering it highlights nothing rather than lying about a
