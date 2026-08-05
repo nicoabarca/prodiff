@@ -20,6 +20,8 @@ pub fn run() {
             filters::commands::chain_impact,
             filters::commands::slice_preview,
             filters::commands::distinct_values,
+            filters::commands::duration_histogram,
+            filters::commands::daily_case_load,
             filters::commands::shared_cases,
             tree::commands::directed_tree,
             tree::commands::list_variants

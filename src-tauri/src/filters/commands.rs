@@ -2,7 +2,7 @@
 //! and hands over whole filter chains, so these commands never touch sqlite and
 //! nothing derived from a chain is persisted.
 
-use super::{apply, Endpoint, Filter};
+use super::{apply, timestamp_millis, Endpoint, Filter};
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::event_log_path;
 use crate::stats::{summarize, EventLogStats};
@@ -121,6 +121,169 @@ pub fn shared_cases(
     let a = ids(&chain_a)?;
     let b = ids(&chain_b)?;
     Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DurationBin {
+    /// Bin edges in milliseconds: `start` inclusive, `end` exclusive except on
+    /// the last bin, which has to hold the longest case.
+    pub start_ms: f64,
+    pub end_ms: f64,
+    pub cases: i64,
+}
+
+/// How many bins the case-duration histogram is drawn with. Fixed here rather
+/// than passed in: it is a property of the chart, and the chart is the only
+/// caller.
+const DURATION_BINS: usize = 60;
+
+/// The distribution of case durations under a filter chain — the shape the
+/// duration filter's brush selects a range from.
+#[tauri::command]
+pub fn duration_histogram(
+    app: tauri::AppHandle,
+    project_id: String,
+    chain: Vec<Filter>,
+    columns: Vec<ColumnMapping>,
+) -> Result<Vec<DurationBin>, String> {
+    let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
+}
+
+/// One `(first event, last event)` pair per case, in epoch milliseconds.
+fn case_spans(
+    df: DataFrame,
+    case_col: &str,
+    timestamp_col: &str,
+) -> Result<Vec<(i64, i64)>, String> {
+    let millis = timestamp_millis(timestamp_col).cast(DataType::Int64);
+    let per_case = df
+        .lazy()
+        .group_by([col(case_col)])
+        .agg([
+            millis.clone().min().alias("start_ms"),
+            millis.max().alias("end_ms"),
+        ])
+        .collect()
+        .map_err(|e| e.to_string())?;
+    let column = |name: &str| -> Result<Vec<i64>, String> {
+        Ok(per_case
+            .column(name)
+            .map_err(|e| e.to_string())?
+            .i64()
+            .map_err(|e| e.to_string())?
+            .into_no_null_iter()
+            .collect())
+    };
+    Ok(column("start_ms")?
+        .into_iter()
+        .zip(column("end_ms")?)
+        .collect())
+}
+
+/// One duration per case, in milliseconds: its last event minus its first.
+fn case_durations(df: DataFrame, case_col: &str, timestamp_col: &str) -> Result<Vec<i64>, String> {
+    Ok(case_spans(df, case_col, timestamp_col)?
+        .into_iter()
+        .map(|(start, end)| end - start)
+        .collect())
+}
+
+#[derive(serde::Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct DayLoad {
+    /// Midnight UTC of the day, in epoch milliseconds.
+    pub day_ms: i64,
+    /// Cases running on that day — started on or before it, finished on or
+    /// after it. A case is counted on every day of its life, not just the one
+    /// it started on, which is what makes this read as workload over time.
+    pub cases: i64,
+}
+
+/// How many cases are open on each day the log covers — the shape the timeframe
+/// filter's brush selects a window from. Every day between the first and last
+/// is present, including the quiet ones, so the chart has no gaps to invent.
+#[tauri::command]
+pub fn daily_case_load(
+    app: tauri::AppHandle,
+    project_id: String,
+    chain: Vec<Filter>,
+    columns: Vec<ColumnMapping>,
+) -> Result<Vec<DayLoad>, String> {
+    let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    Ok(daily_load(&case_spans(df, case_col, timestamp_col)?))
+}
+
+const DAY_MS: i64 = 86_400_000;
+
+/// Counted by the difference of a running total rather than by walking each
+/// case's days: a long case would otherwise cost a step per day it spans.
+fn daily_load(spans: &[(i64, i64)]) -> Vec<DayLoad> {
+    let day = |millis: i64| millis.div_euclid(DAY_MS);
+    let (Some(first), Some(last)) = (
+        spans.iter().map(|(start, _)| day(*start)).min(),
+        spans.iter().map(|(_, end)| day(*end)).max(),
+    ) else {
+        return Vec::new();
+    };
+
+    let mut deltas = vec![0i64; (last - first + 2) as usize];
+    for (start, end) in spans {
+        deltas[(day(*start) - first) as usize] += 1;
+        deltas[(day(*end) - first + 1) as usize] -= 1;
+    }
+
+    let mut running = 0;
+    deltas
+        .into_iter()
+        .take((last - first + 1) as usize)
+        .enumerate()
+        .map(|(offset, delta)| {
+            running += delta;
+            DayLoad {
+                day_ms: (first + offset as i64) * DAY_MS,
+                cases: running,
+            }
+        })
+        .collect()
+}
+
+/// Equal-width bins over the observed range. A log where every case shares one
+/// duration still gets a single bin rather than a zero-width division.
+fn histogram(durations: &[i64]) -> Vec<DurationBin> {
+    let (Some(min), Some(max)) = (durations.iter().min(), durations.iter().max()) else {
+        return Vec::new();
+    };
+    let (min, max) = (*min as f64, *max as f64);
+    let count = if min == max { 1 } else { DURATION_BINS };
+    let width = if min == max {
+        1.0
+    } else {
+        (max - min) / count as f64
+    };
+
+    let mut cases = vec![0i64; count];
+    for value in durations {
+        let offset = ((*value as f64 - min) / width) as usize;
+        cases[offset.min(count - 1)] += 1;
+    }
+    // Edges are interpolated rather than stepped by `width` so the last one
+    // lands exactly on `max` instead of a rounding error past it.
+    let edge = |i: usize| min + (max - min) * i as f64 / count as f64;
+    cases
+        .into_iter()
+        .enumerate()
+        .map(|(i, cases)| DurationBin {
+            start_ms: edge(i),
+            end_ms: if min == max { min + 1.0 } else { edge(i + 1) },
+            cases,
+        })
+        .collect()
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -294,6 +457,43 @@ mod tests {
             .collect();
         out.sort();
         out
+    }
+
+    #[test]
+    fn histogram_bins_cover_the_whole_range_and_count_every_case() {
+        let durations = [0, 50, 100, 999, 1000];
+        let bins = histogram(&durations);
+        assert_eq!(bins.len(), DURATION_BINS);
+        assert_eq!(bins[0].start_ms, 0.0);
+        assert_eq!(bins[DURATION_BINS - 1].end_ms, 1000.0);
+        // The longest case lands in the last bin rather than one past the end,
+        // alongside the 999 that shares that bin.
+        assert_eq!(bins.iter().map(|b| b.cases).sum::<i64>(), 5);
+        assert_eq!(bins[DURATION_BINS - 1].cases, 2);
+    }
+
+    #[test]
+    fn a_single_shared_duration_yields_one_bin_rather_than_a_zero_width_split() {
+        assert_eq!(
+            histogram(&[7, 7, 7]),
+            [DurationBin {
+                start_ms: 7.0,
+                end_ms: 8.0,
+                cases: 3
+            }]
+        );
+        assert!(histogram(&[]).is_empty());
+    }
+
+    #[test]
+    fn daily_load_counts_a_case_on_every_day_it_is_open() {
+        // One case spanning days 0–2, one on day 1 only.
+        let load = daily_load(&[(0, 2 * DAY_MS), (DAY_MS, DAY_MS + 5)]);
+        assert_eq!(
+            load.iter().map(|d| (d.day_ms, d.cases)).collect::<Vec<_>>(),
+            [(0, 1), (DAY_MS, 2), (2 * DAY_MS, 1)]
+        );
+        assert!(daily_load(&[]).is_empty());
     }
 
     #[test]

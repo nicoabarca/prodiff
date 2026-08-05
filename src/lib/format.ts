@@ -37,6 +37,34 @@ export function formatDuration(millis: number | null): string {
   return parts.length > 0 ? parts.join(" ") : "0s";
 }
 
+/**
+ * Every non-zero unit of a duration ("1d 2h 30m 15s") — what `formatDuration`
+ * trims away matters when the text is meant to be edited and read back.
+ */
+export function formatDurationParts(millis: number): string {
+  let remaining = Math.round(millis / 1000);
+  const parts: string[] = [];
+  for (const [label, size] of DURATION_UNITS) {
+    const value = Math.floor(remaining / size);
+    remaining -= value * size;
+    if (value > 0 || parts.length > 0) parts.push(`${value}${label}`);
+  }
+  return parts.length > 0 ? parts.join(" ") : "0s";
+}
+
+/**
+ * A day as the log writes it. Read in UTC deliberately: event timestamps carry
+ * no zone, so a local reading would move a midnight event to the day before.
+ */
+export function formatDay(millis: number): string {
+  return new Date(millis).toLocaleDateString(undefined, {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "short",
+    day: "numeric"
+  });
+}
+
 /** A slice's stored colour token as a usable CSS colour. */
 export function colorVar(token: string): string {
   return `var(--${token})`;
