@@ -89,12 +89,42 @@
 
   const kinds = $derived(
     [
-      { kind: "attribute" as const, label: "Attribute", available: categorical.length > 0 },
-      { kind: "numeric" as const, label: "Numeric", available: numericColumns.length > 0 },
-      { kind: "timeframe" as const, label: "Timeframe", available: true },
-      { kind: "endpoint" as const, label: "Start / end", available: activityColumn !== "" },
-      { kind: "duration" as const, label: "Duration", available: true },
-      { kind: "follower" as const, label: "Follows", available: eventLevel.length > 0 },
+      {
+        kind: "attribute" as const,
+        label: "Attribute",
+        description: "Selects cases by the values their events hold in a categorical column.",
+        available: categorical.length > 0
+      },
+      {
+        kind: "numeric" as const,
+        label: "Numeric",
+        description: "Selects cases by the range their events cover in a numeric column.",
+        available: numericColumns.length > 0
+      },
+      {
+        kind: "timeframe" as const,
+        label: "Timeframe",
+        description: "Selects cases by how they overlap a window of time.",
+        available: true
+      },
+      {
+        kind: "endpoint" as const,
+        label: "Start / end",
+        description: "Selects cases by the activity they start or end with.",
+        available: activityColumn !== ""
+      },
+      {
+        kind: "duration" as const,
+        label: "Duration",
+        description: "Selects cases by how long they run, first event to last.",
+        available: true
+      },
+      {
+        kind: "follower" as const,
+        label: "Follows",
+        description: "Selects cases where one value is followed by another in the same column.",
+        available: eventLevel.length > 0
+      }
     ].filter((k) => k.available)
   );
 
@@ -439,6 +469,9 @@
         </ToggleGroup.Item>
       {/each}
     </ToggleGroup.Root>
+    <Field.FieldDescription>
+      {kinds.find((k) => k.kind === kind)?.description}
+    </Field.FieldDescription>
   </Field.Field>
 
   {#if picksColumn}
