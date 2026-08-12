@@ -4,7 +4,14 @@
  * on the first screen. Run with `npx tsx src/lib/distributions.test.ts`.
  */
 import assert from "node:assert/strict";
-import { curveRows, gridAttributes, logBars, shareAt, type DurationShape } from "./distributions";
+import {
+  curveRows,
+  gridAttributes,
+  logBars,
+  outlierNote,
+  shareAt,
+  type DurationShape
+} from "./distributions";
 import {
   stepContext,
   TRANSITION_TIME,
@@ -214,6 +221,27 @@ assert.deepEqual(context(2, 0), [0, 1, 2]);
     { label: "1s–1m 0s", a: 3, b: 8 },
     { label: "1m 0s–1h 0m", a: 1, b: 0 }
   ]);
+}
+
+// The note names the cutoff, because the count alone is meaningless without it.
+{
+  const secs = (value: number) => `${value}s`;
+  const stats = { whiskerLow: 26, whiskerHigh: 253, outliersLow: 34, outliersHigh: 129 };
+  assert.equal(
+    outlierNote("Night", stats, secs),
+    "Night: 129 over 253s, 34 under 26s, not plotted"
+  );
+  // Only the side that has any: a bare "0 over 253s" reads as a finding.
+  assert.equal(
+    outlierNote("Night", { ...stats, outliersHigh: 0 }, secs),
+    "Night: 34 under 26s, not plotted"
+  );
+  assert.equal(
+    outlierNote("Night", { ...stats, outliersLow: 0 }, secs),
+    "Night: 129 over 253s, not plotted"
+  );
+  // Nothing past either line means nothing to say, not an empty sentence.
+  assert.equal(outlierNote("Night", { ...stats, outliersLow: 0, outliersHigh: 0 }, secs), null);
 }
 
 console.log("distributions: ok");

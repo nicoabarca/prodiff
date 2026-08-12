@@ -10,7 +10,7 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { formatDecimal, formatDuration } from "$lib/format";
+import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree";
 import type { Test, TreeNode } from "$lib/tree";
 import type { Filter } from "$lib/filters";
@@ -26,13 +26,20 @@ export type Scope = "atStep" | "wholeCase";
 export const SCOPES: Scope[] = ["atStep", "wholeCase"];
 
 export const SCOPE_LABEL: Record<Scope, string> = {
-  atStep: "At this step",
+  atStep: "This step",
   wholeCase: "Whole case"
 };
 
-/** What the Scope actually counts, in the user's terms. */
+/**
+ * What the Scope actually counts, in the user's terms.
+ *
+ * Phrased in events per case, because that is the only thing the Scope decides.
+ * "At this step" read as a filter on *cases* — it is not; the same cases are
+ * behind both readings, and what changes is how many of each one's events get
+ * counted. The control says "Count events from" for the same reason.
+ */
 export const SCOPE_HINT: Record<Scope, string> = {
-  atStep: "only the event at this activity, for the cases passing through it",
+  atStep: "one event per case, the one at this activity",
   wholeCase: "every event of those same cases, at every activity"
 };
 
@@ -112,9 +119,9 @@ export const PLOT_TOGGLE = [
 
 /** What each encoding is for, on the control that switches between them. */
 export const ENCODING_HINT: Record<Encoding, string> = {
-  ecdf: "Cumulative curve — the whole difference at every percentile",
-  box: "Box plot — median, spread and outliers at a glance",
-  logBins: "Log-width bars — one bar per order of magnitude, tail included"
+  ecdf: "Cumulative curve: the whole difference at every percentile",
+  box: "Box plot: median, spread and outliers at a glance",
+  logBins: "Log-width bars: one bar per order of magnitude, tail included"
 };
 
 export type Distribution =
@@ -198,9 +205,7 @@ export function categoryBars(
   distribution: Extract<Distribution, { type: "categorical" }>,
   showAll: boolean
 ): Bar[] {
-  const shown = showAll
-    ? distribution.values
-    : distribution.values.slice(0, TOP_CATEGORIES);
+  const shown = showAll ? distribution.values : distribution.values.slice(0, TOP_CATEGORIES);
   const bars: Bar[] = shown.map((count) => ({
     label: count.value,
     a: count.a,
@@ -302,6 +307,30 @@ export function logBars(shape: DurationShape): Bar[] {
   }));
 }
 
+/**
+ * What a box plot leaves out, in plain words.
+ *
+ * The whiskers stop at a cutoff and everything past it is counted rather than
+ * drawn, so the card has to say how much went uncounted and where the line it
+ * stopped at actually is. Phrased without the word "whisker": naming the cutoff
+ * is the whole point, and "129 above the whiskers" makes the reader work out
+ * which number that even was.
+ */
+export function outlierNote(
+  group: string,
+  stats: { whiskerLow: number; whiskerHigh: number; outliersLow: number; outliersHigh: number },
+  format: (value: number) => string
+): string | null {
+  const parts: string[] = [];
+  if (stats.outliersHigh > 0) {
+    parts.push(`${formatNumber(stats.outliersHigh)} over ${format(stats.whiskerHigh)}`);
+  }
+  if (stats.outliersLow > 0) {
+    parts.push(`${formatNumber(stats.outliersLow)} under ${format(stats.whiskerLow)}`);
+  }
+  return parts.length === 0 ? null : `${group}: ${parts.join(", ")}, not plotted`;
+}
+
 /** How the Distributions grid orders its cards. */
 export type Sort = "difference" | "name";
 
@@ -363,11 +392,7 @@ export function gridAttributes(
 }
 
 /** The bars a card draws, whatever kind of Distribution it holds. */
-export function bars(
-  distribution: Distribution,
-  attribute: string,
-  showAll: boolean
-): Bar[] {
+export function bars(distribution: Distribution, attribute: string, showAll: boolean): Bar[] {
   if (distribution.type === "categorical") return categoryBars(distribution, showAll);
   if (distribution.type === "numerical") return binBars(distribution, attribute);
   return [];

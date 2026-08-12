@@ -237,7 +237,7 @@
       <p class="text-muted-foreground text-[0.625rem]">
         {nameA}
         {formatNumber(totals.a)}{#if compare}
-          · {nameB} {formatNumber(totals.b)}{/if} values — no spread to plot.
+          · {nameB} {formatNumber(totals.b)}{/if} values, so there is no spread to plot.
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}

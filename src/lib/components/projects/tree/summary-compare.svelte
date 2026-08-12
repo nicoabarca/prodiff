@@ -19,6 +19,7 @@
    */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
+  import { outlierNote } from "$lib/distributions";
   import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
   import { groupSlices } from "$lib/state/tree.svelte";
   import type { Summary } from "$lib/tree";
@@ -112,20 +113,9 @@
    */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
-  /** Groups with values past a whisker, said in words under the plot. */
+  /** Cases past where the lines stop — counted here because they are not drawn. */
   const beyond = $derived(
-    boxes
-      .filter((row) => row.outliersHigh + row.outliersLow > 0)
-      .map((row) => {
-        const parts = [];
-        if (row.outliersHigh > 0) {
-          parts.push(`${formatNumber(row.outliersHigh)} over ${format(row.whiskerHigh)}`);
-        }
-        if (row.outliersLow > 0) {
-          parts.push(`${formatNumber(row.outliersLow)} under ${format(row.whiskerLow)}`);
-        }
-        return `${row.group}: ${parts.join(", ")}`;
-      })
+    boxes.map((row) => outlierNote(row.group, row, format)).filter((note) => note !== null)
   );
 
   /** The headline the numeric block leads with, in the user's own group names. */
@@ -348,7 +338,7 @@
 
     {#if beyond.length > 0}
       <p class="text-muted-foreground text-[0.625rem]">
-        {beyond.join(" · ")} · full range {format(span.lowest)} – {format(span.highest)}.
+        {beyond.join(" · ")}. Full range {format(span.lowest)} – {format(span.highest)}.
       </p>
     {/if}
   </div>
@@ -367,7 +357,7 @@
       {:else}
         <span class="inline-flex min-w-0 items-center gap-1">
           <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
-          <span class="truncate">{nameA} — share of cases</span>
+          <span class="truncate">{nameA}, share of cases</span>
         </span>
       {/if}
     </div>

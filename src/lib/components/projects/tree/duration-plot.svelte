@@ -20,9 +20,18 @@
    * boundaries like `1.8e6`; the ladder already holds the ones a person reads.
    */
   import { scaleBand, scaleSymlog } from "d3-scale";
-  import { Axis, BoxPlot, Chart, Highlight, Layer, Spline, Tooltip } from "layerchart";
-  import { curveRows, type BoxStats, type DurationShape } from "$lib/distributions";
-  import { formatDuration } from "$lib/format";
+  import {
+    Axis,
+    BoxPlot,
+    Chart,
+    ChartClipPath,
+    Highlight,
+    Layer,
+    Spline,
+    Tooltip
+  } from "layerchart";
+  import { curveRows, outlierNote, type BoxStats, type DurationShape } from "$lib/distributions";
+  import { formatDuration, formatNumber } from "$lib/format";
 
   let {
     shape,
@@ -44,6 +53,15 @@
   const COLOR_B = "var(--slice-2)";
 
   const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
+
+  /**
+   * A curve needs two distinct durations to be a curve. When every case took
+   * exactly the same time the union of the ladders collapses to one row, and a
+   * one-point line is a degenerate path — d3 emits it, the scale has a
+   * zero-width domain to place it on, and the result is a stroke drawn at
+   * coordinates that belong to no plot. Say the value instead.
+   */
+  const oneValue = $derived(rows.length < 2);
 
   /** The widest value either Group reaches, so both are drawn to one scale. */
   const max = $derived(
@@ -103,21 +121,25 @@
   });
 
   const outliers = $derived(
-    boxes
-      .filter((box) => box.outliersLow + box.outliersHigh > 0)
-      .map(
-        (box) =>
-          `${box.group}: ${box.outliersHigh} above ${formatDuration(box.whiskerHigh)}` +
-          (box.outliersLow > 0 ? `, ${box.outliersLow} below` : "")
-      )
+    boxes.map((box) => outlierNote(box.group, box, formatDuration)).filter((note) => note !== null)
   );
 
   const percent = (share: number) => `${Math.round(share * 100)}%`;
 </script>
 
+{#snippet noSpread(value: number)}
+  <!-- Both encodings say it the same way, from one place: a constant attribute
+       is the same finding whichever plot was asked for. -->
+  <p class="flex flex-1 items-center justify-center p-3 text-center text-xs">
+    All values are <span class="ml-1 font-semibold">{formatDuration(value)}</span>.
+  </p>
+{/snippet}
+
 {#if encoding === "ecdf"}
   {#if rows.length === 0}
     <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
+  {:else if oneValue}
+    {@render noSpread(rows[0].value)}
   {:else}
     <div class="h-64 px-3 py-2">
       <Chart
@@ -133,15 +155,23 @@
         <Layer>
           <Axis placement="left" grid rule ticks={[0, 0.25, 0.5, 0.75, 1]} format={percent} />
           <Axis placement="bottom" rule {ticks} format={formatDuration} />
-          <!-- Both curves off one set of rows, keyed on the union of the two
-               ladders' durations. `bisect-x` needs a single sorted x to search,
-               and the ECDF is a step function anyway, so sampling it at every
-               point either Group turns on is exact rather than a compromise. -->
-          <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
-          {#if compare && shape.ecdfB.length > 0}
-            <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
-          {/if}
-          <Highlight lines points={{ fill: COLOR_A }} />
+          <!-- Nothing an SVG layer draws is clipped by default, so a path with a
+               coordinate outside the plot is painted across the page — over the
+               neighbouring cards and out of the window. The marks are bounded to
+               the plot so a bad number stays a bad number instead of vandalising
+               the grid. -->
+          <ChartClipPath>
+            <!-- Both curves off one set of rows, keyed on the union of the two
+                 ladders' durations. `bisect-x` needs a single sorted x to
+                 search, and the ECDF is a step function anyway, so sampling it
+                 at every point either Group turns on is exact rather than a
+                 compromise. -->
+            <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
+            {#if compare && shape.ecdfB.length > 0}
+              <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
+            {/if}
+            <Highlight lines points={{ fill: COLOR_A }} />
+          </ChartClipPath>
         </Layer>
         <!-- The reading the curve is for: at this duration, how far along is
              each Group. Hovering anywhere snaps to the nearest column. -->
@@ -184,18 +214,11 @@
   <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
 {:else}
   {#if flat}
-    <!-- Every quartile on the same value. A box of zero height is a horizontal
-         line that reads as a broken plot, and the number itself is the finding. -->
-    <div class="flex flex-1 flex-col justify-center gap-1 p-3">
-      <p class="text-xs">
-        Half the values sit at
-        <span class="font-semibold">{formatDuration(boxes[0].median)}</span>, with no spread inside
-        the whiskers.
-      </p>
-      <p class="text-muted-foreground text-[0.625rem]">
-        The longer ones are counted below. Switch to Curve to see where they fall.
-      </p>
-    </div>
+    <!-- Whiskers and quartiles all on one value. Since the percentile fallback
+         in `tukey`, that only happens when the sample really is constant — a box
+         of zero height is a line that reads as a broken plot, and the value is
+         the finding. -->
+    {@render noSpread(boxes[0].median)}
   {:else}
     <div class="h-64 px-3 py-2">
       <Chart
@@ -212,25 +235,29 @@
         <Layer>
           <Axis placement="left" grid rule ticks={boxTicks} format={formatDuration} />
           <Axis placement="bottom" rule />
-          {#each boxes as box (box.group)}
-            <!-- `min`/`max` are the whisker ends by this component's own
+          <!-- Bounded for the same reason as the curve: an unclipped SVG layer
+               paints a stray coordinate across the whole page. -->
+          <ChartClipPath>
+            {#each boxes as box (box.group)}
+              <!-- `min`/`max` are the whisker ends by this component's own
                definition — the extremes excluding outliers — which is exactly
                what the backend computed. The outliers themselves are counts,
                not points, so they are stated below rather than drawn. -->
-            <BoxPlot
-              data={box}
-              min="whiskerLow"
-              q1="q1"
-              median="median"
-              q3="q3"
-              max="whiskerHigh"
-              fill={colorOf(box.group)}
-              fillOpacity={0.18}
-              stroke={colorOf(box.group)}
-              strokeWidth={1.5}
-            />
-          {/each}
-          <Highlight area />
+              <BoxPlot
+                data={box}
+                min="whiskerLow"
+                q1="q1"
+                median="median"
+                q3="q3"
+                max="whiskerHigh"
+                fill={colorOf(box.group)}
+                fillOpacity={0.18}
+                stroke={colorOf(box.group)}
+                strokeWidth={1.5}
+              />
+            {/each}
+            <Highlight area />
+          </ChartClipPath>
         </Layer>
         <!-- The numbers the box encodes, said out loud: read off a drawing they
              are estimates, and the whole reason to hover is to stop estimating.
@@ -252,10 +279,10 @@
                   <dd class="text-right">{formatDuration(value as number)}</dd>
                 {/each}
               </dl>
-              {#if box.outliersHigh + box.outliersLow > 0}
+              {#if box.outliersHigh > 0}
                 <p class="text-muted-foreground mt-1 text-[0.625rem]">
-                  {box.outliersHigh} above{#if box.outliersLow > 0}, {box.outliersLow} below{/if} the
-                  whiskers
+                  {formatNumber(box.outliersHigh)} took longer than
+                  {formatDuration(box.whiskerHigh)}, past the line and not drawn.
                 </p>
               {/if}
             </div>

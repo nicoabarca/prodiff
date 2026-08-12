@@ -216,12 +216,14 @@
         {/if}
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
-          <!-- The Scope decides which events every card counts, so it is stated
-               here in words and repeated as a badge on each card. -->
+          <!-- "Count events from", not "Showing". The toggle picks which of a
+               case's events are counted, never which cases; under "Showing",
+               "At this step" read as a filter on the case set, which it is not.
+               Stated again in words below and as a badge on each card. -->
           <div class="flex items-center gap-2">
-            <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase"
-              >Showing</span
-            >
+            <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
+              Count events from
+            </span>
             <ToggleGroup.Root
               type="single"
               size="sm"
@@ -272,7 +274,7 @@
               align="end"
             >
               <p class="text-muted-foreground px-2 py-1.5 text-[0.625rem]">
-                Not tested by this build — adding one queries it now.
+                Not tested by this build. Adding one queries it now.
               </p>
               {#each available as attribute (attribute)}
                 <Button
@@ -289,13 +291,19 @@
         </div>
       </div>
 
-      <!-- The Scope decides which events every card on the grid counted, and the
-           two readings are easy to confuse — the case set is identical either
-           way, only the events differ. Stated at full size, with the chosen
-           option named in the same indigo as the control that set it. -->
+      <!-- Said at full size because the two readings are easy to confuse, and
+           because what they have in common is the part that gets missed: the
+           case set is identical either way, only the events differ. So the
+           count is repeated here, after the sentence, rather than left to the
+           header to imply. -->
       <p class="border-border bg-secondary/50 shrink-0 border-b px-4 py-2 text-sm">
-        <span class="text-primary font-semibold">{SCOPE_LABEL[charts.scope]}</span>
-        <span class="text-muted-foreground"> — counting {SCOPE_HINT[charts.scope]}.</span>
+        <span class="text-primary font-semibold">{SCOPE_LABEL[charts.scope]}:</span>
+        <span class="text-muted-foreground">
+          {SCOPE_HINT[charts.scope]}.
+          {#if loaded.data && !stale}
+            Same {formatNumber(loaded.data.casesA + loaded.data.casesB)} cases either way.
+          {/if}
+        </span>
       </p>
 
       {#if stale}
@@ -316,7 +324,8 @@
       {:else if rootAtStep}
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
           <p class="text-muted-foreground max-w-md text-xs">
-            Start is where every case begins, not an activity — it has no event of its own to count.
+            Start is where every case begins, not an activity, so it has no event of its own to
+            count.
           </p>
           <Button size="sm" variant="outline" onclick={() => (charts.scope = "wholeCase")}>
             Switch to whole case
@@ -329,7 +338,7 @@
       {:else if grid.length === 0}
         <div class="flex flex-1 items-center justify-center p-4">
           <p class="text-muted-foreground text-xs">
-            No cards open — add an attribute to see this step's distributions.
+            No cards open. Add an attribute to see this step's distributions.
           </p>
         </div>
       {:else}

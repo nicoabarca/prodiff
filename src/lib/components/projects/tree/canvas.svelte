@@ -73,7 +73,10 @@
       const on = lit.has(Number(node.id));
       // A node off the path dims; one on it keeps whatever the Group focus
       // already decided, so the two channels never fight.
-      return { ...node, data: { ...node.data, dimmed: on ? node.data.dimmed : true, highlighted: on } };
+      return {
+        ...node,
+        data: { ...node.data, dimmed: on ? node.data.dimmed : true, highlighted: on }
+      };
     });
     edges = flow.edges.map((edge) => {
       const on = lit.has(Number(edge.source)) && lit.has(Number(edge.target));

@@ -732,6 +732,33 @@ mod tests {
     }
 
     #[test]
+    fn a_flat_middle_falls_back_to_percentiles_instead_of_calling_everything_an_outlier() {
+        // The shape a Transition Time takes: most cases at zero, the rest long.
+        // Tukey's fences collapse onto zero here, so the 1.5·IQR rule would call
+        // every non-zero case an outlier and leave nothing to draw.
+        let mut sorted = vec![0.0; 800];
+        sorted.extend((1..=200).map(|i| i as f64 * 10.0));
+        let stats = box_stats(&sorted).expect("values");
+        assert_eq!((stats.q1, stats.median, stats.q3), (0.0, 0.0, 0.0));
+        assert_eq!(stats.whisker_low, 0.0);
+        assert!(stats.whisker_high > 0.0, "the whisker has to leave the floor");
+        // A fraction of the sample, not a fifth of it.
+        assert!(
+            stats.outliers_high < sorted.len() / 20,
+            "{} of {} called outliers",
+            stats.outliers_high,
+            sorted.len()
+        );
+    }
+
+    #[test]
+    fn a_truly_constant_sample_still_has_no_spread_and_no_outliers() {
+        let stats = box_stats(&[5.0; 50]).expect("values");
+        assert_eq!((stats.whisker_low, stats.whisker_high), (5.0, 5.0));
+        assert_eq!((stats.outliers_low, stats.outliers_high), (0, 0));
+    }
+
+    #[test]
     fn a_sample_inside_its_fences_whiskers_to_its_own_extremes() {
         let sorted = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let stats = box_stats(&sorted).expect("values");
