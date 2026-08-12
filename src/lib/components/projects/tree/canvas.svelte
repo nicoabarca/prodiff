@@ -6,10 +6,32 @@
   import { selected, selectedVariants, shownVariant, view } from "$lib/state/tree.svelte";
   import { variantPath, visibleNodes, type DirectedTree } from "$lib/tree";
 
-  let { tree, stale }: { tree: DirectedTree; stale: boolean } = $props();
+  let {
+    tree,
+    stale,
+    // Dropping the selection by clicking past the nodes is right where the
+    // canvas is the view, and wrong where it is a picker driving something
+    // else: there the empty pane is just the gap between two steps.
+    deselectOnPaneClick = true,
+    /** Narrows the drawing to these nodes. Null draws the whole tree. */
+    only = null
+  }: {
+    tree: DirectedTree;
+    stale: boolean;
+    deselectOnPaneClick?: boolean;
+    only?: Set<number> | null;
+  } = $props();
 
   const nodeTypes = { activity: ActivityNode };
-  const visible = $derived(visibleNodes(tree, view, selectedVariants()));
+  // Narrowed after the Variant and collapse rules have run, not instead of
+  // them: `cases` still covers every surviving path, so the counts on the nodes
+  // that remain are the same ones the full canvas shows.
+  const visible = $derived.by(() => {
+    const all = visibleNodes(tree, view, selectedVariants());
+    if (!only) return all;
+    const kept = only;
+    return { ...all, ids: new Set([...all.ids].filter((id) => kept.has(id))) };
+  });
 
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);
@@ -71,7 +93,9 @@
     elementsSelectable={false}
     onlyRenderVisibleElements
     onnodeclick={({ node }) => (selected.id = Number(node.id))}
-    onpaneclick={() => (selected.id = null)}
+    onpaneclick={() => {
+      if (deselectOnPaneClick) selected.id = null;
+    }}
   >
     <Background />
     <Controls showLock={false} />

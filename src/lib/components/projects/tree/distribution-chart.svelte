@@ -3,29 +3,40 @@
    * One attribute's Distribution at the selected node — vertical columns, one
    * band per value or bin, one bar per Group within it.
    *
-   * The plot's width is computed from the column count rather than taken from
-   * the flex parent, and the card scrolls sideways when that overflows.
+   * One cell of the Distributions grid. The plot's width is computed from the
+   * column count rather than taken from the cell, and the card scrolls sideways
+   * when that overflows.
    * `Chart.Container` is `aspect-video` by default, so the height is pinned
    * explicitly — a chart left to fill a flex box has no resolvable height and
    * renders its axes with no bars between them.
    *
-   * The Scope badge is repeated here rather than left to the drawer header on
-   * purpose: a card read on its own, or screenshotted out of the drawer, has to
-   * still say which events it counted.
+   * The Scope badge is repeated here rather than left to the view's header on
+   * purpose: a card read on its own, or screenshotted out of the grid, has to
+   * still say which events it counted. The Effect chip is here for the opposite
+   * reason — the grid is ranked by it, so every card has to show the number it
+   * was ranked on.
    */
   import { BarChart, Tooltip } from "layerchart";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Chart from "$lib/components/ui/chart/index.js";
+  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
+  import DurationPlot from "$lib/components/projects/tree/duration-plot.svelte";
+  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import {
     bars,
+    ENCODING_HINT,
+    ENCODING_LABEL,
+    ENCODINGS,
+    logBars,
     SCOPE_LABEL,
     TOP_CATEGORIES,
     type Distribution,
+    type Encoding,
     type Scope
   } from "$lib/distributions";
   import { formatDuration, formatNumber } from "$lib/format";
-  import { isDurationAttribute } from "$lib/tree";
+  import { isDurationAttribute, type Test } from "$lib/tree";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import X from "@lucide/svelte/icons/x";
@@ -34,20 +45,28 @@
     attribute,
     distribution,
     scope,
+    test,
     compare,
     nameA,
     nameB,
     expanded,
+    encoding,
+    onEncoding,
     onToggleExpanded,
     onRemove
   }: {
     attribute: string;
     distribution: Distribution;
     scope: Scope;
+    /** The node's Significance Test for this attribute, when one ran. */
+    test: Test | null;
     compare: boolean;
     nameA: string;
     nameB: string;
     expanded: boolean;
+    /** Only read on a duration; every other attribute has bars and nothing else. */
+    encoding: Encoding;
+    onEncoding: (next: Encoding) => void;
     onToggleExpanded: () => void;
     onRemove: () => void;
   } = $props();
@@ -57,7 +76,21 @@
   const COLOR_A = "var(--slice-1)";
   const COLOR_B = "var(--slice-2)";
 
-  const data = $derived(bars(distribution, attribute, expanded));
+  /**
+   * The duration-only encodings, when the backend computed them. Absent on
+   * every other attribute, and absent on a duration whose values were all null.
+   */
+  const shape = $derived(distribution.type === "numerical" ? distribution.shape : null);
+
+  /**
+   * Bars are what the card draws unless a duration asked for something else.
+   * On a duration they are the log ladder rather than the equal-width bins:
+   * the whole reason these attributes get their own encodings is that equal
+   * width spends every bin on empty range.
+   */
+  const data = $derived(
+    shape && encoding === "logBins" ? logBars(shape) : bars(distribution, attribute, expanded)
+  );
 
   const series = $derived(
     compare
@@ -110,11 +143,12 @@
     total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "—";
 </script>
 
-<div class="bg-card border-border flex w-104 shrink-0 flex-col border">
+<div class="bg-card border-border flex min-w-0 flex-col border">
   <div class="border-border flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2">
     <div class="flex min-w-0 flex-col gap-1">
       <h3 class="truncate text-xs font-semibold" title={attribute}>{attribute}</h3>
       <div class="flex flex-wrap items-center gap-1.5">
+        <EffectChip {test} />
         <Badge variant="secondary" class="text-[0.625rem]">{SCOPE_LABEL[scope]}</Badge>
         {#if distribution.type === "categorical"}
           <span class="text-muted-foreground text-[0.625rem]">
@@ -128,7 +162,11 @@
           </span>
         {:else if distribution.type === "numerical" && constant === null}
           <span class="text-muted-foreground text-[0.625rem]">
-            {distribution.countsA.length} bins · n {formatNumber(totals.a + totals.b)}
+            {#if shape && encoding !== "logBins"}
+              n {formatNumber(totals.a + totals.b)}
+            {:else}
+              {data.length} bins · n {formatNumber(totals.a + totals.b)}
+            {/if}
           </span>
         {/if}
       </div>
@@ -143,6 +181,33 @@
       <X />
     </Button>
   </div>
+
+  <!-- Durations are heavily right-skewed, so the card opens on the cumulative
+       curve: it is the one encoding that reads the median, the spread and the
+       tail in a single glance without a binning choice to defend. The other two
+       are a click away for the readings they are better at. -->
+  {#if shape && constant === null}
+    <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
+      <ToggleGroup.Root
+        type="single"
+        size="sm"
+        variant="outline"
+        value={encoding}
+        onValueChange={(next) => next && onEncoding(next as Encoding)}
+      >
+        {#each ENCODINGS as option (option)}
+          <ToggleGroup.Item
+            value={option}
+            title={ENCODING_HINT[option]}
+            aria-label={ENCODING_HINT[option]}
+            class="text-[0.625rem]"
+          >
+            {ENCODING_LABEL[option]}
+          </ToggleGroup.Item>
+        {/each}
+      </ToggleGroup.Root>
+    </div>
+  {/if}
 
   {#if compare}
     <div
@@ -174,6 +239,8 @@
           · {nameB} {formatNumber(totals.b)}{/if} values — no spread to plot.
       </p>
     </div>
+  {:else if shape && encoding !== "logBins"}
+    <DurationPlot {shape} {encoding} {compare} {nameA} {nameB} />
   {:else if data.length === 0}
     <p
       class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"

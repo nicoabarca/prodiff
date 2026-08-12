@@ -367,6 +367,41 @@ export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
   return path;
 }
 
+/**
+ * How far past the step its context reaches. One level answers "and then what?"
+ * without the rail turning back into the tree the view exists to get away from.
+ * Any depth works, `Infinity` included — the walk stops where this says, so
+ * widening it is this number and nothing else.
+ */
+export const CONTEXT_DEPTH = 1;
+
+/**
+ * The nodes one step is read in the context of: its own trace down from the
+ * root, and what the cases reaching it go on to do next.
+ *
+ * Siblings on other traces are left out on purpose. They are other cases'
+ * steps, and nothing the Distributions grid says describes them — showing them
+ * would put the numbers next to activities they never counted.
+ */
+export function stepContext(
+  tree: DirectedTree,
+  id: number,
+  depth: number = CONTEXT_DEPTH
+): Set<number> {
+  const context = new Set(pathTo(tree, id).map((node) => node.id));
+  const kids = children(tree);
+  let frontier = kids.get(id) ?? [];
+  for (let level = 0; level < depth && frontier.length > 0; level++) {
+    const next: number[] = [];
+    for (const child of frontier) {
+      context.add(child);
+      next.push(...(kids.get(child) ?? []));
+    }
+    frontier = next;
+  }
+  return context;
+}
+
 export interface Visible {
   ids: Set<number>;
   /** Nodes folded into a collapsed ancestor, for the "+n" badge. */

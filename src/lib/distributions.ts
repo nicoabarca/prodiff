@@ -11,7 +11,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { formatDecimal, formatDuration } from "$lib/format";
-import { isDurationAttribute } from "$lib/tree";
+import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree";
+import type { Test, TreeNode } from "$lib/tree";
 import type { Filter } from "$lib/filters";
 import type { Project } from "$lib/types";
 
@@ -41,6 +42,56 @@ export interface CategoryCount {
   b: number;
 }
 
+/** A Group's five-number summary with Tukey whiskers. Mirrors `BoxStats`. */
+export interface BoxStats {
+  min: number;
+  q1: number;
+  median: number;
+  q3: number;
+  max: number;
+  /** Extreme observations still inside 1.5·IQR, not the fences themselves. */
+  whiskerLow: number;
+  whiskerHigh: number;
+  /** Points past the whiskers, counted rather than shipped. */
+  outliersLow: number;
+  outliersHigh: number;
+}
+
+/**
+ * The three encodings a duration is read in. Only Activity Duration and
+ * Transition Time carry one — see `DurationShape` in `distributions.rs` for why
+ * none of it can be recovered from the equal-width bins after the fact.
+ */
+export interface DurationShape {
+  /** Value at percentile `i`, `i` in `0..=100`; the percentile is the index. */
+  ecdfA: number[];
+  ecdfB: number[];
+  boxA: BoxStats | null;
+  boxB: BoxStats | null;
+  /** `logEdges.length === logCountsA.length + 1`; shared by both Groups. */
+  logEdges: number[];
+  logCountsA: number[];
+  logCountsB: number[];
+}
+
+/** How a duration card draws its numbers. */
+export type Encoding = "ecdf" | "box" | "logBins";
+
+export const ENCODINGS: Encoding[] = ["ecdf", "box", "logBins"];
+
+export const ENCODING_LABEL: Record<Encoding, string> = {
+  ecdf: "Curve",
+  box: "Box",
+  logBins: "Bars"
+};
+
+/** What each encoding is for, on the control that switches between them. */
+export const ENCODING_HINT: Record<Encoding, string> = {
+  ecdf: "Cumulative curve — the whole difference at every percentile",
+  box: "Box plot — median, spread and outliers at a glance",
+  logBins: "Log-width bars — one bar per order of magnitude, tail included"
+};
+
 export type Distribution =
   | {
       type: "categorical";
@@ -60,6 +111,8 @@ export type Distribution =
       countsB: number[];
       nA: number;
       nB: number;
+      /** Set for durations only; `null` leaves the card with bars alone. */
+      shape: DurationShape | null;
     }
   | { type: "empty" };
 
@@ -165,6 +218,92 @@ export function binBars(
     a,
     b: distribution.countsB[index]
   }));
+}
+
+/** One point of a cumulative curve: a duration and the share at or below it. */
+export interface CurvePoint {
+  value: number;
+  /** 0 to 1 — the index's percentile, since the ladder is one per percent. */
+  share: number;
+}
+
+export function curve(ladder: number[]): CurvePoint[] {
+  const last = ladder.length - 1;
+  if (last < 1) return [];
+  return ladder.map((value, index) => ({ value, share: index / last }));
+}
+
+/**
+ * The bars of the log ladder. Labelled by their own edges rather than by an
+ * index, because the whole point of unequal bins is that the width is the
+ * information — "30s–1m" has to be readable on the axis.
+ */
+export function logBars(shape: DurationShape): Bar[] {
+  return shape.logCountsA.map((a, index) => ({
+    label: `${formatDuration(shape.logEdges[index])}–${formatDuration(shape.logEdges[index + 1])}`,
+    a,
+    b: shape.logCountsB[index]
+  }));
+}
+
+/** How the Distributions grid orders its cards. */
+export type Sort = "difference" | "name";
+
+/** One card in the grid, before its numbers have arrived. */
+export interface GridAttribute {
+  name: string;
+  /** The node's Significance Test, when one ran for this attribute here. */
+  test: Test | null;
+  /** False for an attribute the build never tested, added by hand. */
+  inBuild: boolean;
+}
+
+/**
+ * The cards the grid shows for one node, in order.
+ *
+ * The grid opens on what the build actually tested — every block on the node —
+ * rather than on every mappable column, so a node costs one query over the
+ * attributes there is something to say about. Anything else is opt-in through
+ * `extra`, which follows the user from node to node because looking it up is
+ * why they went there.
+ *
+ * Attributes carrying a Test lead, strongest first: at a few thousand cases per
+ * Group nearly every test passes, so the magnitude is the only ranking that
+ * puts the finding on the first screen. The untested ones — a block whose test
+ * could not run, and every hand-added attribute — follow by name, under their
+ * own heading: an unbadged card among ranked ones otherwise reads as "no
+ * difference found" when it means "never looked".
+ */
+export function gridAttributes(
+  node: TreeNode,
+  extra: string[],
+  dismissed: Iterable<string>,
+  sort: Sort
+): GridAttribute[] {
+  const hidden = new Set(dismissed);
+  const cards: GridAttribute[] = Object.entries(node.eventLevel).map(([name, block]) => ({
+    name,
+    test: block.test ?? null,
+    inBuild: true
+  }));
+  if (node.transitionTime) {
+    cards.push({ name: TRANSITION_TIME, test: node.transitionTime.test ?? null, inBuild: true });
+  }
+
+  const known = new Set(cards.map((card) => card.name));
+  for (const name of extra) {
+    if (!known.has(name)) cards.push({ name, test: null, inBuild: false });
+  }
+
+  const byName = (x: GridAttribute, y: GridAttribute) => x.name.localeCompare(y.name);
+  return cards
+    .filter((card) => !hidden.has(card.name))
+    .sort((x, y) => {
+      // Tested first whatever the sort, so the divider stays one cut down the list.
+      if ((x.test === null) !== (y.test === null)) return x.test === null ? 1 : -1;
+      if (sort === "name" || x.test === null || y.test === null) return byName(x, y);
+      return y.test.effectSize - x.test.effectSize || byName(x, y);
+    });
 }
 
 /** The bars a card draws, whatever kind of Distribution it holds. */

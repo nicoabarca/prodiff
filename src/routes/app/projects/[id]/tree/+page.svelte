@@ -14,18 +14,15 @@
     settings,
     variants
   } from "$lib/state/tree.svelte";
-  import { drawer, forgetDistributions } from "$lib/state/distributions.svelte";
   import BuildSettings from "$lib/components/projects/tree/build-settings.svelte";
   import Canvas from "$lib/components/projects/tree/canvas.svelte";
   import DetailPanel from "$lib/components/projects/tree/detail-panel.svelte";
-  import DistributionDrawer from "$lib/components/projects/tree/distribution-drawer.svelte";
   import GroupHeader from "$lib/components/projects/tree/group-header.svelte";
   import VariantPicker from "$lib/components/projects/tree/variant-picker.svelte";
   import ViewLegend from "$lib/components/projects/tree/view-legend.svelte";
   import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
   import Network from "@lucide/svelte/icons/network";
-  import PanelBottom from "@lucide/svelte/icons/panel-bottom";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
@@ -55,12 +52,6 @@
     if (!project) return;
     forgetOtherProject(project.id);
     if (settings.projectId !== project.id) loadSettings(project.id);
-  });
-
-  // The drawer's numbers describe one node of one tree; both change here.
-  $effect(() => {
-    void [project?.id, built.key];
-    forgetDistributions();
   });
 </script>
 
@@ -116,20 +107,18 @@
                rail. -->
           {#if selected.id !== null}
             <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-              <!-- Two independent toggles: the panel says what differs at this
-                   node, the drawer what the distributions look like. Reading
-                   both together is the normal case, so neither closes the
-                   other. -->
+              <!-- The panel says what differs at this node and stays beside the
+                   tree; the distributions are a wall of histograms that wants
+                   the whole window, so they get their own view rather than a
+                   drawer squeezing the canvas from below. -->
               <Button
                 variant="outline"
                 size="sm"
                 class="bg-background/90 backdrop-blur"
-                aria-pressed={drawer.open}
-                onclick={() => (drawer.open = !drawer.open)}
+                href="/app/projects/{project.id}/distributions"
               >
-                <PanelBottom data-icon="inline-start" />
                 <ChartColumn data-icon="inline-start" />
-                {drawer.open ? "Hide" : "Show"} distributions
+                Distributions
               </Button>
               <Button
                 variant="outline"
@@ -148,10 +137,6 @@
           <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (selected.id = null)} />
         {/if}
       </div>
-      <!-- Below both the canvas and the panel, spanning the full width. -->
-      {#if drawer.open}
-        <DistributionDrawer {project} tree={built.tree} />
-      {/if}
     {:else}
       <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
         <Empty.Root>

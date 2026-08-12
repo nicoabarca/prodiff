@@ -26,6 +26,38 @@ const SHIP_VALUES: usize = 200;
 const MIN_BINS: usize = 8;
 const MAX_BINS: usize = 20;
 
+/// Percentiles the ECDF ladder is sampled at, 0 through 100 inclusive. One per
+/// percent is finer than a card is wide, so the curve is exact as drawn while
+/// staying two hundred floats rather than the hundred thousand values behind it.
+const ECDF_STEPS: usize = 100;
+
+/// The coarsest a log-bin ladder may get before it stops being readable.
+const MAX_LOG_BINS: usize = 8;
+
+/// Boundaries a person would actually pick for a duration, in milliseconds.
+///
+/// Time is not decimal, so a geometric ladder computed from the data lands on
+/// edges like "1m47s" that read as noise. Durations are the only attributes
+/// binned this way and their units are fixed, so the ladder is written down.
+const DURATION_EDGES: [f64; 16] = [
+    1_000.0,           // 1s
+    5_000.0,           // 5s
+    15_000.0,          // 15s
+    30_000.0,          // 30s
+    60_000.0,          // 1m
+    300_000.0,         // 5m
+    900_000.0,         // 15m
+    1_800_000.0,       // 30m
+    3_600_000.0,       // 1h
+    7_200_000.0,       // 2h
+    21_600_000.0,      // 6h
+    43_200_000.0,      // 12h
+    86_400_000.0,      // 1d
+    259_200_000.0,     // 3d
+    604_800_000.0,     // 7d
+    2_592_000_000.0,   // 30d
+];
+
 /// Which of a node's cases' events are counted. The set of cases is the same
 /// either way — only the events change.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
@@ -43,6 +75,49 @@ pub struct CategoryCount {
     pub value: String,
     pub a: i64,
     pub b: i64,
+}
+
+/// A Group's five-number summary with Tukey whiskers, for the box plot.
+///
+/// The whiskers are the extreme values still inside 1.5·IQR — actual
+/// observations, not the fences themselves. The points beyond them are counted
+/// rather than shipped: on a heavy tail they run to thousands, and a card that
+/// small says "412 above" more usefully than it draws 412 dots.
+#[derive(serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BoxStats {
+    pub min: f64,
+    pub q1: f64,
+    pub median: f64,
+    pub q3: f64,
+    pub max: f64,
+    pub whisker_low: f64,
+    pub whisker_high: f64,
+    pub outliers_low: usize,
+    pub outliers_high: usize,
+}
+
+/// The three shapes a duration is read in, alongside the equal-width bins every
+/// numerical attribute gets.
+///
+/// Durations are heavily right-skewed: most of the mass in the first bin and a
+/// tail running orders of magnitude out. Equal-width bins spend their whole
+/// budget on empty range, which is why these are computed here — none of them
+/// can be recovered from binned counts after the fact.
+#[derive(serde::Serialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct DurationShape {
+    /// Value at percentile `i` for `i` in `0..=ECDF_STEPS` — the ECDF, with the
+    /// percentile left implicit in the index. Empty for a Group with no values.
+    pub ecdf_a: Vec<f64>,
+    pub ecdf_b: Vec<f64>,
+    pub box_a: Option<BoxStats>,
+    pub box_b: Option<BoxStats>,
+    /// Log-ish bin edges shared by both Groups, so the two series are read
+    /// against each other. `log_edges.len() == log_counts_a.len() + 1`.
+    pub log_edges: Vec<f64>,
+    pub log_counts_a: Vec<i64>,
+    pub log_counts_b: Vec<i64>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -70,6 +145,9 @@ pub enum Distribution {
         counts_b: Vec<i64>,
         n_a: usize,
         n_b: usize,
+        /// Set for Activity Duration and Transition Time only; `None` says the
+        /// card has nothing but the equal-width bins to draw.
+        shape: Option<DurationShape>,
     },
     /// Every value was null, so there is nothing to bin or count.
     Empty,
@@ -276,7 +354,90 @@ fn bin(values: &[f64], edges: &[f64]) -> Vec<i64> {
     counts
 }
 
-fn numerical(a: &[f64], b: &[f64]) -> Distribution {
+/// The value at each percentile from 0 to 100. Empty in, empty out — a Group
+/// absent from this node has no curve rather than a flat line at zero.
+fn ecdf(sorted: &[f64]) -> Vec<f64> {
+    if sorted.is_empty() {
+        return Vec::new();
+    }
+    (0..=ECDF_STEPS)
+        .map(|step| quantile(sorted, step as f64 / ECDF_STEPS as f64))
+        .collect()
+}
+
+fn box_stats(sorted: &[f64]) -> Option<BoxStats> {
+    let (first, last) = (*sorted.first()?, *sorted.last()?);
+    let q1 = quantile(sorted, 0.25);
+    let q3 = quantile(sorted, 0.75);
+    let reach = 1.5 * (q3 - q1);
+    // The whiskers are observations inside the fences, so a sample whose whole
+    // spread fits within them reaches exactly to its own min and max.
+    let whisker_low = sorted.iter().copied().find(|v| *v >= q1 - reach).unwrap_or(first);
+    let whisker_high = sorted.iter().copied().rev().find(|v| *v <= q3 + reach).unwrap_or(last);
+    Some(BoxStats {
+        min: first,
+        q1,
+        median: quantile(sorted, 0.5),
+        q3,
+        max: last,
+        whisker_low,
+        whisker_high,
+        outliers_low: sorted.iter().take_while(|v| **v < whisker_low).count(),
+        outliers_high: sorted.iter().rev().take_while(|v| **v > whisker_high).count(),
+    })
+}
+
+/// Bin edges from the written-down duration ladder, trimmed to the data and
+/// coarsened until few enough to label.
+///
+/// Zero is always the first edge: a duration of nothing is common — an activity
+/// with one timestamp, a transition into the step it follows — and the log of
+/// it does not exist, so the first bin is "under the first boundary" rather
+/// than a bin the ladder has to reach down to.
+fn log_edges(max: f64) -> Vec<f64> {
+    let within: Vec<f64> = DURATION_EDGES.iter().copied().filter(|e| *e < max).collect();
+    // Coarsening by stride keeps the ladder's own boundaries rather than
+    // inventing new ones: every other rung is still a rung. `n` rungs make
+    // `n + 1` bins once the leading "under the first rung" bin is counted, so
+    // the budget the stride divides is one short of the ceiling.
+    let stride = within.len().div_ceil(MAX_LOG_BINS - 1).max(1);
+    let mut edges = vec![0.0];
+    edges.extend(within.iter().step_by(stride));
+    // The last bin is closed on the data's own maximum, so the tail has an end
+    // to be drawn against rather than running off the ladder.
+    edges.push(if max > *edges.last().unwrap_or(&0.0) { max } else { max + 1.0 });
+    edges
+}
+
+/// Counts into bins the edges name outright, rather than by dividing a range —
+/// the log ladder's bins are deliberately unequal.
+fn bin_by_edges(values: &[f64], edges: &[f64]) -> Vec<i64> {
+    let bins = edges.len() - 1;
+    let mut counts = vec![0i64; bins];
+    for &value in values {
+        // The last bin is closed so the maximum lands in it rather than past
+        // the end; `partition_point` gives the first edge strictly above.
+        let index = edges.partition_point(|edge| *edge <= value).saturating_sub(1);
+        counts[index.min(bins - 1)] += 1;
+    }
+    counts
+}
+
+/// The three duration-only encodings, computed from the sorted values in hand.
+fn duration_shape(sorted_a: &[f64], sorted_b: &[f64], max: f64) -> DurationShape {
+    let edges = log_edges(max);
+    DurationShape {
+        ecdf_a: ecdf(sorted_a),
+        ecdf_b: ecdf(sorted_b),
+        box_a: box_stats(sorted_a),
+        box_b: box_stats(sorted_b),
+        log_counts_a: bin_by_edges(sorted_a, &edges),
+        log_counts_b: bin_by_edges(sorted_b, &edges),
+        log_edges: edges,
+    }
+}
+
+fn numerical(a: &[f64], b: &[f64], duration: bool) -> Distribution {
     if a.is_empty() && b.is_empty() {
         return Distribution::Empty;
     }
@@ -294,12 +455,24 @@ fn numerical(a: &[f64], b: &[f64]) -> Distribution {
         .map(|i| lo + (hi - lo) * i as f64 / bins as f64)
         .collect();
 
+    // Sorted per Group only where a duration asks for it: the quantile ladder
+    // and the whiskers both need order, and nothing else here does.
+    let shape = duration.then(|| {
+        let sorted = |values: &[f64]| {
+            let mut own: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
+            own.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
+            own
+        };
+        duration_shape(&sorted(a), &sorted(b), max)
+    });
+
     Distribution::Numerical {
         counts_a: bin(a, &edges),
         counts_b: bin(b, &edges),
         n_a: a.len(),
         n_b: b.len(),
         edges,
+        shape,
     }
 }
 
@@ -369,8 +542,9 @@ pub fn distributions(
         .iter()
         .zip(acc_a.iter().zip(&acc_b))
         .map(|(plan, (a, b))| {
+            let duration = plan.name == ACTIVITY_DURATION || plan.name == TRANSITION_TIME;
             let distribution = match (a, b) {
-                (Acc::Num(a), Acc::Num(b)) => numerical(a, b),
+                (Acc::Num(a), Acc::Num(b)) => numerical(a, b, duration),
                 (Acc::Cat(a), Acc::Cat(b)) => categorical(a, b),
                 _ => Distribution::Empty,
             };
@@ -410,7 +584,7 @@ mod tests {
             counts_a,
             counts_b,
             ..
-        } = numerical(&a, &b)
+        } = numerical(&a, &b, false)
         else {
             panic!("expected a numerical distribution");
         };
@@ -425,7 +599,7 @@ mod tests {
 
     #[test]
     fn a_constant_attribute_still_bins() {
-        let Distribution::Numerical { counts_a, .. } = numerical(&[7.0, 7.0, 7.0], &[]) else {
+        let Distribution::Numerical { counts_a, .. } = numerical(&[7.0, 7.0, 7.0], &[], false) else {
             panic!("expected a numerical distribution");
         };
         assert_eq!(counts_a.iter().sum::<i64>(), 3);
@@ -501,10 +675,98 @@ mod tests {
 
     #[test]
     fn everything_null_is_empty_not_a_chart_of_zeroes() {
-        assert!(matches!(numerical(&[], &[]), Distribution::Empty));
+        assert!(matches!(numerical(&[], &[], false), Distribution::Empty));
         assert!(matches!(
             categorical(&HashMap::new(), &HashMap::new()),
             Distribution::Empty
         ));
+    }
+
+    /// Milliseconds spanning four orders of magnitude, the shape a real
+    /// duration has: a crowd near zero and a thin tail out to hours.
+    fn skewed() -> Vec<f64> {
+        let mut values: Vec<f64> = (0..90).map(|i| (i % 30) as f64 * 1_000.0).collect();
+        values.extend([600_000.0, 900_000.0, 3_600_000.0, 7_200_000.0]);
+        values
+    }
+
+    #[test]
+    fn only_durations_carry_a_shape() {
+        let values = skewed();
+        let Distribution::Numerical { shape, .. } = numerical(&values, &values, false) else {
+            panic!("expected a numerical distribution");
+        };
+        assert!(shape.is_none());
+        let Distribution::Numerical { shape, .. } = numerical(&values, &values, true) else {
+            panic!("expected a numerical distribution");
+        };
+        assert!(shape.is_some());
+    }
+
+    #[test]
+    fn the_ecdf_is_one_value_per_percentile_and_never_goes_backwards() {
+        let ladder = ecdf(&{
+            let mut sorted = skewed();
+            sorted.sort_by(|x, y| x.partial_cmp(y).unwrap());
+            sorted
+        });
+        assert_eq!(ladder.len(), ECDF_STEPS + 1);
+        assert!(ladder.windows(2).all(|pair| pair[1] >= pair[0]));
+        // The ends are the sample's own extremes, not interpolated past them.
+        assert_eq!(ladder[0], 0.0);
+        assert_eq!(*ladder.last().unwrap(), 7_200_000.0);
+    }
+
+    #[test]
+    fn a_group_with_no_values_has_no_curve_and_no_box() {
+        assert!(ecdf(&[]).is_empty());
+        assert!(box_stats(&[]).is_none());
+    }
+
+    #[test]
+    fn whiskers_stop_at_observations_and_the_rest_are_counted() {
+        // Tight body, one value far out: the high whisker stays on the body's
+        // own last value rather than reaching up to the outlier.
+        let sorted = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 1_000.0];
+        let stats = box_stats(&sorted).expect("values");
+        assert_eq!(stats.min, 1.0);
+        assert_eq!(stats.max, 1_000.0);
+        assert_eq!(stats.whisker_high, 9.0);
+        assert_eq!(stats.outliers_high, 1);
+        assert_eq!(stats.outliers_low, 0);
+        assert!(stats.q1 < stats.median && stats.median < stats.q3);
+    }
+
+    #[test]
+    fn a_sample_inside_its_fences_whiskers_to_its_own_extremes() {
+        let sorted = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let stats = box_stats(&sorted).expect("values");
+        assert_eq!((stats.whisker_low, stats.whisker_high), (1.0, 5.0));
+        assert_eq!((stats.outliers_low, stats.outliers_high), (0, 0));
+    }
+
+    #[test]
+    fn log_bins_start_at_zero_hold_every_value_and_stay_readable() {
+        let mut sorted = skewed();
+        sorted.sort_by(|x, y| x.partial_cmp(y).unwrap());
+        let max = *sorted.last().unwrap();
+        let edges = log_edges(max);
+        assert_eq!(edges[0], 0.0, "a duration of nothing needs a bin");
+        assert!(edges.len() - 1 <= MAX_LOG_BINS);
+        assert!(edges.windows(2).all(|pair| pair[1] > pair[0]), "{edges:?}");
+        let counts = bin_by_edges(&sorted, &edges);
+        assert_eq!(counts.iter().sum::<i64>(), sorted.len() as i64);
+        // The maximum lands in the last bin rather than off the end.
+        assert!(*counts.last().unwrap() > 0);
+    }
+
+    #[test]
+    fn a_long_range_coarsens_the_ladder_rather_than_inventing_edges() {
+        let edges = log_edges(2_592_000_000.0);
+        assert!(edges.len() - 1 <= MAX_LOG_BINS, "{edges:?}");
+        // Every interior edge is still a rung the ladder wrote down.
+        for edge in &edges[1..edges.len() - 1] {
+            assert!(DURATION_EDGES.contains(edge), "{edge} is not a ladder rung");
+        }
     }
 }
