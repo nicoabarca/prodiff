@@ -64,11 +64,6 @@
   /** Debounce before re-measuring the draft against the log, in ms. */
   const IMPACT_DEBOUNCE = 250;
 
-  interface ValueCount {
-    value: string;
-    cases: number;
-  }
-
   const usable = $derived(project.columns.filter((c) => !project.hiddenColumns.includes(c.name)));
   const activityColumn = $derived(usable.find((c) => c.role === "activity_name")?.name ?? "");
   // Case ids and timestamps are excluded: filtering by an individual case id is
@@ -185,10 +180,35 @@
   let search = $state("");
   let referenceSearch = $state("");
   let followerSearch = $state("");
+  let startSearch = $state("");
+  let endSearch = $state("");
 
-  let values = $state<ValueCount[]>([]);
+  let values = $state<string[]>([]);
   let truncated = $state(false);
   let valuesError = $state<string | null>(null);
+
+  // Endpoint filters show both positions' activities at once — see the two
+  // separate value pickers below — so they get their own pair of lists
+  // instead of sharing the single-column fetch above.
+  let startValues = $state<string[]>([]);
+  let startTruncated = $state(false);
+  let startValuesError = $state<string | null>(null);
+  let endValues = $state<string[]>([]);
+  let endTruncated = $state(false);
+  let endValuesError = $state<string | null>(null);
+
+  // A case can only start or end with a value, not both, so the two pickers
+  // share one selection: whichever list the user last checked a box in wins.
+  const startChosen = $derived(endpointPosition === "start" ? selected : []);
+  const endChosen = $derived(endpointPosition === "end" ? selected : []);
+  function chooseStart(next: string[]) {
+    endpointPosition = "start";
+    selected = next;
+  }
+  function chooseEnd(next: string[]) {
+    endpointPosition = "end";
+    selected = next;
+  }
 
   /** The columns a kind may read, and which one its value picker lists. */
   const columnOptions = $derived(
@@ -198,14 +218,8 @@
     kind === "attribute" || kind === "numeric" || kind === "follower"
   );
 
-  /** The picker column: endpoint filters always pick from activities. */
-  const pickerColumn = $derived(
-    kind === "endpoint"
-      ? activityColumn
-      : kind === "attribute" || kind === "follower"
-        ? column
-        : ""
-  );
+  /** The picker column for the single-list kinds (attribute, follower). */
+  const pickerColumn = $derived(kind === "attribute" || kind === "follower" ? column : "");
 
   // Default the column to the first usable one whenever the kind changes.
   $effect(() => {
@@ -222,14 +236,12 @@
     }
     let stale = false;
     valuesError = null;
-    invoke<{ values: ValueCount[]; truncated: boolean }>("distinct_values", {
+    invoke<{ values: string[]; truncated: boolean }>("distinct_values", {
       projectId: project.id,
       column: target,
       columns: project.columns,
       limit: VALUE_LIMIT,
-      // Endpoint filters only ever match a case's first/last activity, so the
-      // picker lists those rather than every activity in the log.
-      endpoint: kind === "endpoint" ? endpointPosition : null
+      endpoint: null
     })
       .then((result) => {
         if (stale) return;
@@ -239,6 +251,52 @@
       .catch((cause) => {
         if (!stale) valuesError = String(cause);
       });
+    return () => {
+      stale = true;
+    };
+  });
+
+  // Both positions are fetched together whenever the endpoint kind is active,
+  // so the two pickers can show start and end activities side by side.
+  $effect(() => {
+    if (kind !== "endpoint" || !activityColumn) {
+      startValues = [];
+      endValues = [];
+      return;
+    }
+    let stale = false;
+    startValuesError = null;
+    endValuesError = null;
+
+    const fetch = (position: EndpointPosition) =>
+      invoke<{ values: string[]; truncated: boolean }>("distinct_values", {
+        projectId: project.id,
+        column: activityColumn,
+        columns: project.columns,
+        limit: VALUE_LIMIT,
+        endpoint: position
+      });
+
+    fetch("start")
+      .then((result) => {
+        if (stale) return;
+        startValues = result.values;
+        startTruncated = result.truncated;
+      })
+      .catch((cause) => {
+        if (!stale) startValuesError = String(cause);
+      });
+
+    fetch("end")
+      .then((result) => {
+        if (stale) return;
+        endValues = result.values;
+        endTruncated = result.truncated;
+      })
+      .catch((cause) => {
+        if (!stale) endValuesError = String(cause);
+      });
+
     return () => {
       stale = true;
     };
@@ -383,24 +441,26 @@
      selection and its search box are passed in rather than held here. -->
 {#snippet valuePicker(
   label: string,
+  options: string[],
   chosen: string[],
   choose: (next: string[]) => void,
   term: string,
-  setTerm: (next: string) => void
+  setTerm: (next: string) => void,
+  truncated: boolean,
+  error: string | null,
+  labelClass = ""
 )}
-  {@const listed = values.filter((v) => v.value.toLowerCase().includes(term.trim().toLowerCase()))}
+  {@const listed = options.filter((v) => v.toLowerCase().includes(term.trim().toLowerCase()))}
   <Field.Field>
     <div class="flex items-center gap-2">
-      <Field.FieldLabel>{label}</Field.FieldLabel>
+      <Field.FieldLabel class={labelClass}>{label}</Field.FieldLabel>
       <span class="text-muted-foreground ml-auto text-xs">
-        {chosen.length}/{values.length} selected
+        {chosen.length}/{options.length} selected
       </span>
-      <Button variant="ghost" size="xs" onclick={() => choose(listed.map((v) => v.value))}>
-        All
-      </Button>
+      <Button variant="ghost" size="xs" onclick={() => choose(listed)}> All </Button>
       <Button variant="ghost" size="xs" onclick={() => choose([])}>None</Button>
     </div>
-    {#if values.length > 8}
+    {#if options.length > 8}
       <InputGroup.Root>
         <InputGroup.Input
           placeholder="Search values…"
@@ -412,23 +472,20 @@
         </InputGroup.Addon>
       </InputGroup.Root>
     {/if}
-    {#if valuesError}
-      <Field.FieldError>{valuesError}</Field.FieldError>
+    {#if error}
+      <Field.FieldError>{error}</Field.FieldError>
     {:else}
       <ScrollArea.Root class="border-border h-56 border">
-        {#each listed as option (option.value)}
+        {#each listed as option (option)}
           <Label
             class="hover:bg-muted flex cursor-pointer items-center gap-2 px-2.5 py-1.5 font-normal"
           >
             <Checkbox
-              checked={chosen.includes(option.value)}
-              onCheckedChange={() => choose(toggled(chosen, option.value))}
+              checked={chosen.includes(option)}
+              onCheckedChange={() => choose(toggled(chosen, option))}
               class="data-checked:border-(--accent-color) data-checked:bg-(--accent-color) data-checked:text-background dark:data-checked:bg-(--accent-color)"
             />
-            <span class="truncate text-sm">{option.value}</span>
-            <span class="text-muted-foreground ml-auto font-mono text-[0.6875rem]">
-              {formatNumber(option.cases)}
-            </span>
+            <span class="truncate text-sm">{option}</span>
           </Label>
         {:else}
           <p class="text-muted-foreground px-2.5 py-3 text-xs">No matching values.</p>
@@ -436,7 +493,7 @@
       </ScrollArea.Root>
       {#if truncated}
         <Field.FieldDescription>
-          Showing the {VALUE_LIMIT} most common values of this column.
+          Showing the first {VALUE_LIMIT} values alphabetically.
         </Field.FieldDescription>
       {/if}
     {/if}
@@ -474,211 +531,263 @@
     </Field.FieldDescription>
   </Field.Field>
 
-  {#if picksColumn}
-    <Field.Field class="w-1/2">
-      <Field.FieldLabel for="filter-column">
-        {kind === "follower" ? "Filter by" : "Column"}
-      </Field.FieldLabel>
-      <Select.Root
-        type="single"
-        value={column}
-        onValueChange={(next) => {
-          column = next;
-          selected = [];
-          referenceValues = [];
-          followerValues = [];
-        }}
-      >
-        <Select.Trigger id="filter-column">{column || "Pick a column"}</Select.Trigger>
-        <Select.Content style="--accent-color: {color}">
-          <Select.Group>
-            {#each columnOptions as option (option.name)}
-              <Select.Item
-                value={option.name}
-                label={option.name}
-                class="[&_.cn-select-item-indicator-icon]:text-(--accent-color)"
-              >
-                {option.name}
-              </Select.Item>
-            {/each}
-          </Select.Group>
-        </Select.Content>
-      </Select.Root>
-    </Field.Field>
-  {/if}
-
-  {#if kind === "endpoint"}
-    <Field.Field>
-      <Field.FieldLabel>Position</Field.FieldLabel>
-      <ToggleGroup.Root
-        type="single"
-        value={endpointPosition}
-        onValueChange={(next) => {
-          if (!next) return;
-          endpointPosition = next as EndpointPosition;
-          // Start and end activities are different sets — a carried-over pick
-          // could be one the other position never offers.
-          selected = [];
-        }}
-        variant="outline"
-        class="justify-start"
-      >
-        {#each [["start", "Starts with"], ["end", "Ends with"]] as [position, label] (position)}
-          <ToggleGroup.Item
-            value={position}
-            class="data-[state=on]:border-(--accent-color) data-[state=on]:bg-(--accent-color) data-[state=on]:text-background data-[state=on]:hover:bg-(--accent-color)"
+  {#if kind === "attribute"}
+    <!-- Column and Mode share the left column; the value picker takes the
+         right one, so picking values no longer waits at the bottom. -->
+    <div class="grid gap-3 sm:grid-cols-2">
+      <div class="space-y-3">
+        <Field.Field>
+          <Field.FieldLabel for="filter-column" class="h-6 items-center">Column</Field.FieldLabel>
+          <Select.Root
+            type="single"
+            value={column}
+            onValueChange={(next) => {
+              column = next;
+              selected = [];
+            }}
           >
-            {label}
-          </ToggleGroup.Item>
-        {/each}
-      </ToggleGroup.Root>
-    </Field.Field>
-  {/if}
-
-  <Field.FieldSet>
-    <Field.FieldLegend>Mode</Field.FieldLegend>
-    {#if kind === "attribute"}
-      {@render modes(
-        ATTRIBUTE_MODES,
-        attributeMode,
-        ATTRIBUTE_MODE_INFO,
-        (v) => (attributeMode = v as AttributeMode)
-      )}
-    {:else if kind === "numeric"}
-      {@render modes(
-        NUMERIC_MODES,
-        numericMode,
-        NUMERIC_MODE_INFO,
-        (v) => (numericMode = v as NumericMode)
-      )}
-    {:else if kind === "timeframe"}
-      {@render modes(
-        TIMEFRAME_MODES,
-        timeframeMode,
-        TIMEFRAME_MODE_INFO,
-        (v) => (timeframeMode = v as TimeframeMode)
-      )}
-    {:else if kind === "duration"}
-      {@render modes(
-        NUMERIC_MODES,
-        durationMode,
-        NUMERIC_MODE_INFO,
-        (v) => (durationMode = v as NumericMode)
-      )}
-    {:else if kind === "follower"}
-      {@render modes(
-        FOLLOWER_MODES,
-        followerMode,
-        FOLLOWER_MODE_INFO,
-        (v) => (followerMode = v as FollowerMode)
-      )}
-    {:else}
+            <Select.Trigger id="filter-column">{column || "Pick a column"}</Select.Trigger>
+            <Select.Content style="--accent-color: {color}">
+              <Select.Group>
+                {#each columnOptions as option (option.name)}
+                  <Select.Item
+                    value={option.name}
+                    label={option.name}
+                    class="[&_.cn-select-item-indicator-icon]:text-(--accent-color)"
+                  >
+                    {option.name}
+                  </Select.Item>
+                {/each}
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+        </Field.Field>
+        <Field.FieldSet>
+          <Field.FieldLegend>Mode</Field.FieldLegend>
+          {@render modes(
+            ATTRIBUTE_MODES,
+            attributeMode,
+            ATTRIBUTE_MODE_INFO,
+            (v) => (attributeMode = v as AttributeMode)
+          )}
+        </Field.FieldSet>
+      </div>
+      <div>
+        {@render valuePicker(
+          "Values",
+          values,
+          selected,
+          (next) => (selected = next),
+          search,
+          (next) => (search = next),
+          truncated,
+          valuesError
+        )}
+      </div>
+    </div>
+  {:else if kind === "endpoint"}
+    <Field.FieldSet>
+      <Field.FieldLegend>Mode</Field.FieldLegend>
       {@render modes(
         ENDPOINT_MODES,
         endpointMode,
         ENDPOINT_MODE_INFO,
         (v) => (endpointMode = v as EndpointMode)
       )}
-    {/if}
-  </Field.FieldSet>
-
-  {#if kind === "numeric"}
-    <div class="flex w-1/2 gap-3">
-      {#if numericMode !== "below"}
-        <Field.Field>
-          <Field.FieldLabel for="filter-min">
-            {numericMode === "above" ? "Value" : "Minimum"}
-          </Field.FieldLabel>
-          <Input id="filter-min" type="number" bind:value={min} placeholder="—" />
-        </Field.Field>
-      {/if}
-      {#if numericMode !== "above"}
-        <Field.Field>
-          <Field.FieldLabel for="filter-max">
-            {numericMode === "below" ? "Value" : "Maximum"}
-          </Field.FieldLabel>
-          <Input id="filter-max" type="number" bind:value={max} placeholder="—" />
-        </Field.Field>
-      {/if}
-    </div>
-  {:else if kind === "duration"}
-    <Field.Field>
-      <div class="flex items-center gap-2">
-        <Field.FieldLabel>Case duration</Field.FieldLabel>
-        <span class="text-muted-foreground ml-auto font-mono text-xs">{durationSummary}</span>
-        <Button
-          variant="ghost"
-          size="xs"
-          onclick={() => {
-            durationMinMs = null;
-            durationMaxMs = null;
-          }}
-        >
-          Reset
-        </Button>
-      </div>
-      <DurationHistogram
-        {project}
-        chain={precedingChain}
-        {color}
-        bind:min={durationMinMs}
-        bind:max={durationMaxMs}
-      />
-    </Field.Field>
-  {:else if kind === "timeframe"}
-    <Field.Field>
-      <div class="flex items-center gap-2">
-        <Field.FieldLabel>Window</Field.FieldLabel>
-        <span class="text-muted-foreground ml-auto font-mono text-xs">{timeframeSummary}</span>
-        <Button
-          variant="ghost"
-          size="xs"
-          onclick={() => {
-            from = null;
-            to = null;
-          }}
-        >
-          Reset
-        </Button>
-      </div>
-      <TimeframePicker {project} chain={precedingChain} {color} bind:from bind:to />
-      <Field.FieldDescription>
-        Drag across the chart to select a window, or pick its first and last day on the calendar.
-      </Field.FieldDescription>
-    </Field.Field>
-  {:else if kind === "follower"}
-    <!-- Reference on the left, follower on the right: the pair reads in the
-         order the filter looks for it. -->
+    </Field.FieldSet>
+    <!-- Both positions are listed at once, so the user can see the start and
+         end activities together instead of toggling between them. A case can
+         only start or end with one value, so checking a box in either list
+         switches the filter to that position. -->
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="border-border border p-2">
         {@render valuePicker(
-          "Reference values",
-          referenceValues,
-          (next) => (referenceValues = next),
-          referenceSearch,
-          (next) => (referenceSearch = next)
+          "Starts with",
+          startValues,
+          startChosen,
+          chooseStart,
+          startSearch,
+          (next) => (startSearch = next),
+          startTruncated,
+          startValuesError,
+          "text-sm font-semibold text-foreground"
         )}
       </div>
       <div class="border-border border p-2">
         {@render valuePicker(
-          "Follower values",
-          followerValues,
-          (next) => (followerValues = next),
-          followerSearch,
-          (next) => (followerSearch = next)
+          "Ends with",
+          endValues,
+          endChosen,
+          chooseEnd,
+          endSearch,
+          (next) => (endSearch = next),
+          endTruncated,
+          endValuesError,
+          "text-sm font-semibold text-foreground"
         )}
       </div>
     </div>
   {:else}
-    <div class="w-1/2">
-      {@render valuePicker(
-        kind === "endpoint" ? "Activities" : "Values",
-        selected,
-        (next) => (selected = next),
-        search,
-        (next) => (search = next)
-      )}
-    </div>
+    {#if picksColumn}
+      <Field.Field class="w-1/2">
+        <Field.FieldLabel for="filter-column">
+          {kind === "follower" ? "Filter by" : "Column"}
+        </Field.FieldLabel>
+        <Select.Root
+          type="single"
+          value={column}
+          onValueChange={(next) => {
+            column = next;
+            referenceValues = [];
+            followerValues = [];
+          }}
+        >
+          <Select.Trigger id="filter-column">{column || "Pick a column"}</Select.Trigger>
+          <Select.Content style="--accent-color: {color}">
+            <Select.Group>
+              {#each columnOptions as option (option.name)}
+                <Select.Item
+                  value={option.name}
+                  label={option.name}
+                  class="[&_.cn-select-item-indicator-icon]:text-(--accent-color)"
+                >
+                  {option.name}
+                </Select.Item>
+              {/each}
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+      </Field.Field>
+    {/if}
+
+    <Field.FieldSet>
+      <Field.FieldLegend>Mode</Field.FieldLegend>
+      {#if kind === "numeric"}
+        {@render modes(
+          NUMERIC_MODES,
+          numericMode,
+          NUMERIC_MODE_INFO,
+          (v) => (numericMode = v as NumericMode)
+        )}
+      {:else if kind === "timeframe"}
+        {@render modes(
+          TIMEFRAME_MODES,
+          timeframeMode,
+          TIMEFRAME_MODE_INFO,
+          (v) => (timeframeMode = v as TimeframeMode)
+        )}
+      {:else if kind === "duration"}
+        {@render modes(
+          NUMERIC_MODES,
+          durationMode,
+          NUMERIC_MODE_INFO,
+          (v) => (durationMode = v as NumericMode)
+        )}
+      {:else if kind === "follower"}
+        {@render modes(
+          FOLLOWER_MODES,
+          followerMode,
+          FOLLOWER_MODE_INFO,
+          (v) => (followerMode = v as FollowerMode)
+        )}
+      {/if}
+    </Field.FieldSet>
+
+    {#if kind === "numeric"}
+      <div class="flex w-1/2 gap-3">
+        {#if numericMode !== "below"}
+          <Field.Field>
+            <Field.FieldLabel for="filter-min">
+              {numericMode === "above" ? "Value" : "Minimum"}
+            </Field.FieldLabel>
+            <Input id="filter-min" type="number" bind:value={min} placeholder="—" />
+          </Field.Field>
+        {/if}
+        {#if numericMode !== "above"}
+          <Field.Field>
+            <Field.FieldLabel for="filter-max">
+              {numericMode === "below" ? "Value" : "Maximum"}
+            </Field.FieldLabel>
+            <Input id="filter-max" type="number" bind:value={max} placeholder="—" />
+          </Field.Field>
+        {/if}
+      </div>
+    {:else if kind === "duration"}
+      <Field.Field>
+        <div class="flex items-center gap-2">
+          <Field.FieldLabel>Case duration</Field.FieldLabel>
+          <span class="text-muted-foreground ml-auto font-mono text-xs">{durationSummary}</span>
+          <Button
+            variant="ghost"
+            size="xs"
+            onclick={() => {
+              durationMinMs = null;
+              durationMaxMs = null;
+            }}
+          >
+            Reset
+          </Button>
+        </div>
+        <DurationHistogram
+          {project}
+          chain={precedingChain}
+          {color}
+          bind:min={durationMinMs}
+          bind:max={durationMaxMs}
+        />
+      </Field.Field>
+    {:else if kind === "timeframe"}
+      <Field.Field>
+        <div class="flex items-center gap-2">
+          <Field.FieldLabel>Window</Field.FieldLabel>
+          <span class="text-muted-foreground ml-auto font-mono text-xs">{timeframeSummary}</span>
+          <Button
+            variant="ghost"
+            size="xs"
+            onclick={() => {
+              from = null;
+              to = null;
+            }}
+          >
+            Reset
+          </Button>
+        </div>
+        <TimeframePicker {project} chain={precedingChain} {color} bind:from bind:to />
+        <Field.FieldDescription>
+          Drag across the chart to select a window, or pick its first and last day on the
+          calendar.
+        </Field.FieldDescription>
+      </Field.Field>
+    {:else if kind === "follower"}
+      <!-- Reference on the left, follower on the right: the pair reads in the
+           order the filter looks for it. -->
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div class="border-border border p-2">
+          {@render valuePicker(
+            "Reference values",
+            values,
+            referenceValues,
+            (next) => (referenceValues = next),
+            referenceSearch,
+            (next) => (referenceSearch = next),
+            truncated,
+            valuesError
+          )}
+        </div>
+        <div class="border-border border p-2">
+          {@render valuePicker(
+            "Follower values",
+            values,
+            followerValues,
+            (next) => (followerValues = next),
+            followerSearch,
+            (next) => (followerSearch = next),
+            truncated,
+            valuesError
+          )}
+        </div>
+      </div>
+    {/if}
   {/if}
 
   <!-- Only shown once the filter is complete enough to measure — an incomplete
