@@ -29,6 +29,7 @@
     ENCODING_LABEL,
     ENCODINGS,
     logBars,
+    PLOT_TOGGLE,
     SCOPE_LABEL,
     TOP_CATEGORIES,
     type Distribution,
@@ -200,7 +201,7 @@
             value={option}
             title={ENCODING_HINT[option]}
             aria-label={ENCODING_HINT[option]}
-            class="text-[0.625rem]"
+            class="text-[0.625rem] {PLOT_TOGGLE}"
           >
             {ENCODING_LABEL[option]}
           </ToggleGroup.Item>

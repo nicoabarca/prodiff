@@ -49,6 +49,15 @@ pub enum Summary {
         median: f64,
         q3: f64,
         max: f64,
+        /// Tukey whiskers: the extreme observations still within 1.5·IQR of the
+        /// box. Shipped alongside `min`/`max` rather than instead of them —
+        /// they are what a box plot's whiskers reach to, while `min`/`max` are
+        /// what the panel says the full range was.
+        whisker_low: f64,
+        whisker_high: f64,
+        /// Observations past the whiskers, counted rather than listed.
+        outliers_low: usize,
+        outliers_high: usize,
     },
     #[serde(rename_all = "camelCase")]
     Categorical {

@@ -8,7 +8,7 @@
 //! identity by joining activity labels, and the terminal/non-terminal split
 //! that `(parent, activity, terminates-here)` encodes comes along for free.
 
-use super::stats::quantile;
+use super::stats::{quantile, tukey};
 use super::{read_group, variant_key, Acc, AttrSpec, GroupRows, Source, ACTIVITY_DURATION, TRANSITION_TIME};
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
 use polars::prelude::*;
@@ -367,23 +367,17 @@ fn ecdf(sorted: &[f64]) -> Vec<f64> {
 
 fn box_stats(sorted: &[f64]) -> Option<BoxStats> {
     let (first, last) = (*sorted.first()?, *sorted.last()?);
-    let q1 = quantile(sorted, 0.25);
-    let q3 = quantile(sorted, 0.75);
-    let reach = 1.5 * (q3 - q1);
-    // The whiskers are observations inside the fences, so a sample whose whole
-    // spread fits within them reaches exactly to its own min and max.
-    let whisker_low = sorted.iter().copied().find(|v| *v >= q1 - reach).unwrap_or(first);
-    let whisker_high = sorted.iter().copied().rev().find(|v| *v <= q3 + reach).unwrap_or(last);
+    let (whisker_low, whisker_high, outliers_low, outliers_high) = tukey(sorted);
     Some(BoxStats {
         min: first,
-        q1,
+        q1: quantile(sorted, 0.25),
         median: quantile(sorted, 0.5),
-        q3,
+        q3: quantile(sorted, 0.75),
         max: last,
         whisker_low,
         whisker_high,
-        outliers_low: sorted.iter().take_while(|v| **v < whisker_low).count(),
-        outliers_high: sorted.iter().rev().take_while(|v| **v > whisker_high).count(),
+        outliers_low,
+        outliers_high,
     })
 }
 

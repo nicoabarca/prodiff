@@ -22,6 +22,7 @@
   import DistributionChart from "$lib/components/projects/tree/distribution-chart.svelte";
   import {
     gridAttributes,
+    PLOT_TOGGLE,
     SCOPE_HINT,
     SCOPE_LABEL,
     SCOPES,
@@ -40,8 +41,16 @@
     loaded,
     toggleExpanded
   } from "$lib/state/distributions.svelte";
-  import { build, built, groupSlices, isStale, selected, settings, view } from "$lib/state/tree.svelte";
-  import { attributeOptions, nodeDepth, pathTo, stepContext } from "$lib/tree";
+  import {
+    build,
+    built,
+    groupSlices,
+    isStale,
+    selected,
+    settings,
+    view
+  } from "$lib/state/tree.svelte";
+  import { attributeOptions, nodeDepth, stepContext } from "$lib/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import Plus from "@lucide/svelte/icons/plus";
@@ -67,7 +76,6 @@
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
-  const path = $derived(node && tree ? pathTo(tree, node.id) : []);
   const compare = $derived(tree?.groupB !== null);
   const stale = $derived(isStale());
 
@@ -82,7 +90,9 @@
    */
   const requested = $derived(node ? gridAttributes(node, charts.extra, [], "name") : []);
   /** What is drawn, in the order the user asked for. */
-  const grid = $derived(node ? gridAttributes(node, charts.extra, charts.dismissed, charts.sort) : []);
+  const grid = $derived(
+    node ? gridAttributes(node, charts.extra, charts.dismissed, charts.sort) : []
+  );
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
@@ -100,6 +110,19 @@
 
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
+
+  /** Each Group's case count in its own colour — the one its marks are drawn in. */
+  const groupCounts = $derived.by(() => {
+    const data = loaded.data;
+    if (!data) return [];
+    const rows = [{ name: nameA, cases: data.casesA, text: "text-slice-1", swatch: "bg-slice-1" }];
+    if (compare) {
+      rows.push({ name: nameB, cases: data.casesB, text: "text-slice-2", swatch: "bg-slice-2" });
+    }
+    return rows;
+  });
+
+  const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
   // A dismissal hides a card at the node being read; the next node's tested
   // attributes are part of what it has to say, so the list does not follow.
@@ -166,25 +189,39 @@
       <div
         class="border-border flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2"
       >
-        <div class="flex min-w-0 flex-col">
-          <span class="truncate text-sm font-semibold">{node.label}</span>
-          <span class="text-muted-foreground truncate font-mono text-[0.625rem]">
-            {path.map((step) => step.label).join(" → ")}
-          </span>
-        </div>
+        <!-- The step names itself and nothing more: the trace that led here is
+             drawn in the picker on the left, where it can be walked rather than
+             only read. -->
+        <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
         {#if loaded.data && !stale}
-          <p class="text-muted-foreground font-mono text-[0.6875rem]">
-            {nameA}
-            {formatNumber(loaded.data.casesA)}{#if compare} · {nameB} {formatNumber(loaded.data.casesB)}{/if}
-            cases · {formatNumber(loaded.data.eventsA + loaded.data.eventsB)} events counted
-          </p>
+          <!-- How much of each Group is behind every card on the grid, in that
+               Group's own colour — the same one its bars, boxes and curves are
+               drawn in. The name carries it too, so the colour is never the
+               only thing saying which Group a number belongs to. -->
+          <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <!-- Whole class names, never `text-{token}`: Tailwind finds classes
+                 by scanning the source, so an interpolated one is never built. -->
+            {#each groupCounts as { name, cases, text, swatch } (name)}
+              <span class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold {text}">
+                <span class="size-2.5 shrink-0 {swatch}" aria-hidden="true"></span>
+                <span class="truncate">{name}</span>
+                <span class="font-mono">{formatNumber(cases)}</span>
+                <span class="text-muted-foreground font-normal">cases</span>
+              </span>
+            {/each}
+            <span class="text-muted-foreground font-mono text-[0.6875rem]">
+              {formatNumber(loaded.data.eventsA + loaded.data.eventsB)} events counted
+            </span>
+          </div>
         {/if}
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
           <!-- The Scope decides which events every card counts, so it is stated
                here in words and repeated as a badge on each card. -->
           <div class="flex items-center gap-2">
-            <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">Showing</span>
+            <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase"
+              >Showing</span
+            >
             <ToggleGroup.Root
               type="single"
               size="sm"
@@ -197,7 +234,7 @@
                   value={scope}
                   disabled={scope === "atStep" && depth === 0}
                   aria-label={SCOPE_LABEL[scope]}
-                  class="text-xs"
+                  class={SELECTED}
                 >
                   {SCOPE_LABEL[scope]}
                 </ToggleGroup.Item>
@@ -214,10 +251,10 @@
               value={charts.sort}
               onValueChange={setSort}
             >
-              <ToggleGroup.Item value="difference" class="text-xs">
+              <ToggleGroup.Item value="difference" class={SELECTED}>
                 Biggest difference
               </ToggleGroup.Item>
-              <ToggleGroup.Item value="name" class="text-xs">Name</ToggleGroup.Item>
+              <ToggleGroup.Item value="name" class={SELECTED}>Name</ToggleGroup.Item>
             </ToggleGroup.Root>
           </div>
 
@@ -252,8 +289,13 @@
         </div>
       </div>
 
-      <p class="text-muted-foreground shrink-0 px-4 py-1.5 text-[0.6875rem]">
-        Counting {SCOPE_HINT[charts.scope]}.
+      <!-- The Scope decides which events every card on the grid counted, and the
+           two readings are easy to confuse — the case set is identical either
+           way, only the events differ. Stated at full size, with the chosen
+           option named in the same indigo as the control that set it. -->
+      <p class="border-border bg-secondary/50 shrink-0 border-b px-4 py-2 text-sm">
+        <span class="text-primary font-semibold">{SCOPE_LABEL[charts.scope]}</span>
+        <span class="text-muted-foreground"> — counting {SCOPE_HINT[charts.scope]}.</span>
       </p>
 
       {#if stale}

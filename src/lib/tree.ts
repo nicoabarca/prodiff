@@ -110,6 +110,12 @@ export type Summary =
       median: number;
       q3: number;
       max: number;
+      /** Tukey whiskers — the extreme observations within 1.5·IQR of the box. */
+      whiskerLow: number;
+      whiskerHigh: number;
+      /** Observations past the whiskers, counted rather than listed. */
+      outliersLow: number;
+      outliersHigh: number;
     }
   | { type: "categorical"; n: number; counts: Record<string, number> };
 

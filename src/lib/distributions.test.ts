@@ -4,7 +4,7 @@
  * on the first screen. Run with `npx tsx src/lib/distributions.test.ts`.
  */
 import assert from "node:assert/strict";
-import { curve, gridAttributes, logBars, type DurationShape } from "./distributions";
+import { curveRows, gridAttributes, logBars, shareAt, type DurationShape } from "./distributions";
 import {
   stepContext,
   TRANSITION_TIME,
@@ -159,20 +159,42 @@ assert.deepEqual(context(2, 2), [0, 1, 2, 4, 5]);
 assert.deepEqual(context(0, Infinity), [0, 1, 2, 3, 4, 5]);
 assert.deepEqual(context(2, 0), [0, 1, 2]);
 
-// The curve reads the ladder's index as its percentile, so an off-by-one here
-// would plot every duration against the wrong share and still look plausible.
+// The ladder's index is its percentile, so an off-by-one here reads every
+// duration against the wrong share — and still looks like a plausible curve.
 {
   const ladder = [0, 10, 20, 30, 40];
-  assert.deepEqual(curve(ladder), [
-    { value: 0, share: 0 },
-    { value: 10, share: 0.25 },
-    { value: 20, share: 0.5 },
-    { value: 30, share: 0.75 },
-    { value: 40, share: 1 }
+  assert.equal(shareAt(ladder, 0), 0);
+  assert.equal(shareAt(ladder, 20), 0.5);
+  assert.equal(shareAt(ladder, 40), 1);
+  // Between two rungs the share is the lower one's: the ECDF is a step
+  // function, and nothing has finished until the next rung is reached.
+  assert.equal(shareAt(ladder, 25), 0.5);
+  // Past the top everything has finished; below the bottom, nothing has.
+  assert.equal(shareAt(ladder, 999), 1);
+  assert.equal(shareAt(ladder, -1), 0);
+  // A Group with no values has no share rather than a share of zero.
+  assert.equal(shareAt([], 5), null);
+  assert.equal(shareAt([7], 7), null);
+}
+
+// Both curves land on one sorted x — what lets a single hover answer for both
+// Groups, and what `bisect-x` needs to search.
+{
+  const rows = curveRows([0, 10, 20], [10, 20, 30]);
+  assert.deepEqual(
+    rows.map((row) => row.value),
+    [0, 10, 20, 30],
+    "the union of both ladders, sorted, without duplicates"
+  );
+  assert.deepEqual(rows.at(-1), { value: 30, a: 1, b: 1 });
+  // At 0 the second Group has not started: its own ladder begins at 10.
+  assert.deepEqual(rows[0], { value: 0, a: 0, b: 0 });
+  // One-Group mode: the absent Group is null throughout, never zero, so the
+  // tooltip says "—" instead of claiming nothing finished.
+  assert.deepEqual(curveRows([0, 10], []), [
+    { value: 0, a: 0, b: null },
+    { value: 10, a: 1, b: null }
   ]);
-  // A Group with no values has no curve rather than a point at the origin.
-  assert.deepEqual(curve([]), []);
-  assert.deepEqual(curve([5]), []);
 }
 
 // Log bars are labelled by their own edges — unequal widths are the point, so

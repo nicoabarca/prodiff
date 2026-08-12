@@ -21,7 +21,7 @@
    */
   import { scaleBand, scaleSymlog } from "d3-scale";
   import { Axis, BoxPlot, Chart, Highlight, Layer, Spline, Tooltip } from "layerchart";
-  import { curve, type BoxStats, type DurationShape } from "$lib/distributions";
+  import { curveRows, type BoxStats, type DurationShape } from "$lib/distributions";
   import { formatDuration } from "$lib/format";
 
   let {
@@ -43,8 +43,7 @@
   const COLOR_A = "var(--slice-1)";
   const COLOR_B = "var(--slice-2)";
 
-  const pointsA = $derived(curve(shape.ecdfA));
-  const pointsB = $derived(curve(shape.ecdfB));
+  const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
 
   /** The widest value either Group reaches, so both are drawn to one scale. */
   const max = $derived(
@@ -117,29 +116,56 @@
 </script>
 
 {#if encoding === "ecdf"}
-  {#if pointsA.length === 0 && pointsB.length === 0}
+  {#if rows.length === 0}
     <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
   {:else}
     <div class="h-64 px-3 py-2">
       <Chart
+        data={rows}
         x="value"
-        y="share"
+        y="a"
         xScale={scaleSymlog().constant(linearBelow)}
         xDomain={[0, max]}
         yDomain={[0, 1]}
+        tooltipContext={{ mode: "bisect-x" }}
         padding={{ left: 40, bottom: 34, right: 12, top: 8 }}
       >
         <Layer>
           <Axis placement="left" grid rule ticks={[0, 0.25, 0.5, 0.75, 1]} format={percent} />
           <Axis placement="bottom" rule {ticks} format={formatDuration} />
-          <!-- One Spline per Group rather than a series: at the same percentile
-               the two Groups sit at different durations, so there is no shared
-               x to put them on one row of data. -->
-          <Spline data={pointsA} stroke={COLOR_A} strokeWidth={2} />
-          {#if compare && pointsB.length > 0}
-            <Spline data={pointsB} stroke={COLOR_B} strokeWidth={2} />
+          <!-- Both curves off one set of rows, keyed on the union of the two
+               ladders' durations. `bisect-x` needs a single sorted x to search,
+               and the ECDF is a step function anyway, so sampling it at every
+               point either Group turns on is exact rather than a compromise. -->
+          <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
+          {#if compare && shape.ecdfB.length > 0}
+            <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
           {/if}
+          <Highlight lines points={{ fill: COLOR_A }} />
         </Layer>
+        <!-- The reading the curve is for: at this duration, how far along is
+             each Group. Hovering anywhere snaps to the nearest column. -->
+        <Tooltip.Root contained="container" props={{ root: { class: "w-40" } }}>
+          {#snippet children({ data: row })}
+            <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
+              <p class="mb-1 text-[0.6875rem] font-semibold">
+                {formatDuration(row.value)} or less
+              </p>
+              <dl class="grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[0.625rem]">
+                <dt class="text-muted-foreground truncate">{nameA}</dt>
+                <dd class="text-right">{row.a === null ? "—" : percent(row.a)}</dd>
+                {#if compare}
+                  <dt class="text-muted-foreground truncate">{nameB}</dt>
+                  <dd class="text-right">{row.b === null ? "—" : percent(row.b)}</dd>
+                  {#if row.a !== null && row.b !== null}
+                    <dt class="text-muted-foreground">gap</dt>
+                    <dd class="text-right">{percent(Math.abs(row.a - row.b))}</dd>
+                  {/if}
+                {/if}
+              </dl>
+            </div>
+          {/snippet}
+        </Tooltip.Root>
       </Chart>
     </div>
     <!-- The two percentiles the curve is usually read at, said in words: the

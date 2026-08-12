@@ -21,6 +21,29 @@ pub(super) fn quantile(sorted: &[f64], q: f64) -> f64 {
     sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower as f64)
 }
 
+/// Where a box plot's whiskers reach, and how much is past them.
+///
+/// The whiskers are the extreme *observations* still inside 1.5·IQR of the box,
+/// not the fences themselves — so a sample whose whole spread fits within the
+/// fences whiskers to its own min and max, and nothing is ever drawn at a value
+/// no case actually took.
+pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
+    let (Some(&first), Some(&last)) = (sorted.first(), sorted.last()) else {
+        return (f64::NAN, f64::NAN, 0, 0);
+    };
+    let q1 = quantile(sorted, 0.25);
+    let q3 = quantile(sorted, 0.75);
+    let reach = 1.5 * (q3 - q1);
+    let low = sorted.iter().copied().find(|v| *v >= q1 - reach).unwrap_or(first);
+    let high = sorted.iter().copied().rev().find(|v| *v <= q3 + reach).unwrap_or(last);
+    (
+        low,
+        high,
+        sorted.iter().take_while(|v| **v < low).count(),
+        sorted.iter().rev().take_while(|v| **v > high).count(),
+    )
+}
+
 pub(super) fn numeric_summary(values: &[f64]) -> Summary {
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
@@ -33,6 +56,7 @@ pub(super) fn numeric_summary(values: &[f64]) -> Summary {
     } else {
         0.0
     };
+    let (whisker_low, whisker_high, outliers_low, outliers_high) = tukey(&sorted);
     Summary::Numerical {
         n,
         mean,
@@ -42,6 +66,10 @@ pub(super) fn numeric_summary(values: &[f64]) -> Summary {
         median: quantile(&sorted, 0.5),
         q3: quantile(&sorted, 0.75),
         max: sorted[n - 1],
+        whisker_low,
+        whisker_high,
+        outliers_low,
+        outliers_high,
     }
 }
 

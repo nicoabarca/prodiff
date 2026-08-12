@@ -85,6 +85,31 @@ export const ENCODING_LABEL: Record<Encoding, string> = {
   logBins: "Bars"
 };
 
+/**
+ * The selected option of a plot control, in the theme's indigo. The default
+ * `on` state is a grey fill, easy to miss on a bar of small outlined buttons —
+ * and these decide what every card on the grid is counting.
+ *
+ * The left border is the fiddly part. In a joined outline group every item but
+ * the first is `border-l-0` and leans on its neighbour's right border, so a
+ * selected middle or last item had three indigo sides and a grey one. It gets
+ * its own border back, shifted a pixel left to sit on top of the neighbour's
+ * rather than widen the group, and raised so indigo wins where they overlap.
+ *
+ * The full variant chain is repeated rather than shortened: the `border-l-0` it
+ * has to beat carries all of it, and a shorter selector loses on specificity
+ * however late it appears.
+ */
+export const PLOT_TOGGLE = [
+  "data-[state=on]:border-primary",
+  "data-[state=on]:text-primary",
+  "data-[state=on]:bg-primary/5",
+  "data-[state=on]:font-semibold",
+  "data-[state=on]:z-10",
+  "group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:data-[state=on]:not-first:border-l",
+  "group-data-horizontal/toggle-group:data-[spacing=0]:data-[variant=outline]:data-[state=on]:not-first:-ml-px"
+].join(" ");
+
 /** What each encoding is for, on the control that switches between them. */
 export const ENCODING_HINT: Record<Encoding, string> = {
   ecdf: "Cumulative curve — the whole difference at every percentile",
@@ -220,17 +245,48 @@ export function binBars(
   }));
 }
 
-/** One point of a cumulative curve: a duration and the share at or below it. */
-export interface CurvePoint {
+/** One column of the cumulative curve: a duration and each Group's share. */
+export interface CurveRow {
   value: number;
-  /** 0 to 1 — the index's percentile, since the ladder is one per percent. */
-  share: number;
+  /** 0 to 1, or `null` where that Group has no values at all. */
+  a: number | null;
+  b: number | null;
 }
 
-export function curve(ladder: number[]): CurvePoint[] {
-  const last = ladder.length - 1;
-  if (last < 1) return [];
-  return ladder.map((value, index) => ({ value, share: index / last }));
+/**
+ * The share of a Group's cases at or below `value`, read off its percentile
+ * ladder — the ladder's index *is* the percentile, so this is a search for the
+ * last rung that has been reached.
+ */
+export function shareAt(ladder: number[], value: number): number | null {
+  if (ladder.length < 2) return null;
+  if (value < ladder[0]) return 0;
+  let low = 0;
+  let high = ladder.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (ladder[mid] <= value) low = mid;
+    else high = mid - 1;
+  }
+  return low / (ladder.length - 1);
+}
+
+/**
+ * Both Groups' curves on one set of rows.
+ *
+ * The two ladders sample the same percentiles at *different* durations, so
+ * neither can be plotted against the other's x. Taking the union of their
+ * values and reading both shares at each one gives a shared x — which is what
+ * lets a single hover answer "at this duration, how far along is each Group",
+ * the only question the two curves are on screen together to answer.
+ */
+export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
+  const values = [...new Set([...ecdfA, ...ecdfB])].sort((x, y) => x - y);
+  return values.map((value) => ({
+    value,
+    a: shareAt(ecdfA, value),
+    b: shareAt(ecdfB, value)
+  }));
 }
 
 /**
