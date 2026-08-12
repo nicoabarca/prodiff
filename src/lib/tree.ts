@@ -110,6 +110,12 @@ export type Summary =
       median: number;
       q3: number;
       max: number;
+      /** Tukey whiskers — the extreme observations within 1.5·IQR of the box. */
+      whiskerLow: number;
+      whiskerHigh: number;
+      /** Observations past the whiskers, counted rather than listed. */
+      outliersLow: number;
+      outliersHigh: number;
     }
   | { type: "categorical"; n: number; counts: Record<string, number> };
 
@@ -367,6 +373,41 @@ export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
   return path;
 }
 
+/**
+ * How far past the step its context reaches. One level answers "and then what?"
+ * without the rail turning back into the tree the view exists to get away from.
+ * Any depth works, `Infinity` included — the walk stops where this says, so
+ * widening it is this number and nothing else.
+ */
+export const CONTEXT_DEPTH = 1;
+
+/**
+ * The nodes one step is read in the context of: its own trace down from the
+ * root, and what the cases reaching it go on to do next.
+ *
+ * Siblings on other traces are left out on purpose. They are other cases'
+ * steps, and nothing the Distributions grid says describes them — showing them
+ * would put the numbers next to activities they never counted.
+ */
+export function stepContext(
+  tree: DirectedTree,
+  id: number,
+  depth: number = CONTEXT_DEPTH
+): Set<number> {
+  const context = new Set(pathTo(tree, id).map((node) => node.id));
+  const kids = children(tree);
+  let frontier = kids.get(id) ?? [];
+  for (let level = 0; level < depth && frontier.length > 0; level++) {
+    const next: number[] = [];
+    for (const child of frontier) {
+      context.add(child);
+      next.push(...(kids.get(child) ?? []));
+    }
+    frontier = next;
+  }
+  return context;
+}
+
 export interface Visible {
   ids: Set<number>;
   /** Nodes folded into a collapsed ancestor, for the "+n" badge. */
@@ -467,6 +508,39 @@ export function visibleNodes(
     casesShown,
     cases
   };
+}
+
+/**
+ * Distance from the synthetic Start root — 0 at the root, 1 at the first
+ * activity. This is the event index a node's own step sits at, offset by the
+ * root: the node at depth `d` is the `d`th activity of every case reaching it.
+ */
+export function nodeDepth(tree: DirectedTree, id: number): number {
+  return pathTo(tree, id).length - 1;
+}
+
+/**
+ * The Variant keys of every leaf under `id` that survived pruning — how a node
+ * is named to the backend when asking for its Distributions.
+ *
+ * Keyed off `visible.cases` rather than `visible.ids`: `cases` holds every node
+ * on a surviving path, while `ids` has collapsed subtrees stripped out. Folding
+ * a subtree away is a rendering choice and must not change which cases the
+ * charts describe.
+ */
+export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number): string[] {
+  const byId = new Map(tree.nodes.map((n) => [n.id, n]));
+  const kids = children(tree);
+  const keys: string[] = [];
+  const stack = [id];
+  while (stack.length) {
+    const next = stack.pop() as number;
+    if (!visible.cases.has(next)) continue;
+    const key = byId.get(next)?.variantKey;
+    if (key !== null && key !== undefined) keys.push(key);
+    stack.push(...(kids.get(next) ?? []));
+  }
+  return keys;
 }
 
 /**

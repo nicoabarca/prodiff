@@ -4,10 +4,11 @@
   import type { Project } from "$lib/types";
   import Home from "@lucide/svelte/icons/home";
 
-  type ProjectView = "tree" | "statistics" | "data" | "filters";
+  type ProjectView = "tree" | "distributions" | "statistics" | "data" | "filters";
 
   const viewLabels: Record<ProjectView, string> = {
     tree: "Comparison Directed Rooted Tree",
+    distributions: "Distributions",
     statistics: "Statistics & data",
     data: "Data table",
     filters: "Filters"

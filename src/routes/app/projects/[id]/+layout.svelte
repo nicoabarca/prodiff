@@ -13,7 +13,13 @@
   const project = $derived(currentProject());
   const onFilters = $derived(page.url.pathname.endsWith("/filters"));
   const view = $derived(
-    onFilters ? "filters" : page.url.pathname.endsWith("/tree") ? "tree" : "statistics"
+    onFilters
+      ? "filters"
+      : page.url.pathname.endsWith("/tree")
+        ? "tree"
+        : page.url.pathname.endsWith("/distributions")
+          ? "distributions"
+          : "statistics"
   );
 
   $effect(() => {

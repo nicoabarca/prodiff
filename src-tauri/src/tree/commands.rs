@@ -2,6 +2,7 @@
 //! stateless here: the frontend composes each Group's chain (base first) and
 //! hands it over whole, and nothing derived is persisted on this side.
 
+use super::distributions::{distributions, NodeDistributions, Scope};
 use super::{build, DirectedTree};
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::event_log_path;
@@ -104,5 +105,46 @@ pub fn directed_tree(
         &columns,
         &attributes,
         variants.as_deref(),
+    )
+}
+
+/// One node's Distributions — value counts per attribute, per Group, under one
+/// Scope. Deliberately not part of `directed_tree`; see
+/// `docs/adr/0003-query-distributions-on-demand.md`.
+///
+/// The node is named by `variants` — the Variant keys of every visible leaf in
+/// its subtree — and `depth`, its distance from the synthetic Start root. That
+/// is the same currency the cut and the picker use, so node identity is never
+/// re-derived from activity labels here.
+///
+/// Runs no Significance Test and applies no correction: a Distribution
+/// describes a shape rather than comparing two of them.
+#[tauri::command]
+pub fn node_distributions(
+    app: tauri::AppHandle,
+    project_id: String,
+    group_a: Vec<Filter>,
+    group_b: Option<Vec<Filter>>,
+    columns: Vec<ColumnMapping>,
+    attributes: Vec<String>,
+    variants: Vec<String>,
+    depth: usize,
+    scope: Scope,
+) -> Result<NodeDistributions, String> {
+    let df = read_log(&app, &project_id)?;
+    let a = filtered(&df, &group_a, &columns)?;
+    let b = match &group_b {
+        Some(chain) => Some(filtered(&df, chain, &columns)?),
+        None => None,
+    };
+
+    distributions(
+        &a,
+        b.as_ref(),
+        &columns,
+        &attributes,
+        &variants,
+        depth,
+        scope,
     )
 }

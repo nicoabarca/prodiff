@@ -21,6 +21,7 @@
   import VariantPicker from "$lib/components/projects/tree/variant-picker.svelte";
   import ViewLegend from "$lib/components/projects/tree/view-legend.svelte";
   import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
+  import ChartColumn from "@lucide/svelte/icons/chart-column";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
@@ -105,16 +106,31 @@
                panel has nothing to compare, so "Show" would open an empty
                rail. -->
           {#if selected.id !== null}
-            <Button
-              variant="outline"
-              size="sm"
-              class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
-              aria-pressed={panelOpen}
-              onclick={() => (panelOpen = !panelOpen)}
-            >
-              <PanelRight data-icon="inline-start" />
-              {panelOpen ? "Hide" : "Show"} differences panel
-            </Button>
+            <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
+              <!-- The panel says what differs at this node and stays beside the
+                   tree; the distributions are a wall of histograms that wants
+                   the whole window, so they get their own view rather than a
+                   drawer squeezing the canvas from below. -->
+              <Button
+                variant="outline"
+                size="sm"
+                class="bg-background/90 backdrop-blur"
+                href="/app/projects/{project.id}/distributions"
+              >
+                <ChartColumn data-icon="inline-start" />
+                Distributions
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                class="bg-background/90 backdrop-blur"
+                aria-pressed={panelOpen}
+                onclick={() => (panelOpen = !panelOpen)}
+              >
+                <PanelRight data-icon="inline-start" />
+                {panelOpen ? "Hide" : "Show"} differences panel
+              </Button>
+            </div>
           {/if}
         </div>
         {#if panelOpen}

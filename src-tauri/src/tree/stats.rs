@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Linear-interpolated quantile over a sorted slice — the same convention
 /// numpy and every box plot in the app use.
-fn quantile(sorted: &[f64], q: f64) -> f64 {
+pub(super) fn quantile(sorted: &[f64], q: f64) -> f64 {
     if sorted.is_empty() {
         return f64::NAN;
     }
@@ -19,6 +19,50 @@ fn quantile(sorted: &[f64], q: f64) -> f64 {
         return sorted[lower];
     }
     sorted[lower] + (sorted[upper] - sorted[lower]) * (position - lower as f64)
+}
+
+/// Percentiles the whiskers fall back to when the IQR is zero.
+const FLAT_WHISKERS: (f64, f64) = (0.025, 0.975);
+
+/// Where a box plot's whiskers reach, and how much is past them.
+///
+/// Normally Tukey: the extreme *observations* still inside 1.5·IQR of the box,
+/// not the fences themselves — so a sample whose whole spread fits within the
+/// fences whiskers to its own min and max, and nothing is ever drawn at a value
+/// no case actually took.
+///
+/// A zero IQR breaks that rule rather than stretching it. `Q3 + 1.5·IQR`
+/// collapses onto the value itself, so every case that is not exactly it counts
+/// as an outlier — at one real node that labelled 516 of 2,500 cases, a fifth of
+/// the data, and left the plot with nothing to draw but a flat line. An
+/// attribute where most cases share one value and the rest run long is ordinary
+/// for a duration, so the whiskers fall back to percentiles, which still mean
+/// something when the middle of the distribution does not.
+pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
+    let (Some(&first), Some(&last)) = (sorted.first(), sorted.last()) else {
+        return (f64::NAN, f64::NAN, 0, 0);
+    };
+    let q1 = quantile(sorted, 0.25);
+    let q3 = quantile(sorted, 0.75);
+    let (lower, upper) = if q3 > q1 {
+        let reach = 1.5 * (q3 - q1);
+        (q1 - reach, q3 + reach)
+    } else {
+        (
+            quantile(sorted, FLAT_WHISKERS.0),
+            quantile(sorted, FLAT_WHISKERS.1),
+        )
+    };
+    // Snapped to observations either way: a whisker cap is a case that happened,
+    // never an interpolated percentile no case actually took.
+    let low = sorted.iter().copied().find(|v| *v >= lower).unwrap_or(first);
+    let high = sorted.iter().copied().rev().find(|v| *v <= upper).unwrap_or(last);
+    (
+        low,
+        high,
+        sorted.iter().take_while(|v| **v < low).count(),
+        sorted.iter().rev().take_while(|v| **v > high).count(),
+    )
 }
 
 pub(super) fn numeric_summary(values: &[f64]) -> Summary {
@@ -33,6 +77,7 @@ pub(super) fn numeric_summary(values: &[f64]) -> Summary {
     } else {
         0.0
     };
+    let (whisker_low, whisker_high, outliers_low, outliers_high) = tukey(&sorted);
     Summary::Numerical {
         n,
         mean,
@@ -42,6 +87,10 @@ pub(super) fn numeric_summary(values: &[f64]) -> Summary {
         median: quantile(&sorted, 0.5),
         q3: quantile(&sorted, 0.75),
         max: sorted[n - 1],
+        whisker_low,
+        whisker_high,
+        outliers_low,
+        outliers_high,
     }
 }
 

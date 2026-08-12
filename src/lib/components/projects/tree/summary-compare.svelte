@@ -12,11 +12,14 @@
    * sliver impossible by construction.
    *
    * Numeric attributes lead with the median difference in words, then draw two
-   * box plots on a shared axis — the five-number summary the backend ships *is*
-   * a box plot, so nothing is fetched or recomputed here.
+   * Tukey box plots on a shared axis — the summary the backend ships *is* a box
+   * plot, whiskers and outlier counts included, so nothing is recomputed here.
+   * The same five numbers and the same whisker rule as the Distributions view,
+   * so an attribute read in both places tells one story.
    */
-  import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Text, Tooltip } from "layerchart";
+  import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
+  import { outlierNote } from "$lib/distributions";
   import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
   import { groupSlices } from "$lib/state/tree.svelte";
   import type { Summary } from "$lib/tree";
@@ -62,27 +65,34 @@
   const isNumeric = $derived(numericA !== null || numericB !== null);
 
   /**
-   * The axis spans the two Groups' quartiles, not their full range: a duration
-   * whose max is ten times its q3 would otherwise squeeze both boxes into a few
-   * pixels — the same failure the category bars had. Whiskers that run past the
-   * edge are clamped and marked, never silently cut.
+   * The axis spans the two Groups' whiskers.
+   *
+   * Not the full range: one case that took ten times the rest would squeeze
+   * both boxes into a few pixels. And no longer the quartiles either — the box
+   * *is* the quartiles, so an axis derived from them gave every attribute a box
+   * filling the same fixed fraction of the width, whatever the data. A box plot
+   * whose shape is decided by its own axis is a bar with extra steps.
+   *
+   * Tukey bounds the whiskers at 1.5·IQR either side, so the box can never fall
+   * below a quarter of the axis nor grow to fill it. The outliers past them are
+   * counted underneath instead of stretching the scale to reach one of them.
    */
   const span = $derived.by(() => {
     const present = [numericA, numericB].filter((s) => s !== null);
     if (present.length === 0) return null;
     const lowest = Math.min(...present.map((s) => s.min));
     const highest = Math.max(...present.map((s) => s.max));
-    const q1 = Math.min(...present.map((s) => s.q1));
-    const q3 = Math.max(...present.map((s) => s.q3));
-    // A zero-width IQR (every case identical) still needs a drawable axis.
-    const pad = (q3 - q1) * 0.15 || Math.max(Math.abs(q3) * 0.1, 1);
-    const lo = Math.max(q1 - pad, lowest);
-    const hi = Math.min(q3 + pad, highest);
-    // Both Groups constant at the same value: clamping to the observed range
-    // leaves lo === hi, which is a scale with nowhere to put the mark.
-    return lo === hi
-      ? { lo: lo - pad, hi: hi + pad, lowest, highest }
-      : { lo, hi, lowest, highest };
+    const lo = Math.min(...present.map((s) => s.whiskerLow));
+    const hi = Math.max(...present.map((s) => s.whiskerHigh));
+    // Every case identical, in both Groups: a scale with nowhere to put a mark.
+    if (!(hi > lo)) {
+      const pad = Math.max(Math.abs(hi) * 0.1, 1);
+      return { lo: lo - pad, hi: hi + pad, lowest, highest };
+    }
+    // A sliver of headroom so a whisker cap lands inside the plot rather than
+    // on its edge, where it reads as clipped.
+    const pad = (hi - lo) * 0.04;
+    return { lo: lo - pad, hi: hi + pad, lowest, highest };
   });
 
   const boxes = $derived(
@@ -95,7 +105,18 @@
   /** Groups whose cases all share one value — drawn as a dot, not a box. */
   const constant = $derived(boxes.filter((row) => row.min === row.max));
 
-  const clamp = (value: number) => (span ? Math.min(Math.max(value, span.lo), span.hi) : value);
+  /**
+   * Nothing varies anywhere. There is no spread to plot and no axis to plot it
+   * on — the span collapses to a padding either side of the one value, so every
+   * tick formats to that same value and the axis reads `0s 0s 0s 0s 0s`. The
+   * sentence below carries it instead.
+   */
+  const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
+
+  /** Cases past where the lines stop — counted here because they are not drawn. */
+  const beyond = $derived(
+    boxes.map((row) => outlierNote(row.group, row, format)).filter((note) => note !== null)
+  );
 
   /** The headline the numeric block leads with, in the user's own group names. */
   const delta = $derived.by(() => {
@@ -187,118 +208,127 @@
       </p>
     {/if}
 
-    <div class="flex items-stretch">
-      <Chart.Container
-        config={{}}
-        class="aspect-auto h-[calc(1.75rem*var(--rows)+1.25rem)] w-full"
-        style="--rows:{boxes.length}"
-      >
-        <ChartRoot
-          data={boxes}
-          x="median"
-          y="group"
-          xDomain={[span.lo, span.hi]}
-          valueAxis="x"
-          bandPadding={0.35}
-          padding={{ left: 76, right: 8, bottom: 20 }}
-          tooltipContext={{ mode: "manual" }}
+    {#if !allConstant}
+      <div class="flex items-stretch">
+        <Chart.Container
+          config={{}}
+          class="aspect-auto h-[calc(1.75rem*var(--rows)+1.25rem)] w-full"
+          style="--rows:{boxes.length}"
         >
-          {#snippet children({ context })}
-            <Svg>
-              <Axis
-                placement="left"
-                rule={false}
-                grid={false}
-                format={truncate}
-                tickLabelProps={{ svgProps: { x: -8 } }}
-              />
-              <Axis placement="bottom" rule={false} grid={false} ticks={3} {format} />
-              {#each boxes as row (row.group)}
-                {#if row.min === row.max}
-                  <!-- Zero spread: a box with no width reads as a truncated
+          <ChartRoot
+            data={boxes}
+            x="median"
+            y="group"
+            xDomain={[span.lo, span.hi]}
+            valueAxis="x"
+            bandPadding={0.35}
+            padding={{ left: 76, right: 8, bottom: 20 }}
+            tooltipContext={{ mode: "manual" }}
+          >
+            {#snippet children({ context })}
+              <Svg>
+                <Axis
+                  placement="left"
+                  rule={false}
+                  grid={false}
+                  format={truncate}
+                  tickLabelProps={{ svgProps: { x: -8 } }}
+                />
+                <Axis placement="bottom" rule={false} grid={false} ticks={3} {format} />
+                {#each boxes as row (row.group)}
+                  {#if row.min === row.max}
+                    <!-- Zero spread: a box with no width reads as a truncated
                        one, so draw the single value the cases actually share. -->
-                  <circle
-                    cx={context.xScale(clamp(row.median))}
-                    cy={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
-                    r="4"
-                    fill={row.color}
-                    stroke={row.color}
-                    stroke-width="1.5"
-                    fill-opacity="0.35"
-                  />
-                {:else}
-                  <BoxPlot
-                    data={row}
-                    min={(d) => clamp(d.min)}
-                    q1={(d) => clamp(d.q1)}
-                    median={(d) => d.median}
-                    q3={(d) => clamp(d.q3)}
-                    max={(d) => clamp(d.max)}
-                    fill={row.color}
-                    fillOpacity={0.35}
-                    stroke={row.color}
-                    strokeWidth={1.5}
-                    radius={2}
-                    capWidth={0.7}
-                    tooltip
-                  />
-                {/if}
-                <!-- The whisker stops at the axis edge, so say so rather than
-                     let a clipped range read as the real one. -->
-                {#if row.max > span.hi}
-                  <Text
-                    value="›"
-                    x={context.width - 1}
-                    y={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
-                    textAnchor="end"
-                    verticalAnchor="middle"
-                    class="fill-muted-foreground"
-                  />
-                {/if}
-              {/each}
-            </Svg>
+                    <circle
+                      cx={context.xScale(row.median)}
+                      cy={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
+                      r="4"
+                      fill={row.color}
+                      stroke={row.color}
+                      stroke-width="1.5"
+                      fill-opacity="0.35"
+                    />
+                  {:else}
+                    <!-- `min`/`max` are the whisker ends by this component's own
+                       definition — the extremes excluding outliers — so the
+                       Tukey bounds go there and nothing needs clamping. -->
+                    <BoxPlot
+                      data={row}
+                      min="whiskerLow"
+                      q1="q1"
+                      median="median"
+                      q3="q3"
+                      max="whiskerHigh"
+                      fill={row.color}
+                      fillOpacity={0.35}
+                      stroke={row.color}
+                      strokeWidth={1.5}
+                      radius={2}
+                      capWidth={0.7}
+                      tooltip
+                    />
+                    <!-- Drawn over the box in the surface colour. The median line
+                       the mark draws itself is the box's own stroke colour on
+                       the box's own fill, which is invisible — and the median
+                       is the one thing the reader came for. -->
+                    <line
+                      x1={context.xScale(row.median)}
+                      x2={context.xScale(row.median)}
+                      y1={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) * 0.15}
+                      y2={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) * 0.85}
+                      class="stroke-sidebar"
+                      stroke-width="2"
+                      pointer-events="none"
+                    />
+                  {/if}
+                {/each}
+              </Svg>
 
-            <!-- Wide and short on purpose, clamped to the window rather than
+              <!-- Wide and short on purpose, clamped to the window rather than
                  the plot: the plot is only a few rem tall and sits inside the
                  panel's scroll viewport, so a tall tooltip gets pushed up out
                  of the chart and clipped at the viewport's top edge. -->
-            <!-- `w-max`: the root is absolutely positioned, so without it the
+              <!-- `w-max`: the root is absolutely positioned, so without it the
                  box shrinks to whatever space is left at the container's right
                  edge and the columns collapse into each other. -->
-            <Tooltip.Root contained="window" props={{ root: { class: "w-max" } }}>
-              {#snippet children({ data })}
-                <div
-                  class="bg-popover text-popover-foreground border-border border px-2 py-1.5 shadow-md"
-                >
-                  <p class="mb-1 text-[0.6875rem] font-semibold">{data.group}</p>
-                  <dl class="grid grid-cols-3 gap-x-3 gap-y-1 font-mono text-[0.625rem]">
-                    {#each [["min", format(data.min)], ["median", format(data.median)], ["max", format(data.max)], ["q1", format(data.q1)], ["q3", format(data.q3)], ["n", formatNumber(data.n)]] as [label, value] (label)}
-                      <div>
-                        <dt class="text-muted-foreground">{label}</dt>
-                        <dd class="whitespace-nowrap">{value}</dd>
-                      </div>
-                    {/each}
-                  </dl>
-                </div>
-              {/snippet}
-            </Tooltip.Root>
-          {/snippet}
-        </ChartRoot>
-      </Chart.Container>
+              <Tooltip.Root contained="window" props={{ root: { class: "w-max" } }}>
+                {#snippet children({ data })}
+                  <div
+                    class="bg-popover text-popover-foreground border-border border px-2 py-1.5 shadow-md"
+                  >
+                    <p class="mb-1 text-[0.6875rem] font-semibold">{data.group}</p>
+                    <dl class="grid grid-cols-3 gap-x-3 gap-y-1 font-mono text-[0.625rem]">
+                      <!-- The whiskers are listed because they are what is drawn:
+                         `min`/`max` are the true extremes and the box
+                         deliberately stops short of them. -->
+                      {#each [["min", format(data.min)], ["q1", format(data.q1)], ["median", format(data.median)], ["q3", format(data.q3)], ["max", format(data.max)], ["n", formatNumber(data.n)], ["whisker lo", format(data.whiskerLow)], ["whisker hi", format(data.whiskerHigh)]] as [label, value] (label)}
+                        <div>
+                          <dt class="text-muted-foreground">{label}</dt>
+                          <dd class="whitespace-nowrap">{value}</dd>
+                        </div>
+                      {/each}
+                    </dl>
+                  </div>
+                {/snippet}
+              </Tooltip.Root>
+            {/snippet}
+          </ChartRoot>
+        </Chart.Container>
 
-      <!-- Medians sit outside the plot so the axis keeps its full width. The
+        <!-- Medians sit outside the plot so the axis keeps its full width. The
            rows are fixed-height and the band scale centres in the same boxes,
            so the two columns line up without measuring anything. -->
-      <div class="flex shrink-0 flex-col pb-5">
-        {#each boxes as row (row.group)}
-          <span
-            class="text-muted-foreground flex h-7 w-20 items-center justify-end font-mono text-[0.625rem]"
-          >
-            {format(row.median)}
-          </span>
-        {/each}
+        <div class="flex shrink-0 flex-col pb-5">
+          {#each boxes as row (row.group)}
+            <span
+              class="text-muted-foreground flex h-7 w-20 items-center justify-end font-mono text-[0.625rem]"
+            >
+              {format(row.median)}
+            </span>
+          {/each}
+        </div>
       </div>
-    </div>
+    {/if}
 
     {#if constant.length > 0}
       <p class="text-muted-foreground text-[0.625rem]">
@@ -306,9 +336,9 @@
       </p>
     {/if}
 
-    {#if span.highest > span.hi || span.lowest < span.lo}
+    {#if beyond.length > 0}
       <p class="text-muted-foreground text-[0.625rem]">
-        Axis covers the quartiles; full range {format(span.lowest)} – {format(span.highest)}.
+        {beyond.join(" · ")}. Full range {format(span.lowest)} – {format(span.highest)}.
       </p>
     {/if}
   </div>
@@ -327,7 +357,7 @@
       {:else}
         <span class="inline-flex min-w-0 items-center gap-1">
           <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
-          <span class="truncate">{nameA} — share of cases</span>
+          <span class="truncate">{nameA}, share of cases</span>
         </span>
       {/if}
     </div>

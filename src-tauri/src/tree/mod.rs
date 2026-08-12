@@ -12,6 +12,7 @@
 //!   the cases split between them rather than being counted twice.
 
 pub mod commands;
+pub mod distributions;
 mod stats;
 
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
@@ -48,6 +49,15 @@ pub enum Summary {
         median: f64,
         q3: f64,
         max: f64,
+        /// Tukey whiskers: the extreme observations still within 1.5·IQR of the
+        /// box. Shipped alongside `min`/`max` rather than instead of them —
+        /// they are what a box plot's whiskers reach to, while `min`/`max` are
+        /// what the panel says the full range was.
+        whisker_low: f64,
+        whisker_high: f64,
+        /// Observations past the whiskers, counted rather than listed.
+        outliers_low: usize,
+        outliers_high: usize,
     },
     #[serde(rename_all = "camelCase")]
     Categorical {
@@ -854,7 +864,7 @@ fn case_level_blocks(
 mod tests {
     use super::*;
 
-    fn mapping() -> Vec<ColumnMapping> {
+    pub(super) fn mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
               {"name":"case","role":"case_id","type":"string","granularity":"case"},
@@ -869,7 +879,7 @@ mod tests {
 
     /// `traces` is one `(case, activities, costs)` per case, at one event per
     /// second so transitions are always 1000 ms.
-    fn log(traces: &[(&str, &[&str], &[i64])]) -> DataFrame {
+    pub(super) fn log(traces: &[(&str, &[&str], &[i64])]) -> DataFrame {
         let mut cases = Vec::new();
         let mut acts = Vec::new();
         let mut costs = Vec::new();

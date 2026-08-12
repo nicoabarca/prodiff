@@ -38,3 +38,11 @@ _Avoid_: Root slice, default filter
 **Population**:
 A set of cases the Statistics view puts in one column: the whole log (no chain), the Base, or a Slice. The whole log is a Population but not a Slice — it has no chain and is never stored.
 _Avoid_: Group, set
+
+**Distribution**:
+The counts of one attribute's values over a chosen set of a node's events, split by Group — one bar per value for a categorical attribute, one bar per bin for a numeric one. A Distribution describes a shape; it never compares two Groups the way a Significance Test does, so it carries no p-value and no Effect Direction.
+_Avoid_: Histogram (that is the drawing, not the numbers), breakdown
+
+**Distribution Scope**:
+Which of a node's cases' events a Distribution counts. `At this step` counts the single event at that node's own position in the trace; `Whole case` counts every event of those same cases, at every position. The set of cases is identical either way — only which of their events are counted changes. Undefined at the Start root under `At this step`, which has no event.
+_Avoid_: Variant scope — a node other than a leaf sits on many Variants, so "the Variant" names nothing there
