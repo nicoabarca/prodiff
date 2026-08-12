@@ -40,17 +40,8 @@ pub struct PreviewTable {
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct ValueCount {
-    pub value: String,
-    /// How many distinct cases contain at least one event with this value —
-    /// the figure that matters when picking values for a case-level filter.
-    pub cases: i64,
-}
-
-#[derive(serde::Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
 pub struct DistinctValues {
-    pub values: Vec<ValueCount>,
+    pub values: Vec<String>,
     /// True when the column has more distinct values than `limit`. The picker
     /// shows the first `limit` alphabetically rather than refusing to open on
     /// a high-cardinality column such as the case id.

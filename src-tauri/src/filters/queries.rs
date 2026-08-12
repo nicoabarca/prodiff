@@ -1,7 +1,7 @@
 //! Non-command support code for the filter commands: reading the log,
 //! applying a chain, and the per-command aggregations.
 
-use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, ValueCount};
+use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
 use super::{apply, timestamp_millis, Endpoint, Filter};
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::event_log_path;
@@ -175,8 +175,8 @@ pub fn count_values(
     }
 
     // Rows are persisted sorted by (case, timestamp), so first/last within the
-    // case group are the case's endpoints — one row per case, then counted as
-    // usual so `cases` reads as "cases starting/ending with this activity".
+    // case group are the case's endpoints — one row per case, so a value only
+    // counts here when some case actually starts/ends with it.
     let base = match endpoint {
         None => df.lazy(),
         Some(position) => {
@@ -190,22 +190,16 @@ pub fn count_values(
         }
     };
 
-    let counted = base
-        .group_by([col(column)])
-        .agg([col(case_col).n_unique().alias("cases")])
+    let distinct = base
+        .select([col(column)])
+        .unique(None, UniqueKeepStrategy::First)
         .sort([column], SortMultipleOptions::default())
         .collect()
         .map_err(|e| e.to_string())?;
 
-    let total = counted.height();
-    let page = counted.head(Some(limit));
+    let total = distinct.height();
+    let page = distinct.head(Some(limit));
     let value_column = page.column(column).map_err(|e| e.to_string())?;
-    let cases = page
-        .column("cases")
-        .map_err(|e| e.to_string())?
-        .cast(&DataType::Int64)
-        .map_err(|e| e.to_string())?;
-    let cases = cases.i64().map_err(|e| e.to_string())?;
 
     Ok(DistinctValues {
         values: (0..page.height())
@@ -216,10 +210,7 @@ pub fn count_values(
                 if value.is_empty() {
                     return None;
                 }
-                Some(ValueCount {
-                    value,
-                    cases: cases.get(i).unwrap_or(0),
-                })
+                Some(value)
             })
             .collect(),
         truncated: total > limit,
@@ -242,13 +233,10 @@ mod tests {
         .unwrap()
     }
 
-    fn values(endpoint: Option<Endpoint>) -> Vec<(String, i64)> {
-        let mut out: Vec<(String, i64)> = count_values(log(), "act", "case", endpoint, 100)
+    fn values(endpoint: Option<Endpoint>) -> Vec<String> {
+        let mut out = count_values(log(), "act", "case", endpoint, 100)
             .unwrap()
-            .values
-            .into_iter()
-            .map(|v| (v.value, v.cases))
-            .collect();
+            .values;
         out.sort();
         out
     }
@@ -293,19 +281,10 @@ mod tests {
     #[test]
     fn endpoint_narrows_to_activities_cases_actually_begin_and_end_with() {
         // Unconstrained, every activity is offered.
-        assert_eq!(
-            values(None),
-            [("A".into(), 2), ("B".into(), 2), ("C".into(), 1)]
-        );
+        assert_eq!(values(None), ["A", "B", "C"]);
         // C never starts a case; A never ends one. Case 3 is one event long, so
-        // its B counts on both sides.
-        assert_eq!(
-            values(Some(Endpoint::Start)),
-            [("A".into(), 2), ("B".into(), 1)]
-        );
-        assert_eq!(
-            values(Some(Endpoint::End)),
-            [("B".into(), 2), ("C".into(), 1)]
-        );
+        // its B is offered on both sides.
+        assert_eq!(values(Some(Endpoint::Start)), ["A", "B"]);
+        assert_eq!(values(Some(Endpoint::End)), ["B", "C"]);
     }
 }
