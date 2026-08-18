@@ -3,6 +3,7 @@
   import { removeProject } from "$lib/state/projects.svelte";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
   import ArrowRight from "@lucide/svelte/icons/arrow-right";
   import FileText from "@lucide/svelte/icons/file-text";
   import CalendarRange from "@lucide/svelte/icons/calendar-range";
@@ -109,14 +110,15 @@
     <AlertDialog.Root>
       <AlertDialog.Trigger>
         {#snippet child({ props })}
-          <button
-            type="button"
-            aria-label={`Delete ${project.name}`}
-            class="border-border bg-background text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive flex h-7 w-7 items-center justify-center border transition-colors"
+          <Button
             {...props}
+            variant="outline"
+            size="icon"
+            aria-label={`Delete ${project.name}`}
+            class="border-border bg-background text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive h-7 w-7"
           >
             <Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
-          </button>
+          </Button>
         {/snippet}
       </AlertDialog.Trigger>
       <AlertDialog.Content>
@@ -128,7 +130,9 @@
           </AlertDialog.Description>
         </AlertDialog.Header>
         {#if deleteError}
-          <p class="border-destructive/40 bg-destructive/10 text-destructive border px-3 py-2 text-sm">
+          <p
+            class="border-destructive/40 bg-destructive/10 text-destructive border px-3 py-2 text-sm"
+          >
             Couldn't delete this project: {deleteError}
           </p>
         {/if}
