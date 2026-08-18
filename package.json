@@ -11,7 +11,7 @@
     "check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
     "format": "prettier --write .",
     "tauri": "tauri",
-    "dev:port": "bash -c 'tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"compare ($1)\\\"}]}}\"' _"
+    "dev:port": "bash -c 'tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"compare ($1)\\\",\\\"maximized\\\":true}]}}\"' _"
   },
   "license": "MIT",
   "dependencies": {

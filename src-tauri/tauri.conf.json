@@ -12,7 +12,8 @@
   "app": {
     "windows": [
       {
-        "title": "compare"
+        "title": "compare",
+        "maximized": true
       }
     ],
     "security": {
