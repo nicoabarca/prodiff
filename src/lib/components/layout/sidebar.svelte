@@ -32,13 +32,19 @@
 
 <Sidebar.Root collapsible="icon">
   <Sidebar.Header>
-    <div class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
+    <div
+      class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0"
+    >
       <div
-        class="bg-sidebar-primary text-sidebar-primary-foreground flex h-7 w-7 items-center justify-center"
+        class="bg-sidebar-primary text-sidebar-primary-foreground flex h-7 w-7 shrink-0 items-center justify-center"
       >
         <Network class="h-4 w-4" aria-hidden="true" />
       </div>
-      <span class="font-heading text-sm font-bold tracking-tight uppercase">compare</span>
+      <span
+        class="font-heading text-sm font-bold tracking-tight uppercase group-data-[collapsible=icon]:hidden"
+      >
+        compare
+      </span>
     </div>
   </Sidebar.Header>
 

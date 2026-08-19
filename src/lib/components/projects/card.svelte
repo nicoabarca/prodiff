@@ -48,7 +48,9 @@
       }
     }}
   >
-    <Card.Root class="hover:bg-accent h-full transition-colors">
+    <Card.Root
+      class="hover:border-primary hover:shadow-primary/25 h-full min-h-64 transition-all hover:shadow-lg"
+    >
       <Card.Header>
         <Card.Title class="font-heading flex items-start justify-between text-base">
           {project.name}
