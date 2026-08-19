@@ -11,7 +11,7 @@
  * no ResizeObserver, no reflow loop where measuring changes what is measured.
  * Variable heights are a different component, not a flag on this one.
  */
-import { windowRange, type Window } from "$lib/virtual";
+import { windowRange, type Window } from "$lib/components/virtual-list/virtual";
 
 export interface VirtualRange extends Window {
   /** Wire to the scroll container's `onscroll`. */

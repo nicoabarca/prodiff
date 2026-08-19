@@ -22,7 +22,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-  import VirtualList from "$lib/components/virtual-list.svelte";
+  import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import { formatNumber } from "$lib/format";
   import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
