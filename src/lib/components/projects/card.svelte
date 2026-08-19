@@ -49,7 +49,7 @@
     }}
   >
     <Card.Root
-      class="hover:border-primary hover:shadow-primary/25 h-full min-h-64 transition-all hover:shadow-lg"
+      class="hover:ring-primary hover:shadow-primary/25 h-full min-h-64 transition-all hover:shadow-lg hover:ring-2"
     >
       <Card.Header>
         <Card.Title class="font-heading flex items-start justify-between text-base">
