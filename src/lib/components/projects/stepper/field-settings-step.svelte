@@ -180,7 +180,6 @@
               <Table.Head>Field name</Table.Head>
               <Table.Head>Granularity</Table.Head>
               <Table.Head>Data type</Table.Head>
-              <Table.Head>Timestamp format</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -218,38 +217,40 @@
                   </Select.Root>
                 </Table.Cell>
                 <Table.Cell>
-                  <Select.Root
-                    type="single"
-                    value={typeFor(name, dtype)}
-                    onValueChange={(value) => setType(name, value)}
-                  >
-                    <Select.Trigger
-                      size="sm"
-                      class={`w-28 ${typeFor(name, dtype) !== inferExtraFieldType(dtype) ? "border-primary text-primary" : ""}`}
+                  <div class="flex w-44 flex-col gap-1">
+                    <Select.Root
+                      type="single"
+                      value={typeFor(name, dtype)}
+                      onValueChange={(value) => setType(name, value)}
                     >
-                      {EXTRA_FIELD_TYPE_LABELS[typeFor(name, dtype)]}
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each EXTRA_FIELD_TYPES as option}
-                        <Select.Item value={option} label={EXTRA_FIELD_TYPE_LABELS[option]} />
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
-                </Table.Cell>
-                <Table.Cell>
-                  {#if typeFor(name, dtype) === "datetime"}
-                    <TimestampFormatField
-                      values={columnValues(name)}
-                      inference={formatInference[name]}
-                      pattern={columnTimestampFormat[name] ?? ""}
-                      acknowledged={formatWarningAcknowledged[name] ?? false}
-                      onPatternChange={(value) => setFormat(name, value)}
-                      onAcknowledge={() => acknowledge(name)}
-                      compact
-                    />
-                  {:else}
-                    <span class="text-muted-foreground text-xs">Not a timestamp</span>
-                  {/if}
+                      <Select.Trigger
+                        size="sm"
+                        class={`w-full ${typeFor(name, dtype) !== inferExtraFieldType(dtype) ? "border-primary text-primary" : ""}`}
+                      >
+                        {EXTRA_FIELD_TYPE_LABELS[typeFor(name, dtype)]}
+                      </Select.Trigger>
+                      <Select.Content>
+                        {#each EXTRA_FIELD_TYPES as option}
+                          <Select.Item value={option} label={EXTRA_FIELD_TYPE_LABELS[option]} />
+                        {/each}
+                      </Select.Content>
+                    </Select.Root>
+                    <!--
+                      The format belongs to the type, not beside it: it only
+                      exists once the column is declared a timestamp, and a
+                      column of its own would be blank for every other row.
+                    -->
+                    {#if typeFor(name, dtype) === "datetime"}
+                      <TimestampFormatField
+                        values={columnValues(name)}
+                        inference={formatInference[name]}
+                        pattern={columnTimestampFormat[name] ?? ""}
+                        acknowledged={formatWarningAcknowledged[name] ?? false}
+                        onPatternChange={(value) => setFormat(name, value)}
+                        onAcknowledge={() => acknowledge(name)}
+                      />
+                    {/if}
+                  </div>
                 </Table.Cell>
               </Table.Row>
             {/each}
