@@ -14,6 +14,7 @@
     type ExtraFieldType
   } from "$lib/projects/field-settings";
   import type { ColumnGranularity, ColumnMapping, ColumnType } from "$lib/column-mapping";
+  import { inferFormat, type FormatInference } from "$lib/timestamp-format";
   import WizardSteps from "$lib/components/projects/wizard-steps.svelte";
   import UploadStep from "$lib/components/projects/stepper/upload-step.svelte";
   import RequiredFieldsStep from "$lib/components/projects/stepper/required-fields-step.svelte";
@@ -37,6 +38,15 @@
   let visibleColumns = $state<Set<string>>(new Set());
   let columnGranularity = $state<Record<string, ColumnGranularity>>({});
   let columnType = $state<Record<string, ExtraFieldType>>({});
+  // Inference runs once, over every column, the moment the preview lands —
+  // nothing in a preview marks which columns are temporal (the reader parses no
+  // dates), and by the time the user assigns a timestamp role or declares a
+  // column Datetime the answer has to already be there.
+  let formatInference = $state<Record<string, FormatInference>>({});
+  let columnTimestampFormat = $state<Record<string, string>>({});
+  // Purely a record of which ambiguity warnings the user has waved off. Never
+  // persisted — it says nothing about the log, only about what they have read.
+  let formatWarningAcknowledged = $state<Record<string, boolean>>({});
 
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
@@ -62,12 +72,34 @@
         if (filePath !== path) return; // a newer upload started before this one resolved
         columns = preview.columns;
         rows = preview.rows;
+        seedTimestampFormats(preview.columns, preview.rows);
       })
       .catch((err) => {
         if (filePath !== path) return;
         loadError = String(err);
       });
     step = 2;
+  }
+
+  function seedTimestampFormats(
+    previewColumns: { name: string; dtype: ColumnType }[],
+    previewRows: string[][]
+  ) {
+    const inferences: Record<string, FormatInference> = {};
+    const formats: Record<string, string> = {};
+    previewColumns.forEach((column, index) => {
+      const inference = inferFormat(previewRows.map((row) => row[index] ?? ""));
+      inferences[column.name] = inference;
+      if (inference.pattern) formats[column.name] = inference.pattern;
+    });
+    formatInference = inferences;
+    columnTimestampFormat = formats;
+    formatWarningAcknowledged = {};
+  }
+
+  function columnValues(name: string): string[] {
+    const index = columns.findIndex((c) => c.name === name);
+    return index === -1 ? [] : rows.map((row) => row[index] ?? "");
   }
 
   function backToUpload() {
@@ -81,6 +113,9 @@
     visibleColumns = new Set();
     columnGranularity = {};
     columnType = {};
+    formatInference = {};
+    columnTimestampFormat = {};
+    formatWarningAcknowledged = {};
     step = 1;
   }
 
@@ -89,20 +124,33 @@
     activeRole = "case_id";
   }
 
+  function temporal(type: ColumnType): boolean {
+    return type === "date" || type === "datetime";
+  }
+
   const columnMapping = $derived.by((): ColumnMapping[] =>
     columns.map(({ name, dtype }) => {
       const role = roleByColumn[name];
       if (role) {
-        return { name, role, ...requiredFieldSettings[role], timestampFormat: null };
+        const settings = requiredFieldSettings[role];
+        return {
+          name,
+          role,
+          ...settings,
+          timestampFormat: temporal(settings.type) ? (columnTimestampFormat[name] ?? null) : null
+        };
       }
       if (visibleColumns.has(name)) {
-        const type = columnType[name] ?? inferExtraFieldType(dtype);
+        const type = extraFieldTypeToColumnType(columnType[name] ?? inferExtraFieldType(dtype));
         return {
           name,
           role: "other",
-          type: extraFieldTypeToColumnType(type),
+          type,
           granularity: columnGranularity[name] ?? "event",
-          timestampFormat: null
+          // A stray entry for a column nobody declared temporal stays out of the
+          // payload: the mapping is only allowed to carry a format where the
+          // declared type can use one.
+          timestampFormat: temporal(type) ? (columnTimestampFormat[name] ?? null) : null
         };
       }
       return { name, role: "other", type: dtype, granularity: "event", timestampFormat: null };
@@ -162,6 +210,10 @@
           bind:activeRole
           bind:hoveredCol
           {roleByColumn}
+          {formatInference}
+          {columnValues}
+          bind:columnTimestampFormat
+          bind:formatWarningAcknowledged
         />
       {/if}
     </div>

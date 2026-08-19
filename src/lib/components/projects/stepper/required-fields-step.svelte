@@ -2,6 +2,8 @@
   import type { ColumnType } from "$lib/column-mapping";
   import { roleOrder, roleMeta, type AssignableRole } from "$lib/projects/roles";
   import { columnHeaderClass, columnCellClass } from "$lib/projects/column-highlight";
+  import type { FormatInference } from "$lib/timestamp-format";
+  import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
   import Check from "@lucide/svelte/icons/check";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
@@ -13,7 +15,11 @@
     assignments = $bindable(),
     activeRole = $bindable(),
     hoveredCol = $bindable(),
-    roleByColumn
+    roleByColumn,
+    formatInference,
+    columnValues,
+    columnTimestampFormat = $bindable(),
+    formatWarningAcknowledged = $bindable()
   }: {
     fileName: string;
     columns: { name: string; dtype: ColumnType }[];
@@ -22,7 +28,23 @@
     activeRole: AssignableRole | null;
     hoveredCol: number | null;
     roleByColumn: Record<string, AssignableRole>;
+    formatInference: Record<string, FormatInference>;
+    columnValues: (name: string) => string[];
+    columnTimestampFormat: Record<string, string>;
+    formatWarningAcknowledged: Record<string, boolean>;
   } = $props();
+
+  // The two timestamp roles are the only ones whose declared type can carry a
+  // format, so they are the only cards that grow one.
+  const TIMESTAMP_ROLES: AssignableRole[] = ["complete_timestamp", "start_timestamp"];
+
+  function setFormat(col: string, value: string) {
+    columnTimestampFormat = { ...columnTimestampFormat, [col]: value };
+  }
+
+  function acknowledge(col: string) {
+    formatWarningAcknowledged = { ...formatWarningAcknowledged, [col]: true };
+  }
 
   function firstUnassigned(next: Record<AssignableRole, string | null>): AssignableRole | null {
     return roleOrder.find((r) => next[r] === null) ?? null;
@@ -74,9 +96,8 @@
     </span>
     <span class="text-pretty">
       <span class="font-semibold tracking-wide"
-        >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the <span class="font-bold"
-          >{roleMeta[activeRole].label.toUpperCase()}</span
-        > column</span
+        >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the
+        <span class="font-bold">{roleMeta[activeRole].label.toUpperCase()}</span> column</span
       >
       {" — "}
       {roleMeta[activeRole].hint}
@@ -92,26 +113,39 @@
 <div class="border-border bg-border mb-4 grid shrink-0 grid-cols-1 gap-px border sm:grid-cols-4">
   {#each roleOrder as role}
     {@const col = assignments[role]}
+    {@const showFormat = col !== null && TIMESTAMP_ROLES.includes(role)}
     <div
-      class={`bg-card flex items-center gap-3 p-3 text-left ${activeRole === role ? "bg-accent" : ""}`}
+      class={`bg-card flex flex-col gap-2 p-3 text-left ${activeRole === role ? "bg-accent" : ""}`}
     >
-      <span
-        class={`flex h-7 w-7 shrink-0 items-center justify-center text-xs font-bold ${
-          col
-            ? "bg-primary text-primary-foreground border-transparent"
-            : "border-border text-muted-foreground border"
-        }`}
-      >
-        {roleMeta[role].step}
-      </span>
-      <span class="min-w-0">
+      <span class="flex items-center gap-3">
         <span
-          class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
+          class={`flex h-7 w-7 shrink-0 items-center justify-center text-xs font-bold ${
+            col
+              ? "bg-primary text-primary-foreground border-transparent"
+              : "border-border text-muted-foreground border"
+          }`}
         >
-          {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
+          {roleMeta[role].step}
         </span>
-        <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
+        <span class="min-w-0">
+          <span
+            class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
+          >
+            {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
+          </span>
+          <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
+        </span>
       </span>
+      {#if showFormat && col}
+        <TimestampFormatField
+          values={columnValues(col)}
+          inference={formatInference[col]}
+          pattern={columnTimestampFormat[col] ?? ""}
+          acknowledged={formatWarningAcknowledged[col] ?? false}
+          onPatternChange={(value) => setFormat(col, value)}
+          onAcknowledge={() => acknowledge(col)}
+        />
+      {/if}
     </div>
   {/each}
 </div>
