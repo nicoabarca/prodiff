@@ -111,17 +111,12 @@
       aria-label="Custom timestamp format"
     />
   {/if}
-
-  <!--
-    A pattern that does not fit the data is not reported here. The sample is 50
-    rows and a clean sample proves nothing about row 90,000, so the import stays
-    the one place that decides: it parses strictly and names the row it choked
-    on. Flagging a sample mismatch too would put a second, weaker verdict on
-    screen that the user cannot act on any differently.
-  -->
-  {#if !pattern}
-    <p class="text-muted-foreground text-xs">
-      No format inferred. Pick one, or write it under Custom.
-    </p>
-  {/if}
 </div>
+
+<!--
+  Nothing is said below the control, in any state. A pattern that does not fit
+  the data is left to the import, which is the only place that reads the whole
+  file rather than the 50-row preview: it parses strictly and names the column,
+  row, value and pattern it choked on. When inference found nothing the select
+  simply opens on Custom, which says the same thing by showing an empty field.
+-->
