@@ -35,16 +35,13 @@
 
 <Sidebar.Root collapsible="icon">
   <Sidebar.Header>
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
-        <div
-          class="bg-sidebar-primary text-sidebar-primary-foreground flex h-7 w-7 items-center justify-center"
-        >
-          <Network class="h-4 w-4" aria-hidden="true" />
-        </div>
-        <span class="font-heading text-sm font-bold tracking-tight uppercase">compare</span>
+    <div class="flex items-center gap-2 px-2 group-data-[collapsible=icon]:hidden">
+      <div
+        class="bg-sidebar-primary text-sidebar-primary-foreground flex h-7 w-7 items-center justify-center"
+      >
+        <Network class="h-4 w-4" aria-hidden="true" />
       </div>
-      <Sidebar.Trigger />
+      <span class="font-heading text-sm font-bold tracking-tight uppercase">compare</span>
     </div>
   </Sidebar.Header>
 
@@ -55,6 +52,7 @@
         {#each appNav as { href, label, icon: Icon } (href)}
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
+              class="cursor-pointer"
               isActive={!activeProject && page.url.pathname === href}
               tooltipContent={label}
               onclick={() => goto(href)}
@@ -75,7 +73,7 @@
             <Sidebar.MenuItem>
               <Sidebar.MenuButton
                 aria-disabled={!href}
-                class={!href ? "pointer-events-none opacity-40" : undefined}
+                class={!href ? "pointer-events-none opacity-40" : "cursor-pointer"}
                 isActive={href !== null && page.url.pathname === href}
                 tooltipContent={label}
                 onclick={() => href && goto(href)}

@@ -3,6 +3,8 @@
   import { projects, projectsLoaded } from "$lib/state/projects.svelte";
   import type { Project } from "$lib/types";
   import ProjectCard from "$lib/components/projects/card.svelte";
+  import NewProjectCard from "$lib/components/projects/new-project-card.svelte";
+  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import FolderKanban from "@lucide/svelte/icons/folder-kanban";
@@ -12,6 +14,14 @@
     goto(`/app/projects/${project.id}`);
   }
 </script>
+
+<!--
+  The list has no breadcrumb of its own, but it still needs somewhere to put the
+  sidebar toggle, which every other view keeps in its topbar.
+-->
+<header class="border-border bg-background flex h-10 shrink-0 items-center border-b px-2">
+  <Sidebar.Trigger class="cursor-pointer" />
+</header>
 
 {#if projectsLoaded.value && projects.length === 0}
   <main class="flex min-h-0 w-full flex-1 items-center justify-center px-6 py-10">
@@ -31,28 +41,15 @@
   </main>
 {:else}
   <main class="mx-auto min-h-0 w-full max-w-5xl flex-1 overflow-auto px-6 py-10">
-    <div class="border-border mb-8 flex items-end justify-between border-b pb-6">
-      <div class="flex items-center gap-3">
-        <div class="bg-primary text-primary-foreground flex h-9 w-9 shrink-0 items-center justify-center">
-          <FolderKanban class="h-4.5 w-4.5" aria-hidden="true" />
-        </div>
-        <div>
-          <h1 class="font-heading text-2xl font-bold tracking-tight">Projects</h1>
-          <p class="text-muted-foreground mt-1 text-sm">
-            {projects.length} event log{projects.length === 1 ? "" : "s"} on this device
-          </p>
-        </div>
-      </div>
-      <Button onclick={() => goto("/app/projects/new")}>
-        <Plus data-icon="inline-start" />
-        New project
-      </Button>
-    </div>
+    <p class="text-muted-foreground border-border mb-6 border-b pb-4 text-sm">
+      {projects.length} event log{projects.length === 1 ? "" : "s"} on this device
+    </p>
 
     <ul class="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
       {#each projects as project (project.id)}
         <ProjectCard {project} onOpen={openProject} />
       {/each}
+      <NewProjectCard onclick={() => goto("/app/projects/new")} />
     </ul>
   </main>
 {/if}
