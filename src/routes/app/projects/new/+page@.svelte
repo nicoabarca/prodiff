@@ -244,6 +244,10 @@
         {visibleColumns}
         bind:columnGranularity
         bind:columnType
+        {formatInference}
+        {columnValues}
+        bind:columnTimestampFormat
+        bind:formatWarningAcknowledged
       />
     </div>
 

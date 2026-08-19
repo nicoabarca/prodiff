@@ -10,8 +10,11 @@
     inferExtraFieldType,
     type ExtraFieldType
   } from "$lib/projects/field-settings";
+  import type { FormatInference } from "$lib/timestamp-format";
+  import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
   import Info from "@lucide/svelte/icons/info";
 
   let {
@@ -20,7 +23,11 @@
     roleByColumn,
     visibleColumns,
     columnGranularity = $bindable(),
-    columnType = $bindable()
+    columnType = $bindable(),
+    formatInference,
+    columnValues,
+    columnTimestampFormat = $bindable(),
+    formatWarningAcknowledged = $bindable()
   }: {
     columns: { name: string; dtype: ColumnType }[];
     rows: string[][];
@@ -28,6 +35,10 @@
     visibleColumns: Set<string>;
     columnGranularity: Record<string, ColumnGranularity>;
     columnType: Record<string, ExtraFieldType>;
+    formatInference: Record<string, FormatInference>;
+    columnValues: (name: string) => string[];
+    columnTimestampFormat: Record<string, string>;
+    formatWarningAcknowledged: Record<string, boolean>;
   } = $props();
 
   const fieldRows = $derived(
@@ -74,6 +85,38 @@
   function isCustomized(name: string, dtype: ColumnType): boolean {
     return granularityFor(name) !== "event" || typeFor(name, dtype) !== inferExtraFieldType(dtype);
   }
+
+  function setFormat(col: string, value: string) {
+    columnTimestampFormat = { ...columnTimestampFormat, [col]: value };
+  }
+
+  function acknowledge(col: string) {
+    formatWarningAcknowledged = { ...formatWarningAcknowledged, [col]: true };
+  }
+
+  // A log can carry several columns of time, and each keeps its own pattern —
+  // correct even though one log rarely mixes formats.
+  const temporalFields = $derived(
+    fieldRows.filter(({ name, dtype }) => typeFor(name, dtype) === "datetime")
+  );
+
+  /**
+   * The common case is that every temporal column was written by the same
+   * exporter in the same shape, so offer to spread one pattern across all of
+   * them rather than making the user repeat the choice.
+   */
+  const sharedFormat = $derived.by(() => {
+    if (temporalFields.length < 2) return null;
+    const patterns = temporalFields.map(({ name }) => columnTimestampFormat[name] ?? "");
+    if (patterns.some((p) => p === "")) return null;
+    return patterns.every((p) => p === patterns[0]) ? null : patterns[0];
+  });
+
+  function applyToAllTemporal(pattern: string) {
+    const next = { ...columnTimestampFormat };
+    for (const { name } of temporalFields) next[name] = pattern;
+    columnTimestampFormat = next;
+  }
 </script>
 
 <div class="border-primary bg-primary/5 mb-5 flex shrink-0 gap-3 border-l-4 px-4 py-3">
@@ -101,8 +144,8 @@
       >
     </div>
     <p class="text-muted-foreground px-4 py-8 text-center text-sm">
-      No extra columns to configure — every visible field is either required or was left out in
-      the previous step.
+      No extra columns to configure — every visible field is either required or was left out in the
+      previous step.
     </p>
   </div>
 {:else}
@@ -118,6 +161,18 @@
           >{fieldRows.length} field{fieldRows.length === 1 ? "" : "s"}</span
         >
       </div>
+      {#if sharedFormat}
+        <div
+          class="border-border flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2"
+        >
+          <span class="text-muted-foreground text-xs">
+            {temporalFields.length} timestamp columns, with different formats.
+          </span>
+          <Button variant="outline" size="sm" onclick={() => applyToAllTemporal(sharedFormat)}>
+            Use {sharedFormat} for all
+          </Button>
+        </div>
+      {/if}
       <div class="min-h-0 flex-1 overflow-y-auto">
         <Table.Root>
           <Table.Header>
@@ -125,13 +180,14 @@
               <Table.Head>Field name</Table.Head>
               <Table.Head>Granularity</Table.Head>
               <Table.Head>Data type</Table.Head>
+              <Table.Head>Timestamp format</Table.Head>
             </Table.Row>
           </Table.Header>
           <Table.Body>
             {#each fieldRows as { name, dtype }}
               {@const customized = isCustomized(name, dtype)}
               <Table.Row
-                class={`hover:bg-primary/5 ${customized ? "border-l-2 border-l-primary" : "border-l-2 border-l-transparent"}`}
+                class={`hover:bg-primary/5 ${customized ? "border-l-primary border-l-2" : "border-l-2 border-l-transparent"}`}
               >
                 <Table.Cell class="font-mono text-xs">
                   <span class="flex items-center gap-2">
@@ -180,6 +236,21 @@
                     </Select.Content>
                   </Select.Root>
                 </Table.Cell>
+                <Table.Cell>
+                  {#if typeFor(name, dtype) === "datetime"}
+                    <TimestampFormatField
+                      values={columnValues(name)}
+                      inference={formatInference[name]}
+                      pattern={columnTimestampFormat[name] ?? ""}
+                      acknowledged={formatWarningAcknowledged[name] ?? false}
+                      onPatternChange={(value) => setFormat(name, value)}
+                      onAcknowledge={() => acknowledge(name)}
+                      compact
+                    />
+                  {:else}
+                    <span class="text-muted-foreground text-xs">Not a timestamp</span>
+                  {/if}
+                </Table.Cell>
               </Table.Row>
             {/each}
           </Table.Body>
@@ -202,7 +273,9 @@
                 <Table.Head class="font-mono text-xs whitespace-nowrap">
                   {name}
                   {#if role}
-                    <span class="text-primary ml-1 font-sans text-[0.625rem] tracking-wide uppercase">
+                    <span
+                      class="text-primary ml-1 font-sans text-[0.625rem] tracking-wide uppercase"
+                    >
                       {roleMeta[role].label}
                     </span>
                   {/if}
@@ -214,7 +287,9 @@
             {#each previewRows as row}
               <Table.Row class="hover:bg-transparent">
                 {#each row as cell}
-                  <Table.Cell class="text-muted-foreground px-3 py-1.5 font-mono text-xs whitespace-nowrap">
+                  <Table.Cell
+                    class="text-muted-foreground px-3 py-1.5 font-mono text-xs whitespace-nowrap"
+                  >
                     {cell}
                   </Table.Cell>
                 {/each}
