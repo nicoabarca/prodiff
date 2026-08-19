@@ -135,7 +135,7 @@ export const shownVariant = $state<{ key: string | null }>({ key: null });
  * Base against a slice would compare a set with its own subset, which both
  * Significance Tests assume never happens.
  */
-export function groupSlices(): [Slice | null, Slice | null] {
+function groupSlices(): [Slice | null, Slice | null] {
   const named = namedSlices();
   return [named[0] ?? null, named[1] ?? null];
 }

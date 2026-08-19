@@ -9,10 +9,27 @@
   import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
   import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
+  import { groupLabels, treeMode } from "$lib/state/tree.svelte";
   import type { DirectedTree } from "$lib/tree";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   let { tree }: { tree: DirectedTree } = $props();
+
+  // Read off the tree on screen, not off the slices as they stand: deleting a
+  // slice leaves this two-Group drawing up until the user rebuilds, and a badge
+  // announcing base mode over it would contradict what is drawn.
+  const mode = $derived(treeMode(tree));
+  const labels = $derived(groupLabels(tree));
+  /**
+   * Why there is nothing to compare, not just that there isn't. Base mode has
+   * one population by construction, so no Significance Test can run at all;
+   * one group still has per-node aggregates, only no second column.
+   */
+  const scope = $derived(
+    mode === "base"
+      ? `${labels.a.name} — case counts only, no significance tests`
+      : "One group — no comparison"
+  );
 
   const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
   // Group names and case counts live on the filter summary bar, which already
@@ -24,8 +41,8 @@
 
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
-    {#if !tree.groupB}
-      <Badge variant="secondary" class="self-start">One group — no comparison</Badge>
+    {#if mode !== "compare"}
+      <Badge variant="secondary" class="self-start">{scope}</Badge>
     {/if}
 
     {#if tree.overlapCases > 0}

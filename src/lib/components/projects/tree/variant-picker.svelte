@@ -23,7 +23,7 @@
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list.svelte";
-  import { formatNumber } from "$lib/format";
+  import { formatNumber, textClass } from "$lib/format";
   import {
     totalCases,
     variantPath,
@@ -32,7 +32,7 @@
     type VariantRow
   } from "$lib/tree";
   import {
-    groupSlices,
+    groupLabels,
     shownVariant,
     loadVariants,
     selectedVariants,
@@ -80,12 +80,10 @@
   });
   const comparing = $derived(totals.b > 0);
 
-  // The slices are what the user named and coloured in Filters; "Group A" is
-  // internal vocabulary they never chose.
-  const groupNames = $derived.by(() => {
-    const [a, b] = groupSlices();
-    return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
-  });
+  // The list is fetched for the chains as they stand now, not for the tree on
+  // screen, so its labels follow the live slices — including base mode, where
+  // the single column is the base population and reads grey.
+  const labels = $derived(groupLabels());
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
@@ -229,18 +227,24 @@
       <!-- The Group's own total, so a row's share has its denominator in
            sight. Summed over the Variant list, which is every case the
            filtered log has — not what any build happened to include. -->
-      <span class="text-slice-1 ml-auto flex w-28 flex-col items-end truncate text-right">
-        <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
+      <span
+        class="{textClass(labels.a.color)} ml-auto flex w-28 flex-col items-end truncate text-right"
+      >
+        <span class="truncate">{comparing ? labels.a.name : "Cases"}</span>
         <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
           ({formatNumber(totals.a)} cases)
         </span>
       </span>
-      <span class="text-slice-2 flex w-28 flex-col items-end truncate text-right">
-        <span class="truncate">{comparing ? groupNames.b : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
-          ({formatNumber(totals.b)} cases)
+      <!-- Only with a second Group: a column headed "Cases" over nothing but
+           zeroes reads as missing data rather than as an absent comparison. -->
+      {#if comparing}
+        <span class="text-slice-2 flex w-28 flex-col items-end truncate text-right">
+          <span class="truncate">{labels.b?.name ?? "Group B"}</span>
+          <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
+            ({formatNumber(totals.b)} cases)
+          </span>
         </span>
-      </span>
+      {/if}
     </div>
 
     {#if variants.loading}
@@ -281,8 +285,8 @@
                    group" should be visible at a glance. -->
               <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
                 {#if item.casesA > 0}
-                  <span class="text-slice-1">{formatNumber(item.casesA)}</span>
-                  <span class="text-slice-1 text-[0.625rem] opacity-70">
+                  <span class={textClass(labels.a.color)}>{formatNumber(item.casesA)}</span>
+                  <span class="{textClass(labels.a.color)} text-[0.625rem] opacity-70">
                     {share(item.casesA, totals.a)}
                   </span>
                   {#if baseCases}

@@ -31,6 +31,14 @@ export const NODE_HEIGHT = 80;
 export interface TreeNodeData {
   label: string;
   membership: "a" | "b" | "shared";
+  /**
+   * Group A's colour token. Grey in base mode, where the population is not a
+   * Group at all — no node can read as "shared" there, since `membership`
+   * only says so when both Groups have cases, so the grey is unambiguous.
+   */
+  colorA: string;
+  /** False in base and one-Group mode, where an "A:" prefix names nothing. */
+  compare: boolean;
   /** Per-Group halves of the node's second line, each in its Group's colour. */
   secondaryA: string | null;
   secondaryB: string | null;
@@ -157,6 +165,8 @@ export function toFlow(
       data: {
         label: node.label,
         membership: membership(node),
+        colorA: tree.groupB ? "slice-1" : "slice-base",
+        compare: tree.groupB !== null,
         secondaryA,
         secondaryB,
         significantCount: significantCount(node),

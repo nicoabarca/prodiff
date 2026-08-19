@@ -20,8 +20,8 @@
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { outlierNote } from "$lib/distributions";
-  import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/state/tree.svelte";
+  import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
+  import { built, groupLabels } from "$lib/state/tree.svelte";
   import type { Summary } from "$lib/tree";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -39,13 +39,14 @@
     duration?: boolean;
   } = $props();
 
-  // The Groups keep the colours the tree nodes give them, and the names the
-  // user gave their slices — "Group A"/"Group B" only if a slice has gone.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  // The Groups keep the colours the tree nodes give them and the names the
+  // user gave their slices. Read off the drawn tree — this only ever renders
+  // beside one — so base mode reads grey here exactly as it does on the canvas.
+  const labels = $derived(groupLabels(built.tree));
+  const COLOR_A = $derived(colorVar(labels.a.color));
+  const COLOR_B = $derived(colorVar(labels.b?.color ?? "slice-2"));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
 
   /** How many categories fit before the rest go behind the disclosure. */
   const TOP = 6;

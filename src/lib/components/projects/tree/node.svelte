@@ -12,7 +12,11 @@
   // reads in that Group's accent, a shared one in Base grey. Washed right down
   // — it tints a whole node face, which has to stay readable behind text.
   const accent = $derived(
-    data.membership === "a" ? "--slice-1" : data.membership === "b" ? "--slice-2" : "--slice-base"
+    data.membership === "a"
+      ? `--${data.colorA}`
+      : data.membership === "b"
+        ? "--slice-2"
+        : "--slice-base"
   );
   // A wash for the face, a firmer version of the same hue for the border, and
   // the accent itself for the label — so membership reads at a glance without
@@ -60,7 +64,9 @@
 
   <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
     {#if data.secondaryA !== null}
-      <span style="color:var(--slice-1)">A: {data.secondaryA}</span>
+      <span style="color:var(--{data.colorA})">
+        {data.compare ? `A: ${data.secondaryA}` : data.secondaryA}
+      </span>
     {/if}
     {#if data.secondaryB !== null}
       <span style="color:var(--slice-2)">B: {data.secondaryB}</span>

@@ -7,14 +7,14 @@
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { groupSlices } from "$lib/state/tree.svelte";
+  import { built, groupLabels } from "$lib/state/tree.svelte";
   import { effectBand, effectStep, type Test } from "$lib/tree";
 
   let { test }: { test: Test | null | undefined } = $props();
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const labels = $derived(groupLabels(built.tree));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
   const label = $derived(!test ? "" : !test.significant ? "no difference" : (band ?? ""));

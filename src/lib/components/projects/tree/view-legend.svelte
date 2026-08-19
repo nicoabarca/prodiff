@@ -5,11 +5,11 @@
    * applied ones are invisible the moment it closes.
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { groupSlices, view } from "$lib/state/tree.svelte";
+  import { built, groupLabels, view } from "$lib/state/tree.svelte";
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const labels = $derived(groupLabels(built.tree));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
 
   // Anything not one of the three case counts is an attribute name, shown the
   // same way the settings popover names it.

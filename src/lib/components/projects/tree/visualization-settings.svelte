@@ -11,7 +11,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, selectedVariants, view } from "$lib/state/tree.svelte";
+  import { groupLabels, selectedVariants, treeMode, view } from "$lib/state/tree.svelte";
   import {
     visibleNodes,
     TRANSITION_TIME,
@@ -32,16 +32,24 @@
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
-  // The slices the Groups come from, so every control names them the way the
-  // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  // Named the way the user named their slices, and read off the tree on screen
+  // so the controls describe the drawing rather than a chain edited since.
+  const compare = $derived(treeMode(tree) === "compare");
+  const labels = $derived(groupLabels(tree));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
 
+  // Without a second Group, "Cases — Group B" is a blank line on every node and
+  // the two Group focuses dim the whole canvas. They are left out rather than
+  // disabled: an option that can only draw nothing is not a choice.
   const secondaryOptions = $derived([
-    { value: "cases", label: `Cases (${nameA} · ${nameB})` },
-    { value: "casesA", label: `Cases — ${nameA}` },
-    { value: "casesB", label: `Cases — ${nameB}` },
+    ...(compare
+      ? [
+          { value: "cases", label: `Cases (${nameA} · ${nameB})` },
+          { value: "casesA", label: `Cases — ${nameA}` },
+          { value: "casesB", label: `Cases — ${nameB}` }
+        ]
+      : [{ value: "casesA", label: `Cases — ${nameA}` }]),
     ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))
   ]);
 
@@ -51,6 +59,13 @@
     b: `${nameB} only`,
     shared: "Shared"
   });
+
+  /** Every node belongs to Group A alone without a second Group to split it. */
+  const focusOptions = $derived(
+    compare
+      ? (Object.entries(focusLabels) as [GroupFocus, string][])
+      : ([["all", focusLabels.all]] as [GroupFocus, string][])
+  );
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
   const visible = $derived(visibleNodes(tree, view, selectedVariants()));
@@ -100,24 +115,26 @@
         </Select.Root>
       </div>
 
-      <div class="flex flex-col gap-1.5">
-        <Label class="text-xs">Highlight group</Label>
-        <Select.Root
-          type="single"
-          value={view.focus}
-          onValueChange={(value) => (view.focus = value as GroupFocus)}
-        >
-          <Select.Trigger class="h-8 text-xs">{focusLabels[view.focus]}</Select.Trigger>
-          <Select.Content>
-            {#each Object.entries(focusLabels) as [value, label] (value)}
-              <Select.Item {value}>{label}</Select.Item>
-            {/each}
-          </Select.Content>
-        </Select.Root>
-        <p class="text-muted-foreground text-[0.625rem]">
-          Dims the rest — the tree keeps its shape.
-        </p>
-      </div>
+      {#if compare}
+        <div class="flex flex-col gap-1.5">
+          <Label class="text-xs">Highlight group</Label>
+          <Select.Root
+            type="single"
+            value={view.focus}
+            onValueChange={(value) => (view.focus = value as GroupFocus)}
+          >
+            <Select.Trigger class="h-8 text-xs">{focusLabels[view.focus]}</Select.Trigger>
+            <Select.Content>
+              {#each focusOptions as [value, label] (value)}
+                <Select.Item {value}>{label}</Select.Item>
+              {/each}
+            </Select.Content>
+          </Select.Root>
+          <p class="text-muted-foreground text-[0.625rem]">
+            Dims the rest — the tree keeps its shape.
+          </p>
+        </div>
+      {/if}
 
       <label class="flex items-start gap-2 text-xs">
         <Checkbox

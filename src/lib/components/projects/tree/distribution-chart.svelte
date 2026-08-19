@@ -50,6 +50,8 @@
     compare,
     nameA,
     nameB,
+    colorA,
+    colorB,
     expanded,
     encoding,
     onEncoding,
@@ -64,6 +66,9 @@
     compare: boolean;
     nameA: string;
     nameB: string;
+    /** Each Group's colour, so base mode reads grey here as on the canvas. */
+    colorA: string;
+    colorB: string;
     expanded: boolean;
     /** Only read on a duration; every other attribute has bars and nothing else. */
     encoding: Encoding;
@@ -74,8 +79,8 @@
 
   // The Groups keep the colours they carry in the tree and the differences
   // panel, so a resource that is "the blue one" stays blue across all three.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  const COLOR_A = $derived(colorA);
+  const COLOR_B = $derived(colorB);
 
   /**
    * The duration-only encodings, when the backend computed them. Absent on
@@ -241,7 +246,7 @@
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}
-    <DurationPlot {shape} {encoding} {compare} {nameA} {nameB} />
+    <DurationPlot {shape} {encoding} {compare} {nameA} {nameB} {colorA} {colorB} />
   {:else if data.length === 0}
     <p
       class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"

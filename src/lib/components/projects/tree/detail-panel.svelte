@@ -6,7 +6,7 @@
   import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
   import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/state/tree.svelte";
+  import { groupLabels } from "$lib/state/tree.svelte";
   import {
     effectBand,
     isDurationAttribute,
@@ -41,9 +41,9 @@
       : null
   );
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const labels = $derived(groupLabels(tree));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
 
   /**
    * Attributes strongest first, with the ones that came out negligible or

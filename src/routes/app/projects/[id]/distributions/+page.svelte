@@ -29,7 +29,7 @@
     type Scope,
     type Sort
   } from "$lib/distributions";
-  import { formatNumber } from "$lib/format";
+  import { bgClass, colorVar, formatNumber, textClass } from "$lib/format";
   import { currentProject } from "$lib/state/projects.svelte";
   import {
     addExtra,
@@ -44,7 +44,7 @@
   import {
     build,
     built,
-    groupSlices,
+    groupLabels,
     isStale,
     selected,
     settings,
@@ -79,9 +79,12 @@
   const compare = $derived(tree?.groupB !== null);
   const stale = $derived(isStale());
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  // Off the tree these numbers describe, not off the slices as they stand.
+  const labels = $derived(groupLabels(tree));
+  const nameA = $derived(labels.a.name);
+  const nameB = $derived(labels.b?.name ?? "Group B");
+  const colorA = $derived(colorVar(labels.a.color));
+  const colorB = $derived(colorVar(labels.b?.color ?? "slice-2"));
 
   /**
    * What is fetched: every card the node could show, dismissals included and in
@@ -115,7 +118,14 @@
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];
-    const rows = [{ name: nameA, cases: data.casesA, text: "text-slice-1", swatch: "bg-slice-1" }];
+    const rows = [
+      {
+        name: nameA,
+        cases: data.casesA,
+        text: textClass(labels.a.color),
+        swatch: bgClass(labels.a.color)
+      }
+    ];
     if (compare) {
       rows.push({ name: nameB, cases: data.casesB, text: "text-slice-2", swatch: "bg-slice-2" });
     }
@@ -368,6 +378,8 @@
                 {compare}
                 {nameA}
                 {nameB}
+                {colorA}
+                {colorB}
                 scope={charts.scope}
                 encoding={charts.encoding}
                 onEncoding={(next) => (charts.encoding = next)}

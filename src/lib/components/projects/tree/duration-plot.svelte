@@ -38,19 +38,24 @@
     encoding,
     compare,
     nameA,
-    nameB
+    nameB,
+    colorA,
+    colorB
   }: {
     shape: DurationShape;
     encoding: "ecdf" | "box";
     compare: boolean;
     nameA: string;
     nameB: string;
+    /** Each Group's colour, so base mode reads grey here as on the canvas. */
+    colorA: string;
+    colorB: string;
   } = $props();
 
   // The Groups keep the colours they carry in the tree and the differences
   // panel, so a shift that is "the blue one" stays blue across all three.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  const COLOR_A = $derived(colorA);
+  const COLOR_B = $derived(colorB);
 
   const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
 
