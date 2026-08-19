@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
-import { chainKey, effectiveChain, namedSlices } from "$lib/state/slices.svelte";
+import { baseSlice, chainKey, effectiveChain, namedSlices } from "$lib/state/slices.svelte";
 import {
   DEFAULT_COVERAGE,
   defaultTreeSettings,
@@ -11,6 +11,8 @@ import {
   treeKey,
   variantsCovering,
   type DirectedTree,
+  type GroupLabels,
+  type TreeMode,
   type TreeSettings,
   type TreeView,
   type VariantRow
@@ -62,9 +64,9 @@ export const variants = $state<{
 }>({ key: null, rows: [], loading: false, error: null, dropped: 0 });
 
 /** The chains the Variant list would have to be built from to still be current. */
-function variantsKey(): string | null {
+function variantsKey(): string {
   const chains = groupChains();
-  return chains ? chainKey([chains.a, chains.b] as unknown as Filter[]) : null;
+  return chainKey([chains.a, chains.b] as unknown as Filter[]);
 }
 
 export function selectedVariants(): Set<string> {
@@ -81,13 +83,12 @@ export function selectedVariants(): Set<string> {
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
-  if (!key || variants.loading || (!force && variants.key === key)) return;
+  if (variants.loading || (!force && variants.key === key)) return;
 
   variants.loading = true;
   variants.error = null;
   try {
     const chains = groupChains();
-    if (!chains) return;
     const rows = await listVariants(project, chains.a, chains.b);
     variants.rows = rows;
     variants.key = key;
@@ -139,10 +140,49 @@ export function groupSlices(): [Slice | null, Slice | null] {
   return [named[0] ?? null, named[1] ?? null];
 }
 
-export function groupChains(): { a: Filter[]; b: Filter[] | null } | null {
+/**
+ * The chains the two Groups are built from. Never null: with no named slice
+ * there is still a population to draw — the base chain, or the whole log when
+ * there is no base either. `directed_tree` takes `group_b: None` and reads an
+ * empty chain as "filter nothing", so all three modes are one call shape.
+ */
+export function groupChains(): { a: Filter[]; b: Filter[] | null } {
   const [a, b] = groupSlices();
-  if (!a) return null;
+  if (!a) return { a: baseSlice()?.filters ?? [], b: null };
   return { a: effectiveChain(a), b: b ? effectiveChain(b) : null };
+}
+
+/**
+ * Which of the three modes is on screen. Passed a tree, it describes that
+ * drawing rather than the slices as they stand now: deleting a slice leaves a
+ * two-Group tree up until the user rebuilds, and a badge flipping to "Base"
+ * over a two-coloured canvas would contradict what is drawn. Passed nothing —
+ * the empty state, the Build button — it describes what a build would produce.
+ */
+export function treeMode(tree?: DirectedTree | null): TreeMode {
+  if (tree) return tree.groupB ? "compare" : "single";
+  const [a, b] = groupSlices();
+  if (!a) return "base";
+  return b ? "compare" : "single";
+}
+
+/**
+ * What each Group is called and coloured, in one place — every view used to
+ * re-derive this from `groupSlices()` and hardcode `--slice-1` beside it.
+ *
+ * In base mode the population is not a Group at all, so it takes Base grey
+ * rather than Group A's accent; no node can read as "shared" there, since
+ * `membership()` only returns it when both Groups have cases.
+ */
+export function groupLabels(tree?: DirectedTree | null): GroupLabels {
+  const mode = treeMode(tree);
+  const [a, b] = groupSlices();
+  if (mode === "base") {
+    return { a: { name: baseSlice() ? "Base" : "Whole log", color: "slice-base" }, b: null };
+  }
+  const first = { name: a?.name ?? "Group A", color: "slice-1" };
+  if (mode === "single") return { a: first, b: null };
+  return { a: first, b: { name: b?.name ?? "Group B", color: "slice-2" } };
 }
 
 export async function loadSettings(projectId: string) {
@@ -169,9 +209,9 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
 }
 
 /** The key the tree on screen would need to match to still be current. */
-export function currentKey(): string | null {
+export function currentKey(): string {
   const chains = groupChains();
-  return chains ? treeKey(chains.a, chains.b, settings.value) : null;
+  return treeKey(chains.a, chains.b, settings.value);
 }
 
 export function isStale(): boolean {
@@ -190,7 +230,7 @@ export function isStale(): boolean {
  */
 export async function build(project: Project) {
   const chains = groupChains();
-  if (!chains || built.building) return;
+  if (built.building) return;
 
   built.building = true;
   built.error = null;

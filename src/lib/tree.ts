@@ -231,6 +231,26 @@ export function treeKey(
   ]);
 }
 
+/**
+ * How many populations a tree describes. `base` is the one with no named slice
+ * at all: the base chain, or the whole log when there is no base either. It is
+ * a first-class mode, not a missing Group — there is simply nothing to compare
+ * against, so no Significance Test is run.
+ */
+export type TreeMode = "base" | "single" | "compare";
+
+/** What one Group is called and coloured. The token is a slice colour token. */
+export interface GroupLabel {
+  name: string;
+  color: string;
+}
+
+/** Both Groups' labels; `b` is null in every mode but `compare`. */
+export interface GroupLabels {
+  a: GroupLabel;
+  b: GroupLabel | null;
+}
+
 export type Direction = "TB" | "LR";
 
 /** What the node face shows under the activity name. */

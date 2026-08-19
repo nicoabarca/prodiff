@@ -139,7 +139,6 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   if (charts.scope === "atStep" && depth === 0) return;
 
   const chains = groupChains();
-  if (!chains) return;
 
   const visible = visibleNodes(tree, view, selectedVariants());
   const variants = subtreeVariants(tree, visible, nodeId);

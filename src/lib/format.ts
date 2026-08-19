@@ -71,6 +71,31 @@ export function colorVar(token: string): string {
 }
 
 /**
+ * A colour token's Tailwind classes, written out in full rather than built as
+ * `text-${token}`: Tailwind scans the source for literal class names, so a
+ * class assembled at runtime is never generated.
+ */
+const TEXT_CLASS: Record<string, string> = {
+  "slice-1": "text-slice-1",
+  "slice-2": "text-slice-2",
+  "slice-base": "text-slice-base"
+};
+
+const BG_CLASS: Record<string, string> = {
+  "slice-1": "bg-slice-1",
+  "slice-2": "bg-slice-2",
+  "slice-base": "bg-slice-base"
+};
+
+export function textClass(token: string): string {
+  return TEXT_CLASS[token] ?? "text-foreground";
+}
+
+export function bgClass(token: string): string {
+  return BG_CLASS[token] ?? "bg-foreground";
+}
+
+/**
  * A washed-out version of a population's colour, for tinting the column that
  * belongs to it. The whole log is left untinted so the filtered populations
  * read as the ones being compared; Base tints grey, its own accent.
