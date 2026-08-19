@@ -93,7 +93,7 @@
     columns.map(({ name, dtype }) => {
       const role = roleByColumn[name];
       if (role) {
-        return { name, role, ...requiredFieldSettings[role] };
+        return { name, role, ...requiredFieldSettings[role], timestampFormat: null };
       }
       if (visibleColumns.has(name)) {
         const type = columnType[name] ?? inferExtraFieldType(dtype);
@@ -101,10 +101,11 @@
           name,
           role: "other",
           type: extraFieldTypeToColumnType(type),
-          granularity: columnGranularity[name] ?? "event"
+          granularity: columnGranularity[name] ?? "event",
+          timestampFormat: null
         };
       }
-      return { name, role: "other", type: dtype, granularity: "event" };
+      return { name, role: "other", type: dtype, granularity: "event", timestampFormat: null };
     })
   );
 
