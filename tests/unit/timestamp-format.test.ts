@@ -3,7 +3,7 @@
  * import succeeds, every date is real, and only the ordering of the process is
  * quietly wrong. These tests pin the tokenizer and the parser that the mapping
  * step shows its evidence with. Run with
- * `npx tsx src/lib/timestamp-format.test.ts`.
+ * `npx tsx tests/unit/timestamp-format.test.ts`.
  */
 import assert from "node:assert/strict";
 import {
@@ -12,7 +12,7 @@ import {
   inferFormat,
   parseWithFormat,
   tokenize
-} from "./timestamp-format";
+} from "../../src/lib/timestamp-format";
 
 function parsed(value: string, pattern: string): string {
   const result = parseWithFormat(value, pattern);

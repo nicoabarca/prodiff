@@ -1,7 +1,7 @@
 /**
  * The grid's ranking fails silently — a mis-sorted grid looks exactly like a
  * sorted one, and the whole point of the view is that the biggest difference is
- * on the first screen. Run with `npx tsx src/lib/distributions.test.ts`.
+ * on the first screen. Run with `npx tsx tests/unit/distributions.test.ts`.
  */
 import assert from "node:assert/strict";
 import {
@@ -11,7 +11,7 @@ import {
   outlierNote,
   shareAt,
   type DurationShape
-} from "./distributions";
+} from "../../src/lib/distributions";
 import {
   stepContext,
   TRANSITION_TIME,
@@ -19,7 +19,7 @@ import {
   type DirectedTree,
   type Test,
   type TreeNode
-} from "./tree";
+} from "../../src/lib/tree";
 
 function test(effectSize: number, significant = true): Test {
   return {

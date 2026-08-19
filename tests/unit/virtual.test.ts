@@ -1,10 +1,10 @@
 /**
  * Windowing arithmetic fails silently — a wrong range renders the wrong rows,
  * a wrong pad drifts them out from under the scrollbar, and neither throws.
- * Run with `npx tsx src/lib/virtual.test.ts`.
+ * Run with `npx tsx tests/unit/virtual.test.ts`.
  */
 import assert from "node:assert/strict";
-import { OVERSCAN, windowRange, type Window } from "./virtual";
+import { OVERSCAN, windowRange, type Window } from "../../src/lib/virtual";
 
 /** The invariant that keeps rows under the scrollbar where they belong. */
 function assertSpansWholeList(count: number, rowHeight: number, w: Window) {
