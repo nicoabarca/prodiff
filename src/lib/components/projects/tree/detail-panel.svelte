@@ -225,9 +225,6 @@
         {/if}
 
         {#if !compare}
-          <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
-            One group — these are its distributions, with nothing to compare them against.
-          </p>
           {#each flat as [name, block] (name)}
             {@render attribute(name, block)}
           {/each}

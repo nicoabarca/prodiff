@@ -218,8 +218,6 @@
                 {buildScope}
                 {#if mode === "base"}
                   No significance tests: there are no two populations to compare.
-                {:else if mode === "single"}
-                  One group, so nodes carry its case counts without a comparison.
                 {/if}
               {/if}
             </Empty.Description>
