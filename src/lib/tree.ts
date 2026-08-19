@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { ColumnMapping } from "$lib/column-mapping";
+import type { ColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters";
-import type { Project } from "$lib/types";
+import type { Project } from "$lib/event-log/types";
 
 /**
  * The Comparison Directed Tree as Rust ships it — mirrors `DirectedTree` in

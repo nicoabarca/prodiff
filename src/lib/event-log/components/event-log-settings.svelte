@@ -24,12 +24,12 @@
     extraFieldTypeToColumnType,
     inferExtraFieldType,
     type ExtraFieldType
-  } from "$lib/projects/field-settings";
-  import { roleMeta, type AssignableRole } from "$lib/projects/roles";
-  import { updateProject } from "$lib/state/projects.svelte";
+  } from "$lib/event-log/utils/field-settings";
+  import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
+  import { updateProject } from "$lib/event-log/state/projects.svelte";
   import { invalidateTree } from "$lib/state/tree.svelte";
-  import type { ColumnGranularity } from "$lib/column-mapping";
-  import type { Project } from "$lib/types";
+  import type { ColumnGranularity } from "$lib/event-log/invokers/types";
+  import type { Project } from "$lib/event-log/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Settings2 from "@lucide/svelte/icons/settings-2";

@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import AppSidebar from "$lib/components/layout/sidebar.svelte";
-  import { projects, loadProjects } from "$lib/state/projects.svelte";
+  import { projects, loadProjects } from "$lib/event-log/state/projects.svelte";
 
   let { children } = $props();
 

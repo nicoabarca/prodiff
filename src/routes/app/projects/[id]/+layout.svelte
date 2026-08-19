@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { currentProject, projectsLoaded } from "$lib/state/projects.svelte";
+  import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
   import { loadSlices, slicesLoaded } from "$lib/state/slices.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/components/projects/filter-summary-bar.svelte";

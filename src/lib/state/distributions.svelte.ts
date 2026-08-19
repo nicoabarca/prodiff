@@ -19,7 +19,7 @@ import {
 import { built, groupChains, isStale, selected } from "$lib/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree";
 import { selectedVariants, view } from "$lib/state/tree.svelte";
-import type { Project } from "$lib/types";
+import type { Project } from "$lib/event-log/types";
 
 /**
  * What is charted, beyond the node's own tested attributes.

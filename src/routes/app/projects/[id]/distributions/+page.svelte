@@ -30,7 +30,7 @@
     type Sort
   } from "$lib/distributions";
   import { formatNumber } from "$lib/format";
-  import { currentProject } from "$lib/state/projects.svelte";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
     addExtra,
     charts,

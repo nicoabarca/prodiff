@@ -3,7 +3,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { db } from "$lib/db/client";
 import { slices as slicesTable } from "$lib/db/schema";
 import type { Filter } from "$lib/filters";
-import type { EventLogStats, Project, Slice } from "$lib/types";
+import type { Project } from "$lib/event-log/types";
+import type { EventLogStats, Slice } from "$lib/types";
 
 /**
  * The loaded project's slices, base first. Module-level `$state` like

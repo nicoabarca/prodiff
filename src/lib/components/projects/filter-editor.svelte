@@ -35,7 +35,7 @@
   } from "$lib/filters";
   import { chainImpact, type ChainStep } from "$lib/state/slices.svelte";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
   import DurationHistogram from "./duration-histogram.svelte";
   import TimeframePicker from "./timeframe-picker.svelte";
   import Search from "@lucide/svelte/icons/search";

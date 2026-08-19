@@ -16,7 +16,8 @@ import {
   type VariantRow
 } from "$lib/tree";
 import type { Filter } from "$lib/filters";
-import type { Project, Slice } from "$lib/types";
+import type { Project } from "$lib/event-log/types";
+import type { Slice } from "$lib/types";
 
 /**
  * The built tree, in memory only. Module-level `$state` like `slices` and

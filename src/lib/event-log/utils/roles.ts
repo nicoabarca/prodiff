@@ -1,4 +1,4 @@
-import type { ColumnGranularity, ColumnRole, ColumnType } from "$lib/column-mapping";
+import type { ColumnGranularity, ColumnRole, ColumnType } from "$lib/event-log/invokers/types";
 
 // Roles assignable in the "Required fields" step. Every other ColumnRole —
 // "other" — has no picker; unassigned columns fall through to "other".

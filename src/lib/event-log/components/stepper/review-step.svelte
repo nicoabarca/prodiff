@@ -1,8 +1,8 @@
 <script lang="ts">
-  import type { ColumnMapping } from "$lib/column-mapping";
-  import type { AssignableRole } from "$lib/projects/roles";
-  import { roleMeta } from "$lib/projects/roles";
-  import { GRANULARITY_LABELS } from "$lib/projects/field-settings";
+  import type { ColumnMapping } from "$lib/event-log/invokers/types";
+  import type { AssignableRole } from "$lib/event-log/utils/roles";
+  import { roleMeta } from "$lib/event-log/utils/roles";
+  import { GRANULARITY_LABELS } from "$lib/event-log/utils/field-settings";
   import * as Table from "$lib/components/ui/table/index.js";
   import FileCheck from "@lucide/svelte/icons/file-check";
   import Info from "@lucide/svelte/icons/info";

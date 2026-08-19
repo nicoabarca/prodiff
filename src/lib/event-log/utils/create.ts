@@ -1,31 +1,8 @@
-import { invoke } from "@tauri-apps/api/core";
-import { addProject } from "$lib/state/projects.svelte";
-import { validateColumnMapping, type ColumnMapping } from "$lib/column-mapping";
-import type { Project } from "$lib/types";
-
-/** The uploaded file awaiting confirmation, as held by the new-project flow. */
-export interface ProjectDraft {
-  filePath: string;
-  fileName: string;
-}
-
-/**
- * Result of writing the Event Log: stats plus where the files ended up on disk.
- * Rust returns the full `EventLogStats` — the per-case metrics beyond these are
- * recomputed per population by the Statistics view rather than stored on the
- * project, so they are picked off here instead of spread into the row.
- */
-type CreateEventLogResult = Pick<
-  Project,
-  | "events"
-  | "cases"
-  | "activities"
-  | "variants"
-  | "timespanStart"
-  | "timespanEnd"
-  | "originalPath"
-  | "eventLogPath"
->;
+import { createEventLog } from "$lib/event-log/invokers/create-event-log";
+import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import { addProject } from "$lib/event-log/state/projects.svelte";
+import type { Project, ProjectDraft } from "$lib/event-log/types";
+import { validateColumnMapping } from "$lib/event-log/utils/column-mapping";
 
 function deriveProjectName(fileName: string): string {
   const stem = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
@@ -49,11 +26,7 @@ export async function createProject(
   );
 
   const id = crypto.randomUUID();
-  const result = await invoke<CreateEventLogResult>("create_event_log", {
-    projectId: id,
-    sourcePath: draft.filePath,
-    columns
-  });
+  const result = await createEventLog(id, draft.filePath, columns);
 
   const project: Project = {
     id,

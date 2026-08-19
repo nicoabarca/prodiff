@@ -7,7 +7,7 @@
   import { Alert, AlertDescription, AlertTitle } from "$lib/components/ui/alert/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatNumber } from "$lib/format";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
   import type { Population } from "$lib/state/slices.svelte";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";

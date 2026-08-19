@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { ColumnGranularity, ColumnType } from "$lib/column-mapping";
-  import { roleMeta, type AssignableRole } from "$lib/projects/roles";
+  import type { ColumnGranularity, ColumnType } from "$lib/event-log/invokers/types";
+  import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import {
     EXTRA_FIELD_TYPES,
     EXTRA_FIELD_TYPE_LABELS,
@@ -9,7 +9,7 @@
     GRANULARITY_DESCRIPTIONS,
     inferExtraFieldType,
     type ExtraFieldType
-  } from "$lib/projects/field-settings";
+  } from "$lib/event-log/utils/field-settings";
   import * as Table from "$lib/components/ui/table/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import Info from "@lucide/svelte/icons/info";
