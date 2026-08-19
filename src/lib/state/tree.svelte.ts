@@ -240,6 +240,14 @@ export async function build(project: Project) {
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
+    // A view aimed at Group B outlives the Group itself when the last slice is
+    // deleted: "Group B only" dims every node and "Cases — Group B" prints a
+    // blank second line, both of which read as a broken tree rather than as a
+    // setting that no longer applies. Only the aimed-at ones are reset.
+    if (!tree.groupB) {
+      if (view.focus !== "all") view.focus = "all";
+      if (view.secondary === "casesB") view.secondary = "casesA";
+    }
     // What the backend included, not what was asked for: the ceiling and the
     // log's own Variant count both cut a request short. Adopting it keeps the
     // picker honest about what is actually on screen.
