@@ -3,22 +3,15 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
-  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
-  import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
+  import EffectChip from "$lib/tree/components/effect-chip.svelte";
+  import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/state/tree.svelte";
-  import {
-    effectBand,
-    isDurationAttribute,
-    membership,
-    pathTo,
-    rankedBlocks,
-    visibleNodes,
-    TRANSITION_TIME,
-    type AttributeBlock,
-    type DirectedTree
-  } from "$lib/tree";
-  import { selectedVariants, view } from "$lib/state/tree.svelte";
+  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import type { AttributeBlock, DirectedTree } from "$lib/tree/invokers/types";
+  import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
+  import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
+  import { membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
+  import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";

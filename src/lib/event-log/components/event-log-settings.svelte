@@ -27,7 +27,7 @@
   } from "$lib/event-log/utils/field-settings";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import { updateProject } from "$lib/event-log/state/projects.svelte";
-  import { invalidateTree } from "$lib/state/tree.svelte";
+  import { invalidateTree } from "$lib/tree/state/tree.svelte";
   import type { ColumnGranularity } from "$lib/event-log/invokers/types";
   import type { Project } from "$lib/event-log/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";

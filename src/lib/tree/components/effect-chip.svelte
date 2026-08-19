@@ -7,8 +7,9 @@
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { groupSlices } from "$lib/state/tree.svelte";
-  import { effectBand, effectStep, type Test } from "$lib/tree";
+  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import type { Test } from "$lib/tree/invokers/types";
+  import { effectBand, effectStep } from "$lib/tree/utils/effect";
 
   let { test }: { test: Test | null | undefined } = $props();
 

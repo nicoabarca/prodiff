@@ -24,13 +24,8 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list.svelte";
   import { formatNumber } from "$lib/format";
-  import {
-    totalCases,
-    variantPath,
-    visibleNodes,
-    type DirectedTree,
-    type VariantRow
-  } from "$lib/tree";
+  import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+  import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import {
     groupSlices,
     shownVariant,
@@ -41,7 +36,7 @@
     toggleVariant,
     variants,
     view
-  } from "$lib/state/tree.svelte";
+  } from "$lib/tree/state/tree.svelte";
   import { baseSlice, loadImpact, sliceCases } from "$lib/slices/state/slices.svelte";
   import type { Project } from "$lib/event-log/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";

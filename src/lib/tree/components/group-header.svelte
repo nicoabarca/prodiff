@@ -6,10 +6,10 @@
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
-  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
-  import SummaryCompare from "$lib/components/projects/tree/summary-compare.svelte";
+  import EffectChip from "$lib/tree/components/effect-chip.svelte";
+  import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import type { DirectedTree } from "$lib/tree";
+  import type { DirectedTree } from "$lib/tree/invokers/types";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   let { tree }: { tree: DirectedTree } = $props();

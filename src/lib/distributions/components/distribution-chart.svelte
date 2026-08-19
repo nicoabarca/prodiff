@@ -20,24 +20,15 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Chart from "$lib/components/ui/chart/index.js";
-  import EffectChip from "$lib/components/projects/tree/effect-chip.svelte";
-  import DurationPlot from "$lib/components/projects/tree/duration-plot.svelte";
+  import EffectChip from "$lib/tree/components/effect-chip.svelte";
+  import DurationPlot from "$lib/tree/components/duration-plot.svelte";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import {
-    bars,
-    ENCODING_HINT,
-    ENCODING_LABEL,
-    ENCODINGS,
-    logBars,
-    PLOT_TOGGLE,
-    SCOPE_LABEL,
-    TOP_CATEGORIES,
-    type Distribution,
-    type Encoding,
-    type Scope
-  } from "$lib/distributions";
+  import type { Distribution } from "$lib/distributions/invokers/types";
+  import { ENCODINGS, ENCODING_HINT, ENCODING_LABEL, type Encoding, PLOT_TOGGLE, SCOPE_LABEL, type Scope, TOP_CATEGORIES } from "$lib/distributions/types";
+  import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { formatDuration, formatNumber } from "$lib/format";
-  import { isDurationAttribute, type Test } from "$lib/tree";
+  import type { Test } from "$lib/tree/invokers/types";
+  import { isDurationAttribute } from "$lib/tree/utils/settings";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import X from "@lucide/svelte/icons/x";

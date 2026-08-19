@@ -8,8 +8,8 @@
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
-  import { attributeOptions } from "$lib/tree";
-  import { saveSettings, settings } from "$lib/state/tree.svelte";
+  import { attributeOptions } from "$lib/tree/utils/settings";
+  import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
   import type { Project } from "$lib/event-log/types";
   import Settings2 from "@lucide/svelte/icons/settings-2";
 

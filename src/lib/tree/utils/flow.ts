@@ -5,22 +5,11 @@
  */
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/svelte";
-import {
-  children,
-  effectBand,
-  effectStep,
-  isDivergent,
-  isDurationAttribute,
-  membership,
-  peakEffect,
-  type Direction,
-  type DirectedTree,
-  type EffectBand,
-  type GroupFocus,
-  type Secondary,
-  type TreeNode,
-  type Visible
-} from "$lib/tree";
+import type { DirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
+import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
+import { isDurationAttribute } from "$lib/tree/utils/settings";
+import { children, isDivergent, membership } from "$lib/tree/utils/tree";
 import { formatDuration, formatNumber } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three

@@ -2,19 +2,12 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
 import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
-import {
-  DEFAULT_COVERAGE,
-  defaultTreeSettings,
-  defaultTreeView,
-  directedTree,
-  listVariants,
-  treeKey,
-  variantsCovering,
-  type DirectedTree,
-  type TreeSettings,
-  type TreeView,
-  type VariantRow
-} from "$lib/tree";
+import { directedTree } from "$lib/tree/invokers/directed-tree";
+import { listVariants } from "$lib/tree/invokers/list-variants";
+import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
+import { treeKey } from "$lib/tree/utils/settings";
+import { variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/filters/filter";
 import type { Project } from "$lib/event-log/types";
 import type { Slice } from "$lib/slices/types";

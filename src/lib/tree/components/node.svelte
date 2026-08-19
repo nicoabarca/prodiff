@@ -4,7 +4,7 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Split from "@lucide/svelte/icons/split";
-  import type { TreeNodeData } from "$lib/components/projects/tree/flow";
+  import type { TreeNodeData } from "$lib/tree/utils/flow";
 
   let { data }: { data: TreeNodeData } = $props();
 

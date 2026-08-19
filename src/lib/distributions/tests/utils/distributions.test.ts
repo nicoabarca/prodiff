@@ -4,22 +4,11 @@
  * on the first screen.
  */
 import { describe, expect, test } from "vitest";
-import {
-  curveRows,
-  gridAttributes,
-  logBars,
-  outlierNote,
-  shareAt,
-  type DurationShape
-} from "./distributions";
-import {
-  stepContext,
-  TRANSITION_TIME,
-  type AttributeBlock,
-  type DirectedTree,
-  type Test,
-  type TreeNode
-} from "./tree";
+import type { DurationShape } from "$lib/distributions/invokers/types";
+import { curveRows, gridAttributes, logBars, outlierNote, shareAt } from "$lib/distributions/utils/distributions";
+import type { AttributeBlock, DirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
+import { TRANSITION_TIME } from "$lib/tree/utils/settings";
+import { stepContext } from "$lib/tree/utils/tree";
 
 /** Named `testResult` rather than `test`, which is Vitest's. */
 function testResult(effectSize: number, significant = true): Test {
