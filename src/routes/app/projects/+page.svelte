@@ -5,6 +5,8 @@
   import ProjectCard from "$lib/components/projects/card.svelte";
   import NewProjectCard from "$lib/components/projects/new-project-card.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
+  import { Separator } from "$lib/components/ui/separator/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import FolderKanban from "@lucide/svelte/icons/folder-kanban";
@@ -19,8 +21,16 @@
   The list has no breadcrumb of its own, but it still needs somewhere to put the
   sidebar toggle, which every other view keeps in its topbar.
 -->
-<header class="border-border bg-background flex h-10 shrink-0 items-center border-b px-2">
+<header class="border-border bg-background flex h-10 shrink-0 items-center gap-2 border-b px-2">
   <Sidebar.Trigger class="cursor-pointer" />
+  <Separator orientation="vertical" class="mr-1 h-4" />
+  <Breadcrumb.Root>
+    <Breadcrumb.List>
+      <Breadcrumb.Item>
+        <Breadcrumb.Page>Projects</Breadcrumb.Page>
+      </Breadcrumb.Item>
+    </Breadcrumb.List>
+  </Breadcrumb.Root>
 </header>
 
 {#if projectsLoaded.value && projects.length === 0}

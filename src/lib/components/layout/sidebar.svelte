@@ -4,13 +4,10 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import type { Project } from "$lib/types";
   import Network from "@lucide/svelte/icons/network";
-  import FolderKanban from "@lucide/svelte/icons/folder-kanban";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { activeProject }: { activeProject: Project | null } = $props();
-
-  const appNav = [{ href: "/app/projects", label: "Projects", icon: FolderKanban }];
 
   // In the order a project is worked through: look at the data, narrow it into
   // groups, then compare them.
@@ -46,25 +43,6 @@
   </Sidebar.Header>
 
   <Sidebar.Content>
-    <Sidebar.Group>
-      <Sidebar.GroupLabel>Workspace</Sidebar.GroupLabel>
-      <Sidebar.Menu>
-        {#each appNav as { href, label, icon: Icon } (href)}
-          <Sidebar.MenuItem>
-            <Sidebar.MenuButton
-              class="cursor-pointer"
-              isActive={!activeProject && page.url.pathname === href}
-              tooltipContent={label}
-              onclick={() => goto(href)}
-            >
-              <Icon />
-              <span>{label}</span>
-            </Sidebar.MenuButton>
-          </Sidebar.MenuItem>
-        {/each}
-      </Sidebar.Menu>
-    </Sidebar.Group>
-
     {#if activeProject}
       <Sidebar.Group>
         <Sidebar.GroupLabel class="truncate">{activeProject.name}</Sidebar.GroupLabel>
