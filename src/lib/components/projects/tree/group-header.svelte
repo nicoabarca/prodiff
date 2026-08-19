@@ -21,27 +21,26 @@
   const mode = $derived(treeMode(tree));
   const labels = $derived(groupLabels(tree));
   /**
-   * Why there is nothing to compare, not just that there isn't. Base mode has
-   * one population by construction, so no Significance Test can run at all;
-   * one group still has per-node aggregates, only no second column.
+   * Why there is nothing to compare, not just that there isn't: base mode has
+   * one population by construction, so no Significance Test can run at all.
+   * One-Group mode says nothing here — the strip's own single column, and the
+   * slice named on the filter summary bar, already say there is one group.
    */
   const scope = $derived(
-    mode === "base"
-      ? `${labels.a.name} — case counts only, no significance tests`
-      : "One group — no comparison"
+    mode === "base" ? `${labels.a.name} — case counts only, no significance tests` : null
   );
 
   const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
   // Group names and case counts live on the filter summary bar, which already
   // names every slice — this strip only carries what that bar cannot say.
   const hasContent = $derived(
-    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !tree.groupB
+    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || scope !== null
   );
 </script>
 
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
-    {#if mode !== "compare"}
+    {#if scope}
       <Badge variant="secondary" class="self-start">{scope}</Badge>
     {/if}
 
