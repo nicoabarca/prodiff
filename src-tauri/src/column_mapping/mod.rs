@@ -3,6 +3,10 @@
 //! seam from the frontend intact, as one value, rather than as loose per-role
 //! column names.
 
+mod format;
+
+pub use format::to_polars_format;
+
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnRole {
