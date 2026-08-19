@@ -23,14 +23,16 @@ fn detect_separator(path: &str) -> u8 {
         .unwrap_or(b',')
 }
 
+/// Dates are deliberately *not* parsed by the reader. The Column Mapping
+/// carries a user-confirmed timestamp format for every temporal column, and
+/// `cast_to_declared` is the single place a Datetime is built from it — so a
+/// column whose text the reader happened to recognize would arrive already
+/// converted, in a format the user never saw, and the declared one would have
+/// nothing left to apply. Every column therefore enters as text.
 pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFrame> {
     let mut options = CsvReadOptions::default()
         .with_infer_schema_length(Some(500))
-        .with_parse_options(
-            CsvParseOptions::default()
-                .with_try_parse_dates(true)
-                .with_separator(detect_separator(path)),
-        );
+        .with_parse_options(CsvParseOptions::default().with_separator(detect_separator(path)));
     if let Some(n) = n_rows {
         options = options.with_n_rows(Some(n));
     }
@@ -55,6 +57,9 @@ pub(crate) fn column_to_strings(df: &DataFrame, name: &str) -> Result<Vec<String
 
 /// Translates a Polars dtype into the small canonical set the app's column
 /// mapping model understands (see `src/lib/column-mapping.ts` on the frontend).
+/// There is no temporal arm: the reader hands every column back as text (see
+/// `read_csv`), so a timestamp column is suggested as `string` and becomes a
+/// Datetime only once the user declares its type and format.
 pub(crate) fn dtype_label(dtype: &DataType) -> &'static str {
     match dtype {
         DataType::Boolean => "boolean",
@@ -67,8 +72,6 @@ pub(crate) fn dtype_label(dtype: &DataType) -> &'static str {
         | DataType::UInt32
         | DataType::UInt64 => "integer",
         DataType::Float32 | DataType::Float64 => "float",
-        DataType::Date => "date",
-        DataType::Datetime(_, _) => "datetime",
         _ => "string",
     }
 }
