@@ -1,12 +1,8 @@
 <script lang="ts">
   /**
-   * The format control for one temporal column: a pattern to pick, the evidence
-   * of what that pattern makes of the real data, and — when the sample could not
-   * tell two readings apart — a warning the user has to acknowledge.
-   *
-   * It lives in the mapping steps rather than behind a dialog because this is
-   * where "how, when and where do I verify the format?" gets answered, and an
-   * answer nobody opens is not an answer.
+   * The format control for one temporal column: a pattern to pick from the
+   * catalog or write by hand, plus a warning when the sample could not tell two
+   * readings apart.
    */
   import { FORMAT_CATALOG, parseWithFormat, type FormatInference } from "$lib/timestamp-format";
   import * as Select from "$lib/components/ui/select/index.js";
@@ -112,11 +108,3 @@
     />
   {/if}
 </div>
-
-<!--
-  Nothing is said below the control, in any state. A pattern that does not fit
-  the data is left to the import, which is the only place that reads the whole
-  file rather than the 50-row preview: it parses strictly and names the column,
-  row, value and pattern it choked on. When inference found nothing the select
-  simply opens on Custom, which says the same thing by showing an empty field.
--->
