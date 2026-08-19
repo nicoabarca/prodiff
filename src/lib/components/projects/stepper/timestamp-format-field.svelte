@@ -54,9 +54,6 @@
     pattern ? coverage(values, pattern) : { matched: 0, total: 0, firstFailure: null }
   );
   const firstValue = $derived(values.find((v) => v.trim() !== "") ?? "");
-  const firstParsed = $derived(
-    firstValue && pattern ? parseWithFormat(firstValue, pattern) : { ok: false as const }
-  );
 
   const rivals = $derived(inference?.rivals ?? []);
   // The warning is about what the *sample* could not settle, so it stands until
@@ -129,23 +126,22 @@
     />
   {/if}
 
-  <p
-    class={`text-xs ${stats.total > 0 && stats.matched < stats.total ? "text-destructive" : "text-muted-foreground"}`}
-  >
-    {#if !pattern}
+  <!--
+    Nothing is said when the pattern reads the whole sample: the select already
+    names the format, and restating that it works adds a line to every card to
+    report the ordinary case. Only what the user has to act on gets words.
+  -->
+  {#if !pattern}
+    <p class="text-muted-foreground text-xs">
       No format inferred. Pick one, or write it under Custom.
-    {:else if stats.total === 0}
-      No values in the sample to check this against.
-    {:else if stats.firstFailure}
+    </p>
+  {:else if stats.total === 0}
+    <p class="text-muted-foreground text-xs">No values in the sample to check this against.</p>
+  {:else if stats.firstFailure}
+    <p class="text-destructive text-xs">
       {stats.matched}/{stats.total} sample values parse.
       <span class="font-mono">{stats.firstFailure.value}</span> at row {stats.firstFailure.row + 1} does
       not match.
-    {:else if firstParsed.ok}
-      {stats.matched}/{stats.total} sample values parse.
-      <span class="font-mono">{firstValue}</span> reads as
-      <span class="font-mono">{firstParsed.iso}</span>.
-    {:else}
-      {stats.matched}/{stats.total} sample values parse.
-    {/if}
-  </p>
+    </p>
+  {/if}
 </div>
