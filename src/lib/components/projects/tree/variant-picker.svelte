@@ -48,9 +48,14 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import X from "@lucide/svelte/icons/x";
 
-  let { project, tree }: { project: Project; tree: DirectedTree | null } = $props();
+  // `open` is bindable so the Tree view can send the user straight here when a
+  // build is blocked on an empty selection — the only fix is in this popover.
+  let {
+    project,
+    tree,
+    open = $bindable(false)
+  }: { project: Project; tree: DirectedTree | null; open?: boolean } = $props();
 
-  let open = $state(false);
   let selectedOnly = $state(false);
   /** The Variant whose trace is on screen — clicked open, clicked closed. */
   let preview = $state<string | null>(null);

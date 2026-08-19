@@ -7,11 +7,12 @@
     build,
     built,
     forgetOtherProject,
-    groupSlices,
+    groupLabels,
     isStale,
     loadSettings,
     selected,
     settings,
+    treeMode,
     variants
   } from "$lib/state/tree.svelte";
   import BuildSettings from "$lib/components/projects/tree/build-settings.svelte";
@@ -24,12 +25,23 @@
   import ChartColumn from "@lucide/svelte/icons/chart-column";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Play from "@lucide/svelte/icons/play";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   const project = $derived(currentProject());
-  const groups = $derived(groupSlices());
   const stale = $derived(isStale());
+  /** What a build would produce right now — not what the drawn tree shows. */
+  const mode = $derived(treeMode());
+  const labels = $derived(groupLabels());
+
+  /** The population a build would run over, named the way the views name it. */
+  const buildScope = $derived(
+    mode === "compare"
+      ? `Compares ${labels.a.name} against ${labels.b?.name}.`
+      : `Builds the tree over ${labels.a.name === "Whole log" ? "the whole log" : labels.a.name}.`
+  );
 
   // An empty selection means two different things. Before the variant list has
   // loaded it means "never chosen", and the backend opens on the most common
@@ -41,6 +53,28 @@
   );
 
   let panelOpen = $state(false);
+  let variantsOpen = $state(false);
+
+  /** Everything loaded that a build reads, so a cold build is not premature. */
+  const ready = $derived(
+    project !== null &&
+      slicesLoaded.projectId === project.id &&
+      settings.projectId === project.id
+  );
+
+  /**
+   * The first tree of a session builds itself. Only in the cold case: with a
+   * tree already up, a stale one included, rebuilding is the user's call — the
+   * banner says so — because a full scan per filter edit is the cost this
+   * button exists to avoid. A failed build is not retried either, or the error
+   * would loop.
+   */
+  $effect(() => {
+    if (!project || !ready) return;
+    if (built.tree || built.building || built.error || noVariants) return;
+    build(project);
+  });
+
   // The panel follows the selection: clicking a node is a request to read it,
   // and clicking the empty canvas drops the selection, so there is nothing
   // left for the panel to say.
@@ -61,7 +95,7 @@
       <!-- The size of what is on screen, and the control over it, first thing
            on the bar: the tree itself never says what it left out. Available
            before the first build too — the variant list doesn't need one. -->
-      <VariantPicker {project} tree={built.tree} />
+      <VariantPicker {project} tree={built.tree} bind:open={variantsOpen} />
       <!-- Silent while building: the button's own spinner already says the
            numbers are catching up. -->
       {#if stale && !built.building}
@@ -81,7 +115,7 @@
              build a tree with nothing on it. -->
         <Button
           size="sm"
-          disabled={built.building || !groups[0] || noVariants}
+          disabled={built.building || noVariants}
           title={noVariants ? "Select at least one variant" : undefined}
           onclick={() => build(project)}
         >
@@ -138,36 +172,74 @@
         {/if}
       </div>
     {:else}
+      <!-- With the cold build automatic, this screen is the four cases where
+           there is no tree and none is on its way: still building, a build
+           that failed, a selection the user emptied, and the moment before
+           the effect fires. Each says why rather than leaving a blank. -->
       <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
         <Empty.Root>
           <Empty.Header>
             <Empty.Media variant="icon">
-              <Network />
-            </Empty.Media>
-            <Empty.Title>No tree built yet</Empty.Title>
-            <Empty.Description>
-              {#if !slicesLoaded.projectId}
-                Loading slices…
-              {:else if !groups[0]}
-                Create a slice in the Filters view first — a slice defines a group.
-              {:else if !groups[1]}
-                Only one slice exists, so the tree will render without comparisons. Add a second
-                slice to compare two groups.
+              {#if built.building || !ready}
+                <LoaderCircle class="animate-spin" />
+              {:else if built.error}
+                <TriangleAlert />
               {:else}
-                Building runs a full scan of the log and one Significance Test per node and
-                attribute, so it only happens when you ask.
+                <Network />
+              {/if}
+            </Empty.Media>
+            <Empty.Title>
+              {#if !ready}
+                Loading
+              {:else if built.building}
+                Building the tree
+              {:else if built.error}
+                The build failed
+              {:else if noVariants}
+                No variants selected
+              {:else}
+                No tree built yet
+              {/if}
+            </Empty.Title>
+            <Empty.Description>
+              {#if !ready}
+                <!-- Slices and settings decide what a build runs over, so
+                     naming the scope before they land would name the wrong
+                     one for a frame. -->
+                Reading this project's slices and build settings…
+              {:else if built.building}
+                {buildScope} A full scan of the log, plus one Significance Test per node and
+                attribute.
+              {:else if built.error}
+                {built.error}
+              {:else if noVariants}
+                Every variant is unchecked, so a build would draw nothing. Pick at least one.
+              {:else}
+                {buildScope}
+                {#if mode === "base"}
+                  No significance tests: there are no two populations to compare.
+                {:else if mode === "single"}
+                  One group, so nodes carry its case counts without a comparison.
+                {/if}
               {/if}
             </Empty.Description>
           </Empty.Header>
-          {#if groups[0]}
-            <Button disabled={built.building} onclick={() => build(project)}>
-              <Play data-icon="inline-start" />
-              {built.building ? "Building…" : "Build tree"}
-            </Button>
-          {:else}
-            <Button variant="outline" href="/app/projects/{project.id}/filters">
-              Go to Filters
-            </Button>
+          {#if ready && !built.building}
+            <Empty.Content>
+              {#if noVariants}
+                <Button onclick={() => (variantsOpen = true)}>Choose variants</Button>
+              {:else}
+                <Button onclick={() => build(project)}>
+                  {#if built.error}
+                    <RefreshCw data-icon="inline-start" />
+                    Retry
+                  {:else}
+                    <Play data-icon="inline-start" />
+                    Build tree
+                  {/if}
+                </Button>
+              {/if}
+            </Empty.Content>
           {/if}
         </Empty.Root>
       </div>
