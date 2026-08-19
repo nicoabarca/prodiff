@@ -4,7 +4,7 @@ import { db } from "$lib/db/client";
 import { projects as projectsTable } from "$lib/db/schema";
 import { deleteProjectFiles } from "$lib/event-log/invokers/delete-project-files";
 import type { Project } from "$lib/event-log/types";
-import { removeSlicesForProject } from "$lib/state/slices.svelte";
+import { removeSlicesForProject } from "$lib/slices/state/slices.svelte";
 
 export const projects = $state<Project[]>([]);
 export const projectsLoaded = $state<{ value: boolean }>({ value: false });

@@ -1,11 +1,12 @@
 <script lang="ts">
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { chainKey, computeStats, populations, type Population } from "$lib/state/slices.svelte";
-  import ComparisonCharts from "$lib/components/projects/comparison-charts.svelte";
-  import MetricsTable from "$lib/components/projects/metrics-table.svelte";
-  import EventDataTable from "$lib/components/projects/event-data-table.svelte";
+  import { chainKey, computeStats, populations } from "$lib/slices/state/slices.svelte";
+  import type { Population } from "$lib/slices/types";
+  import ComparisonCharts from "$lib/statistics/components/comparison-charts.svelte";
+  import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
+  import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
   import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
-  import type { EventLogStats } from "$lib/types";
+  import type { EventLogStats } from "$lib/slices/invokers/types";
 
   const project = $derived(currentProject());
   const pops = $derived(populations());

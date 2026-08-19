@@ -12,11 +12,11 @@
     sliceCases,
     sliceColor,
     sliceEvents
-  } from "$lib/state/slices.svelte";
-  import { describeFilter } from "$lib/filters";
+  } from "$lib/slices/state/slices.svelte";
+  import { describeFilter } from "$lib/filters/filters/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import type { Slice } from "$lib/types";
+  import type { Slice } from "$lib/slices/types";
   import type { Snippet } from "svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 

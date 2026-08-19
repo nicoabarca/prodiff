@@ -13,7 +13,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree";
 import type { Test, TreeNode } from "$lib/tree";
-import type { Filter } from "$lib/filters";
+import type { Filter } from "$lib/filters/filters/filter";
 import type { Project } from "$lib/event-log/types";
 
 /**

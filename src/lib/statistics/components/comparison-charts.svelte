@@ -5,8 +5,8 @@
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import type { EventLogStats } from "$lib/types";
-  import type { Population } from "$lib/state/slices.svelte";
+  import type { EventLogStats } from "$lib/slices/invokers/types";
+  import type { Population } from "$lib/slices/types";
 
   let { populations, stats }: { populations: Population[]; stats: Record<string, EventLogStats> } =
     $props();

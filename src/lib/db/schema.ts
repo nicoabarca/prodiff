@@ -1,7 +1,8 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { ColumnMapping } from "$lib/event-log/invokers/types";
-import type { Filter } from "$lib/filters";
-import type { EventLogStats, SliceKind } from "$lib/types";
+import type { Filter } from "$lib/filters/filters/filter";
+import type { EventLogStats } from "$lib/slices/invokers/types";
+import type { SliceKind } from "$lib/slices/types";
 import type { TreeSettings } from "$lib/tree";
 
 export const projects = sqliteTable("projects", {

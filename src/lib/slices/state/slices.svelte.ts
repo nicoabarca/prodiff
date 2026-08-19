@@ -1,10 +1,13 @@
 import { eq } from "drizzle-orm";
-import { invoke } from "@tauri-apps/api/core";
 import { db } from "$lib/db/client";
 import { slices as slicesTable } from "$lib/db/schema";
-import type { Filter } from "$lib/filters";
 import type { Project } from "$lib/event-log/types";
-import type { EventLogStats, Slice } from "$lib/types";
+import type { Filter } from "$lib/filters/filters/filter";
+import { chainImpact } from "$lib/slices/invokers/chain-impact";
+import { fetchSharedCases } from "$lib/slices/invokers/shared-cases";
+import type { ChainStep, EventLogStats } from "$lib/slices/invokers/types";
+import type { Population, Slice } from "$lib/slices/types";
+import { sliceStats } from "$lib/statistics/invokers/slice-stats";
 
 /**
  * The loaded project's slices, base first. Module-level `$state` like
@@ -173,24 +176,6 @@ export async function removeSlicesForProject(projectId: string) {
   }
 }
 
-/** How much of the log survives one step of a chain. */
-export interface ChainStep {
-  cases: number;
-  events: number;
-}
-
-/**
- * Sizes after each prefix of `chain`: index 0 is the unfiltered log, index
- * `i + 1` the result after filter `i`. Used to show what each filter costs.
- */
-export function chainImpact(project: Project, chain: Filter[]): Promise<ChainStep[]> {
-  return invoke<ChainStep[]>("chain_impact", {
-    projectId: project.id,
-    chain,
-    columns: project.columns
-  });
-}
-
 /**
  * Measured chains, keyed by slice id. Shared so the filter rows and the
  * comparison summary read one scan of the log rather than each running their
@@ -237,12 +222,7 @@ function sharedCasesKey(a: Slice, b: Slice): string {
 export async function loadSharedCases(project: Project, a: Slice, b: Slice) {
   const key = sharedCasesKey(a, b);
   if (key in sharedCasesCache) return;
-  const count = await invoke<number>("shared_cases", {
-    projectId: project.id,
-    chainA: effectiveChain(a),
-    chainB: effectiveChain(b),
-    columns: project.columns
-  });
+  const count = await fetchSharedCases(project, effectiveChain(a), effectiveChain(b));
   sharedCasesCache[key] = count;
 }
 
@@ -250,18 +230,6 @@ export async function loadSharedCases(project: Project, a: Slice, b: Slice) {
 export function sharedCases(a: Slice, b: Slice): number | null {
   const key = sharedCasesKey(a, b);
   return key in sharedCasesCache ? sharedCasesCache[key] : null;
-}
-
-/**
- * One population in the Statistics view. The whole log is included as a
- * chainless population, so it is not a slice row and never needs storing.
- */
-export interface Population {
-  id: string;
-  name: string;
-  color: string;
-  chain: Filter[];
-  stats: EventLogStats | null;
 }
 
 export function populations(): Population[] {
@@ -299,11 +267,10 @@ export async function computeStats(
   });
   if (missing.length === 0) return cached;
 
-  const results = await invoke<EventLogStats[]>("slice_stats", {
-    projectId: project.id,
-    chains: missing.map((p) => p.chain),
-    columns: project.columns
-  });
+  const results = await sliceStats(
+    project,
+    missing.map((p) => p.chain)
+  );
 
   await Promise.all(
     missing.map(async (population, index) => {

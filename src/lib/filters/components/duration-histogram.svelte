@@ -9,14 +9,15 @@
    * filter's own unit (days) is the editor's business, not the chart's.
    */
   import { untrack } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
   import { Axis, Chart, Svg } from "layerchart";
   import * as Field from "$lib/components/ui/field/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { formatDuration, formatDurationParts, formatNumber } from "$lib/format";
-  import type { Filter } from "$lib/filters";
+  import type { Filter } from "$lib/filters/filters/filter";
+  import { durationHistogram } from "$lib/filters/invokers/duration-histogram";
+  import type { DurationBin } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";
 
   let {
@@ -35,12 +36,6 @@
     max: number | null;
   } = $props();
 
-  interface DurationBin {
-    startMs: number;
-    endMs: number;
-    cases: number;
-  }
-
   /** How long typing settles before the brush follows it, in ms. */
   const INPUT_DEBOUNCE = 300;
   /** Pending while a keystroke is settling — the fields are the source of truth then. */
@@ -51,11 +46,7 @@
 
   $effect(() => {
     let stale = false;
-    invoke<DurationBin[]>("duration_histogram", {
-      projectId: project.id,
-      chain,
-      columns: project.columns
-    })
+    durationHistogram(project, chain)
       .then((result) => {
         if (!stale) bins = result;
       })

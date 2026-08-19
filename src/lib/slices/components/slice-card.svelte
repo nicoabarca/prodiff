@@ -12,12 +12,12 @@
     renameSlice,
     sliceColor,
     sliceSteps,
-    type ChainStep
-  } from "$lib/state/slices.svelte";
-  import { describeFilter } from "$lib/filters";
+  } from "$lib/slices/state/slices.svelte";
+  import type { ChainStep } from "$lib/slices/invokers/types";
+  import { describeFilter } from "$lib/filters/filters/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import type { Slice } from "$lib/types";
+  import type { Slice } from "$lib/slices/types";
   import Plus from "@lucide/svelte/icons/plus";
   import Pencil from "@lucide/svelte/icons/pencil";
   import Trash2 from "@lucide/svelte/icons/trash-2";

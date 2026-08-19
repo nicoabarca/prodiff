@@ -9,13 +9,14 @@
    * at the last millisecond of its day, which is the inclusive window the
    * filter applies.
    */
-  import { invoke } from "@tauri-apps/api/core";
   import { CalendarDate, type DateValue } from "@internationalized/date";
   import { Area, Axis, Chart, Svg } from "layerchart";
   import { Calendar } from "$lib/components/ui/calendar/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { formatDay, formatNumber } from "$lib/format";
-  import type { Filter } from "$lib/filters";
+  import type { Filter } from "$lib/filters/filters/filter";
+  import { dailyCaseLoad } from "$lib/filters/invokers/daily-case-load";
+  import type { DayLoad } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";
 
   let {
@@ -34,11 +35,6 @@
     to: number | null;
   } = $props();
 
-  interface DayLoad {
-    dayMs: number;
-    cases: number;
-  }
-
   const DAY_MS = 86_400_000;
 
   let days = $state<DayLoad[] | null>(null);
@@ -46,11 +42,7 @@
 
   $effect(() => {
     let stale = false;
-    invoke<DayLoad[]>("daily_case_load", {
-      projectId: project.id,
-      chain,
-      columns: project.columns
-    })
+    dailyCaseLoad(project, chain)
       .then((result) => {
         if (!stale) days = result;
       })

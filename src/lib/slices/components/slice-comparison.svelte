@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { sliceCases, sliceColor } from "$lib/state/slices.svelte";
+  import { sliceCases, sliceColor } from "$lib/slices/state/slices.svelte";
   import { colorVar, formatNumber } from "$lib/format";
-  import type { Slice } from "$lib/types";
+  import type { Slice } from "$lib/slices/types";
 
   let { slices }: { slices: Slice[] } = $props();
 

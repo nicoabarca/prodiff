@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
-import { chainKey, effectiveChain, namedSlices } from "$lib/state/slices.svelte";
+import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
 import {
   DEFAULT_COVERAGE,
   defaultTreeSettings,
@@ -15,9 +15,9 @@ import {
   type TreeView,
   type VariantRow
 } from "$lib/tree";
-import type { Filter } from "$lib/filters";
+import type { Filter } from "$lib/filters/filters/filter";
 import type { Project } from "$lib/event-log/types";
-import type { Slice } from "$lib/types";
+import type { Slice } from "$lib/slices/types";
 
 /**
  * The built tree, in memory only. Module-level `$state` like `slices` and
