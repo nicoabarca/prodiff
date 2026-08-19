@@ -24,7 +24,7 @@
     },
     {
       href: activeProject ? `/app/projects/${activeProject.id}/tree` : null,
-      label: "Comparison Directed Rooted Tree",
+      label: "Directed Rooted Tree",
       icon: Network
     }
   ]);
@@ -71,11 +71,4 @@
       </Sidebar.Group>
     {/if}
   </Sidebar.Content>
-
-  <Sidebar.Footer class="group-data-[collapsible=icon]:hidden">
-    <p class="text-muted-foreground px-2 text-[0.625rem] tracking-widest uppercase">
-      Local analysis
-    </p>
-    <p class="text-muted-foreground px-2 text-xs">All data stays on device</p>
-  </Sidebar.Footer>
 </Sidebar.Root>

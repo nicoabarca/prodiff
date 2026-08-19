@@ -8,7 +8,7 @@
   type ProjectView = "tree" | "distributions" | "statistics" | "data" | "filters";
 
   const viewLabels: Record<ProjectView, string> = {
-    tree: "Comparison Directed Rooted Tree",
+    tree: "Directed Rooted Tree",
     distributions: "Distributions",
     statistics: "Statistics & data",
     data: "Data table",
