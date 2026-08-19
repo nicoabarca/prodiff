@@ -51,11 +51,7 @@
   </main>
 {:else}
   <main class="min-h-0 w-full flex-1 overflow-auto px-6 py-6">
-    <p class="text-muted-foreground border-border mb-6 border-b pb-4 text-sm">
-      {projects.length} event log{projects.length === 1 ? "" : "s"} on this device
-    </p>
-
-    <ul class="grid [grid-template-columns:repeat(auto-fill,minmax(22rem,1fr))] grid-cols-1 gap-3">
+    <ul class="grid [grid-template-columns:repeat(auto-fill,22rem)] justify-start gap-3">
       {#each projects as project (project.id)}
         <ProjectCard {project} onOpen={openProject} />
       {/each}
