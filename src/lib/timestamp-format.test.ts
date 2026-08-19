@@ -6,7 +6,13 @@
  * `npx tsx src/lib/timestamp-format.test.ts`.
  */
 import assert from "node:assert/strict";
-import { FORMAT_CATALOG, parseWithFormat, tokenize } from "./timestamp-format";
+import {
+  coverage,
+  FORMAT_CATALOG,
+  inferFormat,
+  parseWithFormat,
+  tokenize
+} from "./timestamp-format";
 
 function parsed(value: string, pattern: string): string {
   const result = parseWithFormat(value, pattern);
@@ -101,5 +107,74 @@ rejected("not a date", "YYYY-MM-DD");
 
 assert.equal(parsed("15/01/99", "DD/MM/YY"), "1999-01-15 00:00:00");
 assert.equal(parsed("15/01/24", "DD/MM/YY"), "2024-01-15 00:00:00");
+
+// --- inference -------------------------------------------------------------
+
+{
+  const iso = inferFormat(["2024-01-15 09:30:00", "2024-02-01 17:00:00"]);
+  assert.equal(iso.pattern, "YYYY-MM-DD HH:mm:ss");
+  assert.deepEqual(iso.rivals, []);
+  assert.equal(iso.matched, 2);
+  assert.equal(iso.total, 2);
+}
+
+{
+  // A day past the 12th settles the day/month order on its own.
+  const european = inferFormat(["15/01/2024 09:30:00", "28/02/2024 17:00:00"]);
+  assert.equal(european.pattern, "DD/MM/YYYY HH:mm:ss");
+  assert.deepEqual(european.rivals, []);
+}
+
+{
+  // Nothing in the sample distinguishes the two orders, so both are reported
+  // and the mapping step has something to warn about.
+  const ambiguous = inferFormat(["05/03/2024", "07/09/2024"]);
+  assert.equal(ambiguous.pattern, "DD/MM/YYYY");
+  assert.ok(ambiguous.rivals.includes("MM/DD/YYYY"), "the other reading must be kept");
+}
+
+{
+  // A column of mixed shapes has no single format; the interface opens Custom.
+  const mixed = inferFormat(["2024-01-15", "15/01/2024", "Jan 15 2024"]);
+  assert.equal(mixed.pattern, null);
+  assert.deepEqual(mixed.rivals, []);
+}
+
+{
+  // Nothing to go on is not the same as a mismatch.
+  const empty = inferFormat(["", "   "]);
+  assert.equal(empty.pattern, null);
+  assert.equal(empty.total, 0);
+}
+
+{
+  // Blank cells are missing data, not a broken format — they must not sink a
+  // pattern that reads every value actually present.
+  const gapped = inferFormat(["2024-01-15", "", "2024-02-01"]);
+  assert.equal(gapped.pattern, "YYYY-MM-DD");
+  assert.equal(gapped.total, 2);
+  assert.equal(gapped.matched, 2);
+}
+
+{
+  // Partial coverage never wins: one stray value is enough to disqualify a
+  // pattern, which is what keeps a European log from being read as American.
+  const partial = inferFormat(["15/01/2024", "13/02/2024", "2024-03-01"]);
+  assert.equal(partial.pattern, null);
+}
+
+// --- coverage, as the evidence line uses it --------------------------------
+
+{
+  const stats = coverage(["15/01/2024", "05-03-2024", "20/01/2024"], "DD/MM/YYYY");
+  assert.equal(stats.matched, 2);
+  assert.equal(stats.total, 3);
+  assert.deepEqual(stats.firstFailure, { value: "05-03-2024", row: 1 });
+}
+
+{
+  const clean = coverage(["15/01/2024"], "DD/MM/YYYY");
+  assert.equal(clean.firstFailure, null);
+}
 
 console.log("timestamp-format: all assertions passed");

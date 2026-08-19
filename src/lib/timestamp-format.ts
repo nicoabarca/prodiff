@@ -238,3 +238,71 @@ function formatIso(date: Date, withMillis: boolean): string {
     ` ${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
   return withMillis ? `${base}.${pad(date.getUTCMilliseconds(), 3)}` : base;
 }
+
+/** What inference made of one column's sample values. */
+export interface FormatInference {
+  /** The winning pattern, or null when nothing in the catalog parsed the sample. */
+  pattern: string | null;
+  /**
+   * Catalog patterns that also parsed every value. The winner is catalog order,
+   * which is a guess whenever this is non-empty — `05/03/2024` reads as both
+   * `DD/MM/YYYY` and `MM/DD/YYYY`, and only a day past the 12th in the sample
+   * tells them apart. The mapping step warns when this is non-empty rather than
+   * letting the guess pass silently.
+   */
+  rivals: string[];
+  /** Values the winning pattern parsed, out of the non-empty ones considered. */
+  matched: number;
+  total: number;
+  /** First value the winning pattern could not read, for the evidence line. */
+  firstFailure: { value: string; row: number } | null;
+}
+
+/** Counts how many of `values` a pattern reads, and where it first gives up. */
+export function coverage(
+  values: string[],
+  pattern: string
+): { matched: number; total: number; firstFailure: { value: string; row: number } | null } {
+  let matched = 0;
+  let total = 0;
+  let firstFailure: { value: string; row: number } | null = null;
+
+  values.forEach((value, row) => {
+    // Empty cells are missing data, not a format mismatch — Polars nulls them
+    // rather than failing the import, so they must not count against a pattern.
+    if (value.trim() === "") return;
+    total += 1;
+    if (parseWithFormat(value, pattern).ok) {
+      matched += 1;
+    } else if (!firstFailure) {
+      firstFailure = { value, row };
+    }
+  });
+
+  return { matched, total, firstFailure };
+}
+
+/**
+ * Picks the format for a column from its sample values. A pattern wins only by
+ * reading *every* non-empty value — a partial match is how a European log gets
+ * silently read as American, so nothing short of full coverage counts.
+ *
+ * Ties are kept rather than resolved: `pattern` is catalog order, `rivals` is
+ * everything else that also matched in full, and the mapping step surfaces
+ * them. When nothing matches in full, the column has no inferred format and
+ * the interface opens on Custom.
+ */
+export function inferFormat(values: string[], catalog: string[] = FORMAT_CATALOG): FormatInference {
+  const full = catalog.filter((pattern) => {
+    const { matched, total } = coverage(values, pattern);
+    return total > 0 && matched === total;
+  });
+
+  const pattern = full[0] ?? null;
+  const stats =
+    pattern === null
+      ? { matched: 0, total: coverage(values, FORMAT_CATALOG[0]).total, firstFailure: null }
+      : coverage(values, pattern);
+
+  return { pattern, rivals: full.slice(1), ...stats };
+}
