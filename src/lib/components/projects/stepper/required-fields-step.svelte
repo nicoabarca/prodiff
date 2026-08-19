@@ -115,36 +115,41 @@
     {@const col = assignments[role]}
     {@const showFormat = col !== null && TIMESTAMP_ROLES.includes(role)}
     <div
-      class={`bg-card flex flex-col gap-2 p-3 text-left ${activeRole === role ? "bg-accent" : ""}`}
+      class={`bg-card flex items-center gap-3 p-3 text-left ${activeRole === role ? "bg-accent" : ""}`}
     >
-      <span class="flex items-center gap-3">
+      <span
+        class={`flex h-7 w-7 shrink-0 items-center justify-center text-xs font-bold ${
+          col
+            ? "bg-primary text-primary-foreground border-transparent"
+            : "border-border text-muted-foreground border"
+        }`}
+      >
+        {roleMeta[role].step}
+      </span>
+      <span class="min-w-0">
         <span
-          class={`flex h-7 w-7 shrink-0 items-center justify-center text-xs font-bold ${
-            col
-              ? "bg-primary text-primary-foreground border-transparent"
-              : "border-border text-muted-foreground border"
-          }`}
+          class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
         >
-          {roleMeta[role].step}
+          {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
         </span>
-        <span class="min-w-0">
-          <span
-            class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
-          >
-            {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
-          </span>
-          <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
-        </span>
+        <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
       </span>
       {#if showFormat && col}
-        <TimestampFormatField
-          values={columnValues(col)}
-          inference={formatInference[col]}
-          pattern={columnTimestampFormat[col] ?? ""}
-          acknowledged={formatWarningAcknowledged[col] ?? false}
-          onPatternChange={(value) => setFormat(col, value)}
-          onAcknowledge={() => acknowledge(col)}
-        />
+        <!--
+          The column name is short and truncates anyway, so the format sits in
+          the space it leaves rather than stacking underneath and making the two
+          timestamp cards twice the height of the other two.
+        -->
+        <div class="ml-auto min-w-0 flex-1">
+          <TimestampFormatField
+            values={columnValues(col)}
+            inference={formatInference[col]}
+            pattern={columnTimestampFormat[col] ?? ""}
+            acknowledged={formatWarningAcknowledged[col] ?? false}
+            onPatternChange={(value) => setFormat(col, value)}
+            onAcknowledge={() => acknowledge(col)}
+          />
+        </div>
       {/if}
     </div>
   {/each}
