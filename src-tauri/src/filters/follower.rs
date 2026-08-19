@@ -61,16 +61,16 @@ mod tests {
     /// case 3: B → A      (the follower comes first, so no pair at all)
     /// case 4: X → Y      (no reference event whatsoever)
     fn follower_log() -> DataFrame {
-        let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 0, 1_000, 0, 1_000, 0, 1_000])
-            .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-            .unwrap();
+        let ts = Column::new(
+            "ts".into(),
+            [0i64, 1_000, 2_000, 0, 1_000, 0, 1_000, 0, 1_000],
+        )
+        .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+        .unwrap();
         DataFrame::new(
             9,
             vec![
-                Column::new(
-                    "case".into(),
-                    ["1", "1", "1", "2", "2", "3", "3", "4", "4"],
-                ),
+                Column::new("case".into(), ["1", "1", "1", "2", "2", "3", "3", "4", "4"]),
                 Column::new("act".into(), ["A", "X", "B", "A", "B", "B", "A", "X", "Y"]),
                 ts,
             ],

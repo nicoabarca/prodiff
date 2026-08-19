@@ -9,7 +9,9 @@
 //! that `(parent, activity, terminates-here)` encodes comes along for free.
 
 use super::stats::{quantile, tukey};
-use super::{read_group, variant_key, Acc, AttrSpec, GroupRows, Source, ACTIVITY_DURATION, TRANSITION_TIME};
+use super::{
+    read_group, variant_key, Acc, AttrSpec, GroupRows, Source, ACTIVITY_DURATION, TRANSITION_TIME,
+};
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -40,22 +42,22 @@ const MAX_LOG_BINS: usize = 8;
 /// edges like "1m47s" that read as noise. Durations are the only attributes
 /// binned this way and their units are fixed, so the ladder is written down.
 const DURATION_EDGES: [f64; 16] = [
-    1_000.0,           // 1s
-    5_000.0,           // 5s
-    15_000.0,          // 15s
-    30_000.0,          // 30s
-    60_000.0,          // 1m
-    300_000.0,         // 5m
-    900_000.0,         // 15m
-    1_800_000.0,       // 30m
-    3_600_000.0,       // 1h
-    7_200_000.0,       // 2h
-    21_600_000.0,      // 6h
-    43_200_000.0,      // 12h
-    86_400_000.0,      // 1d
-    259_200_000.0,     // 3d
-    604_800_000.0,     // 7d
-    2_592_000_000.0,   // 30d
+    1_000.0,         // 1s
+    5_000.0,         // 5s
+    15_000.0,        // 15s
+    30_000.0,        // 30s
+    60_000.0,        // 1m
+    300_000.0,       // 5m
+    900_000.0,       // 15m
+    1_800_000.0,     // 30m
+    3_600_000.0,     // 1h
+    7_200_000.0,     // 2h
+    21_600_000.0,    // 6h
+    43_200_000.0,    // 12h
+    86_400_000.0,    // 1d
+    259_200_000.0,   // 3d
+    604_800_000.0,   // 7d
+    2_592_000_000.0, // 30d
 ];
 
 /// Which of a node's cases' events are counted. The set of cases is the same
@@ -242,11 +244,7 @@ fn plan(
 /// The rows one case contributes, given the Scope. `None` when the case is
 /// shorter than the node's depth, which a case on one of the node's own
 /// Variants never is — but a malformed selection could be.
-fn rows_for(
-    bounds: (usize, usize),
-    depth: usize,
-    scope: Scope,
-) -> Option<std::ops::Range<usize>> {
+fn rows_for(bounds: (usize, usize), depth: usize, scope: Scope) -> Option<std::ops::Range<usize>> {
     let (from, to) = bounds;
     match scope {
         Scope::WholeCase => Some(from..to),
@@ -389,7 +387,11 @@ fn box_stats(sorted: &[f64]) -> Option<BoxStats> {
 /// it does not exist, so the first bin is "under the first boundary" rather
 /// than a bin the ladder has to reach down to.
 fn log_edges(max: f64) -> Vec<f64> {
-    let within: Vec<f64> = DURATION_EDGES.iter().copied().filter(|e| *e < max).collect();
+    let within: Vec<f64> = DURATION_EDGES
+        .iter()
+        .copied()
+        .filter(|e| *e < max)
+        .collect();
     // Coarsening by stride keeps the ladder's own boundaries rather than
     // inventing new ones: every other rung is still a rung. `n` rungs make
     // `n + 1` bins once the leading "under the first rung" bin is counted, so
@@ -399,7 +401,11 @@ fn log_edges(max: f64) -> Vec<f64> {
     edges.extend(within.iter().step_by(stride));
     // The last bin is closed on the data's own maximum, so the tail has an end
     // to be drawn against rather than running off the ladder.
-    edges.push(if max > *edges.last().unwrap_or(&0.0) { max } else { max + 1.0 });
+    edges.push(if max > *edges.last().unwrap_or(&0.0) {
+        max
+    } else {
+        max + 1.0
+    });
     edges
 }
 
@@ -411,7 +417,9 @@ fn bin_by_edges(values: &[f64], edges: &[f64]) -> Vec<i64> {
     for &value in values {
         // The last bin is closed so the maximum lands in it rather than past
         // the end; `partition_point` gives the first edge strictly above.
-        let index = edges.partition_point(|edge| *edge <= value).saturating_sub(1);
+        let index = edges
+            .partition_point(|edge| *edge <= value)
+            .saturating_sub(1);
         counts[index.min(bins - 1)] += 1;
     }
     counts
@@ -435,7 +443,12 @@ fn numerical(a: &[f64], b: &[f64], duration: bool) -> Distribution {
     if a.is_empty() && b.is_empty() {
         return Distribution::Empty;
     }
-    let mut pooled: Vec<f64> = a.iter().chain(b).copied().filter(|v| v.is_finite()).collect();
+    let mut pooled: Vec<f64> = a
+        .iter()
+        .chain(b)
+        .copied()
+        .filter(|v| v.is_finite())
+        .collect();
     if pooled.is_empty() {
         return Distribution::Empty;
     }
@@ -444,7 +457,11 @@ fn numerical(a: &[f64], b: &[f64], duration: bool) -> Distribution {
     let bins = bin_count(&pooled, min, max);
     // A constant attribute still needs a bin with width, or every value sits on
     // a zero-wide edge and nothing draws.
-    let (lo, hi) = if max > min { (min, max) } else { (min, min + 1.0) };
+    let (lo, hi) = if max > min {
+        (min, max)
+    } else {
+        (min, min + 1.0)
+    };
     let edges: Vec<f64> = (0..=bins)
         .map(|i| lo + (hi - lo) * i as f64 / bins as f64)
         .collect();
@@ -489,7 +506,11 @@ fn categorical(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Distributi
         .collect();
     // Pooled count then value, so the ranking is stable across Scopes and
     // across renders rather than following HashMap iteration order.
-    values.sort_by(|x, y| (y.a + y.b).cmp(&(x.a + x.b)).then_with(|| x.value.cmp(&y.value)));
+    values.sort_by(|x, y| {
+        (y.a + y.b)
+            .cmp(&(x.a + x.b))
+            .then_with(|| x.value.cmp(&y.value))
+    });
     let distinct = values.len();
     values.truncate(SHIP_VALUES);
 
@@ -593,7 +614,8 @@ mod tests {
 
     #[test]
     fn a_constant_attribute_still_bins() {
-        let Distribution::Numerical { counts_a, .. } = numerical(&[7.0, 7.0, 7.0], &[], false) else {
+        let Distribution::Numerical { counts_a, .. } = numerical(&[7.0, 7.0, 7.0], &[], false)
+        else {
             panic!("expected a numerical distribution");
         };
         assert_eq!(counts_a.iter().sum::<i64>(), 3);
@@ -631,17 +653,29 @@ mod tests {
             ("2", &["A", "B", "D"], &[10, 60, 90]),
             ("3", &["A", "E"], &[10, 10]),
         ]);
-        let variants = vec![
-            "A\u{1}B\u{1}C".to_string(),
-            "A\u{1}B\u{1}D".to_string(),
-        ];
+        let variants = vec!["A\u{1}B\u{1}C".to_string(), "A\u{1}B\u{1}D".to_string()];
         let attributes = vec!["who".to_string()];
 
-        let at_step =
-            distributions(&log, None, &mapping, &attributes, &variants, 2, Scope::AtStep).unwrap();
-        let whole =
-            distributions(&log, None, &mapping, &attributes, &variants, 2, Scope::WholeCase)
-                .unwrap();
+        let at_step = distributions(
+            &log,
+            None,
+            &mapping,
+            &attributes,
+            &variants,
+            2,
+            Scope::AtStep,
+        )
+        .unwrap();
+        let whole = distributions(
+            &log,
+            None,
+            &mapping,
+            &attributes,
+            &variants,
+            2,
+            Scope::WholeCase,
+        )
+        .unwrap();
 
         // Same cases either way — that is the whole point of the Scope split.
         assert_eq!(at_step.cases_a, 2);
@@ -651,14 +685,20 @@ mod tests {
         assert_eq!(whole.events_a, 6);
 
         // `who` is "Ana" above cost 50: both B events, and nothing else.
-        let Distribution::Categorical { values, total_a, .. } = &at_step.attributes[0].1 else {
+        let Distribution::Categorical {
+            values, total_a, ..
+        } = &at_step.attributes[0].1
+        else {
             panic!("expected a categorical distribution");
         };
         assert_eq!(*total_a, 2);
         assert_eq!(values[0].value, "Ana");
         assert_eq!(values[0].a, 2);
 
-        let Distribution::Categorical { values, total_a, .. } = &whole.attributes[0].1 else {
+        let Distribution::Categorical {
+            values, total_a, ..
+        } = &whole.attributes[0].1
+        else {
             panic!("expected a categorical distribution");
         };
         assert_eq!(*total_a, 6);
@@ -741,7 +781,10 @@ mod tests {
         let stats = box_stats(&sorted).expect("values");
         assert_eq!((stats.q1, stats.median, stats.q3), (0.0, 0.0, 0.0));
         assert_eq!(stats.whisker_low, 0.0);
-        assert!(stats.whisker_high > 0.0, "the whisker has to leave the floor");
+        assert!(
+            stats.whisker_high > 0.0,
+            "the whisker has to leave the floor"
+        );
         // A fraction of the sample, not a fifth of it.
         assert!(
             stats.outliers_high < sorted.len() / 20,

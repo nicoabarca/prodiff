@@ -99,13 +99,7 @@ pub fn directed_tree(
         None => None,
     };
 
-    build(
-        &a,
-        b.as_ref(),
-        &columns,
-        &attributes,
-        variants.as_deref(),
-    )
+    build(&a, b.as_ref(), &columns, &attributes, variants.as_deref())
 }
 
 /// One node's Distributions — value counts per attribute, per Group, under one

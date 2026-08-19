@@ -55,8 +55,17 @@ pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
     };
     // Snapped to observations either way: a whisker cap is a case that happened,
     // never an interpolated percentile no case actually took.
-    let low = sorted.iter().copied().find(|v| *v >= lower).unwrap_or(first);
-    let high = sorted.iter().copied().rev().find(|v| *v <= upper).unwrap_or(last);
+    let low = sorted
+        .iter()
+        .copied()
+        .find(|v| *v >= lower)
+        .unwrap_or(first);
+    let high = sorted
+        .iter()
+        .copied()
+        .rev()
+        .find(|v| *v <= upper)
+        .unwrap_or(last);
     (
         low,
         high,

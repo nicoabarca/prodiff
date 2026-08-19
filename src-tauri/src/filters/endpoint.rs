@@ -36,9 +36,9 @@ pub fn apply(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::column_mapping::ColumnMapping;
     use crate::filters::tests::support::{cases, log};
     use crate::filters::Filter;
-    use crate::column_mapping::ColumnMapping;
 
     fn run(position: Endpoint, mode: EndpointMode, activities: &[&str]) -> DataFrame {
         let activities: Vec<String> = activities.iter().map(|a| a.to_string()).collect();
