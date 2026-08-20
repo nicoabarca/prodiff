@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
   import Network from "@lucide/svelte/icons/network";
   import FolderKanban from "@lucide/svelte/icons/folder-kanban";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";

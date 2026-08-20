@@ -1,8 +1,8 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
-  import { currentProject } from "$lib/state/projects.svelte";
-  import { slicesLoaded } from "$lib/state/slices.svelte";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
+  import { slicesLoaded } from "$lib/slices/state/slices.svelte";
   import {
     build,
     built,
@@ -13,14 +13,14 @@
     selected,
     settings,
     variants
-  } from "$lib/state/tree.svelte";
-  import BuildSettings from "$lib/components/projects/tree/build-settings.svelte";
-  import Canvas from "$lib/components/projects/tree/canvas.svelte";
-  import DetailPanel from "$lib/components/projects/tree/detail-panel.svelte";
-  import GroupHeader from "$lib/components/projects/tree/group-header.svelte";
-  import VariantPicker from "$lib/components/projects/tree/variant-picker.svelte";
-  import ViewLegend from "$lib/components/projects/tree/view-legend.svelte";
-  import VisualizationSettings from "$lib/components/projects/tree/visualization-settings.svelte";
+  } from "$lib/tree/state/tree.svelte";
+  import BuildSettings from "$lib/tree/components/build-settings.svelte";
+  import Canvas from "$lib/tree/components/canvas.svelte";
+  import DetailPanel from "$lib/tree/components/detail-panel.svelte";
+  import GroupHeader from "$lib/tree/components/group-header.svelte";
+  import VariantPicker from "$lib/tree/components/variant-picker.svelte";
+  import ViewLegend from "$lib/tree/components/view-legend.svelte";
+  import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
@@ -134,7 +134,11 @@
           {/if}
         </div>
         {#if panelOpen}
-          <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (selected.id = null)} />
+          <DetailPanel
+            tree={built.tree}
+            nodeId={selected.id}
+            onClose={() => (selected.id = null)}
+          />
         {/if}
       </div>
     {:else}

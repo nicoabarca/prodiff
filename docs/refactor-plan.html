@@ -1,0 +1,1245 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Domain Architecture Refactor Plan</title>
+    <style>
+      :root {
+        --bg: #fbfaf9;
+        --surface: #ffffff;
+        --surface-2: #f4f2f0;
+        --border: #e0dcd8;
+        --text: #1c1a18;
+        --muted: #6b6560;
+        --accent: #b4530a;
+        --accent-soft: #fdf1e6;
+        --ok: #2f6f4e;
+        --warn: #8a5a00;
+        --danger: #a33131;
+        --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+        --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #17161a;
+          --surface: #1e1d22;
+          --surface-2: #26242b;
+          --border: #35323b;
+          --text: #ecebef;
+          --muted: #a29daa;
+          --accent: #f0913f;
+          --accent-soft: #2c2119;
+          --ok: #6dbd93;
+          --warn: #d7a54a;
+          --danger: #e08585;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        line-height: 1.6;
+        font-size: 15px;
+      }
+      .wrap {
+        max-width: 60rem;
+        margin: 0 auto;
+        padding: 3rem 1.5rem 6rem;
+      }
+      header.title {
+        border-bottom: 2px solid var(--text);
+        padding-bottom: 1.25rem;
+        margin-bottom: 2.5rem;
+      }
+      h1 {
+        font-size: 2.1rem;
+        line-height: 1.15;
+        margin: 0 0 0.4rem;
+        letter-spacing: -0.02em;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 0.95rem;
+        margin: 0;
+      }
+      h2 {
+        font-size: 1.4rem;
+        margin: 3rem 0 0.35rem;
+        letter-spacing: -0.01em;
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+      }
+      h2 .num {
+        font-family: var(--mono);
+        font-size: 0.85rem;
+        color: var(--accent);
+        border: 1px solid var(--accent);
+        border-radius: 0.25rem;
+        padding: 0.05rem 0.4rem;
+        flex: none;
+      }
+      h3 {
+        font-size: 1.05rem;
+        margin: 1.75rem 0 0.5rem;
+      }
+      p {
+        margin: 0.6rem 0;
+      }
+      code {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: 0.25rem;
+        padding: 0.05rem 0.3rem;
+      }
+      pre {
+        font-family: var(--mono);
+        font-size: 0.8rem;
+        line-height: 1.5;
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 1rem;
+        overflow-x: auto;
+        margin: 0.75rem 0;
+      }
+      pre code {
+        background: none;
+        border: none;
+        padding: 0;
+        font-size: inherit;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.87rem;
+        margin: 0.75rem 0 1.25rem;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.5rem 0.6rem;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        border-bottom: 1px solid var(--text);
+      }
+      td.path {
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        white-space: nowrap;
+      }
+      .scroll {
+        overflow-x: auto;
+      }
+      .fig {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        padding: 1.25rem;
+        margin: 1.25rem 0;
+      }
+      .fig svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .fig figcaption {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin-top: 0.85rem;
+        padding-top: 0.7rem;
+        border-top: 1px solid var(--border);
+      }
+      .cols {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr));
+        gap: 1rem;
+      }
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 0.5rem;
+        padding: 0.9rem 1rem;
+      }
+      .card h4 {
+        margin: 0 0 0.35rem;
+        font-size: 0.95rem;
+      }
+      .card p {
+        margin: 0;
+        font-size: 0.87rem;
+        color: var(--muted);
+      }
+      .note {
+        border-left: 3px solid var(--accent);
+        background: var(--accent-soft);
+        padding: 0.75rem 1rem;
+        border-radius: 0 0.4rem 0.4rem 0;
+        margin: 1rem 0;
+        font-size: 0.92rem;
+      }
+      .note strong {
+        color: var(--accent);
+      }
+      .risk {
+        border-left-color: var(--danger);
+        background: transparent;
+        border: 1px solid var(--border);
+        border-left: 3px solid var(--danger);
+      }
+      .risk strong {
+        color: var(--danger);
+      }
+      ul,
+      ol {
+        margin: 0.6rem 0;
+        padding-left: 1.3rem;
+      }
+      li {
+        margin: 0.25rem 0;
+      }
+      .layer {
+        border: 1px solid var(--border);
+        border-radius: 0.6rem;
+        overflow: hidden;
+        margin: 1.25rem 0;
+        background: var(--surface);
+      }
+      .layer > header {
+        background: var(--surface-2);
+        padding: 0.7rem 1rem;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 0.7rem;
+        align-items: baseline;
+        flex-wrap: wrap;
+      }
+      .layer > header .n {
+        font-family: var(--mono);
+        font-weight: 700;
+        color: var(--accent);
+      }
+      .layer > header .br {
+        font-family: var(--mono);
+        font-size: 0.82rem;
+      }
+      .layer > header .tag {
+        margin-left: auto;
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      .layer .body {
+        padding: 0.4rem 1rem 1rem;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 8rem 1fr;
+        gap: 0.2rem 1rem;
+        font-size: 0.87rem;
+        margin-top: 0.75rem;
+      }
+      .kv dt {
+        color: var(--muted);
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        padding-top: 0.18rem;
+      }
+      .kv dd {
+        margin: 0;
+      }
+      .pill {
+        display: inline-block;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        padding: 0.05rem 0.5rem;
+        background: var(--surface-2);
+      }
+      .decisions td:first-child {
+        white-space: nowrap;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      svg text {
+        font-family: var(--sans);
+        fill: var(--text);
+      }
+      svg .box {
+        fill: var(--surface-2);
+        stroke: var(--border);
+      }
+      svg .box-accent {
+        fill: var(--accent-soft);
+        stroke: var(--accent);
+      }
+      svg .lbl {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      svg .sm {
+        font-size: 10.5px;
+        fill: var(--muted);
+      }
+      svg .edge {
+        stroke: var(--muted);
+        fill: none;
+        stroke-width: 1.4;
+      }
+      svg .edge-strong {
+        stroke: var(--accent);
+        stroke-width: 1.8;
+      }
+      footer.end {
+        margin-top: 4rem;
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--border);
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="title">
+        <h1>Domain Architecture Refactor</h1>
+        <p class="sub">
+          Restructuring the SvelteKit frontend of <code>compare</code> into six feature domains,
+          delivered as a five-layer stacked-PR chain on <code>refactor/domain-architecture</code>.
+        </p>
+      </header>
+
+      <h2><span class="num">01</span> What this is</h2>
+      <p>
+        A structural refactor. No functionality, business logic, Tauri command name, route URL, or
+        user-visible behavior changes. Files move, imports are rewritten, one shared file
+        (<code>filters.ts</code>) is split per filter kind, and Vitest is installed.
+      </p>
+      <p>
+        Two pieces of work that were considered and deliberately <em>excluded</em> are listed under
+        Deferred, at the end. Both are rewrites rather than moves, and putting either inside a
+        ninety-file diff would make a regression hard to bisect.
+      </p>
+
+      <div class="cols">
+        <div class="card">
+          <h4>Scope</h4>
+          <p>~95 files moved or rewritten across <code>src/lib/</code>. Routes keep their URLs.</p>
+        </div>
+        <div class="card">
+          <h4>Verification</h4>
+          <p><code>pnpm check</code> and <code>pnpm test</code> pass on every layer.</p>
+        </div>
+        <div class="card">
+          <h4>Delivery</h4>
+          <p>Five draft PRs, each stacked on the one below, pushed but not merged.</p>
+        </div>
+      </div>
+
+      <h2><span class="num">02</span> Target domains</h2>
+      <p>
+        Six domains, each owning its components, state, Tauri invokers, invocation contracts,
+        utilities, and tests. Each maps to a Rust module under <code>src-tauri/src/</code> and, for
+        four of them, to a route under <code>/app/projects/[id]/</code>.
+      </p>
+
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>Domain</th>
+              <th>Owns</th>
+              <th>Tauri commands</th>
+              <th>Route</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="path">event-log/</td>
+              <td>
+                Project record, column mapping, upload wizard, project list card, event log settings
+              </td>
+              <td class="path">
+                preview_event_log<br />create_event_log<br />delete_project_files
+              </td>
+              <td class="path">/projects, /projects/new</td>
+            </tr>
+            <tr>
+              <td class="path">filters/</td>
+              <td>Filter vocabulary (one file per kind), filter editor, editor pickers</td>
+              <td class="path">distinct_values<br />duration_histogram<br />daily_case_load</td>
+              <td class="path">—</td>
+            </tr>
+            <tr>
+              <td class="path">slices/</td>
+              <td>Slice records, chains, populations, impact cache, slice cards</td>
+              <td class="path">chain_impact<br />shared_cases<br />slice_preview</td>
+              <td class="path">/filters</td>
+            </tr>
+            <tr>
+              <td class="path">statistics/</td>
+              <td>Comparison charts, metrics table, event data table</td>
+              <td class="path">slice_stats</td>
+              <td class="path">/statistics</td>
+            </tr>
+            <tr>
+              <td class="path">tree/</td>
+              <td>Directed tree, variants, canvas, node detail, tree settings</td>
+              <td class="path">directed_tree<br />list_variants</td>
+              <td class="path">/tree</td>
+            </tr>
+            <tr>
+              <td class="path">distributions/</td>
+              <td>Per-node attribute distributions, chart grid</td>
+              <td class="path">node_distributions</td>
+              <td class="path">/distributions</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <figure class="fig">
+        <svg viewBox="0 0 900 470" role="img" aria-label="Domain dependency graph">
+          <defs>
+            <marker
+              id="arrow"
+              viewBox="0 0 10 10"
+              refX="9"
+              refY="5"
+              markerWidth="6"
+              markerHeight="6"
+              orient="auto-start-reverse"
+            >
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          <!-- top tier -->
+          <rect class="box" x="30" y="24" width="180" height="52" rx="8" />
+          <text class="lbl" x="120" y="46" text-anchor="middle">statistics/</text>
+          <text class="sm" x="120" y="63" text-anchor="middle">slice_stats</text>
+
+          <rect class="box" x="250" y="24" width="180" height="52" rx="8" />
+          <text class="lbl" x="340" y="46" text-anchor="middle">tree/</text>
+          <text class="sm" x="340" y="63" text-anchor="middle">directed_tree, list_variants</text>
+
+          <rect class="box" x="470" y="24" width="180" height="52" rx="8" />
+          <text class="lbl" x="560" y="46" text-anchor="middle">distributions/</text>
+          <text class="sm" x="560" y="63" text-anchor="middle">node_distributions</text>
+
+          <!-- slices -->
+          <rect class="box box-accent" x="250" y="150" width="200" height="52" rx="8" />
+          <text class="lbl" x="350" y="172" text-anchor="middle">slices/</text>
+          <text class="sm" x="350" y="189" text-anchor="middle">Slice, chains, populations</text>
+
+          <!-- filters -->
+          <rect class="box box-accent" x="250" y="250" width="200" height="52" rx="8" />
+          <text class="lbl" x="350" y="272" text-anchor="middle">filters/</text>
+          <text class="sm" x="350" y="289" text-anchor="middle">Filter vocabulary + editor</text>
+
+          <!-- event-log -->
+          <rect class="box box-accent" x="250" y="350" width="200" height="52" rx="8" />
+          <text class="lbl" x="350" y="372" text-anchor="middle">event-log/</text>
+          <text class="sm" x="350" y="389" text-anchor="middle">Project, ColumnMapping</text>
+
+          <!-- shared -->
+          <rect
+            class="box"
+            x="640"
+            y="170"
+            width="230"
+            height="150"
+            rx="8"
+            stroke-dasharray="4 3"
+          />
+          <text class="lbl" x="755" y="196" text-anchor="middle">shared (not a domain)</text>
+          <text class="sm" x="755" y="220" text-anchor="middle">components/ui/ — shadcn, CLI</text>
+          <text class="sm" x="755" y="240" text-anchor="middle">components/layout/</text>
+          <text class="sm" x="755" y="260" text-anchor="middle">components/virtual-list/</text>
+          <text class="sm" x="755" y="280" text-anchor="middle">format.ts</text>
+          <text class="sm" x="755" y="300" text-anchor="middle">db/client.ts, db/schema.ts</text>
+
+          <!-- edges down to slices -->
+          <path
+            class="edge"
+            d="M120 76 L120 120 L330 120 L340 148"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
+          <path class="edge" d="M340 76 L340 148" marker-end="url(#arrow)" color="var(--muted)" />
+          <path
+            class="edge"
+            d="M560 76 L560 120 L372 120 L362 148"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
+          <!-- distributions -> tree -->
+          <path class="edge" d="M470 50 L432 50" marker-end="url(#arrow)" color="var(--muted)" />
+          <!-- slices -> filters -->
+          <path
+            class="edge edge-strong"
+            d="M350 202 L350 248"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <!-- filters -> event-log -->
+          <path
+            class="edge edge-strong"
+            d="M350 302 L350 348"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <!-- schema pulls types from domains -->
+          <path
+            class="edge"
+            d="M640 245 C 540 245, 500 376, 452 376"
+            stroke-dasharray="4 3"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
+
+          <text class="sm" x="500" y="430" text-anchor="middle">
+            solid = imports · dashed = db/schema.ts imports persisted types from every domain
+          </text>
+        </svg>
+        <figcaption>
+          Dependency direction is strictly downward:
+          <code>statistics | tree | distributions → slices → filters → event-log</code>. Nothing
+          points back up. <code>db/schema.ts</code> is the one deliberate exception — it stays a
+          single file so every table is readable in one place, and it imports persisted types from
+          each domain.
+        </figcaption>
+      </figure>
+
+      <h2><span class="num">03</span> Where a type lives</h2>
+      <p>
+        Every type has exactly one home and is never re-declared. Cross-domain use is an import,
+        following the direction above.
+      </p>
+
+      <figure class="fig">
+        <svg viewBox="0 0 900 300" role="img" aria-label="Type placement decision flow">
+          <rect class="box box-accent" x="20" y="120" width="150" height="56" rx="8" />
+          <text class="lbl" x="95" y="145" text-anchor="middle">A type</text>
+          <text class="sm" x="95" y="162" text-anchor="middle">where does it go?</text>
+
+          <path class="edge" d="M170 148 L215 148" marker-end="url(#arrow)" color="var(--muted)" />
+
+          <rect class="box" x="215" y="112" width="185" height="72" rx="8" />
+          <text class="lbl" x="307" y="139" text-anchor="middle">Does Rust</text>
+          <text class="lbl" x="307" y="156" text-anchor="middle">serialize it?</text>
+          <text class="sm" x="307" y="173" text-anchor="middle">serde struct / enum mirror</text>
+
+          <path
+            class="edge"
+            d="M400 132 L470 74 L520 74"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
+          <text class="sm" x="440" y="90">yes</text>
+          <rect class="box" x="520" y="48" width="330" height="52" rx="8" />
+          <text class="lbl" x="685" y="70" text-anchor="middle">
+            &lt;domain&gt;/invokers/types.ts
+          </text>
+          <text class="sm" x="685" y="87" text-anchor="middle">
+            DirectedTree, VariantRow, EventLogStats, ColumnMapping
+          </text>
+
+          <path
+            class="edge"
+            d="M400 164 L470 222 L520 222"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
+          <text class="sm" x="440" y="212">no</text>
+          <rect class="box" x="520" y="196" width="330" height="52" rx="8" />
+          <text class="lbl" x="685" y="218" text-anchor="middle">&lt;domain&gt;/types.ts</text>
+          <text class="sm" x="685" y="235" text-anchor="middle">
+            TreeView, Direction, EffectBand, Scope, TreeSettings
+          </text>
+        </svg>
+        <figcaption>
+          Edge cases settled up front: <strong>TreeSettings</strong> is persisted to SQLite but
+          never crosses <code>invoke</code>, so it is frontend-owned and lives in
+          <code>tree/types.ts</code>. <strong>EventLogStats</strong> is both a Rust return value and
+          a slices column — the Rust mirror wins, so it lives in
+          <code>slices/invokers/types.ts</code>. <strong>Filter</strong> is a Rust deserialization
+          target <em>and</em> the whole filters vocabulary; it stays in
+          <code>filters/filters/*.ts</code> and <code>filters/invokers/</code> imports it rather
+          than redeclaring it.
+        </figcaption>
+      </figure>
+
+      <h2><span class="num">04</span> Before and after</h2>
+      <div class="cols">
+        <div>
+          <h3>Today</h3>
+          <pre><code>src/lib/
+├── components/
+│   ├── ui/            shadcn (CLI-managed)
+│   ├── layout/
+│   └── projects/      35 files, every feature
+├── state/             4 rune modules
+├── projects/          5 helper modules
+├── db/
+├── hooks/
+├── column-mapping.ts
+├── distributions.ts   399 lines
+├── filters.ts         265 lines
+├── format.ts
+├── tree.ts            556 lines
+├── types.ts
+├── utils.ts           shadcn cn()
+├── virtual*.ts
+└── virtual-list.svelte</code></pre>
+        </div>
+        <div>
+          <h3>After</h3>
+          <pre><code>src/lib/
+├── components/
+│   ├── ui/            shadcn (untouched)
+│   ├── layout/
+│   └── virtual-list/  component + logic + test
+├── db/                client.ts, schema.ts
+├── hooks/             shadcn
+├── format.ts          global, 21 importers
+├── utils.ts           shadcn cn()
+├── event-log/
+├── filters/
+├── slices/
+├── statistics/
+├── tree/
+└── distributions/
+
+each domain:
+  types.ts · invokers/ · state/
+  utils/ · components/ · tests/</code></pre>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Pinned by tooling, not by preference.</strong>
+        <code>components.json</code> declares the aliases <code>$lib/utils</code>,
+        <code>$lib/hooks</code>, <code>$lib/components/ui</code>, and <code>$lib/components</code>.
+        Moving any of them breaks <code>npx shadcn-svelte add</code>, which rewrites those imports
+        on every run. They stay exactly where they are, and <code>components/ui/</code> keeps its
+        CLI-generated kebab-case filenames.
+      </div>
+
+      <h3>Conventions</h3>
+      <ul>
+        <li>
+          <strong>kebab-case everywhere</strong>, files and folders. Matches the ~150 files in
+          <code>ui/</code> that cannot be renamed, and avoids case-only renames on a
+          case-insensitive filesystem.
+        </li>
+        <li>
+          <strong>Deep imports, no barrels.</strong>
+          <code>import type { Slice } from "$lib/slices/types"</code>. The dependency is visible in
+          the import line, and there are no re-export cycles to untangle.
+        </li>
+        <li>
+          <strong>One invoker file per Tauri command</strong>, named after it:
+          <code>invoke("directed_tree", …)</code> lives in
+          <code>tree/invokers/directed-tree.ts</code> and nowhere else. Components call the invoker,
+          never <code>invoke()</code> directly.
+        </li>
+        <li>
+          <strong>Tests inside the domain</strong> at
+          <code>&lt;domain&gt;/tests/{utils,state,invokers,components}/</code>. Shared components
+          keep their test beside the source instead, since they are not a domain.
+        </li>
+        <li>
+          <strong>Rune tests are named <code>*.svelte.test.ts</code></strong> — Vitest only compiles
+          runes in files whose name contains <code>.svelte</code>. This lines up with the source
+          naming for free: <code>slices.svelte.ts</code> → <code>slices.svelte.test.ts</code>.
+        </li>
+      </ul>
+
+      <h2><span class="num">05</span> Splitting the filter vocabulary</h2>
+      <p>
+        <code>src/lib/filters.ts</code> (265 lines) becomes one module per filter kind, mirroring
+        what <code>src-tauri/src/filters/</code> already does. Each kind file owns its type, its
+        modes, its mode-info copy, and its arm of <code>describe</code> and <code>isComplete</code>.
+        <code>filter.ts</code> keeps only the union and the two dispatch switches — the direct
+        analogue of <code>mod.rs::apply_one</code>. Adding a filter kind becomes one new file plus
+        two lines.
+      </p>
+      <pre><code>src/lib/filters/filters/       src-tauri/src/filters/
+├── attribute.ts               ├── attribute.rs
+├── numeric.ts                 ├── numeric.rs
+├── timeframe.ts               ├── timeframe.rs
+├── endpoint.ts                ├── endpoint.rs
+├── duration.ts                ├── duration.rs
+├── follower.ts                ├── follower.rs
+└── filter.ts   union +        └── mod.rs   Filter enum +
+             dispatch                    apply_one dispatch</code></pre>
+      <p>
+        <code>NumericMode</code> is shared by the numeric and duration kinds, exactly as it is in
+        Rust's <code>enums.rs</code>. It lives in <code>numeric.ts</code>;
+        <code>duration.ts</code> imports it.
+      </p>
+
+      <h2><span class="num">06</span> The stack</h2>
+      <p>
+        Five layers, bottom to top, each a draft PR based on the one below.
+        <code>refactor/domain-architecture</code> is the trunk; it is created off
+        <code>main</code> and stays unmerged until you merge it yourself.
+      </p>
+
+      <figure class="fig">
+        <svg viewBox="0 0 900 260" role="img" aria-label="Stacked branch chain">
+          <g>
+            <rect class="box" x="14" y="96" width="96" height="48" rx="8" />
+            <text class="lbl" x="62" y="118" text-anchor="middle">main</text>
+            <text class="sm" x="62" y="134" text-anchor="middle">default</text>
+          </g>
+          <path class="edge" d="M110 120 L142 120" marker-end="url(#arrow)" color="var(--muted)" />
+          <g>
+            <rect class="box box-accent" x="142" y="88" width="132" height="64" rx="8" />
+            <text class="lbl" x="208" y="112" text-anchor="middle">domain-</text>
+            <text class="lbl" x="208" y="128" text-anchor="middle">architecture</text>
+            <text class="sm" x="208" y="144" text-anchor="middle">trunk</text>
+          </g>
+
+          <path
+            class="edge edge-strong"
+            d="M274 120 L306 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <g>
+            <rect class="box" x="306" y="96" width="104" height="48" rx="8" />
+            <text class="lbl" x="358" y="116" text-anchor="middle">L1</text>
+            <text class="sm" x="358" y="132" text-anchor="middle">vitest-setup</text>
+          </g>
+          <path
+            class="edge edge-strong"
+            d="M410 120 L436 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <g>
+            <rect class="box" x="436" y="96" width="104" height="48" rx="8" />
+            <text class="lbl" x="488" y="116" text-anchor="middle">L2</text>
+            <text class="sm" x="488" y="132" text-anchor="middle">event-log</text>
+          </g>
+          <path
+            class="edge edge-strong"
+            d="M540 120 L566 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <g>
+            <rect class="box" x="566" y="96" width="120" height="48" rx="8" />
+            <text class="lbl" x="626" y="116" text-anchor="middle">L3</text>
+            <text class="sm" x="626" y="132" text-anchor="middle">slices+filters</text>
+          </g>
+          <path
+            class="edge edge-strong"
+            d="M686 120 L712 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <g>
+            <rect class="box" x="712" y="96" width="82" height="48" rx="8" />
+            <text class="lbl" x="753" y="116" text-anchor="middle">L4</text>
+            <text class="sm" x="753" y="132" text-anchor="middle">tree+dist</text>
+          </g>
+          <path
+            class="edge edge-strong"
+            d="M794 120 L818 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
+          <g>
+            <rect class="box" x="818" y="96" width="70" height="48" rx="8" />
+            <text class="lbl" x="853" y="116" text-anchor="middle">L5</text>
+            <text class="sm" x="853" y="132" text-anchor="middle">shared</text>
+          </g>
+
+          <text class="sm" x="14" y="196">
+            bottom (merges first) ──────────────────────────────────────────────────────▶ top
+            (merges last)
+          </text>
+          <text class="sm" x="14" y="216">
+            each PR's base is the branch to its left; each diff shows only that layer
+          </text>
+          <text class="sm" x="14" y="236">
+            you merge main ← domain-architecture yourself, after the stack lands
+          </text>
+        </svg>
+        <figcaption>
+          Created with
+          <code>gh stack init --base refactor/domain-architecture refactor/vitest-setup …</code>,
+          which roots the chain on the trunk branch rather than on <code>main</code>.
+        </figcaption>
+      </figure>
+
+      <h2><span class="num">07</span> Layer by layer</h2>
+
+      <div class="layer">
+        <header>
+          <span class="n">L1</span>
+          <span class="br">refactor/vitest-setup</span>
+          <span class="tag">no files move</span>
+        </header>
+        <div class="body">
+          <p>
+            Install the test runner before anything moves, so every later layer can be verified with
+            <code>pnpm test</code> as well as <code>pnpm check</code>. The two existing tests are
+            converted where they sit; they relocate in later layers.
+          </p>
+          <ul>
+            <li>
+              Add dev dependencies: <code>vitest</code>, <code>jsdom</code>,
+              <code>@testing-library/svelte</code>, <code>@testing-library/user-event</code>,
+              <code>@testing-library/jest-dom</code>.
+            </li>
+            <li>
+              New <code>vitest.config.ts</code> using <code>mergeConfig</code> over
+              <code>vite.config.js</code>, with <code>test.environment: "jsdom"</code> and
+              <code>resolve.conditions: ["browser"]</code>. Kept separate because
+              <code>vite.config.js</code> exports an async factory tuned for
+              <code>TAURI_DEV_HOST</code>, and no test setting should leak into
+              <code>tauri build</code>.
+            </li>
+            <li>New <code>vitest-setup.ts</code> registering the jest-dom matchers.</li>
+            <li>
+              <code>package.json</code>: add <code>test</code> and <code>test:watch</code> scripts.
+            </li>
+            <li>
+              Convert <code>src/lib/virtual.test.ts</code> (64 lines) and
+              <code>src/lib/distributions.test.ts</code> (247 lines) from <code>node:assert</code> +
+              hand-rolled harness to <code>describe</code>/<code>expect</code>. Their
+              <q>Run with <code>npx tsx</code></q> header comments are deleted.
+            </li>
+          </ul>
+          <dl class="kv">
+            <dt>Verify</dt>
+            <dd><code>pnpm check</code>, <code>pnpm test</code></dd>
+            <dt>Risk</dt>
+            <dd>Low. No source file changes.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="layer">
+        <header>
+          <span class="n">L2</span>
+          <span class="br">refactor/event-log-domain</span>
+          <span class="tag">foundational</span>
+        </header>
+        <div class="body">
+          <p>
+            Bottom of the domain work, because <code>Project</code> and
+            <code>ColumnMapping</code> are imported by 27 files across every other domain. Project
+            and event log are one domain, not two: a Project <em>is</em> an event log plus its
+            mapping, <code>Project.columns</code> is <code>ColumnMapping[]</code>, and
+            <code>event_log/commands.rs</code> already holds both <code>create_event_log</code> and
+            <code>delete_project_files</code>.
+          </p>
+          <div class="scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>From</th>
+                  <th>To</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="path">types.ts › Project</td>
+                  <td class="path">event-log/types.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">projects/create.ts › ProjectDraft</td>
+                  <td class="path">event-log/types.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">column-mapping.ts › types + consts</td>
+                  <td class="path">event-log/invokers/types.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">column-mapping.ts › validateColumnMapping</td>
+                  <td class="path">event-log/utils/column-mapping.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">projects/preview.ts</td>
+                  <td class="path">event-log/invokers/preview-event-log.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">projects/create.ts › invoke</td>
+                  <td class="path">event-log/invokers/create-event-log.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">state/projects.svelte.ts › invoke</td>
+                  <td class="path">event-log/invokers/delete-project-files.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">projects/create.ts › createProject</td>
+                  <td class="path">event-log/utils/create.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">projects/{roles,field-settings,column-highlight}.ts</td>
+                  <td class="path">event-log/utils/</td>
+                </tr>
+                <tr>
+                  <td class="path">state/projects.svelte.ts</td>
+                  <td class="path">event-log/state/projects.svelte.ts</td>
+                </tr>
+                <tr>
+                  <td class="path">components/projects/card.svelte</td>
+                  <td class="path">event-log/components/card.svelte</td>
+                </tr>
+                <tr>
+                  <td class="path">components/projects/event-log-settings.svelte</td>
+                  <td class="path">event-log/components/event-log-settings.svelte</td>
+                </tr>
+                <tr>
+                  <td class="path">components/projects/wizard-steps.svelte</td>
+                  <td class="path">event-log/components/wizard-steps.svelte</td>
+                </tr>
+                <tr>
+                  <td class="path">components/projects/stepper/ (5 files)</td>
+                  <td class="path">event-log/components/stepper/</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p>
+            <code>db/schema.ts</code> updates its <code>ColumnMapping</code> import.
+            <code>src/lib/projects/</code> is deleted.
+          </p>
+          <dl class="kv">
+            <dt>Verify</dt>
+            <dd><code>pnpm check</code>, <code>pnpm test</code></dd>
+            <dt>Risk</dt>
+            <dd>
+              Low-medium. Wide blast radius on import lines, but every failure is a compile error
+              <code>svelte-check</code> catches.
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="layer">
+        <header>
+          <span class="n">L3</span>
+          <span class="br">refactor/slices-and-filters</span>
+          <span class="tag">largest layer</span>
+        </header>
+        <div class="body">
+          <p>
+            Three domains in one layer: <code>filters/</code>, <code>slices/</code>, and
+            <code>statistics/</code>. They are grouped because <code>filters.ts</code> and
+            <code>types.ts</code> are deleted across all three at once, and splitting them would
+            leave an intermediate layer importing files that no longer exist.
+          </p>
+          <pre><code>src/lib/filters/
+├── filters/{attribute,numeric,timeframe,endpoint,duration,follower}.ts
+├── filters/filter.ts             union + describeFilter + isFilterComplete
+├── components/filter-editor.svelte      moved intact, 833 lines
+├── components/timeframe-picker.svelte
+├── components/duration-histogram.svelte
+├── invokers/{distinct-values,duration-histogram,daily-case-load}.ts
+└── invokers/types.ts
+
+src/lib/slices/
+├── types.ts                      Slice, SliceKind, Population
+├── invokers/types.ts             EventLogStats
+├── invokers/{chain-impact,shared-cases,slice-preview}.ts
+├── state/slices.svelte.ts        effectiveChain, chainKey, impacts, computeStats
+└── components/{slice-card,filter-summary-bar,slice-comparison}.svelte
+
+src/lib/statistics/
+├── invokers/slice-stats.ts
+└── components/{comparison-charts,metrics-table,event-data-table}.svelte</code></pre>
+          <p>
+            The <code>filters</code>/<code>slices</code> seam: <code>filters/</code> knows one
+            filter at a time and nothing about chains, slices, or populations. Chain semantics —
+            <code>effectiveChain</code>'s base-then-own ordering — is a slices rule and stays in
+            <code>slices/</code>. <code>filter-editor.svelte</code> takes <code>project</code> and
+            <code>initial: Filter | null</code> as props, emits a <code>Filter</code>, and never
+            touches slice state.
+          </p>
+          <p>
+            The raw <code>invoke("slice_preview", …)</code> currently inside
+            <code>event-data-table.svelte</code> moves behind
+            <code>slices/invokers/slice-preview.ts</code>. That is the only component in the
+            codebase calling <code>invoke()</code> directly.
+          </p>
+          <p><code>src/lib/filters.ts</code> and <code>src/lib/types.ts</code> are deleted.</p>
+          <dl class="kv">
+            <dt>Verify</dt>
+            <dd><code>pnpm check</code>, <code>pnpm test</code></dd>
+            <dt>Risk</dt>
+            <dd>
+              Medium. The per-kind vocabulary split is a real code change, not just a move — each
+              kind's <code>describe</code>/<code>isComplete</code> arm is lifted out of a
+              <code>switch</code> into its own module.
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="layer">
+        <header>
+          <span class="n">L4</span>
+          <span class="br">refactor/tree-and-distributions</span>
+          <span class="tag">two domains</span>
+        </header>
+        <div class="body">
+          <p>
+            <code>tree.ts</code> (556 lines) and <code>distributions.ts</code> (399 lines) each mix
+            three things: serde-mirrored wire types, one <code>invoke()</code> wrapper, and a large
+            body of pure domain logic. Each is carved along those lines.
+          </p>
+          <pre><code>src/lib/tree/
+├── types.ts             TreeView, Direction, Secondary, GroupFocus,
+│                        EffectBand, Standing, Visible, TreeSettings
+├── invokers/types.ts    DirectedTree, TreeNode, VariantRow, AttributeBlock,
+│                        Summary, Test, Comovement, GroupBlock
+├── invokers/{directed-tree,list-variants}.ts
+├── state/tree.svelte.ts
+├── utils/tree.ts        children, pathTo, leaves, visibleNodes, nodeDepth,
+│                        stepContext, subtreeVariants, variantPath
+├── utils/effect.ts      effectBand, effectStep, standing, peakEffect, rankedBlocks
+├── utils/settings.ts    attributeOptions, isNumericAttribute, isDurationAttribute
+├── utils/flow.ts        was components/projects/tree/flow.ts
+└── components/          canvas, node, detail-panel, group-header, effect-chip,
+                         summary-compare, variant-picker, view-legend,
+                         build-settings, visualization-settings, duration-plot
+
+src/lib/distributions/
+├── types.ts             Scope, Encoding, Sort, Bar, CurveRow, GridAttribute
+├── invokers/types.ts    NodeDistributions, Distribution, CategoryCount,
+│                        BoxStats, DurationShape
+├── invokers/node-distributions.ts
+├── state/distributions.svelte.ts
+├── utils/distributions.ts   categoryBars, binBars, logBars, curveRows,
+│                            shareAt, outlierNote, gridAttributes, bars
+├── components/distribution-chart.svelte
+└── tests/utils/distributions.test.ts</code></pre>
+          <div class="note">
+            <strong>One cross-domain import worth naming.</strong> The distributions route renders
+            <code>tree/components/canvas.svelte</code> as its step-picker rail, and reads
+            <code>built.tree</code> and <code>selected.id</code> from <code>tree/state/</code>. That
+            is <code>distributions → tree</code>, which is consistent with the dependency direction
+            — distributions drills into a node of a tree that already exists.
+            <code>tree/</code> never imports from <code>distributions/</code>.
+          </div>
+          <dl class="kv">
+            <dt>Verify</dt>
+            <dd><code>pnpm check</code>, <code>pnpm test</code></dd>
+            <dt>Risk</dt>
+            <dd>
+              Low-medium. Mostly moves, but splitting <code>tree.ts</code> into four files means
+              deciding a home for ~40 exports.
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      <div class="layer">
+        <header>
+          <span class="n">L5</span>
+          <span class="br">refactor/shared-and-docs</span>
+          <span class="tag">cleanup + docs</span>
+        </header>
+        <div class="body">
+          <ul>
+            <li>
+              <code>virtual-list.svelte</code> + <code>virtual.ts</code> +
+              <code>virtual.svelte.ts</code> + its test collapse into
+              <code>components/virtual-list/</code>. It is a UI primitive with one consumer today
+              (<code>tree/components/variant-picker.svelte</code>) and stays globally available —
+              but outside <code>components/ui/</code>, which is shadcn's territory alone.
+            </li>
+            <li>
+              <code>format.ts</code> stays at <code>$lib/format.ts</code>. 21 importers across every
+              domain, zero domain knowledge — the clearest case in the repo for a global utility. No
+              global <code>utils/</code> folder is created; <code>$lib/utils.ts</code> already
+              exists as shadcn's <code>cn()</code> and a folder of the same name would collide.
+            </li>
+            <li>
+              <code>components/layout/</code> stays; <code>sidebar.svelte</code> and
+              <code>topbar.svelte</code> update their <code>Project</code> import to
+              <code>$lib/event-log/types</code>.
+            </li>
+            <li>
+              Delete the now-empty <code>src/lib/state/</code> and
+              <code>src/lib/components/projects/</code>.
+            </li>
+            <li>
+              New <code>docs/adr/0004-domain-oriented-frontend-architecture.md</code> recording the
+              six domains, the dependency direction, the type-placement rule, the kebab-case and
+              no-barrel calls, the three judgment calls listed below, and the deferred work.
+            </li>
+            <li>
+              Rewrite CLAUDE.md's Architecture section: a short tree plus the rules that affect
+              day-to-day edits (where a new component goes, where a new Tauri command goes,
+              kebab-case, deep imports). The reasoning lives in the ADR, since CLAUDE.md is loaded
+              into every session and should stay short.
+            </li>
+          </ul>
+          <dl class="kv">
+            <dt>Verify</dt>
+            <dd><code>pnpm check</code>, <code>pnpm test</code></dd>
+            <dt>Risk</dt>
+            <dd>Low.</dd>
+          </dl>
+        </div>
+      </div>
+
+      <h2><span class="num">08</span> Judgment calls worth recording</h2>
+      <p>Three decisions that went against the default reading of the target architecture:</p>
+      <div class="scroll">
+        <table class="decisions">
+          <thead>
+            <tr>
+              <th>Decision</th>
+              <th>Chosen</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>db/schema.ts</td>
+              <td>Stays one file</td>
+              <td>
+                All tables readable in one place is worth more than strict domain ownership. It
+                imports persisted types from four domains, and that is accepted.
+              </td>
+            </tr>
+            <tr>
+              <td>statistics/</td>
+              <td>Separate domain</td>
+              <td>
+                It owns no state and no types — every input comes from <code>slices/</code>. Kept
+                separate anyway so directories map one-to-one to routes, which makes navigation
+                predictable.
+              </td>
+            </tr>
+            <tr>
+              <td>project vs event-log</td>
+              <td>Merged into event-log/</td>
+              <td>
+                Split, they would reference each other in both directions (<code
+                  >Project.columns</code
+                >
+                needs <code>ColumnMapping</code>; <code>createProject</code> needs
+                <code>addProject</code>). Rust already treats them as one module.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2><span class="num">09</span> Deferred</h2>
+      <p>Both are recorded in ADR 0004 under Deferred, not as TODOs in code.</p>
+      <div class="cols">
+        <div class="card">
+          <h4>Splitting filter-editor.svelte</h4>
+          <p>
+            833 lines, ~18 <code>$state</code> variables shared across kinds, one
+            <code>save()</code> reading a different subset per kind. Splitting it into six per-kind
+            editors is a rewrite wearing a refactor's clothes, and belongs in its own PR reviewed
+            against a working baseline. The per-kind <em>vocabulary</em> split — the part that
+            actually makes adding a filter kind cheaper — is done in L3.
+          </p>
+        </div>
+        <div class="card">
+          <h4>Thinning the four fat routes</h4>
+          <p>
+            <code>distributions</code> 393, <code>new</code> 233, <code>filters</code> 219,
+            <code>tree</code> 176 lines. Extracting their real regions (step picker, toolbar, chart
+            grid, legend) means untangling ~15 <code>$derived</code> values across new prop
+            boundaries, and a <code>$derived</code> chain that silently changes reactivity scope
+            does not fail loudly — it renders stale. Routes keep their URLs and get import fixes
+            only.
+          </p>
+        </div>
+        <div class="card">
+          <h4>End-to-end tests</h4>
+          <p>
+            Not deferred so much as blocked: <code>tauri-driver</code> supports Linux and Windows
+            only, so Playwright cannot drive the real Tauri window on macOS. Testing these flows in
+            a browser would require mocking <code>invoke()</code> and
+            <code>plugin-sql</code> wholesale, at which point the test verifies the mocks. Revisit
+            as its own decision.
+          </p>
+        </div>
+      </div>
+
+      <h2><span class="num">10</span> What verification does and does not cover</h2>
+      <div class="note risk">
+        <strong>Covered by <code>pnpm check</code>:</strong> every broken import, every wrong type,
+        every missing export. This is the dominant failure mode of a move-and-rewire refactor, and
+        <code>svelte-check</code> catches all of it.
+      </div>
+      <div class="note risk">
+        <strong>Not covered:</strong> runtime behavior. A wrong <code>invoke</code> argument name is
+        a string, and a <code>$effect</code> whose reactivity scope changed still compiles. Both
+        risky pieces were deferred precisely to keep this residue small, but the click-through is
+        yours — upload a log, map columns, create the project, apply filters, open statistics, build
+        a tree, open distributions.
+      </div>
+      <div class="note risk">
+        <strong>Stack mechanics:</strong> these are move commits, and rebasing renames across each
+        other is where conflicts get unpleasant. <code>git config rerere.enabled true</code> is set
+        before the stack is created. If a fix is needed in an early layer, it is made on that
+        layer's branch and replayed with <code>gh stack rebase --upstack</code>, never committed on
+        top.
+      </div>
+
+      <h2><span class="num">11</span> Execution sequence</h2>
+      <pre><code># setup
+git switch -c refactor/domain-architecture main
+git config rerere.enabled true
+
+gh stack init --base refactor/domain-architecture \
+  refactor/vitest-setup \
+  refactor/event-log-domain \
+  refactor/slices-and-filters \
+  refactor/tree-and-distributions \
+  refactor/shared-and-docs
+
+# per layer, bottom to top
+gh stack bottom                  # then `gh stack up` between layers
+#   ... move files, rewrite imports ...
+pnpm check && pnpm test
+git add -A && git commit -m "&lt;caveman-commit subject&gt;"
+
+# once all five layers are committed and green
+gh stack submit --auto           # push all branches, open five DRAFT PRs
+gh pr edit &lt;n&gt; --title ... --body ...   # real titles and bodies, per PR
+gh stack view --json             # confirm the chain</code></pre>
+      <p>
+        Commit subjects come from <code>/caveman-commit</code>, subject line only. PR titles and
+        bodies are written in normal prose. Nothing is merged: the five PRs stay drafts, and
+        <code>main</code> ← <code>refactor/domain-architecture</code> is yours to open and merge.
+      </p>
+
+      <footer class="end">
+        Plan agreed over 22 decision points. Awaiting confirmation before any file is touched.
+      </footer>
+    </div>
+  </body>
+</html>
