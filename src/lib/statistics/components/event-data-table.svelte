@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { invoke } from "@tauri-apps/api/core";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -8,7 +7,9 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import type { Population } from "$lib/state/slices.svelte";
+  import { slicePreview } from "$lib/slices/invokers/slice-preview";
+  import type { PreviewTable } from "$lib/slices/invokers/types";
+  import type { Population } from "$lib/slices/types";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";
   import Info from "@lucide/svelte/icons/info";
@@ -17,12 +18,6 @@
 
   /** Rows fetched per population. The table is a spot-check, not a data browser. */
   const PREVIEW_LIMIT = 100;
-
-  interface PreviewTable {
-    columns: string[];
-    rows: string[][];
-    totalEvents: number;
-  }
 
   let selectedId = $state("whole");
   let preview = $state<PreviewTable | null>(null);
@@ -44,12 +39,7 @@
     let stale = false;
     preview = null;
     error = null;
-    invoke<PreviewTable>("slice_preview", {
-      projectId: project.id,
-      chain: population.chain,
-      columns: project.columns,
-      limit: PREVIEW_LIMIT
-    })
+    slicePreview(project, population.chain, PREVIEW_LIMIT)
       .then((result) => {
         if (!stale) preview = result;
       })

@@ -42,7 +42,7 @@
     variants,
     view
   } from "$lib/state/tree.svelte";
-  import { baseSlice, loadImpact, sliceCases } from "$lib/state/slices.svelte";
+  import { baseSlice, loadImpact, sliceCases } from "$lib/slices/state/slices.svelte";
   import type { Project } from "$lib/event-log/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";

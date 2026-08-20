@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ColumnMapping } from "$lib/event-log/invokers/types";
-import type { Filter } from "$lib/filters";
+import type { Filter } from "$lib/filters/filters/filter";
 import type { Project } from "$lib/event-log/types";
 
 /**

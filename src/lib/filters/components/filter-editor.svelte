@@ -1,6 +1,5 @@
 <script lang="ts">
   import { untrack } from "svelte";
-  import { invoke } from "@tauri-apps/api/core";
   import * as Field from "$lib/components/ui/field/index.js";
   import * as InputGroup from "$lib/components/ui/input-group/index.js";
   import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
@@ -15,25 +14,29 @@
   import {
     ATTRIBUTE_MODES,
     ATTRIBUTE_MODE_INFO,
+    type AttributeMode
+  } from "$lib/filters/filters/attribute";
+  import {
     ENDPOINT_MODES,
     ENDPOINT_MODE_INFO,
+    type EndpointMode,
+    type EndpointPosition
+  } from "$lib/filters/filters/endpoint";
+  import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/filters/filter";
+  import { distinctValues } from "$lib/filters/invokers/distinct-values";
+  import {
     FOLLOWER_MODES,
     FOLLOWER_MODE_INFO,
-    NUMERIC_MODES,
-    NUMERIC_MODE_INFO,
+    type FollowerMode
+  } from "$lib/filters/filters/follower";
+  import { NUMERIC_MODES, NUMERIC_MODE_INFO, type NumericMode } from "$lib/filters/filters/numeric";
+  import {
     TIMEFRAME_MODES,
     TIMEFRAME_MODE_INFO,
-    isFilterComplete,
-    type AttributeMode,
-    type EndpointMode,
-    type EndpointPosition,
-    type Filter,
-    type FilterKind,
-    type FollowerMode,
-    type NumericMode,
     type TimeframeMode
-  } from "$lib/filters";
-  import { chainImpact, type ChainStep } from "$lib/state/slices.svelte";
+  } from "$lib/filters/filters/timeframe";
+  import { chainImpact } from "$lib/slices/invokers/chain-impact";
+  import type { ChainStep } from "$lib/slices/invokers/types";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -234,13 +237,7 @@
     }
     let stale = false;
     valuesError = null;
-    invoke<{ values: string[]; truncated: boolean }>("distinct_values", {
-      projectId: project.id,
-      column: target,
-      columns: project.columns,
-      limit: VALUE_LIMIT,
-      endpoint: null
-    })
+    distinctValues(project.id, target, project.columns, VALUE_LIMIT)
       .then((result) => {
         if (stale) return;
         values = result.values;
@@ -267,13 +264,7 @@
     endValuesError = null;
 
     const fetch = (position: EndpointPosition) =>
-      invoke<{ values: string[]; truncated: boolean }>("distinct_values", {
-        projectId: project.id,
-        column: activityColumn,
-        columns: project.columns,
-        limit: VALUE_LIMIT,
-        endpoint: position
-      });
+      distinctValues(project.id, activityColumn, project.columns, VALUE_LIMIT, position);
 
     fetch("start")
       .then((result) => {

@@ -2,7 +2,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { slicesLoaded } from "$lib/state/slices.svelte";
+  import { slicesLoaded } from "$lib/slices/state/slices.svelte";
   import {
     build,
     built,

@@ -1,0 +1,24 @@
+import { invoke } from "@tauri-apps/api/core";
+import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { EndpointPosition } from "$lib/filters/filters/endpoint";
+import type { DistinctValues } from "$lib/filters/invokers/types";
+
+/**
+ * The values a column holds, for the editor's value picker. `endpoint` narrows
+ * the scan to the activity at that end of each case; `null` reads every event.
+ */
+export function distinctValues(
+  projectId: string,
+  column: string,
+  columns: ColumnMapping[],
+  limit: number,
+  endpoint: EndpointPosition | null = null
+): Promise<DistinctValues> {
+  return invoke<DistinctValues>("distinct_values", {
+    projectId,
+    column,
+    columns,
+    limit,
+    endpoint
+  });
+}
