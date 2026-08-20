@@ -8,7 +8,7 @@ import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invoker
 import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
 import type { Slice } from "$lib/slices/types";
 

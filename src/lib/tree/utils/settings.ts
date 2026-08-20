@@ -1,5 +1,5 @@
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { TreeSettings } from "$lib/tree/types";
 
 /** Derived attributes — not columns, but selectable like any other. */

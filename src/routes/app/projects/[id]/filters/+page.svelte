@@ -16,7 +16,7 @@
     sliceColor
   } from "$lib/slices/state/slices.svelte";
   import { colorVar } from "$lib/format";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import FilterEditor from "$lib/filters/components/filter-editor.svelte";
   import SliceCard from "$lib/slices/components/slice-card.svelte";
   import SliceComparison from "$lib/slices/components/slice-comparison.svelte";
@@ -80,15 +80,8 @@
 </script>
 
 {#if project}
-  <!-- Wide enough for the two columns, the page stops scrolling as a whole and
-       each column takes the height the view has left, keeping the `p-5` gap
-       under the topbar. Narrow, the columns stack and the page scrolls again. -->
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5 lg:overflow-hidden">
     <div class="grid w-full grid-cols-1 items-start gap-5 lg:h-full lg:grid-cols-2">
-      <!-- Filters: half the width -->
-      <!-- A card's outline is a `ring`, which is painted outside its box and so
-           is clipped away on the left and right by this column's own scrolling.
-           One pixel of padding is exactly the room it needs. -->
       <div class="flex flex-col gap-5 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
         <div class="flex flex-wrap items-center gap-3">
           <div>
@@ -163,7 +156,6 @@
         {/if}
       </div>
 
-      <!-- Configuration: the other half, the full height of the view -->
       <div class="lg:h-full lg:min-h-0">
         <Card.Root class="lg:h-full">
           <Card.Header>
@@ -183,9 +175,6 @@
               {/if}
             </Card.Description>
           </Card.Header>
-          <!-- The editor is the tall thing on this page (the duration chart in
-               particular), so it scrolls inside the card rather than pushing
-               the card past the bottom of the view. -->
           <Card.Content class="lg:min-h-0 lg:flex-1 lg:overflow-auto">
             {#if editingSlice && editing}
               {#key `${editing.sliceId}:${editing.index}`}

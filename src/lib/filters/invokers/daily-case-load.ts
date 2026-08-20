@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseDayLoad } from "$lib/filters/invokers/types";
 
 /** Cases per day over `chain`'s population, for the timeframe brush. */

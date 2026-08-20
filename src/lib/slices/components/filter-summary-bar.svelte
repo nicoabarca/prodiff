@@ -13,7 +13,7 @@
     sliceColor,
     sliceEvents
   } from "$lib/slices/state/slices.svelte";
-  import { describeFilter } from "$lib/filters/filters/filter";
+  import { describeFilter } from "$lib/filters/kind/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import type { Slice } from "$lib/slices/types";

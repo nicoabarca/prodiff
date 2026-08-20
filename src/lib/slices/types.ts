@@ -1,4 +1,4 @@
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 
 /**
