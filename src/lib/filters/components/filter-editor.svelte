@@ -5,11 +5,6 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import {
-    ATTRIBUTE_MODES,
-    ATTRIBUTE_MODE_INFO,
-    type AttributeMode
-  } from "$lib/filters/filters/attribute";
-  import {
     ENDPOINT_MODES,
     ENDPOINT_MODE_INFO,
     type EndpointMode,
@@ -36,6 +31,7 @@
   import DurationEditor from "./editors/duration-editor.svelte";
   import TimeframeEditor from "./editors/timeframe-editor.svelte";
   import NumericEditor from "./editors/numeric-editor.svelte";
+  import AttributeEditor from "./editors/attribute-editor.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -119,9 +115,6 @@
       ? initial.column
       : ""
   );
-  let attributeMode = $state<AttributeMode>(
-    initial?.kind === "attribute" ? initial.mode : "mandatory"
-  );
   let endpointMode = $state<EndpointMode>(
     initial?.kind === "endpoint" ? initial.mode : "mandatory"
   );
@@ -192,18 +185,17 @@
    * `build`; each one moves over as its editor is split out.
    */
   let childDraft = $state<Filter | null>(null);
-  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric"];
+  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric", "attribute"];
 
   function build(): Filter | null {
     switch (kind) {
-      case "attribute":
-        return { kind, column, mode: attributeMode, values: [...selected] };
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
       // Split out into their own editors; `draft` never calls this for them.
       case "duration":
       case "timeframe":
       case "numeric":
+      case "attribute":
         return null;
       case "follower":
         return {
@@ -295,39 +287,12 @@
   </Field.Field>
 
   {#if kind === "attribute"}
-    <!-- Column and Mode share the left column; the value picker takes the
-         right one, so picking values no longer waits at the bottom. -->
-    <div class="grid gap-3 sm:grid-cols-2">
-      <div class="space-y-3">
-        <ColumnSelect
-          columns={columnOptions}
-          value={column}
-          onselect={(next) => {
-            column = next;
-            selected = [];
-          }}
-          {color}
-          labelClass="h-6 items-center"
-        />
-        <ModePicker
-          entries={ATTRIBUTE_MODES}
-          current={attributeMode}
-          info={ATTRIBUTE_MODE_INFO}
-          onselect={(v) => (attributeMode = v)}
-        />
-      </div>
-      <div>
-        <ValuePicker
-          label="Values"
-          options={attributeValues.values}
-          chosen={selected}
-          onchoose={(next) => (selected = next)}
-          truncated={attributeValues.truncated}
-          error={attributeValues.error}
-          limit={VALUE_LIMIT}
-        />
-      </div>
-    </div>
+    <AttributeEditor
+      {project}
+      initial={initial?.kind === "attribute" ? initial : null}
+      {color}
+      ondraft={(next) => (childDraft = next)}
+    />
   {:else if kind === "endpoint"}
     <ModePicker
       entries={ENDPOINT_MODES}
