@@ -36,9 +36,8 @@ export interface ResponseEventLogPreview {
 
 /**
  * Result of writing the Event Log: stats plus where the files ended up on disk.
- * Rust returns the full `EventLogStats` — the per-case metrics beyond these are
- * recomputed per population by the Statistics view rather than stored on the
- * project, so they are picked off here instead of spread into the row.
+ * Rust returns the full `EventLogStats`; the per-case metrics beyond these are
+ * recomputed per population by the Statistics view rather than stored.
  */
 export interface ResponseCreateEventLog {
   events: number;

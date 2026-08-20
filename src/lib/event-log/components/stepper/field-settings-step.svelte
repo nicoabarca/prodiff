@@ -36,11 +36,7 @@
       .filter((c) => !roleByColumn[c.name] && visibleColumns.has(c.name))
   );
 
-  /**
-   * The case id and activity always lead the preview, whatever the user chose
-   * to keep: a column of bare values means nothing until you can see which case
-   * and which step it belongs to.
-   */
+  /** The case id and activity always lead the preview, whatever was kept. */
   const contextRows = $derived(
     (["case_id", "activity_name"] as AssignableRole[]).flatMap((role) => {
       const index = columns.findIndex((c) => roleByColumn[c.name] === role);
