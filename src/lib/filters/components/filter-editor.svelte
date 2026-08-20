@@ -3,7 +3,6 @@
   import * as Field from "$lib/components/ui/field/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Input } from "$lib/components/ui/input/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import {
     ATTRIBUTE_MODES,
@@ -23,7 +22,6 @@
     FOLLOWER_MODE_INFO,
     type FollowerMode
   } from "$lib/filters/filters/follower";
-  import { NUMERIC_MODES, NUMERIC_MODE_INFO, type NumericMode } from "$lib/filters/filters/numeric";
   import {
     activityColumn,
     categoricalColumns,
@@ -37,6 +35,7 @@
   import ColumnSelect from "./column-select.svelte";
   import DurationEditor from "./editors/duration-editor.svelte";
   import TimeframeEditor from "./editors/timeframe-editor.svelte";
+  import NumericEditor from "./editors/numeric-editor.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -123,7 +122,6 @@
   let attributeMode = $state<AttributeMode>(
     initial?.kind === "attribute" ? initial.mode : "mandatory"
   );
-  let numericMode = $state<NumericMode>(initial?.kind === "numeric" ? initial.mode : "between");
   let endpointMode = $state<EndpointMode>(
     initial?.kind === "endpoint" ? initial.mode : "mandatory"
   );
@@ -137,8 +135,6 @@
         ? [...initial.activities]
         : []
   );
-  let min = $state(initial?.kind === "numeric" && initial.min !== null ? String(initial.min) : "");
-  let max = $state(initial?.kind === "numeric" && initial.max !== null ? String(initial.max) : "");
   let followerMode = $state<FollowerMode>(
     initial?.kind === "follower" ? initial.mode : "eventually"
   );
@@ -196,25 +192,18 @@
    * `build`; each one moves over as its editor is split out.
    */
   let childDraft = $state<Filter | null>(null);
-  const SPLIT: FilterKind[] = ["duration", "timeframe"];
+  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric"];
 
   function build(): Filter | null {
     switch (kind) {
       case "attribute":
         return { kind, column, mode: attributeMode, values: [...selected] };
-      case "numeric":
-        return {
-          kind,
-          column,
-          mode: numericMode,
-          min: min.trim() === "" ? null : Number(min),
-          max: max.trim() === "" ? null : Number(max)
-        };
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
       // Split out into their own editors; `draft` never calls this for them.
       case "duration":
       case "timeframe":
+      case "numeric":
         return null;
       case "follower":
         return {
@@ -376,6 +365,13 @@
         />
       </div>
     </div>
+  {:else if kind === "numeric"}
+    <NumericEditor
+      {project}
+      initial={initial?.kind === "numeric" ? initial : null}
+      {color}
+      ondraft={(next) => (childDraft = next)}
+    />
   {:else if kind === "timeframe"}
     <TimeframeEditor
       {project}
@@ -408,14 +404,7 @@
       />
     {/if}
 
-    {#if kind === "numeric"}
-      <ModePicker
-        entries={NUMERIC_MODES}
-        current={numericMode}
-        info={NUMERIC_MODE_INFO}
-        onselect={(v) => (numericMode = v)}
-      />
-    {:else if kind === "follower"}
+    {#if kind === "follower"}
       <ModePicker
         entries={FOLLOWER_MODES}
         current={followerMode}
@@ -424,26 +413,7 @@
       />
     {/if}
 
-    {#if kind === "numeric"}
-      <div class="flex w-1/2 gap-3">
-        {#if numericMode !== "below"}
-          <Field.Field>
-            <Field.FieldLabel for="filter-min">
-              {numericMode === "above" ? "Value" : "Minimum"}
-            </Field.FieldLabel>
-            <Input id="filter-min" type="number" bind:value={min} placeholder="—" />
-          </Field.Field>
-        {/if}
-        {#if numericMode !== "above"}
-          <Field.Field>
-            <Field.FieldLabel for="filter-max">
-              {numericMode === "below" ? "Value" : "Maximum"}
-            </Field.FieldLabel>
-            <Input id="filter-max" type="number" bind:value={max} placeholder="—" />
-          </Field.Field>
-        {/if}
-      </div>
-    {:else if kind === "follower"}
+    {#if kind === "follower"}
       <!-- Reference on the left, follower on the right: the pair reads in the
            order the filter looks for it. -->
       <div class="grid gap-3 sm:grid-cols-2">
