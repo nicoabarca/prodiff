@@ -17,7 +17,7 @@
     type EndpointPosition
   } from "$lib/filters/filters/endpoint";
   import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/filters/filter";
-  import { distinctValues } from "$lib/filters/invokers/distinct-values";
+  import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import {
     FOLLOWER_MODES,
     FOLLOWER_MODE_INFO,
@@ -63,8 +63,6 @@
     oncancel: () => void;
   } = $props();
 
-  /** Distinct values shown in the picker before it truncates. */
-  const VALUE_LIMIT = 500;
   const DAY_MS = 86_400_000;
   /** Debounce before re-measuring the draft against the log, in ms. */
   const IMPACT_DEBOUNCE = 250;
@@ -170,20 +168,6 @@
   );
   let followerValues = $state<string[]>(initial?.kind === "follower" ? [...initial.follower] : []);
 
-  let values = $state<string[]>([]);
-  let truncated = $state(false);
-  let valuesError = $state<string | null>(null);
-
-  // Endpoint filters show both positions' activities at once — see the two
-  // separate value pickers below — so they get their own pair of lists
-  // instead of sharing the single-column fetch above.
-  let startValues = $state<string[]>([]);
-  let startTruncated = $state(false);
-  let startValuesError = $state<string | null>(null);
-  let endValues = $state<string[]>([]);
-  let endTruncated = $state(false);
-  let endValuesError = $state<string | null>(null);
-
   // A case can only start or end with a value, not both, so the two pickers
   // share one selection: whichever list the user last checked a box in wins.
   const startChosen = $derived(endpointPosition === "start" ? selected : []);
@@ -213,67 +197,20 @@
     }
   });
 
-  $effect(() => {
-    const target = pickerColumn;
-    if (!target) {
-      values = [];
-      return;
-    }
-    let stale = false;
-    valuesError = null;
-    distinctValues(project.id, target, project.columns, VALUE_LIMIT)
-      .then((result) => {
-        if (stale) return;
-        values = result.values;
-        truncated = result.truncated;
-      })
-      .catch((cause) => {
-        if (!stale) valuesError = String(cause);
-      });
-    return () => {
-      stale = true;
-    };
-  });
-
-  // Both positions are fetched together whenever the endpoint kind is active,
-  // so the two pickers can show start and end activities side by side.
-  $effect(() => {
-    if (kind !== "endpoint" || !activity) {
-      startValues = [];
-      endValues = [];
-      return;
-    }
-    let stale = false;
-    startValuesError = null;
-    endValuesError = null;
-
-    const fetch = (position: EndpointPosition) =>
-      distinctValues(project.id, activity, project.columns, VALUE_LIMIT, position);
-
-    fetch("start")
-      .then((result) => {
-        if (stale) return;
-        startValues = result.values;
-        startTruncated = result.truncated;
-      })
-      .catch((cause) => {
-        if (!stale) startValuesError = String(cause);
-      });
-
-    fetch("end")
-      .then((result) => {
-        if (stale) return;
-        endValues = result.values;
-        endTruncated = result.truncated;
-      })
-      .catch((cause) => {
-        if (!stale) endValuesError = String(cause);
-      });
-
-    return () => {
-      stale = true;
-    };
-  });
+  const attributeValues = columnValues(
+    () => project,
+    () => pickerColumn
+  );
+  const startActivities = columnValues(
+    () => project,
+    () => (kind === "endpoint" ? activity : ""),
+    () => "start"
+  );
+  const endActivities = columnValues(
+    () => project,
+    () => (kind === "endpoint" ? activity : ""),
+    () => "end"
+  );
 
   const timeframeSummary = $derived(
     from === null || to === null ? "Nothing selected" : `${formatDay(from)} → ${formatDay(to)}`
@@ -436,11 +373,11 @@
       <div>
         <ValuePicker
           label="Values"
-          options={values}
+          options={attributeValues.values}
           chosen={selected}
           onchoose={(next) => (selected = next)}
-          {truncated}
-          error={valuesError}
+          truncated={attributeValues.truncated}
+          error={attributeValues.error}
           limit={VALUE_LIMIT}
         />
       </div>
@@ -460,11 +397,11 @@
       <div class="border-border border p-2">
         <ValuePicker
           label="Starts with"
-          options={startValues}
+          options={startActivities.values}
           chosen={startChosen}
           onchoose={chooseStart}
-          truncated={startTruncated}
-          error={startValuesError}
+          truncated={startActivities.truncated}
+          error={startActivities.error}
           limit={VALUE_LIMIT}
           labelClass="text-sm font-semibold text-foreground"
         />
@@ -472,11 +409,11 @@
       <div class="border-border border p-2">
         <ValuePicker
           label="Ends with"
-          options={endValues}
+          options={endActivities.values}
           chosen={endChosen}
           onchoose={chooseEnd}
-          truncated={endTruncated}
-          error={endValuesError}
+          truncated={endActivities.truncated}
+          error={endActivities.error}
           limit={VALUE_LIMIT}
           labelClass="text-sm font-semibold text-foreground"
         />
@@ -599,22 +536,22 @@
         <div class="border-border border p-2">
           <ValuePicker
             label="Reference values"
-            options={values}
+            options={attributeValues.values}
             chosen={referenceValues}
             onchoose={(next) => (referenceValues = next)}
-            {truncated}
-            error={valuesError}
+            truncated={attributeValues.truncated}
+            error={attributeValues.error}
             limit={VALUE_LIMIT}
           />
         </div>
         <div class="border-border border p-2">
           <ValuePicker
             label="Follower values"
-            options={values}
+            options={attributeValues.values}
             chosen={followerValues}
             onchoose={(next) => (followerValues = next)}
-            {truncated}
-            error={valuesError}
+            truncated={attributeValues.truncated}
+            error={attributeValues.error}
             limit={VALUE_LIMIT}
           />
         </div>
