@@ -26,8 +26,7 @@ export interface BoxStats {
 
 /**
  * The three encodings a duration is read in. Only Activity Duration and
- * Transition Time carry one — see `DurationShape` in `distributions.rs` for why
- * none of it can be recovered from the equal-width bins after the fact.
+ * Transition Time carry one; none of it survives the equal-width bins.
  */
 export interface DurationShape {
   /** Value at percentile `i`, `i` in `0..=100`; the percentile is the index. */

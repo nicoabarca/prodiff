@@ -1,12 +1,7 @@
 /**
- * The Distributions view's state. In-memory module `$state` like `view` in
- * `tree.svelte.ts` rather than a persisted table like `settings`: nothing here
- * is a build input, and the tree these numbers describe is itself memory-only,
- * so a lens restored after a reload would have no page left to apply to.
- *
- * The lens is not a property of a node — selecting another node keeps the Scope,
- * the sort and the hand-added attributes and refetches for the new node, which
- * is how walking down a path shows the same histograms shifting.
+ * The Distributions view's state, in memory only — nothing here is a build
+ * input. The lens is not a property of a node: selecting another keeps the
+ * Scope, the sort and the hand-added attributes, and refetches.
  */
 
 import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
@@ -18,21 +13,16 @@ import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
- * What is charted, beyond the node's own tested attributes.
- *
- * `extra` outlives a node change — an attribute the build never tested is
- * looked up on purpose, and re-adding it at every step would make walking the
- * path unusable. `dismissed` does not: it hides a card at the node being read,
- * and a tested attribute is part of what the next node has to say.
+ * What is charted, beyond the node's own tested attributes. `extra` outlives a
+ * node change; `dismissed` does not, since a tested attribute is part of what
+ * the next node has to say.
  */
 export const charts = $state<{
   scope: Scope;
   sort: Sort;
   /**
-   * How duration cards draw. One setting for all of them rather than one each:
-   * there are only ever two such attributes, and reading Activity Duration as a
-   * curve while Transition Time is a box makes them harder to compare, not
-   * easier. Opens on the curve — see `duration-plot.svelte`.
+   * How duration cards draw — one setting for all of them, so the two duration
+   * attributes stay comparable. Opens on the curve.
    */
   encoding: Encoding;
   /** Attributes the build never tested, added by hand. */
@@ -51,9 +41,8 @@ export const charts = $state<{
 });
 
 /**
- * The numbers for the current node, in one keyed slot — the same shape `built`
- * uses. Switching nodes replaces it rather than accumulating a per-node cache:
- * the payload is small but the node it describes is always the selected one.
+ * The numbers for the current node, in one keyed slot. Switching nodes replaces
+ * it rather than accumulating a per-node cache.
  */
 export const loaded = $state<{
   key: string | null;
@@ -75,9 +64,8 @@ export function addExtra(attribute: string) {
 }
 
 /**
- * Closes a card. A hand-added attribute goes away for good — it was opened on
- * purpose, so closing it is the same intent in reverse. A tested one is only
- * hidden here, and comes back at the next node.
+ * Closes a card. A hand-added attribute goes away for good; a tested one is
+ * only hidden here and comes back at the next node.
  */
 export function dismiss(attribute: string) {
   charts.expanded = charts.expanded.filter((name) => name !== attribute);
@@ -93,10 +81,9 @@ export function clearDismissed() {
 }
 
 /**
- * What identifies the numbers on screen. Keyed on the Variant list rather than
- * on the node id alone: that list is what the backend is actually asked about,
- * so view-level pruning — the Variant picker, `significantOnly` — invalidates
- * the slot without this having to enumerate the ways it can change.
+ * What identifies the numbers on screen. Keyed on the Variant list, not the
+ * node id: that list is what the backend is asked about, so view-level pruning
+ * invalidates the slot without enumerating the ways it can change.
  */
 function key(
   nodeId: number,
@@ -109,21 +96,16 @@ function key(
 }
 
 /**
- * The most recent request. A fetch that finds this changed under it was
- * superseded while in flight and drops its answer, so clicking down the tree
- * faster than the backend replies lands on the node clicked last rather than
- * on whichever query happened to finish last.
+ * The most recent request. A fetch that finds this changed under it drops its
+ * answer, so the node clicked last wins over the query that finished last.
  */
 let latest: string | null = null;
 
 /**
  * Fetches the selected node's Distributions unless they are already in hand.
- *
- * Refuses while the tree is stale. The node is named to the backend by the
- * Variant keys of its subtree's leaves, which come from the tree on screen —
- * querying those under chains the tree was not built with would describe a case
- * set matching neither the drawing nor the filters. The view says so and offers
- * a rebuild instead.
+ * Refuses while the tree is stale: the node is named to the backend by Variant
+ * keys taken from the tree on screen, which under different chains would
+ * describe a case set matching neither the drawing nor the filters.
  */
 export async function loadDistributions(project: Project, attributes: string[]) {
   const tree = built.tree;

@@ -1,10 +1,7 @@
 /**
  * Distributions — the value counts behind one node's charts, arranged for
- * drawing. Fetched per selected node rather than carried in the tree payload;
- * see `docs/adr/0003-query-distributions-on-demand.md`. As everywhere else in
- * this app, Rust aggregates and the frontend only draws — the one thing
- * computed here is the `Other` bucket, and only because its size follows a
- * cutoff the user can change without another round trip.
+ * drawing. Fetched per selected node; see `docs/adr/0003`. Rust aggregates and
+ * the frontend only draws; the one thing computed here is the `Other` bucket.
  */
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import type { Distribution, DurationShape } from "$lib/distributions/invokers/types";
@@ -14,9 +11,8 @@ import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
 
 /**
  * The bars for a categorical Distribution. Everything past the cutoff folds
- * into one `Other` bar whose counts come from the totals rather than from the
- * rows on screen — so it stays exact even though the backend capped the list
- * long before the cutoff did.
+ * into one `Other` bar counted from the totals, not from the rows on screen,
+ * so it stays exact despite the backend's own cap on the list.
  */
 export function categoryBars(
   distribution: Extract<Distribution, { type: "categorical" }>,
@@ -45,10 +41,7 @@ function binLabel(edges: number[], index: number, duration: boolean): string {
   return `${format(edges[index])}–${format(edges[index + 1])}`;
 }
 
-/**
- * Enough decimals to tell adjacent edges apart. A cost binned in tenths reads
- * as "1.2–1.3", not as "1–1" repeated ten times.
- */
+/** Enough decimals to tell adjacent bin edges apart. */
 function edgeDigits(edges: number[]): number {
   const width = edges[1] - edges[0];
   if (!Number.isFinite(width) || width <= 0) return 0;
@@ -68,9 +61,8 @@ export function binBars(
 }
 
 /**
- * The share of a Group's cases at or below `value`, read off its percentile
- * ladder — the ladder's index *is* the percentile, so this is a search for the
- * last rung that has been reached.
+ * The share of a Group's cases at or below `value`. The ladder's index *is*
+ * the percentile, so this searches for the last rung reached.
  */
 export function shareAt(ladder: number[], value: number): number | null {
   if (ladder.length < 2) return null;
@@ -86,13 +78,9 @@ export function shareAt(ladder: number[], value: number): number | null {
 }
 
 /**
- * Both Groups' curves on one set of rows.
- *
- * The two ladders sample the same percentiles at *different* durations, so
- * neither can be plotted against the other's x. Taking the union of their
- * values and reading both shares at each one gives a shared x — which is what
- * lets a single hover answer "at this duration, how far along is each Group",
- * the only question the two curves are on screen together to answer.
+ * Both Groups' curves on one set of rows. The two ladders sample the same
+ * percentiles at *different* durations, so neither can be plotted against the
+ * other's x; the union of their values gives a shared one.
  */
 export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
   const values = [...new Set([...ecdfA, ...ecdfB])].sort((x, y) => x - y);
@@ -104,9 +92,8 @@ export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
 }
 
 /**
- * The bars of the log ladder. Labelled by their own edges rather than by an
- * index, because the whole point of unequal bins is that the width is the
- * information — "30s–1m" has to be readable on the axis.
+ * The bars of the log ladder, labelled by their own edges rather than by an
+ * index: with unequal bins the width is the information.
  */
 export function logBars(shape: DurationShape): Bar[] {
   return shape.logCountsA.map((a, index) => ({
@@ -117,13 +104,8 @@ export function logBars(shape: DurationShape): Bar[] {
 }
 
 /**
- * What a box plot leaves out, in plain words.
- *
- * The whiskers stop at a cutoff and everything past it is counted rather than
- * drawn, so the card has to say how much went uncounted and where the line it
- * stopped at actually is. Phrased without the word "whisker": naming the cutoff
- * is the whole point, and "129 above the whiskers" makes the reader work out
- * which number that even was.
+ * What a box plot leaves out, in plain words — how much was counted rather
+ * than drawn, and the cutoff it stopped at. Avoids the word "whisker".
  */
 export function outlierNote(
   group: string,
@@ -141,20 +123,13 @@ export function outlierNote(
 }
 
 /**
- * The cards the grid shows for one node, in order.
+ * The cards the grid shows for one node, in order. It opens on what the build
+ * tested; anything else is opt-in through `extra`, which follows the user from
+ * node to node.
  *
- * The grid opens on what the build actually tested — every block on the node —
- * rather than on every mappable column, so a node costs one query over the
- * attributes there is something to say about. Anything else is opt-in through
- * `extra`, which follows the user from node to node because looking it up is
- * why they went there.
- *
- * Attributes carrying a Test lead, strongest first: at a few thousand cases per
- * Group nearly every test passes, so the magnitude is the only ranking that
- * puts the finding on the first screen. The untested ones — a block whose test
- * could not run, and every hand-added attribute — follow by name, under their
- * own heading: an unbadged card among ranked ones otherwise reads as "no
- * difference found" when it means "never looked".
+ * Tested attributes lead, strongest first. The untested ones follow by name
+ * under their own heading, so an unbadged card is never read as "no difference
+ * found" when it means "never looked".
  */
 export function gridAttributes(
   node: TreeNode,
