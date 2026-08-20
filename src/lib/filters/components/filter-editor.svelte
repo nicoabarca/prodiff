@@ -1,14 +1,10 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import * as Field from "$lib/components/ui/field/index.js";
-  import * as InputGroup from "$lib/components/ui/input-group/index.js";
-  import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
-  import { Label } from "$lib/components/ui/label/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import {
     ATTRIBUTE_MODES,
@@ -45,9 +41,9 @@
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import ModePicker from "./mode-picker.svelte";
+  import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
   import TimeframePicker from "./timeframe-picker.svelte";
-  import Search from "@lucide/svelte/icons/search";
 
   let {
     project,
@@ -173,11 +169,6 @@
     initial?.kind === "follower" ? [...initial.reference] : []
   );
   let followerValues = $state<string[]>(initial?.kind === "follower" ? [...initial.follower] : []);
-  let search = $state("");
-  let referenceSearch = $state("");
-  let followerSearch = $state("");
-  let startSearch = $state("");
-  let endSearch = $state("");
 
   let values = $state<string[]>([]);
   let truncated = $state(false);
@@ -305,10 +296,6 @@
     }
   });
 
-  function toggled(chosen: string[], value: string): string[] {
-    return chosen.includes(value) ? chosen.filter((v) => v !== value) : [...chosen, value];
-  }
-
   function build(): Filter | null {
     switch (kind) {
       case "attribute":
@@ -393,70 +380,6 @@
   }
 </script>
 
-<!-- One list of the picker column's values. Rendered twice by the follower
-     filter, which reads the same column as both reference and follower, so the
-     selection and its search box are passed in rather than held here. -->
-{#snippet valuePicker(
-  label: string,
-  options: string[],
-  chosen: string[],
-  choose: (next: string[]) => void,
-  term: string,
-  setTerm: (next: string) => void,
-  truncated: boolean,
-  error: string | null,
-  labelClass = ""
-)}
-  {@const listed = options.filter((v) => v.toLowerCase().includes(term.trim().toLowerCase()))}
-  <Field.Field>
-    <div class="flex items-center gap-2">
-      <Field.FieldLabel class={labelClass}>{label}</Field.FieldLabel>
-      <span class="text-muted-foreground ml-auto text-xs">
-        {chosen.length}/{options.length} selected
-      </span>
-      <Button variant="ghost" size="xs" onclick={() => choose(listed)}>All</Button>
-      <Button variant="ghost" size="xs" onclick={() => choose([])}>None</Button>
-    </div>
-    {#if options.length > 8}
-      <InputGroup.Root>
-        <InputGroup.Input
-          placeholder="Search values…"
-          value={term}
-          oninput={(e) => setTerm(e.currentTarget.value)}
-        />
-        <InputGroup.Addon>
-          <Search />
-        </InputGroup.Addon>
-      </InputGroup.Root>
-    {/if}
-    {#if error}
-      <Field.FieldError>{error}</Field.FieldError>
-    {:else}
-      <ScrollArea.Root class="border-border h-56 border">
-        {#each listed as option (option)}
-          <Label
-            class="hover:bg-muted flex cursor-pointer items-center gap-2 px-2.5 py-1.5 font-normal"
-          >
-            <Checkbox
-              checked={chosen.includes(option)}
-              onCheckedChange={() => choose(toggled(chosen, option))}
-              class="data-checked:text-background data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color)"
-            />
-            <span class="truncate text-sm">{option}</span>
-          </Label>
-        {:else}
-          <p class="text-muted-foreground px-2.5 py-3 text-xs">No matching values.</p>
-        {/each}
-      </ScrollArea.Root>
-      {#if truncated}
-        <Field.FieldDescription>
-          Showing the first {VALUE_LIMIT} values alphabetically.
-        </Field.FieldDescription>
-      {/if}
-    {/if}
-  </Field.Field>
-{/snippet}
-
 <Field.FieldGroup style="--accent-color: {color}">
   <Field.Field>
     <Field.FieldLabel>Filter type</Field.FieldLabel>
@@ -527,16 +450,15 @@
         />
       </div>
       <div>
-        {@render valuePicker(
-          "Values",
-          values,
-          selected,
-          (next) => (selected = next),
-          search,
-          (next) => (search = next),
-          truncated,
-          valuesError
-        )}
+        <ValuePicker
+          label="Values"
+          options={values}
+          chosen={selected}
+          onchoose={(next) => (selected = next)}
+          {truncated}
+          error={valuesError}
+          limit={VALUE_LIMIT}
+        />
       </div>
     </div>
   {:else if kind === "endpoint"}
@@ -552,30 +474,28 @@
          switches the filter to that position. -->
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="border-border border p-2">
-        {@render valuePicker(
-          "Starts with",
-          startValues,
-          startChosen,
-          chooseStart,
-          startSearch,
-          (next) => (startSearch = next),
-          startTruncated,
-          startValuesError,
-          "text-sm font-semibold text-foreground"
-        )}
+        <ValuePicker
+          label="Starts with"
+          options={startValues}
+          chosen={startChosen}
+          onchoose={chooseStart}
+          truncated={startTruncated}
+          error={startValuesError}
+          limit={VALUE_LIMIT}
+          labelClass="text-sm font-semibold text-foreground"
+        />
       </div>
       <div class="border-border border p-2">
-        {@render valuePicker(
-          "Ends with",
-          endValues,
-          endChosen,
-          chooseEnd,
-          endSearch,
-          (next) => (endSearch = next),
-          endTruncated,
-          endValuesError,
-          "text-sm font-semibold text-foreground"
-        )}
+        <ValuePicker
+          label="Ends with"
+          options={endValues}
+          chosen={endChosen}
+          onchoose={chooseEnd}
+          truncated={endTruncated}
+          error={endValuesError}
+          limit={VALUE_LIMIT}
+          labelClass="text-sm font-semibold text-foreground"
+        />
       </div>
     </div>
   {:else}
@@ -710,28 +630,26 @@
            order the filter looks for it. -->
       <div class="grid gap-3 sm:grid-cols-2">
         <div class="border-border border p-2">
-          {@render valuePicker(
-            "Reference values",
-            values,
-            referenceValues,
-            (next) => (referenceValues = next),
-            referenceSearch,
-            (next) => (referenceSearch = next),
-            truncated,
-            valuesError
-          )}
+          <ValuePicker
+            label="Reference values"
+            options={values}
+            chosen={referenceValues}
+            onchoose={(next) => (referenceValues = next)}
+            {truncated}
+            error={valuesError}
+            limit={VALUE_LIMIT}
+          />
         </div>
         <div class="border-border border p-2">
-          {@render valuePicker(
-            "Follower values",
-            values,
-            followerValues,
-            (next) => (followerValues = next),
-            followerSearch,
-            (next) => (followerSearch = next),
-            truncated,
-            valuesError
-          )}
+          <ValuePicker
+            label="Follower values"
+            options={values}
+            chosen={followerValues}
+            onchoose={(next) => (followerValues = next)}
+            {truncated}
+            error={valuesError}
+            limit={VALUE_LIMIT}
+          />
         </div>
       </div>
     {/if}
