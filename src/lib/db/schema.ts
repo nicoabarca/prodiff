@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/filters/filter";
 import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 import type { SliceKind } from "$lib/slices/types";
@@ -11,7 +11,7 @@ export const projects = sqliteTable("projects", {
   fileName: text("file_name").notNull(),
   originalPath: text("original_path").notNull(),
   eventLogPath: text("event_log_path").notNull(),
-  columns: text("columns", { mode: "json" }).$type<ColumnMapping[]>().notNull(),
+  columns: text("columns", { mode: "json" }).$type<RequestColumnMapping[]>().notNull(),
   hiddenColumns: text("hidden_columns", { mode: "json" }).$type<string[]>().notNull(),
   events: integer("events").notNull(),
   cases: integer("cases").notNull(),

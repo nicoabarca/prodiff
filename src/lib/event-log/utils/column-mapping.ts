@@ -3,7 +3,7 @@ import {
   COLUMN_ROLES,
   COLUMN_TYPES,
   type ColumnGranularity,
-  type ColumnMapping,
+  type RequestColumnMapping,
   type ColumnRole,
   type ColumnType
 } from "$lib/event-log/invokers/types";
@@ -16,7 +16,7 @@ import {
 export function validateColumnMapping(
   mapping: unknown,
   expectedColumnNames: string[]
-): asserts mapping is ColumnMapping[] {
+): asserts mapping is RequestColumnMapping[] {
   if (!Array.isArray(mapping) || mapping.length === 0) {
     throw new Error("Column mapping must be a non-empty array.");
   }

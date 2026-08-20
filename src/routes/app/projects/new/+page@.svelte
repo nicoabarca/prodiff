@@ -13,7 +13,7 @@
     extraFieldTypeToColumnType,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
-  import type { ColumnGranularity, ColumnMapping, ColumnType } from "$lib/event-log/invokers/types";
+  import type { ColumnGranularity, RequestColumnMapping, ColumnType } from "$lib/event-log/invokers/types";
   import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
   import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
   import RequiredFieldsStep from "$lib/event-log/components/stepper/required-fields-step.svelte";
@@ -89,7 +89,7 @@
     activeRole = "case_id";
   }
 
-  const columnMapping = $derived.by((): ColumnMapping[] =>
+  const columnMapping = $derived.by((): RequestColumnMapping[] =>
     columns.map(({ name, dtype }) => {
       const role = roleByColumn[name];
       if (role) {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { ColumnMapping } from "$lib/event-log/invokers/types";
+  import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
   import type { AssignableRole } from "$lib/event-log/utils/roles";
   import { roleMeta } from "$lib/event-log/utils/roles";
   import { GRANULARITY_LABELS } from "$lib/event-log/utils/field-settings";
@@ -14,7 +14,7 @@
     hiddenColumnNames
   }: {
     fileName: string;
-    mapping: ColumnMapping[];
+    mapping: RequestColumnMapping[];
     roleByColumn: Record<string, AssignableRole>;
     hiddenColumnNames: string[];
   } = $props();

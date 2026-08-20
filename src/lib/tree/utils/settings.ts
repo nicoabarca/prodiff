@@ -1,4 +1,4 @@
-import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/filters/filter";
 import type { TreeSettings } from "$lib/tree/types";
 
@@ -11,7 +11,7 @@ export const TRANSITION_TIME = "Transition Time";
  * are left out: a column the user has taken off screen everywhere else has no
  * business consuming test budget here.
  */
-export function attributeOptions(columns: ColumnMapping[], hidden: string[] = []): string[] {
+export function attributeOptions(columns: RequestColumnMapping[], hidden: string[] = []): string[] {
   const mapped = columns
     .filter((c) => c.role === "other" && !hidden.includes(c.name))
     .map((c) => c.name);
@@ -19,7 +19,7 @@ export function attributeOptions(columns: ColumnMapping[], hidden: string[] = []
   return [...mapped, ...(hasStart ? [ACTIVITY_DURATION] : []), TRANSITION_TIME];
 }
 
-export function isNumericAttribute(columns: ColumnMapping[], attribute: string): boolean {
+export function isNumericAttribute(columns: RequestColumnMapping[], attribute: string): boolean {
   if (attribute === ACTIVITY_DURATION || attribute === TRANSITION_TIME) return true;
   const column = columns.find((c) => c.name === attribute);
   return column?.type === "integer" || column?.type === "float";

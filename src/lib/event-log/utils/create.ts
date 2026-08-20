@@ -1,5 +1,5 @@
 import { createEventLog } from "$lib/event-log/invokers/create-event-log";
-import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import { addProject } from "$lib/event-log/state/projects.svelte";
 import type { Project, ProjectDraft } from "$lib/event-log/types";
 import { validateColumnMapping } from "$lib/event-log/utils/column-mapping";
@@ -17,7 +17,7 @@ function deriveProjectName(fileName: string): string {
  */
 export async function createProject(
   draft: ProjectDraft,
-  columns: ColumnMapping[],
+  columns: RequestColumnMapping[],
   hiddenColumns: string[] = []
 ): Promise<Project> {
   validateColumnMapping(

@@ -21,7 +21,7 @@ export type ColumnType = (typeof COLUMN_TYPES)[number];
 export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
 export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
 
-export interface ColumnMapping {
+export interface RequestColumnMapping {
   name: string;
   role: ColumnRole;
   type: ColumnType;
