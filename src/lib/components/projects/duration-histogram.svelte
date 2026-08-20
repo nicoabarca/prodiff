@@ -17,7 +17,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { formatDuration, formatDurationParts, formatNumber } from "$lib/format";
   import type { Filter } from "$lib/filters";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
 
   let {
     project,

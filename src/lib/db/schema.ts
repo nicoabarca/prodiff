@@ -1,5 +1,5 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import type { ColumnMapping } from "$lib/column-mapping";
+import type { ColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters";
 import type { EventLogStats, SliceKind } from "$lib/types";
 import type { TreeSettings } from "$lib/tree";

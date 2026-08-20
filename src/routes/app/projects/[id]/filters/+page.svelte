@@ -2,7 +2,7 @@
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { currentProject } from "$lib/state/projects.svelte";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
     MAX_SLICES,
     baseSlice,

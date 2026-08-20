@@ -14,7 +14,7 @@ import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree";
 import type { Test, TreeNode } from "$lib/tree";
 import type { Filter } from "$lib/filters";
-import type { Project } from "$lib/types";
+import type { Project } from "$lib/event-log/types";
 
 /**
  * Which of a node's cases' events are counted. The cases are the same either

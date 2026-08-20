@@ -1,7 +1,7 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import type { Snippet } from "svelte";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
   import Home from "@lucide/svelte/icons/home";
 
   type ProjectView = "tree" | "distributions" | "statistics" | "data" | "filters";

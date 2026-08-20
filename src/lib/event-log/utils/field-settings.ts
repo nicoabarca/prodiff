@@ -1,4 +1,4 @@
-import type { ColumnGranularity, ColumnType } from "$lib/column-mapping";
+import type { ColumnGranularity, ColumnType } from "$lib/event-log/invokers/types";
 
 export const EXTRA_FIELD_TYPES = ["string", "datetime", "number"] as const;
 export type ExtraFieldType = (typeof EXTRA_FIELD_TYPES)[number];

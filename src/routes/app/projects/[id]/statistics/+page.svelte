@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { currentProject } from "$lib/state/projects.svelte";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { chainKey, computeStats, populations, type Population } from "$lib/state/slices.svelte";
   import ComparisonCharts from "$lib/components/projects/comparison-charts.svelte";
   import MetricsTable from "$lib/components/projects/metrics-table.svelte";
   import EventDataTable from "$lib/components/projects/event-data-table.svelte";
-  import EventLogSettings from "$lib/components/projects/event-log-settings.svelte";
+  import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
   import type { EventLogStats } from "$lib/types";
 
   const project = $derived(currentProject());

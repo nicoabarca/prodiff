@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { ColumnType } from "$lib/column-mapping";
-  import type { AssignableRole } from "$lib/projects/roles";
-  import { columnHeaderClass, columnCellClass } from "$lib/projects/column-highlight";
+  import type { ColumnType } from "$lib/event-log/invokers/types";
+  import type { AssignableRole } from "$lib/event-log/utils/roles";
+  import { columnHeaderClass, columnCellClass } from "$lib/event-log/utils/column-highlight";
   import * as Table from "$lib/components/ui/table/index.js";
   import Lock from "@lucide/svelte/icons/lock";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";

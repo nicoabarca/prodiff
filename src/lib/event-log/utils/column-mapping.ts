@@ -1,27 +1,12 @@
-export const COLUMN_ROLES = [
-  "case_id",
-  "activity_name",
-  "complete_timestamp",
-  "start_timestamp",
-  "other"
-] as const;
-export type ColumnRole = (typeof COLUMN_ROLES)[number];
-
-// Must match (or translate cleanly from) a Rust/Polars dtype — see
-// `dtype_label` in src-tauri/src/parsing/csv.rs, which is where this value
-// actually originates for each column.
-export const COLUMN_TYPES = ["string", "integer", "float", "boolean", "date", "datetime"] as const;
-export type ColumnType = (typeof COLUMN_TYPES)[number];
-
-export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
-export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
-
-export interface ColumnMapping {
-  name: string;
-  role: ColumnRole;
-  type: ColumnType;
-  granularity: ColumnGranularity;
-}
+import {
+  COLUMN_GRANULARITIES,
+  COLUMN_ROLES,
+  COLUMN_TYPES,
+  type ColumnGranularity,
+  type ColumnMapping,
+  type ColumnRole,
+  type ColumnType
+} from "$lib/event-log/invokers/types";
 
 /**
  * Frontend-side validation of the column mapping payload before it's sent to

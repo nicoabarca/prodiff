@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Project } from "$lib/types";
-  import { removeProject } from "$lib/state/projects.svelte";
+  import type { Project } from "$lib/event-log/types";
+  import { removeProject } from "$lib/event-log/state/projects.svelte";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
