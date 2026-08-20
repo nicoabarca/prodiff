@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import type { EndpointPosition } from "$lib/filters/filters/endpoint";
+import type { EndpointPosition } from "$lib/filters/kind/endpoint";
 import type { ResponseDistinctValues } from "$lib/filters/invokers/types";
 
 /**

@@ -3,13 +3,13 @@
   import * as Field from "$lib/components/ui/field/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import type { Project } from "$lib/event-log/types";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import {
     NUMERIC_MODES,
     NUMERIC_MODE_INFO,
     type NumericFilter,
     type NumericMode
-  } from "$lib/filters/filters/numeric";
+  } from "$lib/filters/kind/numeric";
   import { numericColumns } from "$lib/filters/utils/columns";
   import ColumnSelect from "../column-select.svelte";
   import ModePicker from "../mode-picker.svelte";

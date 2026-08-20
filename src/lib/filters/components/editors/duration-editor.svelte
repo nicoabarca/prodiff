@@ -3,9 +3,9 @@
   import * as Field from "$lib/components/ui/field/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import type { Project } from "$lib/event-log/types";
-  import type { DurationFilter } from "$lib/filters/filters/duration";
-  import type { Filter } from "$lib/filters/filters/filter";
-  import { NUMERIC_MODES, NUMERIC_MODE_INFO, type NumericMode } from "$lib/filters/filters/numeric";
+  import type { DurationFilter } from "$lib/filters/kind/duration";
+  import type { Filter } from "$lib/filters/kind/filter";
+  import { NUMERIC_MODES, NUMERIC_MODE_INFO, type NumericMode } from "$lib/filters/kind/numeric";
   import { formatDuration } from "$lib/format";
   import DurationHistogram from "../duration-histogram.svelte";
   import ModePicker from "../mode-picker.svelte";

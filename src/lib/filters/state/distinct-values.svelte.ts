@@ -1,5 +1,5 @@
 import type { Project } from "$lib/event-log/types";
-import type { EndpointPosition } from "$lib/filters/filters/endpoint";
+import type { EndpointPosition } from "$lib/filters/kind/endpoint";
 import { distinctValues } from "$lib/filters/invokers/distinct-values";
 
 /** Distinct values shown in a picker before the scan truncates. */

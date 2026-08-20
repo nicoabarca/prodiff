@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 import type { SliceKind } from "$lib/slices/types";
 import type { TreeSettings } from "$lib/tree/types";

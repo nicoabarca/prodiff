@@ -10,32 +10,28 @@ import {
   describeAttribute,
   isAttributeComplete,
   type AttributeFilter
-} from "$lib/filters/filters/attribute";
+} from "$lib/filters/kind/attribute";
 import {
   describeDuration,
   isDurationComplete,
   type DurationFilter
-} from "$lib/filters/filters/duration";
+} from "$lib/filters/kind/duration";
 import {
   describeEndpoint,
   isEndpointComplete,
   type EndpointFilter
-} from "$lib/filters/filters/endpoint";
+} from "$lib/filters/kind/endpoint";
 import {
   describeFollower,
   isFollowerComplete,
   type FollowerFilter
-} from "$lib/filters/filters/follower";
-import {
-  describeNumeric,
-  isNumericComplete,
-  type NumericFilter
-} from "$lib/filters/filters/numeric";
+} from "$lib/filters/kind/follower";
+import { describeNumeric, isNumericComplete, type NumericFilter } from "$lib/filters/kind/numeric";
 import {
   describeTimeframe,
   isTimeframeComplete,
   type TimeframeFilter
-} from "$lib/filters/filters/timeframe";
+} from "$lib/filters/kind/timeframe";
 
 export type Filter =
   | AttributeFilter

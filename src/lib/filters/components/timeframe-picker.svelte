@@ -12,7 +12,7 @@
   import { Calendar } from "$lib/components/ui/calendar/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { formatDay, formatNumber } from "$lib/format";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import { dailyCaseLoad } from "$lib/filters/invokers/daily-case-load";
   import type { ResponseDayLoad } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";

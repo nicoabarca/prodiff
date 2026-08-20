@@ -1,13 +1,13 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import type { Project } from "$lib/event-log/types";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import {
     FOLLOWER_MODES,
     FOLLOWER_MODE_INFO,
     type FollowerFilter,
     type FollowerMode
-  } from "$lib/filters/filters/follower";
+  } from "$lib/filters/kind/follower";
   import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import { eventLevelColumns } from "$lib/filters/utils/columns";
   import ColumnSelect from "../column-select.svelte";

@@ -6,8 +6,8 @@
     ATTRIBUTE_MODE_INFO,
     type AttributeFilter,
     type AttributeMode
-  } from "$lib/filters/filters/attribute";
-  import type { Filter } from "$lib/filters/filters/filter";
+  } from "$lib/filters/kind/attribute";
+  import type { Filter } from "$lib/filters/kind/filter";
   import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import { categoricalColumns } from "$lib/filters/utils/columns";
   import ColumnSelect from "../column-select.svelte";

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 
 /**

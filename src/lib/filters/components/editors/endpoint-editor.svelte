@@ -7,8 +7,8 @@
     type EndpointFilter,
     type EndpointMode,
     type EndpointPosition
-  } from "$lib/filters/filters/endpoint";
-  import type { Filter } from "$lib/filters/filters/filter";
+  } from "$lib/filters/kind/endpoint";
+  import type { Filter } from "$lib/filters/kind/filter";
   import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import { activityColumn } from "$lib/filters/utils/columns";
   import ModePicker from "../mode-picker.svelte";

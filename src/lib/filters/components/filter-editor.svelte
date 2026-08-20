@@ -4,7 +4,7 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-  import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/filters/filter";
+  import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/kind/filter";
   import {
     activityColumn,
     categoricalColumns,

@@ -1,5 +1,5 @@
 import { formatDuration } from "$lib/format";
-import { describeBounds, hasBounds, type NumericMode } from "$lib/filters/filters/numeric";
+import { describeBounds, hasBounds, type NumericMode } from "$lib/filters/kind/numeric";
 
 /** `min`/`max` are days (fractional); duration is a case's last event minus its first. */
 export interface DurationFilter {

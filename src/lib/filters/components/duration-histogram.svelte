@@ -13,7 +13,7 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { formatDuration, formatDurationParts, formatNumber } from "$lib/format";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import { durationHistogram } from "$lib/filters/invokers/duration-histogram";
   import type { ResponseDurationBin } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";

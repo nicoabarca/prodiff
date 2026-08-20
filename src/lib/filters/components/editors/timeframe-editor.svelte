@@ -3,13 +3,13 @@
   import * as Field from "$lib/components/ui/field/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import type { Project } from "$lib/event-log/types";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import {
     TIMEFRAME_MODES,
     TIMEFRAME_MODE_INFO,
     type TimeframeFilter,
     type TimeframeMode
-  } from "$lib/filters/filters/timeframe";
+  } from "$lib/filters/kind/timeframe";
   import { formatDay } from "$lib/format";
   import ModePicker from "../mode-picker.svelte";
   import TimeframePicker from "../timeframe-picker.svelte";

@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { slices as slicesTable } from "$lib/db/schema";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/filters/filter";
+import type { Filter } from "$lib/filters/kind/filter";
 import { chainImpact } from "$lib/slices/invokers/chain-impact";
 import { fetchSharedCases } from "$lib/slices/invokers/shared-cases";
 import type { ResponseChainStep, ResponseEventLogStats } from "$lib/slices/invokers/types";

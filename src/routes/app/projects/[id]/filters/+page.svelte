@@ -16,7 +16,7 @@
     sliceColor
   } from "$lib/slices/state/slices.svelte";
   import { colorVar } from "$lib/format";
-  import type { Filter } from "$lib/filters/filters/filter";
+  import type { Filter } from "$lib/filters/kind/filter";
   import FilterEditor from "$lib/filters/components/filter-editor.svelte";
   import SliceCard from "$lib/slices/components/slice-card.svelte";
   import SliceComparison from "$lib/slices/components/slice-comparison.svelte";
