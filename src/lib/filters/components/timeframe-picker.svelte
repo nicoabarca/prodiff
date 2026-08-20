@@ -16,7 +16,7 @@
   import { formatDay, formatNumber } from "$lib/format";
   import type { Filter } from "$lib/filters/filters/filter";
   import { dailyCaseLoad } from "$lib/filters/invokers/daily-case-load";
-  import type { DayLoad } from "$lib/filters/invokers/types";
+  import type { ResponseDayLoad } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";
 
   let {
@@ -37,7 +37,7 @@
 
   const DAY_MS = 86_400_000;
 
-  let days = $state<DayLoad[] | null>(null);
+  let days = $state<ResponseDayLoad[] | null>(null);
   let error = $state<string | null>(null);
 
   $effect(() => {

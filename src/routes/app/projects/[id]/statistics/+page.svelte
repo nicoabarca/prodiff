@@ -6,12 +6,12 @@
   import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
   import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
   import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
-  import type { EventLogStats } from "$lib/slices/invokers/types";
+  import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 
   const project = $derived(currentProject());
   const pops = $derived(populations());
 
-  let stats = $state<Record<string, EventLogStats>>({});
+  let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
   /**

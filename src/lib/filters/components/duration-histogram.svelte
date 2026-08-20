@@ -17,7 +17,7 @@
   import { formatDuration, formatDurationParts, formatNumber } from "$lib/format";
   import type { Filter } from "$lib/filters/filters/filter";
   import { durationHistogram } from "$lib/filters/invokers/duration-histogram";
-  import type { DurationBin } from "$lib/filters/invokers/types";
+  import type { ResponseDurationBin } from "$lib/filters/invokers/types";
   import type { Project } from "$lib/event-log/types";
 
   let {
@@ -41,7 +41,7 @@
   /** Pending while a keystroke is settling — the fields are the source of truth then. */
   let applyTimer: ReturnType<typeof setTimeout> | undefined;
 
-  let bins = $state<DurationBin[] | null>(null);
+  let bins = $state<ResponseDurationBin[] | null>(null);
   let error = $state<string | null>(null);
 
   $effect(() => {
@@ -156,7 +156,7 @@
     return ceiling === null ? value : Math.min(value, ceiling);
   }
 
-  function selected(bin: DurationBin): boolean {
+  function selected(bin: ResponseDurationBin): boolean {
     if (min === null && max === null) return true;
     const middle = (bin.startMs + bin.endMs) / 2;
     return (min === null || middle >= min) && (max === null || middle <= max);

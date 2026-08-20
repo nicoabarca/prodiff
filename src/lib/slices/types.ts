@@ -1,5 +1,5 @@
 import type { Filter } from "$lib/filters/filters/filter";
-import type { EventLogStats } from "$lib/slices/invokers/types";
+import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 
 /**
  * A named filter chain over a Project's Event Log. `base` (at most one per
@@ -18,7 +18,7 @@ export interface Slice {
   color: string;
   position: number;
   filters: Filter[];
-  stats: EventLogStats | null;
+  stats: ResponseEventLogStats | null;
   statsKey: string | null;
 }
 
@@ -31,5 +31,5 @@ export interface Population {
   name: string;
   color: string;
   chain: Filter[];
-  stats: EventLogStats | null;
+  stats: ResponseEventLogStats | null;
 }

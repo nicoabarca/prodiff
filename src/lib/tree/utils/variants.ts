@@ -1,7 +1,7 @@
-import type { VariantRow } from "$lib/tree/invokers/types";
+import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 
 /** Cases on a Variant across both Groups — the ranking the backend cut uses. */
-export function variantCases(row: VariantRow): number {
+export function variantCases(row: ResponseVariantRow): number {
   return row.casesA + row.casesB;
 }
 
@@ -10,7 +10,7 @@ export function variantCases(row: VariantRow): number {
  * the backend's cold-build pick, so seeding the picker and letting Rust choose
  * land on the same set.
  */
-export function variantsCovering(rows: VariantRow[], coverage: number): Set<string> {
+export function variantsCovering(rows: ResponseVariantRow[], coverage: number): Set<string> {
   const total = rows.reduce((sum, row) => sum + variantCases(row), 0);
   const target = total * coverage;
   const keys = new Set<string>();

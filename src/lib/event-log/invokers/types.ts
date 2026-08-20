@@ -29,7 +29,7 @@ export interface ColumnMapping {
 }
 
 /** What `preview_event_log` returns: the head of the file, typed. */
-export interface EventLogPreview {
+export interface ResponseEventLogPreview {
   columns: { name: string; dtype: ColumnType }[];
   rows: string[][];
 }
@@ -40,7 +40,7 @@ export interface EventLogPreview {
  * recomputed per population by the Statistics view rather than stored on the
  * project, so they are picked off here instead of spread into the row.
  */
-export interface CreateEventLogResult {
+export interface ResponseCreateEventLog {
   events: number;
   cases: number;
   activities: number;

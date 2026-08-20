@@ -9,10 +9,10 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import type { DirectedTree } from "$lib/tree/invokers/types";
+  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
-  let { tree }: { tree: DirectedTree } = $props();
+  let { tree }: { tree: ResponseDirectedTree } = $props();
 
   const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
   // Group names and case counts live on the filter summary bar, which already

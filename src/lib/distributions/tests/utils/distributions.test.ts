@@ -6,7 +6,7 @@
 import { describe, expect, test } from "vitest";
 import type { DurationShape } from "$lib/distributions/invokers/types";
 import { curveRows, gridAttributes, logBars, outlierNote, shareAt } from "$lib/distributions/utils/distributions";
-import type { AttributeBlock, DirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
+import type { AttributeBlock, ResponseDirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 
@@ -123,7 +123,7 @@ describe("gridAttributes", () => {
  *          └─ 3
  */
 describe("stepContext", () => {
-  const shaped: DirectedTree = {
+  const shaped: ResponseDirectedTree = {
     nodes: [
       { id: 0, parent: null },
       { id: 1, parent: 0 },
@@ -132,7 +132,7 @@ describe("stepContext", () => {
       { id: 4, parent: 2 },
       { id: 5, parent: 4 }
     ]
-  } as unknown as DirectedTree;
+  } as unknown as ResponseDirectedTree;
 
   const context = (id: number, depth?: number) =>
     [...stepContext(shaped, id, depth)].sort((a, b) => a - b);

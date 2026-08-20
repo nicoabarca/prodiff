@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { ColumnMapping } from "$lib/event-log/invokers/types";
 import type { EndpointPosition } from "$lib/filters/filters/endpoint";
-import type { DistinctValues } from "$lib/filters/invokers/types";
+import type { ResponseDistinctValues } from "$lib/filters/invokers/types";
 
 /**
  * The values a column holds, for the editor's value picker. `endpoint` narrows
@@ -13,8 +13,8 @@ export function distinctValues(
   columns: ColumnMapping[],
   limit: number,
   endpoint: EndpointPosition | null = null
-): Promise<DistinctValues> {
-  return invoke<DistinctValues>("distinct_values", {
+): Promise<ResponseDistinctValues> {
+  return invoke<ResponseDistinctValues>("distinct_values", {
     projectId,
     column,
     columns,

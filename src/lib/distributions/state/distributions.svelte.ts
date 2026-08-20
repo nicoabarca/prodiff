@@ -10,7 +10,7 @@
  */
 
 import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
-import type { NodeDistributions } from "$lib/distributions/invokers/types";
+import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
 import { built, groupChains, isStale, selected } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
@@ -57,7 +57,7 @@ export const charts = $state<{
  */
 export const loaded = $state<{
   key: string | null;
-  data: NodeDistributions | null;
+  data: ResponseNodeDistributions | null;
   loading: boolean;
   error: string | null;
 }>({ key: null, data: null, loading: false, error: null });

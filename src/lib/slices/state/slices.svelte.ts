@@ -5,7 +5,7 @@ import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/filters/filter";
 import { chainImpact } from "$lib/slices/invokers/chain-impact";
 import { fetchSharedCases } from "$lib/slices/invokers/shared-cases";
-import type { ChainStep, EventLogStats } from "$lib/slices/invokers/types";
+import type { ResponseChainStep, ResponseEventLogStats } from "$lib/slices/invokers/types";
 import type { Population, Slice } from "$lib/slices/types";
 import { sliceStats } from "$lib/statistics/invokers/slice-stats";
 
@@ -181,7 +181,7 @@ export async function removeSlicesForProject(projectId: string) {
  * comparison summary read one scan of the log rather than each running their
  * own; the stored `key` is what makes a stale measurement detectable.
  */
-export const impacts = $state<Record<string, { key: string; steps: ChainStep[] }>>({});
+export const impacts = $state<Record<string, { key: string; steps: ResponseChainStep[] }>>({});
 
 export async function loadImpact(project: Project, slice: Slice) {
   const key = chainKey(effectiveChain(slice));
@@ -191,7 +191,7 @@ export async function loadImpact(project: Project, slice: Slice) {
 }
 
 /** A slice's measured chain, or null while it is stale or still in flight. */
-export function sliceSteps(slice: Slice): ChainStep[] | null {
+export function sliceSteps(slice: Slice): ResponseChainStep[] | null {
   const measured = impacts[slice.id];
   return measured?.key === chainKey(effectiveChain(slice)) ? measured.steps : null;
 }
@@ -259,8 +259,8 @@ export function populations(): Population[] {
 export async function computeStats(
   project: Project,
   wanted: Population[]
-): Promise<Record<string, EventLogStats>> {
-  const cached: Record<string, EventLogStats> = {};
+): Promise<Record<string, ResponseEventLogStats>> {
+  const cached: Record<string, ResponseEventLogStats> = {};
   const missing = wanted.filter((p) => {
     if (p.stats) cached[p.id] = p.stats;
     return !p.stats;

@@ -10,7 +10,7 @@
  * `src-tauri/src/tree/mod.rs`. Everything the view can show arrives in one
  * payload: the frontend filters, toggles and lays out, but never re-aggregates.
  */
-export interface DirectedTree {
+export interface ResponseDirectedTree {
   nodes: TreeNode[];
   groupA: GroupBlock;
   groupB: GroupBlock | null;
@@ -45,7 +45,7 @@ export interface TreeNode {
 }
 
 /** One Variant of the filtered log, as `list_variants` ships it. */
-export interface VariantRow {
+export interface ResponseVariantRow {
   key: string;
   activities: string[];
   casesA: number;

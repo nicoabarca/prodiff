@@ -1,7 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { ColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/filters/filter";
-import type { EventLogStats } from "$lib/slices/invokers/types";
+import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 import type { SliceKind } from "$lib/slices/types";
 import type { TreeSettings } from "$lib/tree/types";
 
@@ -35,7 +35,7 @@ export const slices = sqliteTable("slices", {
   color: text("color").notNull(),
   position: integer("position").notNull(),
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
-  stats: text("stats", { mode: "json" }).$type<EventLogStats | null>(),
+  stats: text("stats", { mode: "json" }).$type<ResponseEventLogStats | null>(),
   statsKey: text("stats_key")
 });
 

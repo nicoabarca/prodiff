@@ -7,7 +7,7 @@
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
   import { groupSlices } from "$lib/tree/state/tree.svelte";
-  import type { AttributeBlock, DirectedTree } from "$lib/tree/invokers/types";
+  import type { AttributeBlock, ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
   import { membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
@@ -21,7 +21,7 @@
     tree,
     nodeId,
     onClose
-  }: { tree: DirectedTree; nodeId: number | null; onClose: () => void } = $props();
+  }: { tree: ResponseDirectedTree; nodeId: number | null; onClose: () => void } = $props();
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);

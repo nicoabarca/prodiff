@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/filters/filter";
-import type { DirectedTree } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
 
 /**
@@ -19,8 +19,8 @@ export function directedTree(
   groupA: Filter[],
   groupB: Filter[] | null,
   settings: TreeSettings
-): Promise<DirectedTree> {
-  return invoke<DirectedTree>("directed_tree", {
+): Promise<ResponseDirectedTree> {
+  return invoke<ResponseDirectedTree>("directed_tree", {
     projectId: project.id,
     groupA,
     groupB,

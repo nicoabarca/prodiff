@@ -65,7 +65,7 @@ export type Distribution =
     }
   | { type: "empty" };
 
-export interface NodeDistributions {
+export interface ResponseNodeDistributions {
   /** In the order the attributes were requested, so the cards keep theirs. */
   attributes: [string, Distribution][];
   casesA: number;

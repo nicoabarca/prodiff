@@ -1,4 +1,4 @@
-import type { DirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
 
@@ -17,7 +17,7 @@ export function membership(node: TreeNode): "a" | "b" | "shared" {
   return "shared";
 }
 
-export function children(tree: DirectedTree): Map<number, number[]> {
+export function children(tree: ResponseDirectedTree): Map<number, number[]> {
   const map = new Map<number, number[]>();
   for (const node of tree.nodes) {
     if (node.parent === null) continue;
@@ -29,7 +29,7 @@ export function children(tree: DirectedTree): Map<number, number[]> {
 }
 
 /** The path from the root down to `id`, inclusive — a node's full trace. */
-export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
+export function pathTo(tree: ResponseDirectedTree, id: number): TreeNode[] {
   const byId = new Map(tree.nodes.map((n) => [n.id, n]));
   const path: TreeNode[] = [];
   let current: TreeNode | undefined = byId.get(id);
@@ -57,7 +57,7 @@ export const CONTEXT_DEPTH = 1;
  * would put the numbers next to activities they never counted.
  */
 export function stepContext(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   id: number,
   depth: number = CONTEXT_DEPTH
 ): Set<number> {
@@ -76,13 +76,13 @@ export function stepContext(
 }
 
 /** One leaf per Variant: every path from the root ends at exactly one. */
-export function leaves(tree: DirectedTree): TreeNode[] {
+export function leaves(tree: ResponseDirectedTree): TreeNode[] {
   const kids = children(tree);
   return tree.nodes.filter((n) => !kids.has(n.id));
 }
 
 /** Cases in both Groups before any cut — the denominator for every share. */
-export function totalCases(tree: DirectedTree): number {
+export function totalCases(tree: ResponseDirectedTree): number {
   return Number(tree.groupA.caseCount) + Number(tree.groupB?.caseCount ?? 0);
 }
 
@@ -97,7 +97,7 @@ export function totalCases(tree: DirectedTree): number {
  * build — which is why doing so marks the tree stale.
  */
 export function visibleNodes(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   view: TreeView,
   selected: Set<string>
 ): Visible {
@@ -165,7 +165,7 @@ export function visibleNodes(
  * activity. This is the event index a node's own step sits at, offset by the
  * root: the node at depth `d` is the `d`th activity of every case reaching it.
  */
-export function nodeDepth(tree: DirectedTree, id: number): number {
+export function nodeDepth(tree: ResponseDirectedTree, id: number): number {
   return pathTo(tree, id).length - 1;
 }
 
@@ -178,7 +178,7 @@ export function nodeDepth(tree: DirectedTree, id: number): number {
  * a subtree away is a rendering choice and must not change which cases the
  * charts describe.
  */
-export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number): string[] {
+export function subtreeVariants(tree: ResponseDirectedTree, visible: Visible, id: number): string[] {
   const byId = new Map(tree.nodes.map((n) => [n.id, n]));
   const kids = children(tree);
   const keys: string[] = [];
@@ -199,7 +199,7 @@ export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number
  * it existed — so hovering it highlights nothing rather than lying about a
  * partial path.
  */
-export function variantPath(tree: DirectedTree, visible: Visible, key: string): Set<number> {
+export function variantPath(tree: ResponseDirectedTree, visible: Visible, key: string): Set<number> {
   const leaf = tree.nodes.find((node) => node.variantKey === key);
   if (!leaf || !visible.ids.has(leaf.id)) return new Set();
   return new Set(pathTo(tree, leaf.id).map((node) => node.id));

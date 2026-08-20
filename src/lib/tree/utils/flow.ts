@@ -5,7 +5,7 @@
  */
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/svelte";
-import type { DirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { isDurationAttribute } from "$lib/tree/utils/settings";
@@ -105,7 +105,7 @@ function edgeLabel(node: TreeNode): string | undefined {
  * volume flowing into the child, scaled against the busiest edge on screen.
  */
 export function toFlow(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   visible: Visible,
   options: FlowOptions
 ): { nodes: Node[]; edges: Edge[] } {

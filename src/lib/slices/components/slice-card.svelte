@@ -13,7 +13,7 @@
     sliceColor,
     sliceSteps
   } from "$lib/slices/state/slices.svelte";
-  import type { ChainStep } from "$lib/slices/invokers/types";
+  import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { describeFilter } from "$lib/filters/filters/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
@@ -62,7 +62,7 @@
   });
 
   /** Cases before and after the filter at this slice-local index. */
-  function impact(index: number): { before: ChainStep; after: ChainStep } | null {
+  function impact(index: number): { before: ResponseChainStep; after: ResponseChainStep } | null {
     if (!steps) return null;
     const global = inherited + index;
     if (global + 1 >= steps.length) return null;

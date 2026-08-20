@@ -4,7 +4,7 @@ import { treeSettings as settingsTable } from "$lib/db/schema";
 import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
-import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
 import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
@@ -24,7 +24,7 @@ import type { Slice } from "$lib/slices/types";
 export const built = $state<{
   projectId: string | null;
   key: string | null;
-  tree: DirectedTree | null;
+  tree: ResponseDirectedTree | null;
   building: boolean;
   error: string | null;
 }>({ projectId: null, key: null, tree: null, building: false, error: null });
@@ -48,7 +48,7 @@ export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() 
  */
 export const variants = $state<{
   key: string | null;
-  rows: VariantRow[];
+  rows: ResponseVariantRow[];
   loading: boolean;
   error: string | null;
   /** Selected Variants gone since the last load, for the picker to report. */

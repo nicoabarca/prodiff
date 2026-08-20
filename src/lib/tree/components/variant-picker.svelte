@@ -24,7 +24,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import { formatNumber } from "$lib/format";
-  import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+  import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import {
     groupSlices,
@@ -43,7 +43,7 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import X from "@lucide/svelte/icons/x";
 
-  let { project, tree }: { project: Project; tree: DirectedTree | null } = $props();
+  let { project, tree }: { project: Project; tree: ResponseDirectedTree | null } = $props();
 
   let open = $state(false);
   let selectedOnly = $state(false);
@@ -241,7 +241,7 @@
       </div>
     {:else}
       <VirtualList items={rows} rowHeight={56}>
-        {#snippet row(item: VariantRow)}
+        {#snippet row(item: ResponseVariantRow)}
           <!-- A row is two controls, not one: the checkbox includes the
                Variant in the build, the rest of the row only shows its trace.
                Hence a plain div — a `<label>` would make every click on the

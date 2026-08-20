@@ -5,10 +5,10 @@
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import type { EventLogStats } from "$lib/slices/invokers/types";
+  import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
   import type { Population } from "$lib/slices/types";
 
-  let { populations, stats }: { populations: Population[]; stats: Record<string, EventLogStats> } =
+  let { populations, stats }: { populations: Population[]; stats: Record<string, ResponseEventLogStats> } =
     $props();
 
   /**
@@ -19,8 +19,8 @@
   interface ChartDef {
     title: string;
     unit: string;
-    value: (s: EventLogStats) => number;
-    display: (s: EventLogStats) => string;
+    value: (s: ResponseEventLogStats) => number;
+    display: (s: ResponseEventLogStats) => string;
   }
 
   const CHARTS: ChartDef[] = [
