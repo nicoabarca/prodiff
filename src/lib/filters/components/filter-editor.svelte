@@ -35,6 +35,12 @@
     TIMEFRAME_MODE_INFO,
     type TimeframeMode
   } from "$lib/filters/filters/timeframe";
+  import {
+    activityColumn,
+    categoricalColumns,
+    eventLevelColumns,
+    numericColumns
+  } from "$lib/filters/utils/columns";
   import { chainImpact } from "$lib/slices/invokers/chain-impact";
   import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
@@ -67,23 +73,10 @@
   /** Debounce before re-measuring the draft against the log, in ms. */
   const IMPACT_DEBOUNCE = 250;
 
-  const usable = $derived(project.columns.filter((c) => !project.hiddenColumns.includes(c.name)));
-  const activityColumn = $derived(usable.find((c) => c.role === "activity_name")?.name ?? "");
-  // Case ids and timestamps are excluded: filtering by an individual case id is
-  // not a slice, and timestamps have their own filter kind.
-  const categorical = $derived(
-    usable.filter(
-      (c) =>
-        (c.type === "string" || c.type === "boolean") &&
-        c.role !== "case_id" &&
-        c.role !== "complete_timestamp" &&
-        c.role !== "start_timestamp"
-    )
-  );
-  const numericColumns = $derived(usable.filter((c) => c.type === "integer" || c.type === "float"));
-  // A case-level column holds one value for the whole case, so it can never
-  // produce a reference → follower pair across two different values.
-  const eventLevel = $derived(categorical.filter((c) => c.granularity !== "case"));
+  const activity = $derived(activityColumn(project));
+  const categorical = $derived(categoricalColumns(project));
+  const numeric = $derived(numericColumns(project));
+  const eventLevel = $derived(eventLevelColumns(project));
 
   const kinds = $derived(
     [
@@ -97,7 +90,7 @@
         kind: "numeric" as const,
         label: "Numeric",
         description: "Selects cases by the range their events cover in a numeric column.",
-        available: numericColumns.length > 0
+        available: numeric.length > 0
       },
       {
         kind: "timeframe" as const,
@@ -109,7 +102,7 @@
         kind: "endpoint" as const,
         label: "Start / end",
         description: "Selects cases by the activity they start or end with.",
-        available: activityColumn !== ""
+        available: activity !== ""
       },
       {
         kind: "duration" as const,
@@ -215,7 +208,7 @@
 
   /** The columns a kind may read, and which one its value picker lists. */
   const columnOptions = $derived(
-    kind === "numeric" ? numericColumns : kind === "follower" ? eventLevel : categorical
+    kind === "numeric" ? numeric : kind === "follower" ? eventLevel : categorical
   );
   const picksColumn = $derived(kind === "attribute" || kind === "numeric" || kind === "follower");
 
@@ -254,7 +247,7 @@
   // Both positions are fetched together whenever the endpoint kind is active,
   // so the two pickers can show start and end activities side by side.
   $effect(() => {
-    if (kind !== "endpoint" || !activityColumn) {
+    if (kind !== "endpoint" || !activity) {
       startValues = [];
       endValues = [];
       return;
@@ -264,7 +257,7 @@
     endValuesError = null;
 
     const fetch = (position: EndpointPosition) =>
-      distinctValues(project.id, activityColumn, project.columns, VALUE_LIMIT, position);
+      distinctValues(project.id, activity, project.columns, VALUE_LIMIT, position);
 
     fetch("start")
       .then((result) => {
