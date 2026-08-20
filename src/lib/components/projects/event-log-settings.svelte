@@ -50,7 +50,9 @@
     }
   });
 
-  const required = $derived(new Set(project.columns.filter((c) => c.role !== "other").map((c) => c.name)));
+  const required = $derived(
+    new Set(project.columns.filter((c) => c.role !== "other").map((c) => c.name))
+  );
 
   function commitName() {
     const trimmed = name.trim();
@@ -68,7 +70,10 @@
     updateProject(project.id, { hiddenColumns });
   }
 
-  function setColumn(columnName: string, changes: { granularity?: ColumnGranularity; type?: ExtraFieldType }) {
+  function setColumn(
+    columnName: string,
+    changes: { granularity?: ColumnGranularity; type?: ExtraFieldType }
+  ) {
     const columns = project.columns.map((column) =>
       column.name === columnName
         ? {

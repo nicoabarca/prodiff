@@ -238,9 +238,7 @@ test("the outlier note names the cutoff", () => {
   // The count alone is meaningless without it.
   const secs = (value: number) => `${value}s`;
   const stats = { whiskerLow: 26, whiskerHigh: 253, outliersLow: 34, outliersHigh: 129 };
-  expect(outlierNote("Night", stats, secs)).toBe(
-    "Night: 129 over 253s, 34 under 26s, not plotted"
-  );
+  expect(outlierNote("Night", stats, secs)).toBe("Night: 129 over 253s, 34 under 26s, not plotted");
   // Only the side that has any: a bare "0 over 253s" reads as a finding.
   expect(outlierNote("Night", { ...stats, outliersHigh: 0 }, secs)).toBe(
     "Night: 34 under 26s, not plotted"

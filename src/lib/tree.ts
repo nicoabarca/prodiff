@@ -218,11 +218,7 @@ export function directedTree(
  * Identifies the numbers a build produces, for the in-memory cache. Sorted, so
  * checking Variants in a different order doesn't read as a different tree.
  */
-export function treeKey(
-  groupA: Filter[],
-  groupB: Filter[] | null,
-  settings: TreeSettings
-): string {
+export function treeKey(groupA: Filter[], groupB: Filter[] | null, settings: TreeSettings): string {
   return JSON.stringify([
     groupA,
     groupB,
@@ -297,7 +293,8 @@ export function effectBand(effectSize: number): EffectBand {
 
 /** The band's step on the `--effect-*` ramp, 1 (negligible) to 4 (large). */
 export function effectStep(effectSize: number): 1 | 2 | 3 | 4 {
-  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as 1 | 2 | 3 | 4;
+  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as
+    1 | 2 | 3 | 4;
 }
 
 /**
@@ -446,11 +443,7 @@ export function totalCases(tree: DirectedTree): number {
  * but the aggregates on the nodes above it still describe it until the next
  * build — which is why doing so marks the tree stale.
  */
-export function visibleNodes(
-  tree: DirectedTree,
-  view: TreeView,
-  selected: Set<string>
-): Visible {
+export function visibleNodes(tree: DirectedTree, view: TreeView, selected: Set<string>): Visible {
   const kids = children(tree);
   const all = leaves(tree);
 

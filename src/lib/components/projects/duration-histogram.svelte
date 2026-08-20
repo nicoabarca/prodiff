@@ -244,8 +244,10 @@
             fill={selected(bin) ? color : "var(--muted-foreground)"}
             fill-opacity={selected(bin) ? 1 : 0.3}
           >
-            <title>{formatDuration(bin.startMs)} – {formatDuration(bin.endMs)}:
-              {formatNumber(bin.cases)} cases</title>
+            <title
+              >{formatDuration(bin.startMs)} – {formatDuration(bin.endMs)}:
+              {formatNumber(bin.cases)} cases</title
+            >
           </rect>
         {/each}
       </Svg>

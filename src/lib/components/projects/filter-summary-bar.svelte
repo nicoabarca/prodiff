@@ -25,11 +25,8 @@
    * figure on the one bar that already names the slices, instead of a second
    * bar repeating them.
    */
-  let {
-    project,
-    trailing,
-    actions
-  }: { project: Project; trailing?: Snippet; actions?: Snippet } = $props();
+  let { project, trailing, actions }: { project: Project; trailing?: Snippet; actions?: Snippet } =
+    $props();
   const projectId = $derived(project.id);
 
   const entries = $derived(
@@ -53,7 +50,9 @@
   function current(slice: Slice, metric: "cases" | "events"): number | null {
     const measured = metric === "cases" ? sliceCases(slice) : sliceEvents(slice);
     if (measured !== null) return measured;
-    return slice.statsKey === chainKey(effectiveChain(slice)) ? (slice.stats?.[metric] ?? null) : null;
+    return slice.statsKey === chainKey(effectiveChain(slice))
+      ? (slice.stats?.[metric] ?? null)
+      : null;
   }
 
   /** `12,345 cases (48%)` — the share omitted when there is no total to divide by. */
@@ -143,12 +142,18 @@
     {#if groupA && groupB}
       {@const shared = sharedCases(groupA, groupB)}
       <Separator orientation="vertical" class="self-stretch" />
-      <span class="text-muted-foreground flex items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap">
+      <span
+        class="text-muted-foreground flex items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap"
+      >
         <span class="relative flex size-3 shrink-0 items-center" aria-hidden="true">
           <span class="border-muted-foreground absolute left-0 size-2.5 rounded-full border"></span>
           <span class="border-muted-foreground absolute left-1 size-2.5 rounded-full border"></span>
         </span>
-        {shared === null ? "" : shared > 0 ? `${formatNumber(shared)} cases shared` : "No cases shared"}
+        {shared === null
+          ? ""
+          : shared > 0
+            ? `${formatNumber(shared)} cases shared`
+            : "No cases shared"}
       </span>
     {/if}
   {/if}

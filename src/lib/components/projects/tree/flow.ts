@@ -66,8 +66,10 @@ function secondaryLabels(
   cases: { groupACases: number; groupBCases: number }
 ): [string | null, string | null] {
   if (secondary === "cases" || secondary === "casesA" || secondary === "casesB") {
-    const a = secondary === "casesB" || cases.groupACases === 0 ? null : formatNumber(cases.groupACases);
-    const b = secondary === "casesA" || cases.groupBCases === 0 ? null : formatNumber(cases.groupBCases);
+    const a =
+      secondary === "casesB" || cases.groupACases === 0 ? null : formatNumber(cases.groupACases);
+    const b =
+      secondary === "casesA" || cases.groupBCases === 0 ? null : formatNumber(cases.groupBCases);
     return [a, b];
   }
 

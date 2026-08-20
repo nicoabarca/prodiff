@@ -39,7 +39,9 @@
   );
 </script>
 
-<div class="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[60%] flex-wrap items-center gap-1">
+<div
+  class="pointer-events-none absolute top-3 left-3 z-10 flex max-w-[60%] flex-wrap items-center gap-1"
+>
   {#each items as item (item)}
     <Badge variant="secondary" class="bg-background/90 backdrop-blur">{item}</Badge>
   {/each}

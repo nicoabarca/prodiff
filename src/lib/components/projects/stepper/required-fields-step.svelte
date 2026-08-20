@@ -74,9 +74,8 @@
     </span>
     <span class="text-pretty">
       <span class="font-semibold tracking-wide"
-        >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the <span class="font-bold"
-          >{roleMeta[activeRole].label.toUpperCase()}</span
-        > column</span
+        >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the
+        <span class="font-bold">{roleMeta[activeRole].label.toUpperCase()}</span> column</span
       >
       {" — "}
       {roleMeta[activeRole].hint}
