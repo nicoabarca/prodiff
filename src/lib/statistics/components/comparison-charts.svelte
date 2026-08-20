@@ -13,8 +13,7 @@
 
   /**
    * A chart reads one metric across every population, so it needs the figure
-   * twice: `value` is what the bar is scaled by, `display` what it is labelled
-   * with — a duration bar is drawn in milliseconds but read as "8d 4h".
+   * twice: `value` scales the bar, `display` labels it.
    */
   interface ChartDef {
     title: string;
