@@ -42,7 +42,11 @@ export function describeBounds(mode: NumericMode, low: string, high: string): st
 
 /** Whether a `NumericMode`'s bounds are filled in enough to mean anything. */
 export function hasBounds(mode: NumericMode, min: number | null, max: number | null): boolean {
-  return mode === "above" ? min !== null : mode === "below" ? max !== null : min !== null || max !== null;
+  return mode === "above"
+    ? min !== null
+    : mode === "below"
+      ? max !== null
+      : min !== null || max !== null;
 }
 
 export function describeNumeric(filter: NumericFilter): { title: string; detail: string } {

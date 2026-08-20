@@ -11,7 +11,7 @@
     loadImpact,
     renameSlice,
     sliceColor,
-    sliceSteps,
+    sliceSteps
   } from "$lib/slices/state/slices.svelte";
   import type { ChainStep } from "$lib/slices/invokers/types";
   import { describeFilter } from "$lib/filters/filters/filter";
