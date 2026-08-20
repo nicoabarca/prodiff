@@ -141,7 +141,7 @@
         onValueChange={(next) => {
           from = next ? startOfDay(next) : null;
         }}
-        class="mx-auto w-fit p-0 [&_[data-bits-day]]:text-xs [&_td]:text-xs [&_th]:text-[0.65rem]"
+        class="mx-auto w-fit p-0 **:data-bits-day:text-xs [&_td]:text-xs [&_th]:text-[0.65rem]"
       />
     </div>
     <div class="border-border grid gap-1 border p-2">
@@ -155,7 +155,7 @@
         onValueChange={(next) => {
           to = next ? startOfDay(next) + DAY_MS - 1 : null;
         }}
-        class="mx-auto w-fit p-0 [&_[data-bits-day]]:text-xs [&_td]:text-xs [&_th]:text-[0.65rem]"
+        class="mx-auto w-fit p-0 **:data-bits-day:text-xs [&_td]:text-xs [&_th]:text-[0.65rem]"
       />
     </div>
   </div>
