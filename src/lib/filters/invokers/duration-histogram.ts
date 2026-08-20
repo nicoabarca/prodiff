@@ -4,7 +4,10 @@ import type { Filter } from "$lib/filters/filters/filter";
 import type { ResponseDurationBin } from "$lib/filters/invokers/types";
 
 /** Case durations of `chain`'s population, binned for the duration brush. */
-export function durationHistogram(project: Project, chain: Filter[]): Promise<ResponseDurationBin[]> {
+export function durationHistogram(
+  project: Project,
+  chain: Filter[]
+): Promise<ResponseDurationBin[]> {
   return invoke<ResponseDurationBin[]>("duration_histogram", {
     projectId: project.id,
     chain,

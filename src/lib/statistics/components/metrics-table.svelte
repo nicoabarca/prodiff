@@ -6,8 +6,10 @@
   import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
   import type { Population } from "$lib/slices/types";
 
-  let { populations, stats }: { populations: Population[]; stats: Record<string, ResponseEventLogStats> } =
-    $props();
+  let {
+    populations,
+    stats
+  }: { populations: Population[]; stats: Record<string, ResponseEventLogStats> } = $props();
 
   interface Metric {
     label: string;
