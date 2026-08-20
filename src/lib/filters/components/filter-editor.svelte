@@ -1,7 +1,6 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import * as Field from "$lib/components/ui/field/index.js";
-  import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -40,6 +39,7 @@
   import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
+  import ColumnSelect from "./column-select.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -416,32 +416,16 @@
          right one, so picking values no longer waits at the bottom. -->
     <div class="grid gap-3 sm:grid-cols-2">
       <div class="space-y-3">
-        <Field.Field>
-          <Field.FieldLabel for="filter-column" class="h-6 items-center">Column</Field.FieldLabel>
-          <Select.Root
-            type="single"
-            value={column}
-            onValueChange={(next) => {
-              column = next;
-              selected = [];
-            }}
-          >
-            <Select.Trigger id="filter-column">{column || "Pick a column"}</Select.Trigger>
-            <Select.Content style="--accent-color: {color}">
-              <Select.Group>
-                {#each columnOptions as option (option.name)}
-                  <Select.Item
-                    value={option.name}
-                    label={option.name}
-                    class="[&_.cn-select-item-indicator-icon]:text-(--accent-color)"
-                  >
-                    {option.name}
-                  </Select.Item>
-                {/each}
-              </Select.Group>
-            </Select.Content>
-          </Select.Root>
-        </Field.Field>
+        <ColumnSelect
+          columns={columnOptions}
+          value={column}
+          onselect={(next) => {
+            column = next;
+            selected = [];
+          }}
+          {color}
+          labelClass="h-6 items-center"
+        />
         <ModePicker
           entries={ATTRIBUTE_MODES}
           current={attributeMode}
@@ -500,35 +484,18 @@
     </div>
   {:else}
     {#if picksColumn}
-      <Field.Field class="w-1/2">
-        <Field.FieldLabel for="filter-column">
-          {kind === "follower" ? "Filter by" : "Column"}
-        </Field.FieldLabel>
-        <Select.Root
-          type="single"
-          value={column}
-          onValueChange={(next) => {
-            column = next;
-            referenceValues = [];
-            followerValues = [];
-          }}
-        >
-          <Select.Trigger id="filter-column">{column || "Pick a column"}</Select.Trigger>
-          <Select.Content style="--accent-color: {color}">
-            <Select.Group>
-              {#each columnOptions as option (option.name)}
-                <Select.Item
-                  value={option.name}
-                  label={option.name}
-                  class="[&_.cn-select-item-indicator-icon]:text-(--accent-color)"
-                >
-                  {option.name}
-                </Select.Item>
-              {/each}
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
-      </Field.Field>
+      <ColumnSelect
+        columns={columnOptions}
+        value={column}
+        onselect={(next) => {
+          column = next;
+          referenceValues = [];
+          followerValues = [];
+        }}
+        {color}
+        label={kind === "follower" ? "Filter by" : "Column"}
+        class="w-1/2"
+      />
     {/if}
 
     {#if kind === "numeric"}
