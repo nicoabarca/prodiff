@@ -32,10 +32,8 @@
   const stale = $derived(isStale());
 
   // An empty selection means two different things. Before the variant list has
-  // loaded it means "never chosen", and the backend opens on the most common
-  // variants — a perfectly good cold build. Once the list has loaded the
-  // selection has been seeded, so empty can only mean the user cleared it, and
-  // building would draw nothing.
+  // loaded it means "never chosen" and the backend picks by coverage; once the
+  // list has loaded the selection has been seeded, so empty means cleared.
   const noVariants = $derived(
     variants.key !== null && settings.value.selectedVariants.length === 0
   );

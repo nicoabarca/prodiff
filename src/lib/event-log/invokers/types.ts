@@ -21,7 +21,7 @@ export type ColumnType = (typeof COLUMN_TYPES)[number];
 export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
 export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
 
-export interface ColumnMapping {
+export interface RequestColumnMapping {
   name: string;
   role: ColumnRole;
   type: ColumnType;
@@ -29,18 +29,17 @@ export interface ColumnMapping {
 }
 
 /** What `preview_event_log` returns: the head of the file, typed. */
-export interface EventLogPreview {
+export interface ResponseEventLogPreview {
   columns: { name: string; dtype: ColumnType }[];
   rows: string[][];
 }
 
 /**
  * Result of writing the Event Log: stats plus where the files ended up on disk.
- * Rust returns the full `EventLogStats` — the per-case metrics beyond these are
- * recomputed per population by the Statistics view rather than stored on the
- * project, so they are picked off here instead of spread into the row.
+ * Rust returns the full `EventLogStats`; the per-case metrics beyond these are
+ * recomputed per population by the Statistics view rather than stored.
  */
-export interface CreateEventLogResult {
+export interface ResponseCreateEventLog {
   events: number;
   cases: number;
   activities: number;

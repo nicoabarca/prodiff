@@ -1,21 +1,9 @@
 <script lang="ts">
   /**
-   * One attribute's Group A vs Group B comparison, drawn as the difference
-   * rather than as two distributions side by side.
-   *
-   * Categorical attributes chart the *share gap* — how many percentage points
-   * more common a value is in one Group than the other — diverging from a zero
-   * rule, ranked by that gap. Charting the shares themselves is what made this
-   * unreadable before: forty resources each hold ~2% of the cases, so every bar
-   * came out a two-pixel sliver and the ranking surfaced the biggest values
-   * instead of the most different ones. Scaling to the largest gap makes a
-   * sliver impossible by construction.
-   *
-   * Numeric attributes lead with the median difference in words, then draw two
-   * Tukey box plots on a shared axis — the summary the backend ships *is* a box
-   * plot, whiskers and outlier counts included, so nothing is recomputed here.
-   * The same five numbers and the same whisker rule as the Distributions view,
-   * so an attribute read in both places tells one story.
+   * One attribute's Group A vs Group B comparison, drawn as the difference:
+   * categorical attributes as the share gap in percentage points, numeric ones
+   * as two Tukey box plots on a shared axis. Nothing is recomputed here — the
+   * backend's summary already is a box plot, outlier counts included.
    */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
@@ -65,17 +53,9 @@
   const isNumeric = $derived(numericA !== null || numericB !== null);
 
   /**
-   * The axis spans the two Groups' whiskers.
-   *
-   * Not the full range: one case that took ten times the rest would squeeze
-   * both boxes into a few pixels. And no longer the quartiles either — the box
-   * *is* the quartiles, so an axis derived from them gave every attribute a box
-   * filling the same fixed fraction of the width, whatever the data. A box plot
-   * whose shape is decided by its own axis is a bar with extra steps.
-   *
-   * Tukey bounds the whiskers at 1.5·IQR either side, so the box can never fall
-   * below a quarter of the axis nor grow to fill it. The outliers past them are
-   * counted underneath instead of stretching the scale to reach one of them.
+   * The axis spans the two Groups' whiskers, not the full range. Tukey bounds
+   * them at 1.5·IQR either side, so the box always keeps a readable share of
+   * the width; the outliers past them are counted underneath instead.
    */
   const span = $derived.by(() => {
     const present = [numericA, numericB].filter((s) => s !== null);
@@ -106,10 +86,8 @@
   const constant = $derived(boxes.filter((row) => row.min === row.max));
 
   /**
-   * Nothing varies anywhere. There is no spread to plot and no axis to plot it
-   * on — the span collapses to a padding either side of the one value, so every
-   * tick formats to that same value and the axis reads `0s 0s 0s 0s 0s`. The
-   * sentence below carries it instead.
+   * Nothing varies anywhere: the span collapses and every tick would format to
+   * the same value. The sentence below carries it instead of an axis.
    */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
@@ -151,9 +129,8 @@
   });
 
   /**
-   * What the bars encode: the gap when there are two Groups to compare, plain
-   * share when there is only one and a gap would mean nothing. Colour follows
-   * the Group the value leans towards, so it agrees with the side it sits on.
+   * What the bars encode: the gap with two Groups, plain share with one.
+   * Colour follows the Group the value leans towards.
    */
   const bars = $derived(
     compare
@@ -170,9 +147,8 @@
 
   /**
    * Scaled to the largest gap across *every* category, not just the shown ones,
-   * so expanding the list never rescales the bars already read. The headroom
-   * keeps the longest bar's label inside the plot: without it the label runs
-   * back into the category-name gutter and the two collide.
+   * so expanding the list never rescales bars already read. The headroom keeps
+   * the longest bar's label clear of the category-name gutter.
    */
   const domain = $derived.by((): [number, number] => {
     const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);

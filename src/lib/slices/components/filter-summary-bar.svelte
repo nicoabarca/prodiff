@@ -22,9 +22,7 @@
 
   /**
    * `trailing` is for whatever the current view wants to say about the same
-   * populations — the tree's variant coverage, for instance. It keeps that
-   * figure on the one bar that already names the slices, instead of a second
-   * bar repeating them.
+   * populations — the tree's variant coverage, for instance.
    */
   let { project, trailing, actions }: { project: Project; trailing?: Snippet; actions?: Snippet } =
     $props();
@@ -45,8 +43,7 @@
   /**
    * A size of the chain as it stands right now: the Filters view's live
    * measurement when it has one, otherwise the stats cache — but only when its
-   * key still matches, or an edit would leave the old count on screen. Blank
-   * while neither is current, so the bar never runs analysis of its own.
+   * key still matches, or an edit would leave the old count on screen.
    */
   function current(slice: Slice, metric: "cases" | "events"): number | null {
     const measured = metric === "cases" ? sliceCases(slice) : sliceEvents(slice);

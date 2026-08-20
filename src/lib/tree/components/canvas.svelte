@@ -4,7 +4,7 @@
   import ActivityNode from "$lib/tree/components/node.svelte";
   import { toFlow } from "$lib/tree/utils/flow";
   import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
-  import type { DirectedTree } from "$lib/tree/invokers/types";
+  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
 
   let {
@@ -17,7 +17,7 @@
     /** Narrows the drawing to these nodes. Null draws the whole tree. */
     only = null
   }: {
-    tree: DirectedTree;
+    tree: ResponseDirectedTree;
     stale: boolean;
     deselectOnPaneClick?: boolean;
     only?: Set<number> | null;

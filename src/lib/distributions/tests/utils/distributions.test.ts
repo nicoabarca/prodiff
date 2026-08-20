@@ -1,12 +1,8 @@
-/**
- * The grid's ranking fails silently — a mis-sorted grid looks exactly like a
- * sorted one, and the whole point of the view is that the biggest difference is
- * on the first screen.
- */
+/** The grid's ranking fails silently: a mis-sorted grid looks sorted. */
 import { describe, expect, test } from "vitest";
 import type { DurationShape } from "$lib/distributions/invokers/types";
 import { curveRows, gridAttributes, logBars, outlierNote, shareAt } from "$lib/distributions/utils/distributions";
-import type { AttributeBlock, DirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
+import type { AttributeBlock, ResponseDirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 
@@ -116,14 +112,13 @@ describe("gridAttributes", () => {
 });
 
 /**
- * The step picker beside the grid draws `stepContext` rather than the tree, so
- * a bug here shows the numbers next to activities they never counted.
+ * Fixture shape:
  *
  *   0 ─ 1 ─┬─ 2 ─ 4 ─ 5
  *          └─ 3
  */
 describe("stepContext", () => {
-  const shaped: DirectedTree = {
+  const shaped: ResponseDirectedTree = {
     nodes: [
       { id: 0, parent: null },
       { id: 1, parent: 0 },
@@ -132,7 +127,7 @@ describe("stepContext", () => {
       { id: 4, parent: 2 },
       { id: 5, parent: 4 }
     ]
-  } as unknown as DirectedTree;
+  } as unknown as ResponseDirectedTree;
 
   const context = (id: number, depth?: number) =>
     [...stepContext(shaped, id, depth)].sort((a, b) => a - b);

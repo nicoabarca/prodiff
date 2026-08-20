@@ -1,11 +1,10 @@
 /**
- * Turns a Directed Tree into what Svelte Flow renders. Svelte Flow supplies no
- * layout, so Dagre places the nodes and the result is converted from its
- * centre-anchored coordinates to Svelte Flow's top-left ones.
+ * Turns a Directed Tree into what Svelte Flow renders. Dagre does the layout;
+ * its centre-anchored coordinates are converted to Svelte Flow's top-left.
  */
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/svelte";
-import type { DirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { isDurationAttribute } from "$lib/tree/utils/settings";
@@ -45,9 +44,8 @@ function significantCount(node: TreeNode): number {
 }
 
 /**
- * The node's second line, split per Group so each half can carry its Group's
- * colour. A half is `null` when that Group has nothing here — a node one Group
- * never reaches shows one figure, not a figure and a dash.
+ * The node's second line, split per Group so each half carries its colour.
+ * A half is `null` when that Group has nothing at this node.
  */
 function secondaryLabels(
   node: TreeNode,
@@ -87,9 +85,8 @@ export interface FlowOptions {
 }
 
 /**
- * The edge's label: mean Transition Time per Group, which is what the edge
- * physically is — the wait between the parent activity and this one. Empty
- * unless Transition Time was one of the attributes built.
+ * The edge's label: mean Transition Time per Group. Empty unless Transition
+ * Time was one of the attributes built.
  */
 function edgeLabel(node: TreeNode): string | undefined {
   const block = node.transitionTime;
@@ -105,7 +102,7 @@ function edgeLabel(node: TreeNode): string | undefined {
  * volume flowing into the child, scaled against the busiest edge on screen.
  */
 export function toFlow(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   visible: Visible,
   options: FlowOptions
 ): { nodes: Node[]; edges: Edge[] } {

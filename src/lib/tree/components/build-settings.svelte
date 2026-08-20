@@ -1,9 +1,5 @@
 <script lang="ts">
-  /**
-   * The one input to a build: which attributes get Significance Tests. It sits
-   * next to the Build button because changing it invalidates the tree — how
-   * many Variants are drawn is a view control, not this.
-   */
+  /** The one input to a build: which attributes get Significance Tests. */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";

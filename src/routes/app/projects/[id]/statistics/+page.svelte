@@ -6,18 +6,18 @@
   import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
   import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
   import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
-  import type { EventLogStats } from "$lib/slices/invokers/types";
+  import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 
   const project = $derived(currentProject());
   const pops = $derived(populations());
 
-  let stats = $state<Record<string, EventLogStats>>({});
+  let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
   /**
-   * Identifies the set of chains on screen. Recomputing is keyed on this rather
-   * than on the populations array, which is rebuilt on every slice mutation —
-   * including the cache write that `computeStats` itself performs.
+   * Identifies the set of chains on screen. Keyed on this, not the populations
+   * array, which is rebuilt on every slice mutation — including the cache
+   * write `computeStats` itself performs.
    */
   const wantedKey = $derived(pops.map((p) => `${p.id}:${chainKey(p.chain)}`).join("|"));
 

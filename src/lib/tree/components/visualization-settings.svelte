@@ -1,8 +1,7 @@
 <script lang="ts">
   /**
-   * What is drawn, as opposed to what was built. Everything here reads the tree
-   * already in memory — nothing triggers a rebuild, so these controls stay
-   * usable even while the tree on screen is stale.
+   * What is drawn, as opposed to what was built. Nothing here triggers a
+   * rebuild, so these controls stay usable while the tree is stale.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -12,14 +11,14 @@
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { groupSlices, selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import type { DirectedTree } from "$lib/tree/invokers/types";
+  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/tree/utils/settings";
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { formatNumber } from "$lib/format";
   import Eye from "@lucide/svelte/icons/eye";
 
-  let { tree }: { tree: DirectedTree } = $props();
+  let { tree }: { tree: ResponseDirectedTree } = $props();
 
   // Every node carries a block per attribute built, empty ones included, so the
   // root is enough to know what the tree can show.

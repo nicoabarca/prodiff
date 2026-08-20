@@ -36,7 +36,7 @@
     type TimeframeMode
   } from "$lib/filters/filters/timeframe";
   import { chainImpact } from "$lib/slices/invokers/chain-impact";
-  import type { ChainStep } from "$lib/slices/invokers/types";
+  import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -359,7 +359,7 @@
 
   // Live impact of the draft, measured on top of the filters that precede it.
   // Debounced because typing in a range box would otherwise re-scan per keystroke.
-  let impact = $state<{ before: ChainStep; after: ChainStep } | null>(null);
+  let impact = $state<{ before: ResponseChainStep; after: ResponseChainStep } | null>(null);
   let measuring = $state(false);
 
   $effect(() => {

@@ -11,9 +11,7 @@ export const projectsLoaded = $state<{ value: boolean }>({ value: false });
 
 /**
  * The project the current route addresses, or `null` while the list is still
- * loading (or if the id doesn't exist). Call inside a `$derived` — every
- * `/app/projects/[id]/*` view needs this and none of them should re-implement
- * the lookup.
+ * loading, or if the id doesn't exist. Call inside a `$derived`.
  */
 export function currentProject(): Project | null {
   return projects.find((p) => p.id === page.params.id) ?? null;

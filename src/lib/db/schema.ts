@@ -1,7 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/filters/filter";
-import type { EventLogStats } from "$lib/slices/invokers/types";
+import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
 import type { SliceKind } from "$lib/slices/types";
 import type { TreeSettings } from "$lib/tree/types";
 
@@ -11,7 +11,7 @@ export const projects = sqliteTable("projects", {
   fileName: text("file_name").notNull(),
   originalPath: text("original_path").notNull(),
   eventLogPath: text("event_log_path").notNull(),
-  columns: text("columns", { mode: "json" }).$type<ColumnMapping[]>().notNull(),
+  columns: text("columns", { mode: "json" }).$type<RequestColumnMapping[]>().notNull(),
   hiddenColumns: text("hidden_columns", { mode: "json" }).$type<string[]>().notNull(),
   events: integer("events").notNull(),
   cases: integer("cases").notNull(),
@@ -35,21 +35,16 @@ export const slices = sqliteTable("slices", {
   color: text("color").notNull(),
   position: integer("position").notNull(),
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
-  stats: text("stats", { mode: "json" }).$type<EventLogStats | null>(),
+  stats: text("stats", { mode: "json" }).$type<ResponseEventLogStats | null>(),
   statsKey: text("stats_key")
 });
 
 /**
  * What the Comparison Directed Tree is built from — the attributes to test and
- * the Variants to include. Its own table rather than columns on
- * `projects`: every table is created idempotently at startup, so a new table
- * needs no migration where a new column would.
+ * the Variants to include. Its own table: every table is created idempotently
+ * at startup, so a new one needs no migration where a new column would.
  *
- * `selected_variants` is persisted because hand-picking a set of Variants is
- * real work, and the chains it is meaningful against persist too.
- *
- * The tree itself is not cached here. It is megabytes of JSON, cheap to
- * rebuild, and lives in memory for as long as the app is open.
+ * The tree itself is not cached here; it lives in memory while the app is open.
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),

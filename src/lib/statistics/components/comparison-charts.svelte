@@ -5,22 +5,23 @@
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import type { EventLogStats } from "$lib/slices/invokers/types";
+  import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
   import type { Population } from "$lib/slices/types";
 
-  let { populations, stats }: { populations: Population[]; stats: Record<string, EventLogStats> } =
-    $props();
+  let {
+    populations,
+    stats
+  }: { populations: Population[]; stats: Record<string, ResponseEventLogStats> } = $props();
 
   /**
    * A chart reads one metric across every population, so it needs the figure
-   * twice: `value` is what the bar is scaled by, `display` what it is labelled
-   * with — a duration bar is drawn in milliseconds but read as "8d 4h".
+   * twice: `value` scales the bar, `display` labels it.
    */
   interface ChartDef {
     title: string;
     unit: string;
-    value: (s: EventLogStats) => number;
-    display: (s: EventLogStats) => string;
+    value: (s: ResponseEventLogStats) => number;
+    display: (s: ResponseEventLogStats) => string;
   }
 
   const CHARTS: ChartDef[] = [

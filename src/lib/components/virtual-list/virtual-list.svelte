@@ -1,8 +1,7 @@
 <script lang="ts" generics="T">
   /**
-   * A scrolling list that only renders what is on screen. Callers supply the
-   * row markup as a snippet and never see the windowing arithmetic, which
-   * lives in `virtualRange`.
+   * A scrolling list that only renders what is on screen; the windowing
+   * arithmetic lives in `virtualRange`.
    *
    * Rows must all be `rowHeight` tall — the maths assumes it, and a row that
    * disagrees will drift out of place as the list scrolls.

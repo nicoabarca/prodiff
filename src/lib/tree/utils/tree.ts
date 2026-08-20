@@ -1,4 +1,4 @@
-import type { DirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
 
@@ -17,7 +17,7 @@ export function membership(node: TreeNode): "a" | "b" | "shared" {
   return "shared";
 }
 
-export function children(tree: DirectedTree): Map<number, number[]> {
+export function children(tree: ResponseDirectedTree): Map<number, number[]> {
   const map = new Map<number, number[]>();
   for (const node of tree.nodes) {
     if (node.parent === null) continue;
@@ -29,7 +29,7 @@ export function children(tree: DirectedTree): Map<number, number[]> {
 }
 
 /** The path from the root down to `id`, inclusive — a node's full trace. */
-export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
+export function pathTo(tree: ResponseDirectedTree, id: number): TreeNode[] {
   const byId = new Map(tree.nodes.map((n) => [n.id, n]));
   const path: TreeNode[] = [];
   let current: TreeNode | undefined = byId.get(id);
@@ -41,23 +41,18 @@ export function pathTo(tree: DirectedTree, id: number): TreeNode[] {
 }
 
 /**
- * How far past the step its context reaches. One level answers "and then what?"
- * without the rail turning back into the tree the view exists to get away from.
- * Any depth works, `Infinity` included — the walk stops where this says, so
- * widening it is this number and nothing else.
+ * How far past the step its context reaches. Any depth works, `Infinity`
+ * included — the walk stops where this says.
  */
 export const CONTEXT_DEPTH = 1;
 
 /**
  * The nodes one step is read in the context of: its own trace down from the
- * root, and what the cases reaching it go on to do next.
- *
- * Siblings on other traces are left out on purpose. They are other cases'
- * steps, and nothing the Distributions grid says describes them — showing them
- * would put the numbers next to activities they never counted.
+ * root, and what the cases reaching it go on to do next. Siblings on other
+ * traces are left out — the grid's numbers never counted them.
  */
 export function stepContext(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   id: number,
   depth: number = CONTEXT_DEPTH
 ): Set<number> {
@@ -76,28 +71,24 @@ export function stepContext(
 }
 
 /** One leaf per Variant: every path from the root ends at exactly one. */
-export function leaves(tree: DirectedTree): TreeNode[] {
+export function leaves(tree: ResponseDirectedTree): TreeNode[] {
   const kids = children(tree);
   return tree.nodes.filter((n) => !kids.has(n.id));
 }
 
 /** Cases in both Groups before any cut — the denominator for every share. */
-export function totalCases(tree: DirectedTree): number {
+export function totalCases(tree: ResponseDirectedTree): number {
   return Number(tree.groupA.caseCount) + Number(tree.groupB?.caseCount ?? 0);
 }
 
 /**
- * Which nodes render. Pruning works on whole Variants — a path from root to
- * leaf — rather than on nodes, so a surviving path is always a trace some case
- * actually followed. Collapsing is applied afterwards: it hides a subtree
- * without claiming those Variants don't exist.
- *
- * `selected` is the picker's set. Unchecking a Variant prunes it here at once,
- * but the aggregates on the nodes above it still describe it until the next
- * build — which is why doing so marks the tree stale.
+ * Which nodes render. Pruning works on whole Variants, so a surviving path is
+ * always a trace some case followed; collapsing is applied afterwards.
+ * Unchecking a Variant prunes it at once, but the aggregates above it still
+ * describe it until the next build — which is why that marks the tree stale.
  */
 export function visibleNodes(
-  tree: DirectedTree,
+  tree: ResponseDirectedTree,
   view: TreeView,
   selected: Set<string>
 ): Visible {
@@ -162,23 +153,19 @@ export function visibleNodes(
 
 /**
  * Distance from the synthetic Start root — 0 at the root, 1 at the first
- * activity. This is the event index a node's own step sits at, offset by the
- * root: the node at depth `d` is the `d`th activity of every case reaching it.
+ * activity. The node at depth `d` is the `d`th activity of every case there.
  */
-export function nodeDepth(tree: DirectedTree, id: number): number {
+export function nodeDepth(tree: ResponseDirectedTree, id: number): number {
   return pathTo(tree, id).length - 1;
 }
 
 /**
  * The Variant keys of every leaf under `id` that survived pruning — how a node
- * is named to the backend when asking for its Distributions.
- *
- * Keyed off `visible.cases` rather than `visible.ids`: `cases` holds every node
- * on a surviving path, while `ids` has collapsed subtrees stripped out. Folding
- * a subtree away is a rendering choice and must not change which cases the
- * charts describe.
+ * is named to the backend when asking for its Distributions. Keyed off
+ * `visible.cases`, not `visible.ids`, so collapsing a subtree never changes
+ * which cases the charts describe.
  */
-export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number): string[] {
+export function subtreeVariants(tree: ResponseDirectedTree, visible: Visible, id: number): string[] {
   const byId = new Map(tree.nodes.map((n) => [n.id, n]));
   const kids = children(tree);
   const keys: string[] = [];
@@ -195,11 +182,9 @@ export function subtreeVariants(tree: DirectedTree, visible: Visible, id: number
 
 /**
  * The nodes one Variant runs through, restricted to what is on screen. Empty
- * when that Variant isn't in this tree — unselected, pruned, or built before
- * it existed — so hovering it highlights nothing rather than lying about a
- * partial path.
+ * when that Variant isn't in this tree — unselected, pruned, or too new.
  */
-export function variantPath(tree: DirectedTree, visible: Visible, key: string): Set<number> {
+export function variantPath(tree: ResponseDirectedTree, visible: Visible, key: string): Set<number> {
   const leaf = tree.nodes.find((node) => node.variantKey === key);
   if (!leaf || !visible.ids.has(leaf.id)) return new Set();
   return new Set(pathTo(tree, leaf.id).map((node) => node.id));

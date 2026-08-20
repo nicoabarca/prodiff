@@ -1,16 +1,9 @@
 /**
  * The Comparison Directed Tree as Rust ships it — every type here mirrors a
  * serde struct in `src-tauri/src/tree/`. Everything the view can show arrives
- * in one payload: the frontend filters, toggles and lays out, but never
- * re-aggregates.
+ * in one payload: the frontend filters and lays out, but never re-aggregates.
  */
-
-/**
- * The Comparison Directed Tree as Rust ships it — mirrors `DirectedTree` in
- * `src-tauri/src/tree/mod.rs`. Everything the view can show arrives in one
- * payload: the frontend filters, toggles and lays out, but never re-aggregates.
- */
-export interface DirectedTree {
+export interface ResponseDirectedTree {
   nodes: TreeNode[];
   groupA: GroupBlock;
   groupB: GroupBlock | null;
@@ -38,14 +31,14 @@ export interface TreeNode {
   comovement: Comovement[];
   /**
    * The Variant this node terminates, `null` on every other node. Rust sets it
-   * on the key it actually cut with, so matching a leaf against the selection
-   * never depends on the frontend re-joining labels the same way.
+   * on the key it cut with, so matching a leaf against the selection never
+   * depends on the frontend re-joining labels the same way.
    */
   variantKey: string | null;
 }
 
 /** One Variant of the filtered log, as `list_variants` ships it. */
-export interface VariantRow {
+export interface ResponseVariantRow {
   key: string;
   activities: string[];
   casesA: number;

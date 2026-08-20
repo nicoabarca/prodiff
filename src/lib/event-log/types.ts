@@ -1,4 +1,4 @@
-import type { ColumnMapping } from "$lib/event-log/invokers/types";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 
 export interface Project {
   id: string;
@@ -6,7 +6,7 @@ export interface Project {
   fileName: string;
   originalPath: string;
   eventLogPath: string;
-  columns: ColumnMapping[];
+  columns: RequestColumnMapping[];
   hiddenColumns: string[];
   events: number;
   cases: number;

@@ -4,11 +4,6 @@
  */
 import type { Test } from "$lib/tree/invokers/types";
 
-/**
- * Which of a node's cases' events are counted. The cases are the same either
- * way — only their events differ, which is why the drawer states the Scope on
- * the header and again on every card.
- */
 export type Scope = "atStep" | "wholeCase";
 
 export const SCOPES: Scope[] = ["atStep", "wholeCase"];
@@ -18,14 +13,7 @@ export const SCOPE_LABEL: Record<Scope, string> = {
   wholeCase: "Whole case"
 };
 
-/**
- * What the Scope actually counts, in the user's terms.
- *
- * Phrased in events per case, because that is the only thing the Scope decides.
- * "At this step" read as a filter on *cases* — it is not; the same cases are
- * behind both readings, and what changes is how many of each one's events get
- * counted. The control says "Count events from" for the same reason.
- */
+/** What the Scope counts, phrased in events per case. */
 export const SCOPE_HINT: Record<Scope, string> = {
   atStep: "one event per case, the one at this activity",
   wholeCase: "every event of those same cases, at every activity"
@@ -43,19 +31,9 @@ export const ENCODING_LABEL: Record<Encoding, string> = {
 };
 
 /**
- * The selected option of a plot control, in the theme's indigo. The default
- * `on` state is a grey fill, easy to miss on a bar of small outlined buttons —
- * and these decide what every card on the grid is counting.
- *
- * The left border is the fiddly part. In a joined outline group every item but
- * the first is `border-l-0` and leans on its neighbour's right border, so a
- * selected middle or last item had three indigo sides and a grey one. It gets
- * its own border back, shifted a pixel left to sit on top of the neighbour's
- * rather than widen the group, and raised so indigo wins where they overlap.
- *
- * The full variant chain is repeated rather than shortened: the `border-l-0` it
- * has to beat carries all of it, and a shorter selector loses on specificity
- * however late it appears.
+ * The selected option of a plot control, in the theme's indigo. The full
+ * variant chain is repeated rather than shortened: the `border-l-0` it has to
+ * beat carries all of it, and a shorter selector loses on specificity.
  */
 export const PLOT_TOGGLE = [
   "data-[state=on]:border-primary",

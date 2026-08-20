@@ -3,18 +3,10 @@
    * One attribute's Distribution at the selected node — vertical columns, one
    * band per value or bin, one bar per Group within it.
    *
-   * One cell of the Distributions grid. The plot's width is computed from the
-   * column count rather than taken from the cell, and the card scrolls sideways
-   * when that overflows.
-   * `Chart.Container` is `aspect-video` by default, so the height is pinned
-   * explicitly — a chart left to fill a flex box has no resolvable height and
-   * renders its axes with no bars between them.
-   *
-   * The Scope badge is repeated here rather than left to the view's header on
-   * purpose: a card read on its own, or screenshotted out of the grid, has to
-   * still say which events it counted. The Effect chip is here for the opposite
-   * reason — the grid is ranked by it, so every card has to show the number it
-   * was ranked on.
+   * The plot's width comes from the column count, not the cell, and the card
+   * scrolls sideways when that overflows. The height is pinned explicitly:
+   * `Chart.Container` is `aspect-video` by default, and a chart left to fill a
+   * flex box has no resolvable height and draws axes with no bars between them.
    */
   import { BarChart, Tooltip } from "layerchart";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -76,9 +68,7 @@
 
   /**
    * Bars are what the card draws unless a duration asked for something else.
-   * On a duration they are the log ladder rather than the equal-width bins:
-   * the whole reason these attributes get their own encodings is that equal
-   * width spends every bin on empty range.
+   * On a duration they are the log ladder, not the equal-width bins.
    */
   const data = $derived(
     shape && encoding === "logBins" ? logBars(shape) : bars(distribution, attribute, expanded)
@@ -100,9 +90,8 @@
   });
 
   /**
-   * A numeric attribute whose values are all identical. The backend ships it as
-   * a single bin, which would draw as one full-width bar saying nothing — the
-   * value itself is the finding, so it is stated in words instead.
+   * A numeric attribute whose values are all identical. The backend ships one
+   * bin, which would draw as a full-width bar; the value is stated in words.
    */
   const constant = $derived(
     distribution.type === "numerical" && distribution.countsA.length === 1

@@ -7,7 +7,7 @@
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
   import { groupSlices } from "$lib/tree/state/tree.svelte";
-  import type { AttributeBlock, DirectedTree } from "$lib/tree/invokers/types";
+  import type { AttributeBlock, ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
   import { membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
@@ -21,7 +21,7 @@
     tree,
     nodeId,
     onClose
-  }: { tree: DirectedTree; nodeId: number | null; onClose: () => void } = $props();
+  }: { tree: ResponseDirectedTree; nodeId: number | null; onClose: () => void } = $props();
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
@@ -42,9 +42,8 @@
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /**
-   * Attributes strongest first, with the ones that came out negligible or
-   * untestable folded away. At a few thousand cases per Group nearly every test
-   * is significant, so a panel ordered by anything else buries its own finding.
+   * Attributes strongest first, with the negligible and untestable ones folded
+   * away. At a few thousand cases per Group nearly every test is significant.
    */
   const ranked = $derived(
     node
@@ -53,9 +52,8 @@
   );
 
   /**
-   * One-Group mode has no differences to rank, so the attributes stay in the
-   * order they were built in and every one is shown — ranking them by a test
-   * that never ran would file all of them under "could not be tested".
+   * One-Group mode has no differences to rank: attributes stay in build order
+   * and all of them are shown.
    */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];

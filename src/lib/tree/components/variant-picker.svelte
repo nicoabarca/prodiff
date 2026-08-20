@@ -1,22 +1,11 @@
 <script lang="ts">
   /**
-   * Which Variants the tree is built from. A Variant is one path from root to
-   * leaf — a trace some case actually followed — and picking them is a build
-   * input, not a view filter: the cut runs before any aggregation, so the
-   * Significance Tests describe exactly the Variants included.
-   *
-   * Checking a box therefore prunes the canvas at once but marks the tree
-   * stale, and only Rebuild makes the numbers honest again. Same contract the
-   * Variant slider had, with the count replaced by the set.
+   * Which Variants the tree is built from. Picking them is a build input, not a
+   * view filter: the cut runs before any aggregation, so checking a box prunes
+   * the canvas at once but marks the tree stale until Rebuild.
    *
    * The list comes from `list_variants`, not from the tree, so it reaches every
-   * Variant the filtered log has — including the ones no build ever included,
-   * which is what the slider could never do.
-   *
-   * A row names a Variant but cannot show one. Clicking it does: lit up on the
-   * canvas when the tree already draws that Variant, and otherwise as a trace
-   * beside the panel — one card per activity, top to bottom, which is the
-   * shape a case actually followed.
+   * Variant the filtered log has — including ones no build ever included.
    */
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -24,7 +13,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import { formatNumber } from "$lib/format";
-  import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+  import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import {
     groupSlices,
@@ -43,7 +32,7 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import X from "@lucide/svelte/icons/x";
 
-  let { project, tree }: { project: Project; tree: DirectedTree | null } = $props();
+  let { project, tree }: { project: Project; tree: ResponseDirectedTree | null } = $props();
 
   let open = $state(false);
   let selectedOnly = $state(false);
@@ -83,8 +72,7 @@
 
   /**
    * Cases in the Base slice — the population both Groups are carved out of.
-   * Measured lazily and cached by `loadImpact`, so it is `null` until the scan
-   * lands and the share it feeds simply isn't drawn until then.
+   * `null` until `loadImpact`'s scan lands; the share it feeds isn't drawn yet.
    */
   const base = $derived(baseSlice());
   const baseCases = $derived(base ? sliceCases(base) : null);
@@ -93,9 +81,8 @@
   });
 
   /**
-   * A Variant's number is its rank in the full list — most cases first, the
-   * order `list_variants` ships. Numbering the rendered rows instead would
-   * renumber everything whenever the list is narrowed.
+   * A Variant's number is its rank in the full list, not among the rendered
+   * rows, so narrowing the list never renumbers anything.
    */
   const numbers = $derived(new Map(variants.rows.map((row, i) => [row.key, i + 1])));
 
@@ -110,10 +97,8 @@
   const visible = $derived(tree ? visibleNodes(tree, view, selected) : null);
 
   /**
-   * Clicking a row shows the Variant where it is most useful. One the tree
-   * already draws is lit up on the canvas — the trace pane would only cover
-   * the thing it describes. One the tree doesn't have gets the pane, since
-   * there is nothing on screen to point at.
+   * Clicking a row lights the Variant on the canvas when the tree draws it, and
+   * otherwise opens the trace pane, since there is nothing on screen to mark.
    */
   function show(key: string) {
     if (tree && visible && variantPath(tree, visible, key).size > 0) {
@@ -241,7 +226,7 @@
       </div>
     {:else}
       <VirtualList items={rows} rowHeight={56}>
-        {#snippet row(item: VariantRow)}
+        {#snippet row(item: ResponseVariantRow)}
           <!-- A row is two controls, not one: the checkbox includes the
                Variant in the build, the rest of the row only shows its trace.
                Hence a plain div — a `<label>` would make every click on the

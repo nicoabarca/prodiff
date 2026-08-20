@@ -4,7 +4,7 @@ import { treeSettings as settingsTable } from "$lib/db/schema";
 import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
-import type { DirectedTree, VariantRow } from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
 import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
@@ -13,18 +13,13 @@ import type { Project } from "$lib/event-log/types";
 import type { Slice } from "$lib/slices/types";
 
 /**
- * The built tree, in memory only. Module-level `$state` like `slices` and
- * `impacts`, so it survives navigating away to another view and back — but not
- * a window reload, which is the right trade for a multi-megabyte payload that
- * Rust can rebuild.
- *
- * One slot: switching projects drops the previous tree rather than keeping
- * every project's in memory at once.
+ * The built tree, in memory only: it survives navigating between views but
+ * not a reload. One slot — switching projects drops the previous tree.
  */
 export const built = $state<{
   projectId: string | null;
   key: string | null;
-  tree: DirectedTree | null;
+  tree: ResponseDirectedTree | null;
   building: boolean;
   error: string | null;
 }>({ projectId: null, key: null, tree: null, building: false, error: null });
@@ -42,13 +37,12 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
 /**
- * Every Variant of the current chains, for the picker. Cached by chain key and
- * fetched on first use, so a user who never opens the picker never pays for the
- * scan. One slot: the picker only ever shows one project's current chains.
+ * Every Variant of the current chains, for the picker. Cached by chain key,
+ * fetched on first use. One slot.
  */
 export const variants = $state<{
   key: string | null;
-  rows: VariantRow[];
+  rows: ResponseVariantRow[];
   loading: boolean;
   error: string | null;
   /** Selected Variants gone since the last load, for the picker to report. */
@@ -67,11 +61,8 @@ export function selectedVariants(): Set<string> {
 
 /**
  * Loads the Variant list for the current chains, unless it is already in hand.
- *
- * Reconciles the selection against it: keys that no longer exist under these
- * chains are dropped and the rest kept, so editing a filter costs the user the
- * Variants that genuinely went away rather than their whole curation. Only a
- * selection with nothing left standing is re-seeded from the coverage default.
+ * Keys absent under these chains are dropped and the rest kept; only a
+ * selection left with nothing standing is re-seeded from the coverage default.
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
@@ -116,17 +107,15 @@ export function setSelectedVariants(project: Project, keys: Iterable<string>) {
 export const selected = $state<{ id: number | null }>({ id: null });
 
 /**
- * The Variant the canvas lights up — a row the user clicked in the picker. It
- * outlives the picker itself, so the lit path can be read with the panel out
- * of the way.
+ * The Variant the canvas lights up. Outlives the picker, so the lit path can
+ * be read with the panel closed.
  */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
- * Group A and Group B are the two named slices, in position order — Base is
- * never a Group. A slice's chain already contains the base chain, so comparing
- * Base against a slice would compare a set with its own subset, which both
- * Significance Tests assume never happens.
+ * Group A and Group B are the two named slices, in position order. Base is
+ * never a Group: a slice's chain already contains it, and both Significance
+ * Tests assume the two Groups are independent.
  */
 export function groupSlices(): [Slice | null, Slice | null] {
   const named = namedSlices();
@@ -177,13 +166,8 @@ export function isStale(): boolean {
 
 /**
  * Builds the tree for the current Groups, settings and selected Variants.
- * Always explicit: this is the most expensive operation in the app, the Filters
- * view edits chains live, and the picker checks Variants one click at a time,
- * so anything automatic would fire on every keystroke or checkbox. Every input
- * here — the Variant selection included — waits for the button.
- *
- * An empty selection means the picker has never been opened, so the backend
- * opens on the Variants covering most of the cases.
+ * Never automatic — every input here, the Variant selection included, waits
+ * for the button. An empty selection lets the backend pick by coverage.
  */
 export async function build(project: Project) {
   const chains = groupChains();
@@ -238,10 +222,9 @@ export function forgetOtherProject(projectId: string) {
 }
 
 /**
- * Drops the tree outright. Called when the Column Mapping changes: an
- * attribute's type picks which Significance Test ran and its granularity
- * decides whether it aggregated per node or per Group, so a tree built under
- * the old declarations cannot be reinterpreted — only rebuilt.
+ * Drops the tree outright. Called when the Column Mapping changes: type and
+ * granularity decide which test ran and how it aggregated, so a tree built
+ * under the old declarations cannot be reinterpreted.
  */
 export function invalidateTree() {
   clear();

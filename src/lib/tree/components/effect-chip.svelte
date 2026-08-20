@@ -1,9 +1,7 @@
 <script lang="ts">
   /**
-   * One attribute's Significance Test, said in one word. The magnitude leads —
-   * at a few thousand cases per Group nearly every test comes out significant,
-   * so "significant" on its own would mark almost everything — and the numbers
-   * behind it sit in the tooltip for anyone checking the work.
+   * One attribute's Significance Test, said in one word. The magnitude leads:
+   * at a few thousand cases per Group nearly every test comes out significant.
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";

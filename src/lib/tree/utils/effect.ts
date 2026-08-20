@@ -9,9 +9,8 @@ export function hasSignificant(node: TreeNode): boolean {
 }
 
 /**
- * Cohen's conventional r bands. They apply unchanged to the rank-biserial
- * correlation Mann-Whitney ships and to Cramér's V at one degree of freedom,
- * which two Groups always give — so one legend covers both tests.
+ * Cohen's conventional r bands. They apply unchanged to Mann-Whitney's
+ * rank-biserial correlation and to Cramér's V at one degree of freedom.
  */
 export function effectBand(effectSize: number): EffectBand {
   if (effectSize < 0.1) return "negligible";
@@ -32,8 +31,7 @@ export function standing(block: AttributeBlock): Standing {
 
 /**
  * The strongest effect among the significant tests at a node, or `null` when
- * none passed. This is what the node's badge is coloured by: the count alone
- * says how many differences are here, never whether any of them matter.
+ * none passed. Colours the node's badge.
  */
 export function peakEffect(node: TreeNode): number | null {
   const blocks = [...Object.values(node.eventLevel), node.transitionTime];
@@ -45,8 +43,7 @@ export function peakEffect(node: TreeNode): number | null {
 
 /**
  * Every attribute at a node — Transition Time last, as the edge into it —
- * ordered strongest first and split by Standing, which is the order the detail
- * panel reads in. Untested blocks sort below every tested one.
+ * ordered strongest first and split by Standing. Untested blocks sort last.
  */
 export function rankedBlocks(node: TreeNode): Record<Standing, [string, AttributeBlock][]> {
   const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);

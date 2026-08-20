@@ -8,7 +8,7 @@
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import { slicePreview } from "$lib/slices/invokers/slice-preview";
-  import type { PreviewTable } from "$lib/slices/invokers/types";
+  import type { ResponsePreviewTable } from "$lib/slices/invokers/types";
   import type { Population } from "$lib/slices/types";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";
@@ -20,7 +20,7 @@
   const PREVIEW_LIMIT = 100;
 
   let selectedId = $state("whole");
-  let preview = $state<PreviewTable | null>(null);
+  let preview = $state<ResponsePreviewTable | null>(null);
   let error = $state<string | null>(null);
 
   const selected = $derived(populations.find((p) => p.id === selectedId) ?? populations[0]);

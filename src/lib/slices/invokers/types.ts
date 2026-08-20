@@ -3,7 +3,7 @@
  * `EventLogStats` in `src-tauri/src/stats/mod.rs`. Durations are milliseconds,
  * and are `null` for a population with no cases.
  */
-export interface EventLogStats {
+export interface ResponseEventLogStats {
   events: number;
   cases: number;
   activities: number;
@@ -20,13 +20,13 @@ export interface EventLogStats {
 }
 
 /** How much of the log survives one step of a chain. */
-export interface ChainStep {
+export interface ResponseChainStep {
   cases: number;
   events: number;
 }
 
 /** The head of a chain's population, as raw rows. Mirrors `PreviewTable` in Rust. */
-export interface PreviewTable {
+export interface ResponsePreviewTable {
   columns: string[];
   rows: string[][];
   totalEvents: number;
