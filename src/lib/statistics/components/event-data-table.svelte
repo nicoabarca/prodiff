@@ -7,7 +7,8 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import { slicePreview, type PreviewTable } from "$lib/slices/invokers/slice-preview";
+  import { slicePreview } from "$lib/slices/invokers/slice-preview";
+  import type { PreviewTable } from "$lib/slices/invokers/types";
   import type { Population } from "$lib/slices/types";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";

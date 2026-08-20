@@ -24,3 +24,10 @@ export interface ChainStep {
   cases: number;
   events: number;
 }
+
+/** The head of a chain's population, as raw rows. Mirrors `PreviewTable` in Rust. */
+export interface PreviewTable {
+  columns: string[];
+  rows: string[][];
+  totalEvents: number;
+}
