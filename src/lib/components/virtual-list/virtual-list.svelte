@@ -7,7 +7,7 @@
    * Rows must all be `rowHeight` tall — the maths assumes it, and a row that
    * disagrees will drift out of place as the list scrolls.
    */
-  import { virtualRange } from "$lib/virtual.svelte";
+  import { virtualRange } from "$lib/components/virtual-list/virtual.svelte";
   import type { Snippet } from "svelte";
 
   let {
