@@ -24,8 +24,7 @@ let initPromise: Promise<Db> | null = null;
 
 /**
  * The initialized database. `initDb()` runs once in the root layout's `load()`,
- * which SvelteKit awaits before any route renders — so callers never have to
- * know about initialization ordering.
+ * which SvelteKit awaits before any route renders.
  */
 export function db(): Db {
   if (!instance) throw new Error("db not initialized — initDb() runs in +layout.ts load()");
