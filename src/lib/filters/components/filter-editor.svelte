@@ -25,11 +25,6 @@
   } from "$lib/filters/filters/follower";
   import { NUMERIC_MODES, NUMERIC_MODE_INFO, type NumericMode } from "$lib/filters/filters/numeric";
   import {
-    TIMEFRAME_MODES,
-    TIMEFRAME_MODE_INFO,
-    type TimeframeMode
-  } from "$lib/filters/filters/timeframe";
-  import {
     activityColumn,
     categoricalColumns,
     eventLevelColumns,
@@ -37,14 +32,14 @@
   } from "$lib/filters/utils/columns";
   import { chainImpact } from "$lib/slices/invokers/chain-impact";
   import type { ResponseChainStep } from "$lib/slices/invokers/types";
-  import { formatDay, formatDuration, formatNumber } from "$lib/format";
+  import { formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import ColumnSelect from "./column-select.svelte";
   import DurationEditor from "./editors/duration-editor.svelte";
+  import TimeframeEditor from "./editors/timeframe-editor.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
-  import TimeframePicker from "./timeframe-picker.svelte";
 
   let {
     project,
@@ -129,9 +124,6 @@
     initial?.kind === "attribute" ? initial.mode : "mandatory"
   );
   let numericMode = $state<NumericMode>(initial?.kind === "numeric" ? initial.mode : "between");
-  let timeframeMode = $state<TimeframeMode>(
-    initial?.kind === "timeframe" ? initial.mode : "intersects"
-  );
   let endpointMode = $state<EndpointMode>(
     initial?.kind === "endpoint" ? initial.mode : "mandatory"
   );
@@ -147,10 +139,6 @@
   );
   let min = $state(initial?.kind === "numeric" && initial.min !== null ? String(initial.min) : "");
   let max = $state(initial?.kind === "numeric" && initial.max !== null ? String(initial.max) : "");
-  // Day-aligned epoch milliseconds, the same figures the filter carries: the
-  // picker brushes them off the daily case load and shows them on a calendar.
-  let from = $state<number | null>(initial?.kind === "timeframe" ? initial.from : null);
-  let to = $state<number | null>(initial?.kind === "timeframe" ? initial.to : null);
   let followerMode = $state<FollowerMode>(
     initial?.kind === "follower" ? initial.mode : "eventually"
   );
@@ -203,16 +191,12 @@
     () => "end"
   );
 
-  const timeframeSummary = $derived(
-    from === null || to === null ? "Nothing selected" : `${formatDay(from)} → ${formatDay(to)}`
-  );
-
   /**
    * The draft a child editor last emitted. Kinds still built here fall back to
    * `build`; each one moves over as its editor is split out.
    */
   let childDraft = $state<Filter | null>(null);
-  const SPLIT: FilterKind[] = ["duration"];
+  const SPLIT: FilterKind[] = ["duration", "timeframe"];
 
   function build(): Filter | null {
     switch (kind) {
@@ -226,16 +210,11 @@
           min: min.trim() === "" ? null : Number(min),
           max: max.trim() === "" ? null : Number(max)
         };
-      case "timeframe": {
-        if (from === null || to === null) return null;
-        // The picker already hands over an inclusive window: `from` at midnight
-        // and `to` at the last millisecond of its day.
-        return { kind, mode: timeframeMode, from, to };
-      }
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
-      // Split out into its own editor; `draft` never calls this for it.
+      // Split out into their own editors; `draft` never calls this for them.
       case "duration":
+      case "timeframe":
         return null;
       case "follower":
         return {
@@ -397,6 +376,14 @@
         />
       </div>
     </div>
+  {:else if kind === "timeframe"}
+    <TimeframeEditor
+      {project}
+      initial={initial?.kind === "timeframe" ? initial : null}
+      {precedingChain}
+      {color}
+      ondraft={(next) => (childDraft = next)}
+    />
   {:else if kind === "duration"}
     <DurationEditor
       {project}
@@ -428,13 +415,6 @@
         info={NUMERIC_MODE_INFO}
         onselect={(v) => (numericMode = v)}
       />
-    {:else if kind === "timeframe"}
-      <ModePicker
-        entries={TIMEFRAME_MODES}
-        current={timeframeMode}
-        info={TIMEFRAME_MODE_INFO}
-        onselect={(v) => (timeframeMode = v)}
-      />
     {:else if kind === "follower"}
       <ModePicker
         entries={FOLLOWER_MODES}
@@ -463,27 +443,6 @@
           </Field.Field>
         {/if}
       </div>
-    {:else if kind === "timeframe"}
-      <Field.Field>
-        <div class="flex items-center gap-2">
-          <Field.FieldLabel>Window</Field.FieldLabel>
-          <span class="text-muted-foreground ml-auto font-mono text-xs">{timeframeSummary}</span>
-          <Button
-            variant="ghost"
-            size="xs"
-            onclick={() => {
-              from = null;
-              to = null;
-            }}
-          >
-            Reset
-          </Button>
-        </div>
-        <TimeframePicker {project} chain={precedingChain} {color} bind:from bind:to />
-        <Field.FieldDescription>
-          Drag across the chart to select a window, or pick its first and last day on the calendar.
-        </Field.FieldDescription>
-      </Field.Field>
     {:else if kind === "follower"}
       <!-- Reference on the left, follower on the right: the pair reads in the
            order the filter looks for it. -->
