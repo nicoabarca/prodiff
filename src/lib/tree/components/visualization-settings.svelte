@@ -11,15 +11,11 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, selectedVariants, view } from "$lib/state/tree.svelte";
-  import {
-    visibleNodes,
-    TRANSITION_TIME,
-    type DirectedTree,
-    type Direction,
-    type GroupFocus,
-    type Secondary
-  } from "$lib/tree";
+  import { groupSlices, selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import type { DirectedTree } from "$lib/tree/invokers/types";
+  import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
+  import { TRANSITION_TIME } from "$lib/tree/utils/settings";
+  import { visibleNodes } from "$lib/tree/utils/tree";
   import { formatNumber } from "$lib/format";
   import Eye from "@lucide/svelte/icons/eye";
 

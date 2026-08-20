@@ -19,10 +19,10 @@
    */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
-  import { outlierNote } from "$lib/distributions";
+  import { outlierNote } from "$lib/distributions/utils/distributions";
   import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/state/tree.svelte";
-  import type { Summary } from "$lib/tree";
+  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import type { Summary } from "$lib/tree/invokers/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
 

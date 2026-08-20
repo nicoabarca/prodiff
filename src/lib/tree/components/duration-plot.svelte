@@ -30,7 +30,8 @@
     Spline,
     Tooltip
   } from "layerchart";
-  import { curveRows, outlierNote, type BoxStats, type DurationShape } from "$lib/distributions";
+  import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
+  import { curveRows, outlierNote } from "$lib/distributions/utils/distributions";
   import { formatDuration, formatNumber } from "$lib/format";
 
   let {

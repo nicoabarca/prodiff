@@ -9,16 +9,12 @@
  * is how walking down a path shows the same histograms shifting.
  */
 
-import {
-  nodeDistributions,
-  type Encoding,
-  type NodeDistributions,
-  type Scope,
-  type Sort
-} from "$lib/distributions";
-import { built, groupChains, isStale, selected } from "$lib/state/tree.svelte";
-import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree";
-import { selectedVariants, view } from "$lib/state/tree.svelte";
+import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
+import type { NodeDistributions } from "$lib/distributions/invokers/types";
+import type { Encoding, Scope, Sort } from "$lib/distributions/types";
+import { built, groupChains, isStale, selected } from "$lib/tree/state/tree.svelte";
+import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
+import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**

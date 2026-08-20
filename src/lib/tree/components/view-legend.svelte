@@ -5,7 +5,7 @@
    * applied ones are invisible the moment it closes.
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { groupSlices, view } from "$lib/state/tree.svelte";
+  import { groupSlices, view } from "$lib/tree/state/tree.svelte";
 
   const groups = $derived(groupSlices());
   const nameA = $derived(groups[0]?.name ?? "Group A");

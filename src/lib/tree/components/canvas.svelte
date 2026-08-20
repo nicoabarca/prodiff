@@ -1,10 +1,11 @@
 <script lang="ts">
   import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
-  import ActivityNode from "$lib/components/projects/tree/node.svelte";
-  import { toFlow } from "$lib/components/projects/tree/flow";
-  import { selected, selectedVariants, shownVariant, view } from "$lib/state/tree.svelte";
-  import { variantPath, visibleNodes, type DirectedTree } from "$lib/tree";
+  import ActivityNode from "$lib/tree/components/node.svelte";
+  import { toFlow } from "$lib/tree/utils/flow";
+  import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
+  import type { DirectedTree } from "$lib/tree/invokers/types";
+  import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
 
   let {
     tree,

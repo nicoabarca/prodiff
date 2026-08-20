@@ -18,17 +18,10 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import Canvas from "$lib/components/projects/tree/canvas.svelte";
-  import DistributionChart from "$lib/components/projects/tree/distribution-chart.svelte";
-  import {
-    gridAttributes,
-    PLOT_TOGGLE,
-    SCOPE_HINT,
-    SCOPE_LABEL,
-    SCOPES,
-    type Scope,
-    type Sort
-  } from "$lib/distributions";
+  import Canvas from "$lib/tree/components/canvas.svelte";
+  import DistributionChart from "$lib/distributions/components/distribution-chart.svelte";
+  import { PLOT_TOGGLE, SCOPES, SCOPE_HINT, SCOPE_LABEL, type Scope, type Sort } from "$lib/distributions/types";
+  import { gridAttributes } from "$lib/distributions/utils/distributions";
   import { formatNumber } from "$lib/format";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
@@ -40,7 +33,7 @@
     loadDistributions,
     loaded,
     toggleExpanded
-  } from "$lib/state/distributions.svelte";
+  } from "$lib/distributions/state/distributions.svelte";
   import {
     build,
     built,
@@ -49,8 +42,9 @@
     selected,
     settings,
     view
-  } from "$lib/state/tree.svelte";
-  import { attributeOptions, nodeDepth, stepContext } from "$lib/tree";
+  } from "$lib/tree/state/tree.svelte";
+  import { attributeOptions } from "$lib/tree/utils/settings";
+  import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import Plus from "@lucide/svelte/icons/plus";
