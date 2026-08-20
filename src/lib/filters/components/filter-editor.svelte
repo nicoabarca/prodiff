@@ -40,6 +40,7 @@
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import ColumnSelect from "./column-select.svelte";
+  import DurationEditor from "./editors/duration-editor.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -63,7 +64,6 @@
     oncancel: () => void;
   } = $props();
 
-  const DAY_MS = 86_400_000;
   /** Debounce before re-measuring the draft against the log, in ms. */
   const IMPACT_DEBOUNCE = 250;
 
@@ -151,15 +151,6 @@
   // picker brushes them off the daily case load and shows them on a calendar.
   let from = $state<number | null>(initial?.kind === "timeframe" ? initial.from : null);
   let to = $state<number | null>(initial?.kind === "timeframe" ? initial.to : null);
-  let durationMode = $state<NumericMode>(initial?.kind === "duration" ? initial.mode : "between");
-  // The filter's bounds are days; the histogram brushes them in milliseconds,
-  // which is also the unit every duration is displayed in.
-  let durationMinMs = $state(
-    initial?.kind === "duration" && initial.min !== null ? initial.min * DAY_MS : null
-  );
-  let durationMaxMs = $state(
-    initial?.kind === "duration" && initial.max !== null ? initial.max * DAY_MS : null
-  );
   let followerMode = $state<FollowerMode>(
     initial?.kind === "follower" ? initial.mode : "eventually"
   );
@@ -216,22 +207,12 @@
     from === null || to === null ? "Nothing selected" : `${formatDay(from)} → ${formatDay(to)}`
   );
 
-  /** The brushed range as the predicate it actually stands for. */
-  const durationSummary = $derived.by(() => {
-    if (durationMinMs === null && durationMaxMs === null) return "Nothing selected";
-    const low = formatDuration(durationMinMs);
-    const high = formatDuration(durationMaxMs);
-    switch (durationMode) {
-      case "above":
-        return `≥ ${low}`;
-      case "below":
-        return `≤ ${high}`;
-      case "between":
-        return `${low} – ${high}`;
-      case "outside":
-        return `< ${low} or > ${high}`;
-    }
-  });
+  /**
+   * The draft a child editor last emitted. Kinds still built here fall back to
+   * `build`; each one moves over as its editor is split out.
+   */
+  let childDraft = $state<Filter | null>(null);
+  const SPLIT: FilterKind[] = ["duration"];
 
   function build(): Filter | null {
     switch (kind) {
@@ -253,6 +234,9 @@
       }
       case "endpoint":
         return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
+      // Split out into its own editor; `draft` never calls this for it.
+      case "duration":
+        return null;
       case "follower":
         return {
           kind,
@@ -261,17 +245,10 @@
           reference: [...referenceValues],
           follower: [...followerValues]
         };
-      case "duration":
-        return {
-          kind,
-          mode: durationMode,
-          min: durationMinMs === null ? null : durationMinMs / DAY_MS,
-          max: durationMaxMs === null ? null : durationMaxMs / DAY_MS
-        };
     }
   }
 
-  const draft = $derived(build());
+  const draft = $derived(SPLIT.includes(kind) ? childDraft : build());
   const valid = $derived(draft !== null && isFilterComplete(draft));
 
   // Live impact of the draft, measured on top of the filters that precede it.
@@ -326,6 +303,7 @@
       onValueChange={(next) => {
         if (!next) return;
         kind = next as FilterKind;
+        childDraft = null;
         selected = [];
         referenceValues = [];
         followerValues = [];
@@ -419,6 +397,14 @@
         />
       </div>
     </div>
+  {:else if kind === "duration"}
+    <DurationEditor
+      {project}
+      initial={initial?.kind === "duration" ? initial : null}
+      {precedingChain}
+      {color}
+      ondraft={(next) => (childDraft = next)}
+    />
   {:else}
     {#if picksColumn}
       <ColumnSelect
@@ -449,13 +435,6 @@
         info={TIMEFRAME_MODE_INFO}
         onselect={(v) => (timeframeMode = v)}
       />
-    {:else if kind === "duration"}
-      <ModePicker
-        entries={NUMERIC_MODES}
-        current={durationMode}
-        info={NUMERIC_MODE_INFO}
-        onselect={(v) => (durationMode = v)}
-      />
     {:else if kind === "follower"}
       <ModePicker
         entries={FOLLOWER_MODES}
@@ -484,30 +463,6 @@
           </Field.Field>
         {/if}
       </div>
-    {:else if kind === "duration"}
-      <Field.Field>
-        <div class="flex items-center gap-2">
-          <Field.FieldLabel>Case duration</Field.FieldLabel>
-          <span class="text-muted-foreground ml-auto font-mono text-xs">{durationSummary}</span>
-          <Button
-            variant="ghost"
-            size="xs"
-            onclick={() => {
-              durationMinMs = null;
-              durationMaxMs = null;
-            }}
-          >
-            Reset
-          </Button>
-        </div>
-        <DurationHistogram
-          {project}
-          chain={precedingChain}
-          {color}
-          bind:min={durationMinMs}
-          bind:max={durationMaxMs}
-        />
-      </Field.Field>
     {:else if kind === "timeframe"}
       <Field.Field>
         <div class="flex items-center gap-2">
