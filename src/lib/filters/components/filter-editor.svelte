@@ -4,14 +4,7 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-  import {
-    ENDPOINT_MODES,
-    ENDPOINT_MODE_INFO,
-    type EndpointMode,
-    type EndpointPosition
-  } from "$lib/filters/filters/endpoint";
   import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/filters/filter";
-  import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import {
     activityColumn,
     categoricalColumns,
@@ -22,15 +15,12 @@
   import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import ColumnSelect from "./column-select.svelte";
   import DurationEditor from "./editors/duration-editor.svelte";
   import TimeframeEditor from "./editors/timeframe-editor.svelte";
   import NumericEditor from "./editors/numeric-editor.svelte";
   import AttributeEditor from "./editors/attribute-editor.svelte";
   import FollowerEditor from "./editors/follower-editor.svelte";
-  import ModePicker from "./mode-picker.svelte";
-  import ValuePicker from "./value-picker.svelte";
-  import DurationHistogram from "./duration-histogram.svelte";
+  import EndpointEditor from "./editors/endpoint-editor.svelte";
 
   let {
     project,
@@ -105,66 +95,12 @@
   const initial = untrack(() => filter);
 
   let kind = $state<FilterKind>(initial?.kind ?? "attribute");
-  let endpointMode = $state<EndpointMode>(
-    initial?.kind === "endpoint" ? initial.mode : "mandatory"
-  );
-  let endpointPosition = $state<EndpointPosition>(
-    initial?.kind === "endpoint" ? initial.position : "start"
-  );
-  let selected = $state<string[]>(
-    initial?.kind === "attribute"
-      ? [...initial.values]
-      : initial?.kind === "endpoint"
-        ? [...initial.activities]
-        : []
-  );
-
-  // A case can only start or end with a value, not both, so the two pickers
-  // share one selection: whichever list the user last checked a box in wins.
-  const startChosen = $derived(endpointPosition === "start" ? selected : []);
-  const endChosen = $derived(endpointPosition === "end" ? selected : []);
-  function chooseStart(next: string[]) {
-    endpointPosition = "start";
-    selected = next;
-  }
-  function chooseEnd(next: string[]) {
-    endpointPosition = "end";
-    selected = next;
-  }
-
-  const startActivities = columnValues(
-    () => project,
-    () => (kind === "endpoint" ? activity : ""),
-    () => "start"
-  );
-  const endActivities = columnValues(
-    () => project,
-    () => (kind === "endpoint" ? activity : ""),
-    () => "end"
-  );
-
   /**
-   * The draft a child editor last emitted. Kinds still built here fall back to
-   * `build`; each one moves over as its editor is split out.
+   * What the kind's editor last emitted, or `null` while it has nothing
+   * complete enough to save. Every kind builds its own filter, so this is the
+   * only thing the editor knows about the draft's contents.
    */
-  let childDraft = $state<Filter | null>(null);
-  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric", "attribute", "follower"];
-
-  function build(): Filter | null {
-    switch (kind) {
-      case "endpoint":
-        return { kind, position: endpointPosition, mode: endpointMode, activities: [...selected] };
-      // Split out into their own editors; `draft` never calls this for them.
-      case "duration":
-      case "timeframe":
-      case "numeric":
-      case "attribute":
-      case "follower":
-        return null;
-    }
-  }
-
-  const draft = $derived(SPLIT.includes(kind) ? childDraft : build());
+  let draft = $state<Filter | null>(null);
   const valid = $derived(draft !== null && isFilterComplete(draft));
 
   // Live impact of the draft, measured on top of the filters that precede it.
@@ -219,8 +155,7 @@
       onValueChange={(next) => {
         if (!next) return;
         kind = next as FilterKind;
-        childDraft = null;
-        selected = [];
+        draft = null;
       }}
       variant="outline"
       spacing={1}
@@ -245,51 +180,20 @@
       {project}
       initial={initial?.kind === "attribute" ? initial : null}
       {color}
-      ondraft={(next) => (childDraft = next)}
+      ondraft={(next) => (draft = next)}
     />
   {:else if kind === "endpoint"}
-    <ModePicker
-      entries={ENDPOINT_MODES}
-      current={endpointMode}
-      info={ENDPOINT_MODE_INFO}
-      onselect={(v) => (endpointMode = v)}
+    <EndpointEditor
+      {project}
+      initial={initial?.kind === "endpoint" ? initial : null}
+      ondraft={(next) => (draft = next)}
     />
-    <!-- Both positions are listed at once, so the user can see the start and
-         end activities together instead of toggling between them. A case can
-         only start or end with one value, so checking a box in either list
-         switches the filter to that position. -->
-    <div class="grid gap-3 sm:grid-cols-2">
-      <div class="border-border border p-2">
-        <ValuePicker
-          label="Starts with"
-          options={startActivities.values}
-          chosen={startChosen}
-          onchoose={chooseStart}
-          truncated={startActivities.truncated}
-          error={startActivities.error}
-          limit={VALUE_LIMIT}
-          labelClass="text-sm font-semibold text-foreground"
-        />
-      </div>
-      <div class="border-border border p-2">
-        <ValuePicker
-          label="Ends with"
-          options={endActivities.values}
-          chosen={endChosen}
-          onchoose={chooseEnd}
-          truncated={endActivities.truncated}
-          error={endActivities.error}
-          limit={VALUE_LIMIT}
-          labelClass="text-sm font-semibold text-foreground"
-        />
-      </div>
-    </div>
   {:else if kind === "numeric"}
     <NumericEditor
       {project}
       initial={initial?.kind === "numeric" ? initial : null}
       {color}
-      ondraft={(next) => (childDraft = next)}
+      ondraft={(next) => (draft = next)}
     />
   {:else if kind === "timeframe"}
     <TimeframeEditor
@@ -297,7 +201,7 @@
       initial={initial?.kind === "timeframe" ? initial : null}
       {precedingChain}
       {color}
-      ondraft={(next) => (childDraft = next)}
+      ondraft={(next) => (draft = next)}
     />
   {:else if kind === "duration"}
     <DurationEditor
@@ -305,14 +209,14 @@
       initial={initial?.kind === "duration" ? initial : null}
       {precedingChain}
       {color}
-      ondraft={(next) => (childDraft = next)}
+      ondraft={(next) => (draft = next)}
     />
   {:else if kind === "follower"}
     <FollowerEditor
       {project}
       initial={initial?.kind === "follower" ? initial : null}
       {color}
-      ondraft={(next) => (childDraft = next)}
+      ondraft={(next) => (draft = next)}
     />
   {/if}
 
