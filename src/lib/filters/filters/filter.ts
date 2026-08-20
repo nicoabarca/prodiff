@@ -1,13 +1,10 @@
 /**
  * The filter union and the dispatch over it, shared with
- * `src-tauri/src/filters/mod.rs` — these types are the wire format, so any
- * change here needs the matching serde enum changed too.
+ * `src-tauri/src/filters/mod.rs` — any change here needs the matching serde
+ * enum changed too.
  *
- * Every filter is an event-level predicate lifted to whole cases; the `mode` is
- * what picks the lift. Each kind lives in its own module beside this one and
- * owns its modes, its copy, and its arms of the two functions below — the same
- * split `mod.rs` makes, so the two sides stay readable against each other. See
- * CONTEXT.md for the Slice / Filter definitions.
+ * Each kind lives in its own module beside this one and owns its modes, its
+ * copy, and its arms of the two functions below, mirroring `mod.rs`.
  */
 import {
   describeAttribute,

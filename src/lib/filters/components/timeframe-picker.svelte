@@ -1,13 +1,11 @@
 <script lang="ts">
   /**
    * How many cases are open on each day of the log, with the timeframe filter's
-   * window selected either by brushing that chart or by picking its first day on
-   * the left calendar and its last on the right. All three write the same pair,
-   * so whichever the user reaches for, the others follow.
+   * window selected by brushing the chart or by the two calendars. All three
+   * write the same pair.
    *
    * `from`/`to` are epoch milliseconds and day-aligned: `from` at midnight, `to`
-   * at the last millisecond of its day, which is the inclusive window the
-   * filter applies.
+   * at the last millisecond of its day, the inclusive window the filter applies.
    */
   import { CalendarDate, type DateValue } from "@internationalized/date";
   import { Area, Axis, Chart, Svg } from "layerchart";
@@ -106,13 +104,9 @@
       handle: { style: `background: ${color}` },
       handleSize: 6,
       onChange: (e) => {
-        // Snapped to whole days: the window the filter applies is a run of
-        // days, and a calendar can only show it as one.
-        //
-        // The brush's right edge is exclusive — it sits at the midnight that
-        // *ends* the last selected day, which is why the domain runs a day past
-        // the log and why the last day is the one holding `end - 1`. Taking the
-        // edge itself would offer a day the log does not have.
+        // Snapped to whole days. The brush's right edge is exclusive — it sits
+        // at the midnight that *ends* the last selected day, which is why the
+        // domain runs a day past the log and the last day holds `end - 1`.
         const start = edge(e.brush.x?.[0]);
         const end = edge(e.brush.x?.[1]);
         from = start === null ? null : dayStart(start);

@@ -1,9 +1,7 @@
 <script lang="ts">
   /**
    * How long the cases in a population run for, as a histogram, with the
-   * duration filter's bounds selected by brushing it. Picking a range off the
-   * distribution is the point: typing a number of days means guessing at a
-   * shape the user cannot see.
+   * duration filter's bounds selected by brushing it.
    *
    * `min`/`max` are milliseconds and `null` when that side is unbounded — the
    * filter's own unit (days) is the editor's business, not the chart's.
@@ -104,14 +102,10 @@
     return a.d === b.d && a.h === b.h && a.m === b.m && a.s === b.s;
   }
 
-  // The fields and the brush hold the same two figures, so each keeps the other
-  // current: typing moves the brush, dragging the brush rewrites the fields. An
-  // unset bound reads as all zeroes.
-  //
-  // The comparison is on the parts rather than on their milliseconds: the fields
-  // are only accurate to the second, so a brushed bound of 1234.5ms would never
-  // equal the 1s it writes into them, and the effect would rewrite the fields
-  // with a fresh object forever.
+  // The fields and the brush hold the same two figures and keep each other
+  // current. The comparison is on the parts rather than on their milliseconds:
+  // the fields are only accurate to the second, so a sub-second brushed bound
+  // would never equal what it writes and the effect would loop forever.
   let fromParts = $state(msToParts(min ?? 0));
   let toParts = $state(msToParts(max ?? 0));
 
@@ -132,11 +126,8 @@
 
   /**
    * Pushes the typed pair onto the brush, pulled into the durations the log
-   * actually holds. An inverted pair is left unapplied: the fields show it and
-   * say so, and the previous selection stands until it is fixed.
-   *
-   * Debounced: every keystroke moves the brush and repaints the chart, and a
-   * half-typed number ("1" on the way to "15") is a range nobody asked for.
+   * actually holds. An inverted pair is left unapplied and the previous
+   * selection stands. Debounced, so a half-typed number never applies.
    */
   function apply() {
     clearTimeout(applyTimer);
