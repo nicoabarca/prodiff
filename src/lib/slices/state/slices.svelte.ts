@@ -10,17 +10,15 @@ import type { Population, Slice } from "$lib/slices/types";
 import { sliceStats } from "$lib/statistics/invokers/slice-stats";
 
 /**
- * The loaded project's slices, base first. Module-level `$state` like
- * `projects` — the filter editor and every analysis view read the same array,
- * so an edit in one is visible in the others without prop-drilling.
+ * The loaded project's slices, base first. Module-level `$state`, so an edit
+ * in one view is visible in every other without prop-drilling.
  */
 export const slices = $state<Slice[]>([]);
 export const slicesLoaded = $state<{ projectId: string | null }>({ projectId: null });
 
 /**
- * Slice accents in fixed order — blue, orange. Complementary hues, so two
- * populations charted side by side are never mistaken for each other. The
- * palette is why slices are capped: a third would have to reuse a hue.
+ * Slice accents in fixed order — blue, orange. The palette is why slices are
+ * capped: a third would have to reuse a hue.
  */
 const SLICE_COLORS = ["slice-1", "slice-2"];
 /** Base is the reference population, so it reads as grey next to the accents. */
@@ -31,9 +29,7 @@ export const MAX_SLICES = SLICE_COLORS.length;
 
 /**
  * A slice's accent, derived from its kind and position rather than read back
- * from the stored `color`. The column is still written for older readers, but
- * deriving here means retuning the palette re-colours slices that already
- * exist instead of only the ones created afterwards.
+ * from the stored `color`, which is still written but never read here.
  */
 export function sliceColor(slice: Slice): string {
   return slice.kind === "base" ? BASE_COLOR : SLICE_COLORS[slice.position % SLICE_COLORS.length];
@@ -53,9 +49,8 @@ export function namedSlices(): Slice[] {
 }
 
 /**
- * The chain actually evaluated for a slice: the base chain runs first, then the
- * slice's own. Composed here rather than in Rust so the ordering rule lives in
- * one place.
+ * The chain actually evaluated for a slice: the base chain runs first, then
+ * the slice's own. Composed here so the ordering rule lives in one place.
  */
 export function effectiveChain(slice: Slice): Filter[] {
   if (slice.kind === "base") return slice.filters;
@@ -177,9 +172,8 @@ export async function removeSlicesForProject(projectId: string) {
 }
 
 /**
- * Measured chains, keyed by slice id. Shared so the filter rows and the
- * comparison summary read one scan of the log rather than each running their
- * own; the stored `key` is what makes a stale measurement detectable.
+ * Measured chains, keyed by slice id, so the filter rows and the comparison
+ * summary share one scan. The stored `key` is what detects a stale one.
  */
 export const impacts = $state<Record<string, { key: string; steps: ResponseChainStep[] }>>({});
 
@@ -210,8 +204,7 @@ export function sliceEvents(slice: Slice): number | null {
 
 /**
  * Cases in both named slices' chains, keyed by the pair's combined chain key
- * so an edit to either slice invalidates it. In memory only — the filter
- * summary bar is the only reader and it re-asks on every navigation anyway.
+ * so an edit to either invalidates it. In memory only.
  */
 const sharedCasesCache = $state<Record<string, number>>({});
 
