@@ -44,6 +44,7 @@ Dependencies run one way — `statistics | tree | distributions → slices → f
 - A component used by one feature goes in that domain's `components/`. Only put it in `src/lib/components/` if two unrelated features use it.
 - A new Tauri command gets one file in `<domain>/invokers/`, named after the command (`invoke("directed_tree", …)` → `tree/invokers/directed-tree.ts`). Components call the invoker, never `invoke()` directly.
 - A type Rust serializes goes in `<domain>/invokers/types.ts`; everything else in `<domain>/types.ts`, including shapes persisted to SQLite that never cross `invoke`. Never re-declare a type in a second file — import it, following the direction above.
+- Types at a call boundary carry a direction prefix: `Response*` for what an invoker returns (`ResponseDirectedTree`), `Request*` for what it sends (`RequestColumnMapping`). Types nested inside those stay unprefixed (`TreeNode`, `Test`, `Summary`) — the prefix marks what an invoker hands over directly, not everything bound to a serde struct.
 - A new filter kind is one file in `filters/filters/` (type, modes, copy, its `describe`/`isComplete` arms) plus two lines in `filters/filters/filter.ts`. Mirrors `src-tauri/src/filters/`.
 - Tests go in `<domain>/tests/{components,state,invokers,utils}/`. Shared components keep their test beside their source. A test using runes must have `.svelte` in its filename (`slices.svelte.test.ts`) or Vitest will not compile them.
 
