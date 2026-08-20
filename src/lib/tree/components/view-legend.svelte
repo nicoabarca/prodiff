@@ -1,9 +1,4 @@
 <script lang="ts">
-  /**
-   * What the drawing on screen is currently doing, floating over the canvas —
-   * the visualization settings live behind a popover, so without this the
-   * applied ones are invisible the moment it closes.
-   */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { groupSlices, view } from "$lib/tree/state/tree.svelte";
 

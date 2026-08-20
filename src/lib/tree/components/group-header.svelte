@@ -1,9 +1,4 @@
 <script lang="ts">
-  /**
-   * Per-Group context above the canvas: case counts, case-level attributes and
-   * their Significance Tests. Different data from the tree — it belongs to the
-   * Groups, not to any node — so it gets its own strip rather than the panel.
-   */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";

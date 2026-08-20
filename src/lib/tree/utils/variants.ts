@@ -7,8 +7,7 @@ export function variantCases(row: ResponseVariantRow): number {
 
 /**
  * The fewest Variants holding `coverage` of the cases, biggest first. Mirrors
- * the backend's cold-build pick, so seeding the picker and letting Rust choose
- * land on the same set.
+ * the backend's cold-build pick, so both land on the same set.
  */
 export function variantsCovering(rows: ResponseVariantRow[], coverage: number): Set<string> {
   const total = rows.reduce((sum, row) => sum + variantCases(row), 0);

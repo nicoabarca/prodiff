@@ -7,9 +7,7 @@ export const ACTIVITY_DURATION = "Activity Duration";
 export const TRANSITION_TIME = "Transition Time";
 
 /**
- * What the user can ask the backend to test. Columns hidden from the project
- * are left out: a column the user has taken off screen everywhere else has no
- * business consuming test budget here.
+ * What the user can ask the backend to test. Hidden columns are left out.
  */
 export function attributeOptions(columns: RequestColumnMapping[], hidden: string[] = []): string[] {
   const mapped = columns

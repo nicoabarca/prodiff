@@ -5,8 +5,7 @@ import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 
 /**
  * Every Variant of the filtered log, most cases first. Independent of the
- * build, so the picker works before the first one — and reaches Variants no
- * build included, which is the whole reason it isn't derived from the tree.
+ * build, so it reaches Variants no build included.
  */
 export function listVariants(
   project: Project,

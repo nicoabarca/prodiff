@@ -1,8 +1,7 @@
 <script lang="ts">
   /**
-   * What is drawn, as opposed to what was built. Everything here reads the tree
-   * already in memory — nothing triggers a rebuild, so these controls stay
-   * usable even while the tree on screen is stale.
+   * What is drawn, as opposed to what was built. Nothing here triggers a
+   * rebuild, so these controls stay usable while the tree is stale.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";

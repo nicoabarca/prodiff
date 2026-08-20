@@ -1,23 +1,12 @@
 <script lang="ts">
   /**
    * The two duration encodings that are not bars: the cumulative curve and the
-   * box plot. Log bins stay on the card's own `BarChart` — they are bars, and
-   * drawing them twice would be two things to keep in step.
+   * box plot.
    *
-   * Both axes are symlog rather than log. A duration of nothing is ordinary
-   * here — an activity with a single timestamp, a transition into the step it
-   * follows — and `log(0)` does not exist, so a plain log scale would silently
-   * drop the busiest value on the card.
-   *
-   * Symlog is linear below its `constant` and logarithmic above, and the
-   * default constant is 1 — one *millisecond*, the unit these values happen to
-   * be in. That spends `log(1001)` of a `log(1.2e6)` axis, half the plot, on
-   * the range under a second. The constant is set to the ladder's own first
-   * rung instead, so the linear stretch is the range the ladder already decided
-   * was one bucket's worth of nothing.
-   *
-   * Ticks are the backend's own log ladder, not the scale's. Symlog picks
-   * boundaries like `1.8e6`; the ladder already holds the ones a person reads.
+   * Both axes are symlog, not log: a duration of zero is ordinary here and
+   * `log(0)` does not exist. Symlog's `constant` is set to the ladder's first
+   * rung rather than its default of 1, which in milliseconds would spend half
+   * the axis on the range under a second. Ticks come from the backend's ladder.
    */
   import { scaleBand, scaleSymlog } from "d3-scale";
   import {
@@ -56,11 +45,8 @@
   const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
 
   /**
-   * A curve needs two distinct durations to be a curve. When every case took
-   * exactly the same time the union of the ladders collapses to one row, and a
-   * one-point line is a degenerate path — d3 emits it, the scale has a
-   * zero-width domain to place it on, and the result is a stroke drawn at
-   * coordinates that belong to no plot. Say the value instead.
+   * A curve needs two distinct durations. With one the scale has a zero-width
+   * domain and d3 draws a stroke at coordinates belonging to no plot.
    */
   const oneValue = $derived(rows.length < 2);
 
@@ -70,9 +56,8 @@
   );
 
   /**
-   * Where symlog stops being linear and starts being logarithmic. The ladder's
-   * first rung: below it the ladder itself draws no boundary, so there is
-   * nothing down there for a log stretch to separate.
+   * Where symlog stops being linear. The ladder's first rung — below it the
+   * ladder draws no boundary, so a log stretch has nothing to separate.
    */
   const linearBelow = $derived(shape.logEdges.find((edge) => edge > 0) ?? max ?? 1);
 
@@ -93,28 +78,22 @@
   const colorOf = (group: string) => (group === nameA ? COLOR_A : COLOR_B);
 
   /**
-   * The box plot's axis spans the whiskers and nothing else.
-   *
-   * Not the data's range: the outliers past the whiskers are counted rather
-   * than drawn, so reaching up to them hands the axis to marks that aren't
-   * there. And not anchored at zero: a step that takes two minutes every time
-   * has all of its interest in a thirty-second band, which an axis starting at
-   * zero spends nine tenths of itself getting to.
+   * The box plot's axis spans the whiskers and nothing else — not the data's
+   * range, whose outliers are counted rather than drawn, and not anchored at
+   * zero, which would spend most of the axis reaching the interesting band.
    */
   const boxLow = $derived(Math.min(...boxes.map((box) => box.whiskerLow)));
   const boxHigh = $derived(Math.max(...boxes.map((box) => box.whiskerHigh)));
 
   /**
-   * Whiskers that have collapsed onto a single value. The quartiles are all the
-   * same number, so there is no box to draw — only a line, which reads as a
-   * broken chart rather than as the finding it is.
+   * Whiskers collapsed onto a single value: the quartiles are all the same
+   * number, so there is no box to draw.
    */
   const flat = $derived(boxes.length === 0 || !(boxHigh > boxLow));
 
   /**
-   * Rungs strictly inside the span. Left to the ladder alone a narrow span can
-   * contain no rung at all and the axis comes out unlabelled, so the scale
-   * picks its own in that case.
+   * Rungs strictly inside the span. A narrow span can contain none, in which
+   * case the scale picks its own.
    */
   const boxTicks = $derived.by(() => {
     const inside = shape.logEdges.filter((edge) => edge > boxLow && edge < boxHigh);

@@ -42,9 +42,8 @@
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /**
-   * Attributes strongest first, with the ones that came out negligible or
-   * untestable folded away. At a few thousand cases per Group nearly every test
-   * is significant, so a panel ordered by anything else buries its own finding.
+   * Attributes strongest first, with the negligible and untestable ones folded
+   * away. At a few thousand cases per Group nearly every test is significant.
    */
   const ranked = $derived(
     node
@@ -53,9 +52,8 @@
   );
 
   /**
-   * One-Group mode has no differences to rank, so the attributes stay in the
-   * order they were built in and every one is shown — ranking them by a test
-   * that never ran would file all of them under "could not be tested".
+   * One-Group mode has no differences to rank: attributes stay in build order
+   * and all of them are shown.
    */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
