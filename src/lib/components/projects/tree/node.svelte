@@ -42,7 +42,10 @@
   <div class="flex w-full items-start justify-center gap-1">
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">
-        <span class="line-clamp-3 text-[0.6875rem] leading-tight font-medium" style="color:var({accent})">
+        <span
+          class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
+          style="color:var({accent})"
+        >
           {data.label}
         </span>
       </Tooltip.Trigger>

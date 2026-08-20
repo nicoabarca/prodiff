@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       bump:
-        description: 'Version bump'
+        description: "Version bump"
         required: true
         type: choice
         options:

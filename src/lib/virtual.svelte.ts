@@ -28,9 +28,7 @@ export function virtualRange(options: {
   let scrollTop = $state(0);
   let viewport = $state(0);
 
-  const range = $derived(
-    windowRange(options.count(), options.rowHeight(), scrollTop, viewport)
-  );
+  const range = $derived(windowRange(options.count(), options.rowHeight(), scrollTop, viewport));
 
   return {
     get start() {

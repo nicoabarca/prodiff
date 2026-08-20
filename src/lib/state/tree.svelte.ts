@@ -146,7 +146,10 @@ export function groupChains(): { a: Filter[]; b: Filter[] | null } | null {
 }
 
 export async function loadSettings(projectId: string) {
-  const rows = await db().select().from(settingsTable).where(eq(settingsTable.projectId, projectId));
+  const rows = await db()
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.projectId, projectId));
   const row = rows[0];
   settings.projectId = projectId;
   settings.value = row

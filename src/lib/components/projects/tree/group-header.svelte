@@ -43,8 +43,8 @@
 
     {#if tree.cappedByCeiling}
       <p class="text-muted-foreground text-[0.6875rem]">
-        The log has more Variants than a build ships — the rarest ones are not in this tree at
-        all, whatever the slider says.
+        The log has more Variants than a build ships — the rarest ones are not in this tree at all,
+        whatever the slider says.
       </p>
     {/if}
 

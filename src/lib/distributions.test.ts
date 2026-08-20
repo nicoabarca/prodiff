@@ -1,9 +1,9 @@
 /**
  * The grid's ranking fails silently — a mis-sorted grid looks exactly like a
  * sorted one, and the whole point of the view is that the biggest difference is
- * on the first screen. Run with `npx tsx src/lib/distributions.test.ts`.
+ * on the first screen.
  */
-import assert from "node:assert/strict";
+import { describe, expect, test } from "vitest";
 import {
   curveRows,
   gridAttributes,
@@ -21,7 +21,8 @@ import {
   type TreeNode
 } from "./tree";
 
-function test(effectSize: number, significant = true): Test {
+/** Named `testResult` rather than `test`, which is Vitest's. */
+function testResult(effectSize: number, significant = true): Test {
   return {
     test: "chi2",
     statistic: 1,
@@ -44,89 +45,86 @@ function node(eventLevel: Record<string, AttributeBlock>): TreeNode {
 
 const names = (cards: ReturnType<typeof gridAttributes>) => cards.map((card) => card.name);
 
-// Tested attributes lead, strongest first — the finding is on the first screen.
-{
-  const cards = gridAttributes(
-    node({
-      Operator: block(test(0.12)),
-      Resource: block(test(0.61)),
-      Equipment: block(test(0.4))
-    }),
-    [],
-    [],
-    "difference"
-  );
-  assert.deepEqual(names(cards), ["Resource", "Equipment", "Operator"]);
-}
-
-// A block whose test never ran sorts below every tested one, whatever the sort,
-// so the "untested" divider is one cut down the list rather than a scatter.
-{
-  const n = node({
-    Zeta: block(test(0.61)),
-    Alpha: block(null),
-    Middle: block(test(0.2))
+describe("gridAttributes", () => {
+  test("tested attributes lead, strongest first", () => {
+    // The finding is on the first screen.
+    const cards = gridAttributes(
+      node({
+        Operator: block(testResult(0.12)),
+        Resource: block(testResult(0.61)),
+        Equipment: block(testResult(0.4))
+      }),
+      [],
+      [],
+      "difference"
+    );
+    expect(names(cards)).toEqual(["Resource", "Equipment", "Operator"]);
   });
-  assert.deepEqual(names(gridAttributes(n, [], [], "difference")), ["Zeta", "Middle", "Alpha"]);
-  assert.deepEqual(names(gridAttributes(n, [], [], "name")), ["Middle", "Zeta", "Alpha"]);
-}
 
-// A test that failed still carries a magnitude, and still ranks by it: the chip
-// says "no difference", the position says how much evidence there was to weigh.
-{
-  const cards = gridAttributes(
-    node({ Weak: block(test(0.5, false)), Strong: block(test(0.7)) }),
-    [],
-    [],
-    "difference"
-  );
-  assert.deepEqual(names(cards), ["Strong", "Weak"]);
-}
+  test("an untested block sorts below every tested one, whatever the sort", () => {
+    // So the "untested" divider is one cut down the list rather than a scatter.
+    const n = node({
+      Zeta: block(testResult(0.61)),
+      Alpha: block(null),
+      Middle: block(testResult(0.2))
+    });
+    expect(names(gridAttributes(n, [], [], "difference"))).toEqual(["Zeta", "Middle", "Alpha"]);
+    expect(names(gridAttributes(n, [], [], "name"))).toEqual(["Middle", "Zeta", "Alpha"]);
+  });
 
-// Transition Time is a block like any other, ranked on its own effect size.
-{
-  const n = {
-    eventLevel: { Resource: block(test(0.2)) },
-    transitionTime: block(test(0.8))
-  } as unknown as TreeNode;
-  assert.deepEqual(names(gridAttributes(n, [], [], "difference")), [TRANSITION_TIME, "Resource"]);
-}
+  test("a failed test still carries a magnitude, and still ranks by it", () => {
+    // The chip says "no difference", the position says how much evidence there
+    // was to weigh.
+    const cards = gridAttributes(
+      node({ Weak: block(testResult(0.5, false)), Strong: block(testResult(0.7)) }),
+      [],
+      [],
+      "difference"
+    );
+    expect(names(cards)).toEqual(["Strong", "Weak"]);
+  });
 
-// A hand-added attribute the build never tested joins the untested tail, and is
-// never duplicated when the build happens to have tested it after all.
-{
-  const n = node({ Resource: block(test(0.5)) });
-  assert.deepEqual(names(gridAttributes(n, ["Cost"], [], "difference")), ["Resource", "Cost"]);
-  assert.equal(gridAttributes(n, ["Cost"], [], "difference")[1].inBuild, false);
-  assert.deepEqual(names(gridAttributes(n, ["Resource"], [], "difference")), ["Resource"]);
-}
+  test("Transition Time is a block like any other, ranked on its own effect size", () => {
+    const n = {
+      eventLevel: { Resource: block(testResult(0.2)) },
+      transitionTime: block(testResult(0.8))
+    } as unknown as TreeNode;
+    expect(names(gridAttributes(n, [], [], "difference"))).toEqual([TRANSITION_TIME, "Resource"]);
+  });
 
-// Extras follow the user to a node that tested nothing in common — walking the
-// path is why they were added.
-{
-  const other = node({ Shift: block(test(0.3)) });
-  assert.deepEqual(names(gridAttributes(other, ["Cost"], [], "difference")), ["Shift", "Cost"]);
-}
+  test("a hand-added attribute joins the untested tail, and is never duplicated", () => {
+    const n = node({ Resource: block(testResult(0.5)) });
+    expect(names(gridAttributes(n, ["Cost"], [], "difference"))).toEqual(["Resource", "Cost"]);
+    expect(gridAttributes(n, ["Cost"], [], "difference")[1].inBuild).toBe(false);
+    expect(names(gridAttributes(n, ["Resource"], [], "difference"))).toEqual(["Resource"]);
+  });
 
-// Dismissing hides a card at this node only; the caller clears the list on a
-// node change, and the tested attribute comes back with the new node.
-{
-  const n = node({ Resource: block(test(0.5)), Operator: block(test(0.4)) });
-  assert.deepEqual(names(gridAttributes(n, [], ["Resource"], "difference")), ["Operator"]);
-  assert.deepEqual(names(gridAttributes(n, [], [], "difference")), ["Resource", "Operator"]);
-}
+  test("extras follow the user to a node that tested nothing in common", () => {
+    // Walking the path is why they were added.
+    const other = node({ Shift: block(testResult(0.3)) });
+    expect(names(gridAttributes(other, ["Cost"], [], "difference"))).toEqual(["Shift", "Cost"]);
+  });
 
-// Ties break by name rather than by object key order, so the grid does not
-// reshuffle under the user when two attributes measure the same.
-{
-  const cards = gridAttributes(
-    node({ Zeta: block(test(0.5)), Alpha: block(test(0.5)) }),
-    [],
-    [],
-    "difference"
-  );
-  assert.deepEqual(names(cards), ["Alpha", "Zeta"]);
-}
+  test("dismissing hides a card at this node only", () => {
+    // The caller clears the list on a node change, and the tested attribute
+    // comes back with the new node.
+    const n = node({ Resource: block(testResult(0.5)), Operator: block(testResult(0.4)) });
+    expect(names(gridAttributes(n, [], ["Resource"], "difference"))).toEqual(["Operator"]);
+    expect(names(gridAttributes(n, [], [], "difference"))).toEqual(["Resource", "Operator"]);
+  });
+
+  test("ties break by name rather than by object key order", () => {
+    // So the grid does not reshuffle under the user when two attributes measure
+    // the same.
+    const cards = gridAttributes(
+      node({ Zeta: block(testResult(0.5)), Alpha: block(testResult(0.5)) }),
+      [],
+      [],
+      "difference"
+    );
+    expect(names(cards)).toEqual(["Alpha", "Zeta"]);
+  });
+});
 
 /**
  * The step picker beside the grid draws `stepContext` rather than the tree, so
@@ -135,78 +133,91 @@ const names = (cards: ReturnType<typeof gridAttributes>) => cards.map((card) => 
  *   0 ─ 1 ─┬─ 2 ─ 4 ─ 5
  *          └─ 3
  */
-const shaped: DirectedTree = {
-  nodes: [
-    { id: 0, parent: null },
-    { id: 1, parent: 0 },
-    { id: 2, parent: 1 },
-    { id: 3, parent: 1 },
-    { id: 4, parent: 2 },
-    { id: 5, parent: 4 }
-  ]
-} as unknown as DirectedTree;
+describe("stepContext", () => {
+  const shaped: DirectedTree = {
+    nodes: [
+      { id: 0, parent: null },
+      { id: 1, parent: 0 },
+      { id: 2, parent: 1 },
+      { id: 3, parent: 1 },
+      { id: 4, parent: 2 },
+      { id: 5, parent: 4 }
+    ]
+  } as unknown as DirectedTree;
 
-const context = (id: number, depth?: number) =>
-  [...stepContext(shaped, id, depth)].sort((a, b) => a - b);
+  const context = (id: number, depth?: number) =>
+    [...stepContext(shaped, id, depth)].sort((a, b) => a - b);
 
-// The trace down to the step plus one level past it — 5 is two below, so out.
-assert.deepEqual(context(2), [0, 1, 2, 4]);
-// A leaf is its trace and nothing more.
-assert.deepEqual(context(5), [0, 1, 2, 4, 5]);
-// Never a sibling branch: 3 hangs off 1, which is on the trace, and stays out.
-assert.deepEqual(context(2), [0, 1, 2, 4]);
-// The root's own children follow it, and only they.
-assert.deepEqual(context(0), [0, 1]);
-// The step itself is always in, even standing on a branch with nothing below.
-assert.deepEqual(context(3), [0, 1, 3]);
+  test("the trace down to the step plus one level past it", () => {
+    // 5 is two below, so out.
+    expect(context(2)).toEqual([0, 1, 2, 4]);
+  });
 
-// The depth is where the walk stops, not a special case — widening it needs no
-// other change, and Infinity is the whole subtree.
-assert.deepEqual(context(2, 2), [0, 1, 2, 4, 5]);
-assert.deepEqual(context(0, Infinity), [0, 1, 2, 3, 4, 5]);
-assert.deepEqual(context(2, 0), [0, 1, 2]);
+  test("a leaf is its trace and nothing more", () => {
+    expect(context(5)).toEqual([0, 1, 2, 4, 5]);
+  });
 
-// The ladder's index is its percentile, so an off-by-one here reads every
-// duration against the wrong share — and still looks like a plausible curve.
-{
+  test("never a sibling branch", () => {
+    // 3 hangs off 1, which is on the trace, and stays out.
+    expect(context(2)).toEqual([0, 1, 2, 4]);
+  });
+
+  test("the root's own children follow it, and only they", () => {
+    expect(context(0)).toEqual([0, 1]);
+  });
+
+  test("the step itself is always in, even with nothing below", () => {
+    expect(context(3)).toEqual([0, 1, 3]);
+  });
+
+  test("the depth is where the walk stops, not a special case", () => {
+    // Widening it needs no other change, and Infinity is the whole subtree.
+    expect(context(2, 2)).toEqual([0, 1, 2, 4, 5]);
+    expect(context(0, Infinity)).toEqual([0, 1, 2, 3, 4, 5]);
+    expect(context(2, 0)).toEqual([0, 1, 2]);
+  });
+});
+
+test("the ladder's index is its percentile", () => {
+  // An off-by-one here reads every duration against the wrong share — and still
+  // looks like a plausible curve.
   const ladder = [0, 10, 20, 30, 40];
-  assert.equal(shareAt(ladder, 0), 0);
-  assert.equal(shareAt(ladder, 20), 0.5);
-  assert.equal(shareAt(ladder, 40), 1);
+  expect(shareAt(ladder, 0)).toBe(0);
+  expect(shareAt(ladder, 20)).toBe(0.5);
+  expect(shareAt(ladder, 40)).toBe(1);
   // Between two rungs the share is the lower one's: the ECDF is a step
   // function, and nothing has finished until the next rung is reached.
-  assert.equal(shareAt(ladder, 25), 0.5);
+  expect(shareAt(ladder, 25)).toBe(0.5);
   // Past the top everything has finished; below the bottom, nothing has.
-  assert.equal(shareAt(ladder, 999), 1);
-  assert.equal(shareAt(ladder, -1), 0);
+  expect(shareAt(ladder, 999)).toBe(1);
+  expect(shareAt(ladder, -1)).toBe(0);
   // A Group with no values has no share rather than a share of zero.
-  assert.equal(shareAt([], 5), null);
-  assert.equal(shareAt([7], 7), null);
-}
+  expect(shareAt([], 5)).toBe(null);
+  expect(shareAt([7], 7)).toBe(null);
+});
 
-// Both curves land on one sorted x — what lets a single hover answer for both
-// Groups, and what `bisect-x` needs to search.
-{
+test("both curves land on one sorted x", () => {
+  // What lets a single hover answer for both Groups, and what `bisect-x` needs
+  // to search.
   const rows = curveRows([0, 10, 20], [10, 20, 30]);
-  assert.deepEqual(
+  expect(
     rows.map((row) => row.value),
-    [0, 10, 20, 30],
     "the union of both ladders, sorted, without duplicates"
-  );
-  assert.deepEqual(rows.at(-1), { value: 30, a: 1, b: 1 });
+  ).toEqual([0, 10, 20, 30]);
+  expect(rows.at(-1)).toEqual({ value: 30, a: 1, b: 1 });
   // At 0 the second Group has not started: its own ladder begins at 10.
-  assert.deepEqual(rows[0], { value: 0, a: 0, b: 0 });
+  expect(rows[0]).toEqual({ value: 0, a: 0, b: 0 });
   // One-Group mode: the absent Group is null throughout, never zero, so the
   // tooltip says "—" instead of claiming nothing finished.
-  assert.deepEqual(curveRows([0, 10], []), [
+  expect(curveRows([0, 10], [])).toEqual([
     { value: 0, a: 0, b: null },
     { value: 10, a: 1, b: null }
   ]);
-}
+});
 
-// Log bars are labelled by their own edges — unequal widths are the point, so
-// the range has to be on the axis rather than an index.
-{
+test("log bars are labelled by their own edges", () => {
+  // Unequal widths are the point, so the range has to be on the axis rather
+  // than an index.
   const shape = {
     ecdfA: [],
     ecdfB: [],
@@ -216,32 +227,25 @@ assert.deepEqual(context(2, 0), [0, 1, 2]);
     logCountsA: [7, 3, 1],
     logCountsB: [2, 8, 0]
   } satisfies DurationShape;
-  assert.deepEqual(logBars(shape), [
+  expect(logBars(shape)).toEqual([
     { label: "0s–1s", a: 7, b: 2 },
     { label: "1s–1m 0s", a: 3, b: 8 },
     { label: "1m 0s–1h 0m", a: 1, b: 0 }
   ]);
-}
+});
 
-// The note names the cutoff, because the count alone is meaningless without it.
-{
+test("the outlier note names the cutoff", () => {
+  // The count alone is meaningless without it.
   const secs = (value: number) => `${value}s`;
   const stats = { whiskerLow: 26, whiskerHigh: 253, outliersLow: 34, outliersHigh: 129 };
-  assert.equal(
-    outlierNote("Night", stats, secs),
-    "Night: 129 over 253s, 34 under 26s, not plotted"
-  );
+  expect(outlierNote("Night", stats, secs)).toBe("Night: 129 over 253s, 34 under 26s, not plotted");
   // Only the side that has any: a bare "0 over 253s" reads as a finding.
-  assert.equal(
-    outlierNote("Night", { ...stats, outliersHigh: 0 }, secs),
+  expect(outlierNote("Night", { ...stats, outliersHigh: 0 }, secs)).toBe(
     "Night: 34 under 26s, not plotted"
   );
-  assert.equal(
-    outlierNote("Night", { ...stats, outliersLow: 0 }, secs),
+  expect(outlierNote("Night", { ...stats, outliersLow: 0 }, secs)).toBe(
     "Night: 129 over 253s, not plotted"
   );
   // Nothing past either line means nothing to say, not an empty sentence.
-  assert.equal(outlierNote("Night", { ...stats, outliersLow: 0, outliersHigh: 0 }, secs), null);
-}
-
-console.log("distributions: ok");
+  expect(outlierNote("Night", { ...stats, outliersLow: 0, outliersHigh: 0 }, secs)).toBe(null);
+});

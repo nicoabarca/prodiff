@@ -49,8 +49,7 @@
   <div
     class="border-border bg-primary/5 border-b-primary/30 flex shrink-0 items-center justify-between border-b-2 px-4 py-2"
   >
-    <span class="text-primary text-xs font-semibold tracking-widest uppercase">Column mapping</span
-    >
+    <span class="text-primary text-xs font-semibold tracking-widest uppercase">Column mapping</span>
     <span class="text-muted-foreground text-xs"
       >{visibleMapping.length} column{visibleMapping.length === 1 ? "" : "s"}</span
     >
@@ -71,7 +70,9 @@
           <Table.Row class="hover:bg-primary/5">
             <Table.Cell class="font-mono text-xs">{name}</Table.Cell>
             <Table.Cell>
-              <span class={`text-xs ${required ? "text-primary font-semibold" : "text-foreground"}`}>
+              <span
+                class={`text-xs ${required ? "text-primary font-semibold" : "text-foreground"}`}
+              >
                 {roleLabel(name)}
               </span>
             </Table.Cell>

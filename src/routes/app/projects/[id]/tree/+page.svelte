@@ -134,7 +134,11 @@
           {/if}
         </div>
         {#if panelOpen}
-          <DetailPanel tree={built.tree} nodeId={selected.id} onClose={() => (selected.id = null)} />
+          <DetailPanel
+            tree={built.tree}
+            nodeId={selected.id}
+            onClose={() => (selected.id = null)}
+          />
         {/if}
       </div>
     {:else}

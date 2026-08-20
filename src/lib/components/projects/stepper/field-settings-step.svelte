@@ -101,8 +101,8 @@
       >
     </div>
     <p class="text-muted-foreground px-4 py-8 text-center text-sm">
-      No extra columns to configure — every visible field is either required or was left out in
-      the previous step.
+      No extra columns to configure — every visible field is either required or was left out in the
+      previous step.
     </p>
   </div>
 {:else}
@@ -131,7 +131,7 @@
             {#each fieldRows as { name, dtype }}
               {@const customized = isCustomized(name, dtype)}
               <Table.Row
-                class={`hover:bg-primary/5 ${customized ? "border-l-2 border-l-primary" : "border-l-2 border-l-transparent"}`}
+                class={`hover:bg-primary/5 ${customized ? "border-l-primary border-l-2" : "border-l-2 border-l-transparent"}`}
               >
                 <Table.Cell class="font-mono text-xs">
                   <span class="flex items-center gap-2">
@@ -202,7 +202,9 @@
                 <Table.Head class="font-mono text-xs whitespace-nowrap">
                   {name}
                   {#if role}
-                    <span class="text-primary ml-1 font-sans text-[0.625rem] tracking-wide uppercase">
+                    <span
+                      class="text-primary ml-1 font-sans text-[0.625rem] tracking-wide uppercase"
+                    >
                       {roleMeta[role].label}
                     </span>
                   {/if}
@@ -214,7 +216,9 @@
             {#each previewRows as row}
               <Table.Row class="hover:bg-transparent">
                 {#each row as cell}
-                  <Table.Cell class="text-muted-foreground px-3 py-1.5 font-mono text-xs whitespace-nowrap">
+                  <Table.Cell
+                    class="text-muted-foreground px-3 py-1.5 font-mono text-xs whitespace-nowrap"
+                  >
                     {cell}
                   </Table.Cell>
                 {/each}

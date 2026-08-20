@@ -214,9 +214,7 @@
   const columnOptions = $derived(
     kind === "numeric" ? numericColumns : kind === "follower" ? eventLevel : categorical
   );
-  const picksColumn = $derived(
-    kind === "attribute" || kind === "numeric" || kind === "follower"
-  );
+  const picksColumn = $derived(kind === "attribute" || kind === "numeric" || kind === "follower");
 
   /** The picker column for the single-list kinds (attribute, follower). */
   const pickerColumn = $derived(kind === "attribute" || kind === "follower" ? column : "");
@@ -425,7 +423,7 @@
         <RadioGroup.Item
           value={mode}
           id="mode-{mode}"
-          class="data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color) [&_[data-slot=radio-group-indicator]_svg]:bg-background"
+          class="[&_[data-slot=radio-group-indicator]_svg]:bg-background data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color)"
         />
         <Field.FieldContent>
           <Field.FieldLabel for="mode-{mode}">{info[mode].label}</Field.FieldLabel>
@@ -457,7 +455,7 @@
       <span class="text-muted-foreground ml-auto text-xs">
         {chosen.length}/{options.length} selected
       </span>
-      <Button variant="ghost" size="xs" onclick={() => choose(listed)}> All </Button>
+      <Button variant="ghost" size="xs" onclick={() => choose(listed)}>All</Button>
       <Button variant="ghost" size="xs" onclick={() => choose([])}>None</Button>
     </div>
     {#if options.length > 8}
@@ -483,7 +481,7 @@
             <Checkbox
               checked={chosen.includes(option)}
               onCheckedChange={() => choose(toggled(chosen, option))}
-              class="data-checked:border-(--accent-color) data-checked:bg-(--accent-color) data-checked:text-background dark:data-checked:bg-(--accent-color)"
+              class="data-checked:text-background data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color)"
             />
             <span class="truncate text-sm">{option}</span>
           </Label>
@@ -520,7 +518,7 @@
       {#each kinds as option (option.kind)}
         <ToggleGroup.Item
           value={option.kind}
-          class="data-[state=on]:border-(--accent-color) data-[state=on]:bg-(--accent-color) data-[state=on]:text-background data-[state=on]:hover:bg-(--accent-color)"
+          class="data-[state=on]:text-background data-[state=on]:border-(--accent-color) data-[state=on]:bg-(--accent-color) data-[state=on]:hover:bg-(--accent-color)"
         >
           {option.label}
         </ToggleGroup.Item>
@@ -754,8 +752,7 @@
         </div>
         <TimeframePicker {project} chain={precedingChain} {color} bind:from bind:to />
         <Field.FieldDescription>
-          Drag across the chart to select a window, or pick its first and last day on the
-          calendar.
+          Drag across the chart to select a window, or pick its first and last day on the calendar.
         </Field.FieldDescription>
       </Field.Field>
     {:else if kind === "follower"}
@@ -824,7 +821,7 @@
       <Button
         disabled={!valid}
         onclick={save}
-        class="bg-(--accent-color) text-background hover:bg-(--accent-color) hover:opacity-90"
+        class="text-background bg-(--accent-color) hover:bg-(--accent-color) hover:opacity-90"
       >
         {filter ? "Save filter" : "Add filter"}
       </Button>

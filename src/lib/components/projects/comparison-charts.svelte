@@ -129,8 +129,11 @@
           </div>
         {:else}
           {@const data = series(chart)}
-          <Chart.Container {config} class="aspect-auto h-[calc(1.5rem*var(--bars))] w-full"
-            style="--bars:{data.length}">
+          <Chart.Container
+            {config}
+            class="aspect-auto h-[calc(1.5rem*var(--bars))] w-full"
+            style="--bars:{data.length}"
+          >
             <BarChart
               {data}
               orientation="horizontal"

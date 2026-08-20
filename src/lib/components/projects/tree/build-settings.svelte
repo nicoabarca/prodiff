@@ -23,7 +23,6 @@
       : settings.value.attributes.filter((a) => a !== name);
     saveSettings(project.id, { ...settings.value, attributes });
   }
-
 </script>
 
 <Popover.Root>
@@ -64,7 +63,6 @@
           findings of another. Unselected attributes are never tested.
         </p>
       </div>
-
     </div>
   </Popover.Content>
 </Popover.Root>

@@ -321,8 +321,7 @@
         <h1>Domain Architecture Refactor</h1>
         <p class="sub">
           Restructuring the SvelteKit frontend of <code>compare</code> into six feature domains,
-          delivered as a five-layer stacked-PR chain on
-          <code>refactor/domain-architecture</code>.
+          delivered as a five-layer stacked-PR chain on <code>refactor/domain-architecture</code>.
         </p>
       </header>
 
@@ -374,10 +373,11 @@
             <tr>
               <td class="path">event-log/</td>
               <td>
-                Project record, column mapping, upload wizard, project list card, event log
-                settings
+                Project record, column mapping, upload wizard, project list card, event log settings
               </td>
-              <td class="path">preview_event_log<br />create_event_log<br />delete_project_files</td>
+              <td class="path">
+                preview_event_log<br />create_event_log<br />delete_project_files
+              </td>
               <td class="path">/projects, /projects/new</td>
             </tr>
             <tr>
@@ -476,15 +476,35 @@
           <text class="sm" x="755" y="300" text-anchor="middle">db/client.ts, db/schema.ts</text>
 
           <!-- edges down to slices -->
-          <path class="edge" d="M120 76 L120 120 L330 120 L340 148" marker-end="url(#arrow)" color="var(--muted)" />
+          <path
+            class="edge"
+            d="M120 76 L120 120 L330 120 L340 148"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
           <path class="edge" d="M340 76 L340 148" marker-end="url(#arrow)" color="var(--muted)" />
-          <path class="edge" d="M560 76 L560 120 L372 120 L362 148" marker-end="url(#arrow)" color="var(--muted)" />
+          <path
+            class="edge"
+            d="M560 76 L560 120 L372 120 L362 148"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
           <!-- distributions -> tree -->
           <path class="edge" d="M470 50 L432 50" marker-end="url(#arrow)" color="var(--muted)" />
           <!-- slices -> filters -->
-          <path class="edge edge-strong" d="M350 202 L350 248" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M350 202 L350 248"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <!-- filters -> event-log -->
-          <path class="edge edge-strong" d="M350 302 L350 348" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M350 302 L350 348"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <!-- schema pulls types from domains -->
           <path
             class="edge"
@@ -526,15 +546,27 @@
           <text class="lbl" x="307" y="156" text-anchor="middle">serialize it?</text>
           <text class="sm" x="307" y="173" text-anchor="middle">serde struct / enum mirror</text>
 
-          <path class="edge" d="M400 132 L470 74 L520 74" marker-end="url(#arrow)" color="var(--muted)" />
+          <path
+            class="edge"
+            d="M400 132 L470 74 L520 74"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
           <text class="sm" x="440" y="90">yes</text>
           <rect class="box" x="520" y="48" width="330" height="52" rx="8" />
-          <text class="lbl" x="685" y="70" text-anchor="middle">&lt;domain&gt;/invokers/types.ts</text>
+          <text class="lbl" x="685" y="70" text-anchor="middle">
+            &lt;domain&gt;/invokers/types.ts
+          </text>
           <text class="sm" x="685" y="87" text-anchor="middle">
             DirectedTree, VariantRow, EventLogStats, ColumnMapping
           </text>
 
-          <path class="edge" d="M400 164 L470 222 L520 222" marker-end="url(#arrow)" color="var(--muted)" />
+          <path
+            class="edge"
+            d="M400 164 L470 222 L520 222"
+            marker-end="url(#arrow)"
+            color="var(--muted)"
+          />
           <text class="sm" x="440" y="212">no</text>
           <rect class="box" x="520" y="196" width="330" height="52" rx="8" />
           <text class="lbl" x="685" y="218" text-anchor="middle">&lt;domain&gt;/types.ts</text>
@@ -604,11 +636,10 @@ each domain:
       <div class="note">
         <strong>Pinned by tooling, not by preference.</strong>
         <code>components.json</code> declares the aliases <code>$lib/utils</code>,
-        <code>$lib/hooks</code>, <code>$lib/components/ui</code>, and
-        <code>$lib/components</code>. Moving any of them breaks
-        <code>npx shadcn-svelte add</code>, which rewrites those imports on every run. They stay
-        exactly where they are, and <code>components/ui/</code> keeps its CLI-generated kebab-case
-        filenames.
+        <code>$lib/hooks</code>, <code>$lib/components/ui</code>, and <code>$lib/components</code>.
+        Moving any of them breaks <code>npx shadcn-svelte add</code>, which rewrites those imports
+        on every run. They stay exactly where they are, and <code>components/ui/</code> keeps its
+        CLI-generated kebab-case filenames.
       </div>
 
       <h3>Conventions</h3>
@@ -687,31 +718,56 @@ each domain:
             <text class="sm" x="208" y="144" text-anchor="middle">trunk</text>
           </g>
 
-          <path class="edge edge-strong" d="M274 120 L306 120" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M274 120 L306 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <g>
             <rect class="box" x="306" y="96" width="104" height="48" rx="8" />
             <text class="lbl" x="358" y="116" text-anchor="middle">L1</text>
             <text class="sm" x="358" y="132" text-anchor="middle">vitest-setup</text>
           </g>
-          <path class="edge edge-strong" d="M410 120 L436 120" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M410 120 L436 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <g>
             <rect class="box" x="436" y="96" width="104" height="48" rx="8" />
             <text class="lbl" x="488" y="116" text-anchor="middle">L2</text>
             <text class="sm" x="488" y="132" text-anchor="middle">event-log</text>
           </g>
-          <path class="edge edge-strong" d="M540 120 L566 120" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M540 120 L566 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <g>
             <rect class="box" x="566" y="96" width="120" height="48" rx="8" />
             <text class="lbl" x="626" y="116" text-anchor="middle">L3</text>
             <text class="sm" x="626" y="132" text-anchor="middle">slices+filters</text>
           </g>
-          <path class="edge edge-strong" d="M686 120 L712 120" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M686 120 L712 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <g>
             <rect class="box" x="712" y="96" width="82" height="48" rx="8" />
             <text class="lbl" x="753" y="116" text-anchor="middle">L4</text>
             <text class="sm" x="753" y="132" text-anchor="middle">tree+dist</text>
           </g>
-          <path class="edge edge-strong" d="M794 120 L818 120" marker-end="url(#arrow)" color="var(--accent)" />
+          <path
+            class="edge edge-strong"
+            d="M794 120 L818 120"
+            marker-end="url(#arrow)"
+            color="var(--accent)"
+          />
           <g>
             <rect class="box" x="818" y="96" width="70" height="48" rx="8" />
             <text class="lbl" x="853" y="116" text-anchor="middle">L5</text>
@@ -770,9 +826,9 @@ each domain:
             </li>
             <li>
               Convert <code>src/lib/virtual.test.ts</code> (64 lines) and
-              <code>src/lib/distributions.test.ts</code> (247 lines) from
-              <code>node:assert</code> + hand-rolled harness to <code>describe</code>/<code>expect</code>.
-              Their <q>Run with <code>npx tsx</code></q> header comments are deleted.
+              <code>src/lib/distributions.test.ts</code> (247 lines) from <code>node:assert</code> +
+              hand-rolled harness to <code>describe</code>/<code>expect</code>. Their
+              <q>Run with <code>npx tsx</code></q> header comments are deleted.
             </li>
           </ul>
           <dl class="kv">
@@ -796,8 +852,8 @@ each domain:
             <code>ColumnMapping</code> are imported by 27 files across every other domain. Project
             and event log are one domain, not two: a Project <em>is</em> an event log plus its
             mapping, <code>Project.columns</code> is <code>ColumnMapping[]</code>, and
-            <code>event_log/commands.rs</code> already holds both
-            <code>create_event_log</code> and <code>delete_project_files</code>.
+            <code>event_log/commands.rs</code> already holds both <code>create_event_log</code> and
+            <code>delete_project_files</code>.
           </p>
           <div class="scroll">
             <table>
@@ -919,9 +975,9 @@ src/lib/statistics/
             The <code>filters</code>/<code>slices</code> seam: <code>filters/</code> knows one
             filter at a time and nothing about chains, slices, or populations. Chain semantics —
             <code>effectiveChain</code>'s base-then-own ordering — is a slices rule and stays in
-            <code>slices/</code>. <code>filter-editor.svelte</code> takes
-            <code>project</code> and <code>initial: Filter | null</code> as props, emits a
-            <code>Filter</code>, and never touches slice state.
+            <code>slices/</code>. <code>filter-editor.svelte</code> takes <code>project</code> and
+            <code>initial: Filter | null</code> as props, emits a <code>Filter</code>, and never
+            touches slice state.
           </p>
           <p>
             The raw <code>invoke("slice_preview", …)</code> currently inside
@@ -984,11 +1040,10 @@ src/lib/distributions/
           <div class="note">
             <strong>One cross-domain import worth naming.</strong> The distributions route renders
             <code>tree/components/canvas.svelte</code> as its step-picker rail, and reads
-            <code>built.tree</code> and <code>selected.id</code> from
-            <code>tree/state/</code>. That is <code>distributions → tree</code>, which is
-            consistent with the dependency direction — distributions drills into a node of a tree
-            that already exists. <code>tree/</code> never imports from
-            <code>distributions/</code>.
+            <code>built.tree</code> and <code>selected.id</code> from <code>tree/state/</code>. That
+            is <code>distributions → tree</code>, which is consistent with the dependency direction
+            — distributions drills into a node of a tree that already exists.
+            <code>tree/</code> never imports from <code>distributions/</code>.
           </div>
           <dl class="kv">
             <dt>Verify</dt>
@@ -1086,10 +1141,11 @@ src/lib/distributions/
               <td>project vs event-log</td>
               <td>Merged into event-log/</td>
               <td>
-                Split, they would reference each other in both directions
-                (<code>Project.columns</code> needs <code>ColumnMapping</code>;
-                <code>createProject</code> needs <code>addProject</code>). Rust already treats them
-                as one module.
+                Split, they would reference each other in both directions (<code
+                  >Project.columns</code
+                >
+                needs <code>ColumnMapping</code>; <code>createProject</code> needs
+                <code>addProject</code>). Rust already treats them as one module.
               </td>
             </tr>
           </tbody>

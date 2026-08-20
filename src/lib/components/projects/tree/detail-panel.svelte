@@ -37,7 +37,10 @@
       once the slider has pruned some of its siblings away. */
   const cases = $derived(
     node
-      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 })
+      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {
+          groupACases: 0,
+          groupBCases: 0
+        })
       : null
   );
 
