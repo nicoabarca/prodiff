@@ -2,7 +2,6 @@
   import { untrack } from "svelte";
   import * as Field from "$lib/components/ui/field/index.js";
   import * as InputGroup from "$lib/components/ui/input-group/index.js";
-  import * as RadioGroup from "$lib/components/ui/radio-group/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
@@ -45,6 +44,7 @@
   import type { ResponseChainStep } from "$lib/slices/invokers/types";
   import { formatDay, formatDuration, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
+  import ModePicker from "./mode-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
   import TimeframePicker from "./timeframe-picker.svelte";
   import Search from "@lucide/svelte/icons/search";
@@ -393,31 +393,6 @@
   }
 </script>
 
-<!-- Declared at the template root: a snippet inside a component would be read
-     as one of that component's props rather than a local. -->
-{#snippet modes(
-  entries: readonly string[],
-  current: string,
-  info: Record<string, { label: string; description: string }>,
-  select: (value: string) => void
-)}
-  <RadioGroup.Root value={current} onValueChange={select}>
-    {#each entries as mode (mode)}
-      <Field.Field orientation="horizontal">
-        <RadioGroup.Item
-          value={mode}
-          id="mode-{mode}"
-          class="[&_[data-slot=radio-group-indicator]_svg]:bg-background data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color)"
-        />
-        <Field.FieldContent>
-          <Field.FieldLabel for="mode-{mode}">{info[mode].label}</Field.FieldLabel>
-          <Field.FieldDescription>{info[mode].description}</Field.FieldDescription>
-        </Field.FieldContent>
-      </Field.Field>
-    {/each}
-  </RadioGroup.Root>
-{/snippet}
-
 <!-- One list of the picker column's values. Rendered twice by the follower
      filter, which reads the same column as both reference and follower, so the
      selection and its search box are passed in rather than held here. -->
@@ -544,15 +519,12 @@
             </Select.Content>
           </Select.Root>
         </Field.Field>
-        <Field.FieldSet>
-          <Field.FieldLegend>Mode</Field.FieldLegend>
-          {@render modes(
-            ATTRIBUTE_MODES,
-            attributeMode,
-            ATTRIBUTE_MODE_INFO,
-            (v) => (attributeMode = v as AttributeMode)
-          )}
-        </Field.FieldSet>
+        <ModePicker
+          entries={ATTRIBUTE_MODES}
+          current={attributeMode}
+          info={ATTRIBUTE_MODE_INFO}
+          onselect={(v) => (attributeMode = v)}
+        />
       </div>
       <div>
         {@render valuePicker(
@@ -568,15 +540,12 @@
       </div>
     </div>
   {:else if kind === "endpoint"}
-    <Field.FieldSet>
-      <Field.FieldLegend>Mode</Field.FieldLegend>
-      {@render modes(
-        ENDPOINT_MODES,
-        endpointMode,
-        ENDPOINT_MODE_INFO,
-        (v) => (endpointMode = v as EndpointMode)
-      )}
-    </Field.FieldSet>
+    <ModePicker
+      entries={ENDPOINT_MODES}
+      current={endpointMode}
+      info={ENDPOINT_MODE_INFO}
+      onselect={(v) => (endpointMode = v)}
+    />
     <!-- Both positions are listed at once, so the user can see the start and
          end activities together instead of toggling between them. A case can
          only start or end with one value, so checking a box in either list
@@ -642,38 +611,35 @@
       </Field.Field>
     {/if}
 
-    <Field.FieldSet>
-      <Field.FieldLegend>Mode</Field.FieldLegend>
-      {#if kind === "numeric"}
-        {@render modes(
-          NUMERIC_MODES,
-          numericMode,
-          NUMERIC_MODE_INFO,
-          (v) => (numericMode = v as NumericMode)
-        )}
-      {:else if kind === "timeframe"}
-        {@render modes(
-          TIMEFRAME_MODES,
-          timeframeMode,
-          TIMEFRAME_MODE_INFO,
-          (v) => (timeframeMode = v as TimeframeMode)
-        )}
-      {:else if kind === "duration"}
-        {@render modes(
-          NUMERIC_MODES,
-          durationMode,
-          NUMERIC_MODE_INFO,
-          (v) => (durationMode = v as NumericMode)
-        )}
-      {:else if kind === "follower"}
-        {@render modes(
-          FOLLOWER_MODES,
-          followerMode,
-          FOLLOWER_MODE_INFO,
-          (v) => (followerMode = v as FollowerMode)
-        )}
-      {/if}
-    </Field.FieldSet>
+    {#if kind === "numeric"}
+      <ModePicker
+        entries={NUMERIC_MODES}
+        current={numericMode}
+        info={NUMERIC_MODE_INFO}
+        onselect={(v) => (numericMode = v)}
+      />
+    {:else if kind === "timeframe"}
+      <ModePicker
+        entries={TIMEFRAME_MODES}
+        current={timeframeMode}
+        info={TIMEFRAME_MODE_INFO}
+        onselect={(v) => (timeframeMode = v)}
+      />
+    {:else if kind === "duration"}
+      <ModePicker
+        entries={NUMERIC_MODES}
+        current={durationMode}
+        info={NUMERIC_MODE_INFO}
+        onselect={(v) => (durationMode = v)}
+      />
+    {:else if kind === "follower"}
+      <ModePicker
+        entries={FOLLOWER_MODES}
+        current={followerMode}
+        info={FOLLOWER_MODE_INFO}
+        onselect={(v) => (followerMode = v)}
+      />
+    {/if}
 
     {#if kind === "numeric"}
       <div class="flex w-1/2 gap-3">
