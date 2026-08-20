@@ -15,9 +15,9 @@
   let error = $state<string | null>(null);
 
   /**
-   * Identifies the set of chains on screen. Recomputing is keyed on this rather
-   * than on the populations array, which is rebuilt on every slice mutation —
-   * including the cache write that `computeStats` itself performs.
+   * Identifies the set of chains on screen. Keyed on this, not the populations
+   * array, which is rebuilt on every slice mutation — including the cache
+   * write `computeStats` itself performs.
    */
   const wantedKey = $derived(pops.map((p) => `${p.id}:${chainKey(p.chain)}`).join("|"));
 

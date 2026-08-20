@@ -40,8 +40,7 @@
 
   /**
    * Filters that run before the one being edited — Base's chain, then this
-   * slice's own filters up to that point. The editor measures its draft against
-   * exactly this, so the impact it shows is the one the filter will have.
+   * slice's own up to that point. The editor measures its draft against it.
    */
   const precedingChain = $derived.by(() => {
     if (!editingSlice || !editing) return [];

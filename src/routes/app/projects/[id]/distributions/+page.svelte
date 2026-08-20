@@ -3,14 +3,8 @@
    * The Distributions view — every attribute of one node, side by side, ranked
    * by how much the two Groups differ on it.
    *
-   * Its own route rather than a drawer under the tree: the tree and a wall of
-   * histograms both want the whole window, and the two answer different
-   * questions. The tree keeps its canvas; this keeps a step picker, which is the
-   * same canvas at rail width, so the grid always says which branch it is about.
-   *
-   * Reachable only from a selected node. There is nothing to distribute without
-   * one, and the tree is memory-only, so a cold arrival here — a reload, a typed
-   * URL — goes back to the tree to build one.
+   * Reachable only from a selected node, and the tree is memory-only, so a cold
+   * arrival here — a reload, a typed URL — goes back to the tree to build one.
    */
   import { goto } from "$app/navigation";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -79,8 +73,7 @@
 
   /**
    * What is fetched: every card the node could show, dismissals included and in
-   * a fixed order. Hiding a card and re-sorting the grid are both arrangements
-   * of numbers already in hand, so neither costs a round trip.
+   * a fixed order, so hiding and re-sorting never cost a round trip.
    */
   const requested = $derived(node ? gridAttributes(node, charts.extra, [], "name") : []);
   /** What is drawn, in the order the user asked for. */
