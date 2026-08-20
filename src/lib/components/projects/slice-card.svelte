@@ -17,7 +17,7 @@
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-import type { Slice } from "$lib/types";
+  import type { Slice } from "$lib/types";
   import Plus from "@lucide/svelte/icons/plus";
   import Pencil from "@lucide/svelte/icons/pencil";
   import Trash2 from "@lucide/svelte/icons/trash-2";

@@ -16,7 +16,7 @@
   import { describeFilter } from "$lib/filters";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-import type { Slice } from "$lib/types";
+  import type { Slice } from "$lib/types";
   import type { Snippet } from "svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 

@@ -3,8 +3,6 @@
  * a serde struct or enum in `src-tauri/src/{column_mapping,parsing,event_log}`,
  * so a change on this side needs the matching change over there.
  */
-import type { Project } from "$lib/event-log/types";
-
 export const COLUMN_ROLES = [
   "case_id",
   "activity_name",
@@ -42,14 +40,13 @@ export interface EventLogPreview {
  * recomputed per population by the Statistics view rather than stored on the
  * project, so they are picked off here instead of spread into the row.
  */
-export type CreateEventLogResult = Pick<
-  Project,
-  | "events"
-  | "cases"
-  | "activities"
-  | "variants"
-  | "timespanStart"
-  | "timespanEnd"
-  | "originalPath"
-  | "eventLogPath"
->;
+export interface CreateEventLogResult {
+  events: number;
+  cases: number;
+  activities: number;
+  variants: number;
+  timespanStart: string | null;
+  timespanEnd: string | null;
+  originalPath: string;
+  eventLogPath: string;
+}
