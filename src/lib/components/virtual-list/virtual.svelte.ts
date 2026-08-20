@@ -1,15 +1,10 @@
 /**
  * Windowing for a long list: which rows are worth putting in the DOM, and how
- * much empty space stands in for the rest.
+ * much empty space stands in for the rest. Headless — `virtual-list.svelte`
+ * wraps this, and the maths itself lives in `virtual.ts`, free of runes.
  *
- * Headless on purpose — the arithmetic is the part worth reusing, and every
- * caller wants different markup. `virtual-list.svelte` wraps this for the
- * common case; the maths itself lives in `virtual.ts`, free of runes so it can
- * be checked without a Svelte runtime.
- *
- * Fixed row height only. It keeps the whole thing to arithmetic: no measuring,
- * no ResizeObserver, no reflow loop where measuring changes what is measured.
- * Variable heights are a different component, not a flag on this one.
+ * Fixed row height only: no measuring, and so no reflow loop where measuring
+ * changes what is measured.
  */
 import { windowRange, type Window } from "$lib/components/virtual-list/virtual";
 
