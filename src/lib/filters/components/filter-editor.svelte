@@ -13,11 +13,6 @@
   import { isFilterComplete, type Filter, type FilterKind } from "$lib/filters/filters/filter";
   import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
   import {
-    FOLLOWER_MODES,
-    FOLLOWER_MODE_INFO,
-    type FollowerMode
-  } from "$lib/filters/filters/follower";
-  import {
     activityColumn,
     categoricalColumns,
     eventLevelColumns,
@@ -32,6 +27,7 @@
   import TimeframeEditor from "./editors/timeframe-editor.svelte";
   import NumericEditor from "./editors/numeric-editor.svelte";
   import AttributeEditor from "./editors/attribute-editor.svelte";
+  import FollowerEditor from "./editors/follower-editor.svelte";
   import ModePicker from "./mode-picker.svelte";
   import ValuePicker from "./value-picker.svelte";
   import DurationHistogram from "./duration-histogram.svelte";
@@ -109,12 +105,6 @@
   const initial = untrack(() => filter);
 
   let kind = $state<FilterKind>(initial?.kind ?? "attribute");
-  let column = $state(
-    initial &&
-      (initial.kind === "attribute" || initial.kind === "numeric" || initial.kind === "follower")
-      ? initial.column
-      : ""
-  );
   let endpointMode = $state<EndpointMode>(
     initial?.kind === "endpoint" ? initial.mode : "mandatory"
   );
@@ -128,13 +118,6 @@
         ? [...initial.activities]
         : []
   );
-  let followerMode = $state<FollowerMode>(
-    initial?.kind === "follower" ? initial.mode : "eventually"
-  );
-  let referenceValues = $state<string[]>(
-    initial?.kind === "follower" ? [...initial.reference] : []
-  );
-  let followerValues = $state<string[]>(initial?.kind === "follower" ? [...initial.follower] : []);
 
   // A case can only start or end with a value, not both, so the two pickers
   // share one selection: whichever list the user last checked a box in wins.
@@ -149,26 +132,6 @@
     selected = next;
   }
 
-  /** The columns a kind may read, and which one its value picker lists. */
-  const columnOptions = $derived(
-    kind === "numeric" ? numeric : kind === "follower" ? eventLevel : categorical
-  );
-  const picksColumn = $derived(kind === "attribute" || kind === "numeric" || kind === "follower");
-
-  /** The picker column for the single-list kinds (attribute, follower). */
-  const pickerColumn = $derived(kind === "attribute" || kind === "follower" ? column : "");
-
-  // Default the column to the first usable one whenever the kind changes.
-  $effect(() => {
-    if (picksColumn && !columnOptions.some((c) => c.name === column)) {
-      column = columnOptions[0]?.name ?? "";
-    }
-  });
-
-  const attributeValues = columnValues(
-    () => project,
-    () => pickerColumn
-  );
   const startActivities = columnValues(
     () => project,
     () => (kind === "endpoint" ? activity : ""),
@@ -185,7 +148,7 @@
    * `build`; each one moves over as its editor is split out.
    */
   let childDraft = $state<Filter | null>(null);
-  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric", "attribute"];
+  const SPLIT: FilterKind[] = ["duration", "timeframe", "numeric", "attribute", "follower"];
 
   function build(): Filter | null {
     switch (kind) {
@@ -196,15 +159,8 @@
       case "timeframe":
       case "numeric":
       case "attribute":
-        return null;
       case "follower":
-        return {
-          kind,
-          column,
-          mode: followerMode,
-          reference: [...referenceValues],
-          follower: [...followerValues]
-        };
+        return null;
     }
   }
 
@@ -265,8 +221,6 @@
         kind = next as FilterKind;
         childDraft = null;
         selected = [];
-        referenceValues = [];
-        followerValues = [];
       }}
       variant="outline"
       spacing={1}
@@ -353,59 +307,13 @@
       {color}
       ondraft={(next) => (childDraft = next)}
     />
-  {:else}
-    {#if picksColumn}
-      <ColumnSelect
-        columns={columnOptions}
-        value={column}
-        onselect={(next) => {
-          column = next;
-          referenceValues = [];
-          followerValues = [];
-        }}
-        {color}
-        label={kind === "follower" ? "Filter by" : "Column"}
-        class="w-1/2"
-      />
-    {/if}
-
-    {#if kind === "follower"}
-      <ModePicker
-        entries={FOLLOWER_MODES}
-        current={followerMode}
-        info={FOLLOWER_MODE_INFO}
-        onselect={(v) => (followerMode = v)}
-      />
-    {/if}
-
-    {#if kind === "follower"}
-      <!-- Reference on the left, follower on the right: the pair reads in the
-           order the filter looks for it. -->
-      <div class="grid gap-3 sm:grid-cols-2">
-        <div class="border-border border p-2">
-          <ValuePicker
-            label="Reference values"
-            options={attributeValues.values}
-            chosen={referenceValues}
-            onchoose={(next) => (referenceValues = next)}
-            truncated={attributeValues.truncated}
-            error={attributeValues.error}
-            limit={VALUE_LIMIT}
-          />
-        </div>
-        <div class="border-border border p-2">
-          <ValuePicker
-            label="Follower values"
-            options={attributeValues.values}
-            chosen={followerValues}
-            onchoose={(next) => (followerValues = next)}
-            truncated={attributeValues.truncated}
-            error={attributeValues.error}
-            limit={VALUE_LIMIT}
-          />
-        </div>
-      </div>
-    {/if}
+  {:else if kind === "follower"}
+    <FollowerEditor
+      {project}
+      initial={initial?.kind === "follower" ? initial : null}
+      {color}
+      ondraft={(next) => (childDraft = next)}
+    />
   {/if}
 
   <!-- Only shown once the filter is complete enough to measure — an incomplete
