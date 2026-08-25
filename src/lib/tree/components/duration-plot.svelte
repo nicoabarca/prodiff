@@ -21,7 +21,8 @@
   } from "layerchart";
   import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
   import { curveRows, outlierNote } from "$lib/distributions/utils/distributions";
-  import { formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
 
   let {
     shape,
@@ -39,8 +40,9 @@
 
   // The Groups keep the colours they carry in the tree and the differences
   // panel, so a shift that is "the blue one" stays blue across all three.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  const groups = $derived(comparedGroups());
+  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
+  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
   const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
 

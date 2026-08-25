@@ -1,14 +1,12 @@
 <script lang="ts">
   /**
-   * One attribute's Group A vs Group B comparison, drawn as the difference:
-   * categorical attributes as the share gap in percentage points, numeric ones
-   * as two Tukey box plots on a shared axis. Nothing is recomputed here — the
-   * backend's summary already is a box plot, outlier counts included.
+   * One attribute's Group A vs Group B comparison: categorical as the share gap
+   * in percentage points, numeric as two Tukey box plots on a shared axis.
    */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { outlierNote } from "$lib/distributions/utils/distributions";
-  import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
   import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Summary } from "$lib/tree/invokers/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -22,24 +20,22 @@
   }: {
     groupA: Summary | null;
     groupB: Summary | null;
-    /** False in one-Group mode, where there is no difference to draw. */
+    /** False in one-Group mode. */
     compare?: boolean;
     duration?: boolean;
   } = $props();
 
-  // The Groups keep the colours the tree nodes give them, and the names the
-  // user gave their slices — "Group A"/"Group B" only if a slice has gone.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  // Colours and names come from the Groups themselves.
   const groups = $derived(comparedGroups());
+  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
+  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /** How many categories fit before the rest go behind the disclosure. */
   const TOP = 6;
 
-  // The label gutter and the value gutter are fixed, so the zero rule sits at a
-  // position the layout can compute: halfway between them.
+  // Fixed gutters, so the zero rule sits halfway between them.
   const PAD_LEFT = 84;
   const PAD_RIGHT = 60;
 
@@ -52,11 +48,7 @@
   const numericB = $derived(groupB?.type === "numerical" ? groupB : null);
   const isNumeric = $derived(numericA !== null || numericB !== null);
 
-  /**
-   * The axis spans the two Groups' whiskers, not the full range. Tukey bounds
-   * them at 1.5·IQR either side, so the box always keeps a readable share of
-   * the width; the outliers past them are counted underneath instead.
-   */
+  /** The axis spans the two Groups' whiskers, not the full range. */
   const span = $derived.by(() => {
     const present = [numericA, numericB].filter((s) => s !== null);
     if (present.length === 0) return null;
@@ -64,13 +56,12 @@
     const highest = Math.max(...present.map((s) => s.max));
     const lo = Math.min(...present.map((s) => s.whiskerLow));
     const hi = Math.max(...present.map((s) => s.whiskerHigh));
-    // Every case identical, in both Groups: a scale with nowhere to put a mark.
+    // Every case identical: a scale with nowhere to put a mark.
     if (!(hi > lo)) {
       const pad = Math.max(Math.abs(hi) * 0.1, 1);
       return { lo: lo - pad, hi: hi + pad, lowest, highest };
     }
-    // A sliver of headroom so a whisker cap lands inside the plot rather than
-    // on its edge, where it reads as clipped.
+    // Headroom so a whisker cap lands inside the plot rather than on its edge.
     const pad = (hi - lo) * 0.04;
     return { lo: lo - pad, hi: hi + pad, lowest, highest };
   });
@@ -82,21 +73,18 @@
     ].filter((row) => row !== null)
   );
 
-  /** Groups whose cases all share one value — drawn as a dot, not a box. */
+  /** Groups whose cases all share one value, drawn as a dot. */
   const constant = $derived(boxes.filter((row) => row.min === row.max));
 
-  /**
-   * Nothing varies anywhere: the span collapses and every tick would format to
-   * the same value. The sentence below carries it instead of an axis.
-   */
+  /** Nothing varies anywhere, so the sentence below replaces the axis. */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
-  /** Cases past where the lines stop — counted here because they are not drawn. */
+  /** Cases past where the lines stop, counted rather than drawn. */
   const beyond = $derived(
     boxes.map((row) => outlierNote(row.group, row, format)).filter((note) => note !== null)
   );
 
-  /** The headline the numeric block leads with, in the user's own group names. */
+  /** The headline the numeric block leads with. */
   const delta = $derived.by(() => {
     if (!compare || !numericA || !numericB) return null;
     const difference = numericB.median - numericA.median;
@@ -128,10 +116,7 @@
     });
   });
 
-  /**
-   * What the bars encode: the gap with two Groups, plain share with one.
-   * Colour follows the Group the value leans towards.
-   */
+  /** The gap with two Groups, plain share with one. Colour follows the leading Group. */
   const bars = $derived(
     compare
       ? categories
@@ -145,11 +130,7 @@
   let expanded = $state(false);
   const shown = $derived(expanded ? bars : bars.slice(0, TOP));
 
-  /**
-   * Scaled to the largest gap across *every* category, not just the shown ones,
-   * so expanding the list never rescales bars already read. The headroom keeps
-   * the longest bar's label clear of the category-name gutter.
-   */
+  /** Scaled to the largest gap across every category, so expanding never rescales. */
   const domain = $derived.by((): [number, number] => {
     const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);
     return compare ? [-largest * 1.55, largest * 1.55] : [0, largest * 1.3];
@@ -157,8 +138,7 @@
 
   const barLabel = (value: number) => {
     if (!compare) return `${value.toFixed(1)}%`;
-    // Rounding to one decimal turns a −0.04 gap into "−0.0", which reads as a
-    // direction the number does not actually have.
+    // No sign under 0.05: rounding would read as a direction the gap does not have.
     const sign = Math.abs(value) < 0.05 ? "" : value > 0 ? "+" : "−";
     return `${sign}${Math.abs(value).toFixed(1)} pp`;
   };
