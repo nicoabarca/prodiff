@@ -14,12 +14,7 @@ import { defaultColor, ORIGINAL_COLOR } from "$lib/groups/colors";
 import { ORIGINAL_ID, ORIGINAL_NAME, type Group } from "$lib/groups/types";
 import { groupId } from "$lib/groups/utils/group-id";
 
-/**
- * The loaded project's Groups, in position order. Module-level `$state`, so an
- * edit in one view is visible in every other without prop-drilling.
- *
- * The Original is not in here: it has no row, and `allGroups` prepends it.
- */
+/** The loaded project's Groups, in position order. The Original is not one of them. */
 export const groups = $state<Group[]>([]);
 export const groupsLoaded = $state<{ projectId: string | null }>({ projectId: null });
 
@@ -27,10 +22,7 @@ function byPosition(a: Group, b: Group): number {
   return a.position - b.position;
 }
 
-/**
- * The whole Event Log as a Group. Synthesized rather than stored — it is the
- * one Group whose Filter List is empty, and it exists before any other does.
- */
+/** The whole Event Log as a Group. Synthesized, never stored. */
 export function originalGroup(projectId: string): Group {
   return {
     id: ORIGINAL_ID,
@@ -55,11 +47,7 @@ export function isApplied(group: Group): boolean {
   return group.id === ORIGINAL_ID || group.stats !== null;
 }
 
-/**
- * Loads a project's Groups, dropping the cached figures of any whose Parquet
- * is missing. That state is reachable — a crash between deleting a file and
- * deleting its row leaves it — and it means unmaterialized, not corrupt.
- */
+/** Loads a project's Groups, dropping the cached figures of any whose Parquet is gone. */
 export async function loadGroups(projectId: string) {
   const rows = await db().select().from(groupsTable).where(eq(groupsTable.projectId, projectId));
   const ordered = rows.sort(byPosition);
@@ -106,11 +94,7 @@ async function patch(id: string, changes: Partial<Group>) {
   if (group) Object.assign(group, changes);
 }
 
-/**
- * Writes a Group's Parquet and stores the figures that pass returned. This is
- * the only path that changes what the other views read: editing a Filter List
- * is a draft until it comes through here.
- */
+/** Writes a Group's Parquet and stores the figures that pass returned. */
 export async function applyGroup(project: Project, group: Group, filters: Filter[]) {
   const stats = await applyGroupFile(project, group.id, filters);
   await patch(group.id, { filters, stats });
@@ -125,11 +109,7 @@ export async function recolorGroup(group: Group, color: string) {
   await patch(group.id, { color });
 }
 
-/**
- * Deletes a Group, file before row, so a failure leaves both halves in place.
- * Positions are re-packed afterwards; colours are not, because the user owns
- * them once the Group exists.
- */
+/** Deletes a Group and re-packs the positions of the rest. */
 export async function removeGroup(id: string) {
   const group = groups.find((g) => g.id === id);
   if (!group) return;
@@ -145,7 +125,7 @@ export async function removeGroup(id: string) {
   );
 }
 
-/** Drops every Group of a project. Called when the project itself is deleted. */
+/** Drops every Group of a project. */
 export async function removeGroupsForProject(projectId: string) {
   await db().delete(groupsTable).where(eq(groupsTable.projectId, projectId));
   if (groupsLoaded.projectId === projectId) {
@@ -154,15 +134,12 @@ export async function removeGroupsForProject(projectId: string) {
   }
 }
 
-/** Identifies the numbers a Filter List produces, for the caches below. */
+/** Cache key for a Filter List. */
 export function filtersKey(filters: Filter[]): string {
   return JSON.stringify(filters);
 }
 
-/**
- * Measured Filter Lists, keyed by Group id, so the filter rows and the summary
- * share one scan. The stored `key` is what detects a stale one.
- */
+/** Measured Filter Lists, keyed by Group id. The stored `key` detects a stale one. */
 export const impacts = $state<Record<string, { key: string; steps: ResponseFilterStep[] }>>({});
 
 export async function loadImpact(project: Project, group: Group) {
@@ -190,10 +167,7 @@ export function groupEvents(group: Group): number | null {
   return steps ? (steps[steps.length - 1]?.events ?? null) : null;
 }
 
-/**
- * Cases in both Groups' Filter Lists, keyed by the pair so an edit to either
- * invalidates it. In memory only.
- */
+/** Cases in both Groups' Filter Lists, keyed by the pair. */
 const sharedCasesCache = $state<Record<string, number>>({});
 
 function sharedCasesKey(a: Group, b: Group): string {
@@ -212,15 +186,7 @@ export function sharedCases(a: Group, b: Group): number | null {
   return key in sharedCasesCache ? sharedCasesCache[key] : null;
 }
 
-/**
- * Computes whatever is missing and writes it back to the cache. Batched: every
- * Group asked for shares one round trip. Returns figures per Group id,
- * including the ones that were already cached.
- *
- * An unapplied Group has no Parquet to read, so it is skipped rather than
- * asked for — in practice the Original is the only Group that ever lands here,
- * since Apply fills the figures of every other one as it writes the file.
- */
+/** Statistics per Group id, in one round trip. Unapplied Groups are skipped. */
 export async function computeStats(
   project: Project,
   wanted: Group[]

@@ -1,11 +1,7 @@
 <script lang="ts">
   /**
-   * Which Variants the tree is built from. Picking them is a build input, not a
-   * view filter: the cut runs before any aggregation, so checking a box prunes
-   * the canvas at once but marks the tree stale until Rebuild.
-   *
-   * The list comes from `list_variants`, not from the tree, so it reaches every
-   * Variant the filtered log has — including ones no build ever included.
+   * Which Variants the tree is built from: a build input, not a view filter, so
+   * checking a box marks the tree stale until Rebuild.
    */
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -35,17 +31,15 @@
 
   let open = $state(false);
   let selectedOnly = $state(false);
-  /** The Variant whose trace is on screen — clicked open, clicked closed. */
+  /** The Variant whose trace is on screen. */
   let preview = $state<string | null>(null);
 
   const selected = $derived(selectedVariants());
 
-  // Fetching on open rather than on mount: a user who never picks Variants
-  // never pays for the scan.
+  // Fetched on open rather than on mount, so the scan is only paid for when used.
   $effect(() => {
     if (open) loadVariants(project);
-    // Closing the picker puts the tree back the way it was: a dimmed canvas
-    // with no panel in sight has nothing left to explain it.
+    // Closing the picker puts the tree back the way it was.
     else {
       preview = null;
       shownVariant.key = null;
@@ -58,15 +52,13 @@
   });
   const comparing = $derived(totals.b > 0);
 
-  // Groups are what the user named and coloured in Filters; "Group A" is
-  // internal vocabulary they never chose.
+  // Named and coloured by the user in Filters; "Group A" is internal vocabulary.
   const groupNames = $derived.by(() => {
     const [a, b] = comparedGroups();
     return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
   });
 
-  // Accents come from the Groups themselves, never from a colour written into
-  // a class here, so renaming or recolouring one is a change in one place.
+  // Accents come from the Groups themselves, never from a colour written here.
   const accents = $derived.by(() => {
     const [a, b] = comparedGroups();
     return { a: colorVar(a?.color ?? "group-1"), b: colorVar(b?.color ?? "group-2") };
@@ -76,29 +68,22 @@
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
   }
 
-  /** Cases in the whole Event Log — what a Group's share is measured against. */
+  /** Cases in the whole Event Log, what a Group's share is measured against. */
   const originalCases = $derived(project.cases);
 
-  /**
-   * A Variant's number is its rank in the full list, not among the rendered
-   * rows, so narrowing the list never renumbers anything.
-   */
+  /** A Variant's number is its rank in the full list, so narrowing never renumbers. */
   const numbers = $derived(new Map(variants.rows.map((row, i) => [row.key, i + 1])));
 
   const rows = $derived(
     selectedOnly ? variants.rows.filter((row) => selected.has(row.key)) : variants.rows
   );
 
-  // Looked up rather than stored, so a reload that drops the Variant closes
-  // its trace instead of showing a stale one.
+  // Looked up rather than stored, so a reload that drops the Variant closes its trace.
   const previewRow = $derived(variants.rows.find((row) => row.key === preview) ?? null);
 
   const visible = $derived(tree ? visibleNodes(tree, view, selected) : null);
 
-  /**
-   * Clicking a row lights the Variant on the canvas when the tree draws it, and
-   * otherwise opens the trace pane, since there is nothing on screen to mark.
-   */
+  /** Clicking a row lights the Variant on the canvas, or opens the trace pane. */
   function show(key: string) {
     if (tree && visible && variantPath(tree, visible, key).size > 0) {
       preview = null;
@@ -109,7 +94,7 @@
     preview = preview === key ? null : key;
   }
 
-  /** What the toolbar says: the tree on screen, not the selection pending on it. */
+  /** What the toolbar says: the tree on screen, not the pending selection. */
   const onScreen = $derived.by(() => {
     if (!tree || !visible) return null;
     const total = totalCases(tree);

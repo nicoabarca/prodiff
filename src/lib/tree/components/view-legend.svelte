@@ -6,8 +6,7 @@
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
-  // Anything not one of the three case counts is an attribute name, shown the
-  // same way the settings popover names it.
+  // Anything not one of the three case counts is an attribute name.
   const secondaryLabel = $derived(
     view.secondary === "cases"
       ? `Cases (${nameA} · ${nameB})`

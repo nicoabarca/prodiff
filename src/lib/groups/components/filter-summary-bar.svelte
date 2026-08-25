@@ -16,17 +16,14 @@
   import type { Snippet } from "svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
-  /**
-   * `trailing` is for whatever the current view wants to say about the same
-   * Groups — the tree's variant coverage, for instance.
-   */
+  /** `trailing` is whatever the current view wants to say about the same Groups. */
   let { project, trailing, actions }: { project: Project; trailing?: Snippet; actions?: Snippet } =
     $props();
   const projectId = $derived(project.id);
 
   const entries = $derived(groups);
 
-  /** The first two Groups, only once there are two — one shares with nothing. */
+  /** The first two Groups, only once there are two. */
   const groupA = $derived(groups[0] ?? null);
   const groupB = $derived(groups[1] ?? null);
 
@@ -34,17 +31,13 @@
     if (groupA && groupB) loadSharedCases(project, groupA, groupB);
   });
 
-  /**
-   * A Group's size as it stands right now: the Filters view's live measurement
-   * when it has one, otherwise the figures Apply stored. A Group with neither
-   * has not been applied, and has no size to report yet.
-   */
+  /** A Group's size now: the live measurement when there is one, otherwise what Apply stored. */
   function current(group: Group, metric: "cases" | "events"): number | null {
     const measured = metric === "cases" ? groupCases(group) : groupEvents(group);
     return measured ?? group.stats?.[metric] ?? null;
   }
 
-  /** `12,345 cases (48%)` — the share omitted when there is no total to divide by. */
+  /** `12,345 cases (48%)`, the share omitted with no total to divide by. */
   function size(value: number, total: number, unit: string): string {
     const share = total > 0 ? ` (${Math.round((value / total) * 100)}%)` : "";
     return `${formatNumber(value)} ${unit}${share}`;

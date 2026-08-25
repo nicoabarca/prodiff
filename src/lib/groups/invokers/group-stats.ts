@@ -2,10 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 
-/**
- * Statistics for several Groups at once, in the order asked. Batched
- * deliberately: the Statistics view wants every Group on each render.
- */
+/** Statistics for several Groups at once, in the order asked. */
 export function groupStats(
   project: Project,
   groupIds: string[]

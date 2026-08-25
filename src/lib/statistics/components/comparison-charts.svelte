@@ -13,10 +13,7 @@
     stats
   }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } = $props();
 
-  /**
-   * A chart reads one metric across every Group, so it needs the figure
-   * twice: `value` scales the bar, `display` labels it.
-   */
+  /** One metric across every Group: `value` scales the bar, `display` labels it. */
   interface ChartDef {
     title: string;
     unit: string;
@@ -65,8 +62,7 @@
 
   const ready = $derived(groups.filter((group) => stats[group.id]));
 
-  // A bar chart has a single series, so its one colour hook is the `c` scale:
-  // each row carries its own colour and the range is that column of colours.
+  // Single series, so each row carries its own colour and the `c` range is that column.
   const colors = $derived(ready.map((group) => colorVar(group.color)));
 
   const config = $derived(
@@ -157,8 +153,7 @@
                   motion: { type: "tween", duration: 500, easing: cubicInOut }
                 },
                 highlight: { area: { fill: "none" } },
-                // The axis gutter is fixed, so a long group name is cut rather
-                // than allowed to run off the left edge of the card.
+                // The axis gutter is fixed, so a long group name is cut.
                 yAxis: {
                   format: truncate,
                   tickLabelProps: { svgProps: { x: -12 } }

@@ -36,12 +36,9 @@
 
   const accent = $derived(colorVar(group.color));
 
-  // Measurement lives in the shared cache, so the comparison summary reads the
-  // same scan instead of asking Rust for it a second time.
+  // Measurement lives in the shared cache, so the comparison summary reads the same scan.
   const steps = $derived(groupSteps(group));
 
-  // A failed measurement used to be swallowed, which left every filter row
-  // showing a skeleton forever with nothing saying why.
   let measureError = $state<string | null>(null);
 
   $effect(() => {

@@ -12,10 +12,7 @@ import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
 import type { Group } from "$lib/groups/types";
 
-/**
- * The built tree, in memory only: it survives navigating between views but
- * not a reload. One slot — switching projects drops the previous tree.
- */
+/** The built tree, in memory only. One slot: switching projects drops the previous tree. */
 export const built = $state<{
   projectId: string | null;
   key: string | null;
@@ -30,16 +27,10 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
   value: { ...defaultTreeSettings }
 });
 
-/**
- * What is hidden, collapsed or dimmed. Nothing here reaches the backend — the
- * one input that does, which Variants to include, lives in `settings`.
- */
+/** What is hidden, collapsed or dimmed. Nothing here reaches the backend. */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
-/**
- * Every Variant of the current chains, for the picker. Cached by chain key,
- * fetched on first use. One slot.
- */
+/** Every Variant of the current chains, cached by chain key. One slot. */
 export const variants = $state<{
   key: string | null;
   rows: ResponseVariantRow[];
@@ -60,9 +51,8 @@ export function selectedVariants(): Set<string> {
 }
 
 /**
- * Loads the Variant list for the current chains, unless it is already in hand.
- * Keys absent under these chains are dropped and the rest kept; only a
- * selection left with nothing standing is re-seeded from the coverage default.
+ * Loads the Variant list for the current chains, unless already in hand. Keys
+ * absent under these chains are dropped; an empty selection is re-seeded.
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
@@ -92,7 +82,7 @@ export async function loadVariants(project: Project, force = false) {
   }
 }
 
-/** Checks or unchecks one Variant. Marks the tree stale; the build honours it. */
+/** Checks or unchecks one Variant, marking the tree stale. */
 export function toggleVariant(project: Project, variantKey: string) {
   const next = selectedVariants();
   if (!next.delete(variantKey)) next.add(variantKey);
@@ -106,17 +96,10 @@ export function setSelectedVariants(project: Project, keys: Iterable<string>) {
 /** The node whose aggregates the detail panel is showing. */
 export const selected = $state<{ id: number | null }>({ id: null });
 
-/**
- * The Variant the canvas lights up. Outlives the picker, so the lit path can
- * be read with the panel closed.
- */
+/** The Variant the canvas lights up. Outlives the picker. */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
-/**
- * The two Groups being compared: the first two of the project, in position
- * order. Which two the user picks is the compare modal's job; until it exists
- * this is the whole selection.
- */
+/** The two Groups being compared: the project's first two, in position order. */
 export function comparedGroups(): [Group | null, Group | null] {
   return [groups[0] ?? null, groups[1] ?? null];
 }
@@ -164,9 +147,8 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and selected Variants.
- * Never automatic — every input here, the Variant selection included, waits
- * for the button. An empty selection lets the backend pick by coverage.
+ * Builds the tree for the current Groups, settings and selected Variants. Never
+ * automatic. An empty selection lets the backend pick by coverage.
  */
 export async function build(project: Project) {
   const chains = groupChains();
@@ -180,9 +162,7 @@ export async function build(project: Project) {
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
-    // What the backend included, not what was asked for: the ceiling and the
-    // log's own Variant count both cut a request short. Adopting it keeps the
-    // picker honest about what is actually on screen.
+    // What the backend included, not what was asked for: a request can be cut short.
     const includedKeys = tree.nodes
       .map((node) => node.variantKey)
       .filter((key): key is string => key !== null);
@@ -192,7 +172,6 @@ export async function build(project: Project) {
         selectedVariants: includedKeys
       });
     }
-    // Keyed after the selection lands on the truth, so the tree reads current.
     built.key = currentKey();
   } catch (cause) {
     built.error = String(cause);
@@ -220,11 +199,7 @@ export function forgetOtherProject(projectId: string) {
   if (built.projectId && built.projectId !== projectId) clear();
 }
 
-/**
- * Drops the tree outright. Called when the Column Mapping changes: type and
- * granularity decide which test ran and how it aggregated, so a tree built
- * under the old declarations cannot be reinterpreted.
- */
+/** Drops the tree outright. Called when the Column Mapping changes. */
 export function invalidateTree() {
   clear();
 }

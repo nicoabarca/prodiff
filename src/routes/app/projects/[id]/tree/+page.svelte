@@ -31,17 +31,13 @@
   const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
 
-  // An empty selection means two different things. Before the variant list has
-  // loaded it means "never chosen" and the backend picks by coverage; once the
-  // list has loaded the selection has been seeded, so empty means cleared.
+  // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
     variants.key !== null && settings.value.selectedVariants.length === 0
   );
 
   let panelOpen = $state(false);
-  // The panel follows the selection: clicking a node is a request to read it,
-  // and clicking the empty canvas drops the selection, so there is nothing
-  // left for the panel to say.
+  // The panel follows the selection.
   $effect(() => {
     panelOpen = selected.id !== null;
   });

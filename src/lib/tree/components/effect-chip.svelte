@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * One attribute's Significance Test, said in one word. The magnitude leads:
-   * at a few thousand cases per Group nearly every test comes out significant.
-   */
+  /** One attribute's Significance Test, said in one word. The magnitude leads. */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { comparedGroups } from "$lib/tree/state/tree.svelte";
@@ -17,8 +14,7 @@
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
   const label = $derived(!test ? "" : !test.significant ? "no difference" : (band ?? ""));
-  // A failed test has no magnitude to place on the ramp, so it stays neutral —
-  // colouring it would put "nothing here" on the same scale as a finding.
+  // A failed test has no magnitude to place on the ramp, so it stays neutral.
   const step = $derived(test?.significant ? effectStep(test.effectSize) : null);
 
   const detail = $derived.by(() => {

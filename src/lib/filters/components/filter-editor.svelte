@@ -25,9 +25,9 @@
   let {
     project,
     filter = null,
-    /** Filters applied before this one — the draft's impact is measured on top of them. */
+    /** Filters applied before this one. The draft is measured on top of them. */
     precedingChain = [],
-    /** The accent of the Group being edited, so its charts read as that Group. */
+    /** The accent of the Group being edited. */
     color = "var(--group-original)",
     onsave,
     oncancel
@@ -89,22 +89,16 @@
     ].filter((k) => k.available)
   );
 
-  // The form is seeded from the filter being edited and then owns its own
-  // state. Callers remount the editor (via `{#key}`) to point it at a different
-  // filter, so tracking the prop after mount would only fight the user's edits.
+  // Seeded once, then the form owns its state. Callers remount via `{#key}` to
+  // point the editor at a different filter.
   const initial = untrack(() => filter);
 
   let kind = $state<FilterKind>(initial?.kind ?? "attribute");
-  /**
-   * What the kind's editor last emitted, or `null` while it has nothing
-   * complete enough to save. Every kind builds its own filter, so this is the
-   * only thing the editor knows about the draft's contents.
-   */
+  /** What the kind's editor last emitted, or null while nothing is complete enough to save. */
   let draft = $state<Filter | null>(null);
   const valid = $derived(draft !== null && isFilterComplete(draft));
 
   // Live impact of the draft, measured on top of the filters that precede it.
-  // Debounced because typing in a range box would otherwise re-scan per keystroke.
   let impact = $state<{ before: ResponseFilterStep; after: ResponseFilterStep } | null>(null);
   let measuring = $state(false);
 

@@ -26,9 +26,7 @@
     if (!project && projectsLoaded.value) goto("/app/projects");
   });
 
-  // Groups are project-scoped, so they reload whenever the addressed project
-  // changes — including when the user navigates straight from one project to
-  // another without passing through the list.
+  // Groups are project-scoped, so they reload whenever the addressed project changes.
   $effect(() => {
     if (project && groupsLoaded.projectId !== project.id) loadGroups(project.id);
   });

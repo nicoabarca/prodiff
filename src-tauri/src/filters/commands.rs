@@ -1,9 +1,5 @@
-//! The filter seam: the two commands that still take a Filter List rather than
-//! a Group id, plus the pickers the editor fills its controls from.
-//!
-//! Rust is stateless here — the frontend owns the `groups` table and hands over
-//! whole Filter Lists, and nothing derived from one is persisted on this side.
-//! Materializing a Filter List is `groups::commands::apply_group`.
+//! Commands that take a Filter List rather than a Group id, plus the pickers
+//! the editor fills its controls from. Nothing here persists.
 
 use super::queries::{
     case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
@@ -15,12 +11,7 @@ use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::filters::Filter;
 
 /// How much of the log survives each prefix of a Filter List. Index 0 is the
-/// unfiltered log and index `i + 1` the result after filter `i`, so the editor
-/// can show what each filter removes on its own as well as cumulatively.
-///
-/// Filters are applied one at a time rather than as a whole list because the
-/// intermediate sizes are the point. This is the draft preview: it writes
-/// nothing, and the numbers it returns belong to the draft, not to a Group.
+/// unfiltered log and index `i + 1` the result after filter `i`.
 #[tauri::command]
 pub fn filters_impact(
     app: tauri::AppHandle,
@@ -40,8 +31,7 @@ pub fn filters_impact(
     Ok(steps)
 }
 
-/// Cases present in both Filter Lists. Groups are unrelated to each other, so
-/// overlap can only come from a case matching both sets of filters.
+/// Cases present in both Filter Lists.
 #[tauri::command]
 pub fn shared_cases(
     app: tauri::AppHandle,
@@ -66,8 +56,7 @@ pub fn shared_cases(
     Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
 }
 
-/// The distribution of case durations under a Filter List — the shape the
-/// duration filter's brush selects a range from.
+/// The distribution of case durations under a Filter List.
 #[tauri::command]
 pub fn duration_histogram(
     app: tauri::AppHandle,
@@ -81,9 +70,7 @@ pub fn duration_histogram(
     Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
 }
 
-/// How many cases are open on each day the log covers — the shape the timeframe
-/// filter's brush selects a window from. Every day between the first and last
-/// is present, including the quiet ones, so the chart has no gaps to invent.
+/// How many cases are open on each day the log covers, quiet days included.
 #[tauri::command]
 pub fn daily_case_load(
     app: tauri::AppHandle,
@@ -129,11 +116,8 @@ pub fn group_preview(
     })
 }
 
-/// Distinct values of a column, alphabetical.
-///
-/// `endpoint` narrows the picker to what an endpoint filter can actually match:
-/// only the activities cases begin (or end) with. Offering every activity there
-/// invites selections that silently keep nothing.
+/// Distinct values of a column, alphabetical. `endpoint` narrows them to the
+/// activities cases begin (or end) with.
 #[tauri::command]
 pub fn distinct_values(
     app: tauri::AppHandle,

@@ -16,7 +16,7 @@
 
   let { project, groups }: { project: Project; groups: Group[] } = $props();
 
-  /** Rows fetched per Group. The table is a spot-check, not a data browser. */
+  /** Rows fetched per Group. */
   const PREVIEW_LIMIT = 100;
 
   let selectedId = $state("whole");

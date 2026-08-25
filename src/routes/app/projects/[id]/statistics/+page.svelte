@@ -14,11 +14,7 @@
   let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
-  /**
-   * Identifies the Groups on screen. Keyed on this, not the array itself, which
-   * is rebuilt on every Group mutation — including the cache write
-   * `computeStats` performs.
-   */
+  /** Identifies the Groups on screen. Keyed on this rather than the array itself. */
   const wantedKey = $derived(
     shown.map((group) => `${group.id}:${filtersKey(group.filters)}`).join("|")
   );
@@ -38,8 +34,7 @@
       })
       .catch((cause) => {
         error = String(cause);
-        // A failed run must not be treated as done, or editing a Filter List
-        // back to a previously-failing one would show nothing and never retry.
+        // A failed run must not be treated as done, or it would never retry.
         lastKey = "";
       });
   });

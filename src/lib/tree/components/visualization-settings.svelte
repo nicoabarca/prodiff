@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * What is drawn, as opposed to what was built. Nothing here triggers a
-   * rebuild, so these controls stay usable while the tree is stale.
-   */
+  /** What is drawn, as opposed to what was built. Nothing here triggers a rebuild. */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -20,15 +17,13 @@
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  // Every node carries a block per attribute built, empty ones included, so the
-  // root is enough to know what the tree can show.
+  // Every node carries a block per attribute built, so the root is enough.
   const attributes = $derived([
     ...Object.keys(tree.nodes[0]?.eventLevel ?? {}),
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
-  // The slices the Groups come from, so every control names them the way the
-  // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
+  // Names come from the Groups themselves, falling back to "Group A"/"Group B".
   const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");

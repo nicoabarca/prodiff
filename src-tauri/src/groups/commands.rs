@@ -1,8 +1,5 @@
-//! The Group seam. Applying a Filter List materializes the Group; every other
-//! command here reads a Group that already exists, by id.
-//!
-//! The frontend owns the `groups` table and hands over ids. Rust owns the
-//! files those ids name, and never learns a Group's name or colour.
+//! Commands over a Group's materialized Event Log. The frontend owns the
+//! `groups` table and hands over ids; Rust owns the files those ids name.
 
 use super::storage::{delete_group, group_path, read_group, write_group};
 use crate::column_mapping::ColumnMapping;
@@ -10,11 +7,7 @@ use crate::filters::queries::{filtered, read_event_log};
 use crate::filters::Filter;
 use crate::stats::{summarize, EventLogStats};
 
-/// Materializes a Group: runs its Filter List over the Event Log, writes the
-/// result as Parquet and returns the figures for it.
-///
-/// The stats come free — the filtered frame is already in hand — so the caller
-/// never needs a second pass to fill its cache.
+/// Runs a Group's Filter List, writes the result as Parquet and returns its figures.
 #[tauri::command]
 pub fn apply_group(
     app: tauri::AppHandle,
@@ -29,8 +22,7 @@ pub fn apply_group(
     summarize(&applied, &columns)
 }
 
-/// Drops a Group's Parquet. Called before the row, so a failure here leaves
-/// both halves in place rather than a row pointing at nothing.
+/// Drops a Group's Parquet.
 #[tauri::command]
 pub fn delete_group_file(
     app: tauri::AppHandle,
@@ -40,9 +32,7 @@ pub fn delete_group_file(
     delete_group(&app, &project_id, &group_id)
 }
 
-/// Whether each of these Groups has been applied. The frontend calls this when
-/// loading a project: a row whose file is missing is not corrupt, it is
-/// unmaterialized, and re-applying fixes it.
+/// Whether each of these Groups has been applied.
 #[tauri::command]
 pub fn applied_groups(
     app: tauri::AppHandle,
@@ -55,8 +45,7 @@ pub fn applied_groups(
         .collect()
 }
 
-/// Statistics for several Groups at once, in the order asked. Batched because
-/// the Statistics view wants every Group on each render.
+/// Statistics for several Groups at once, in the order asked.
 #[tauri::command]
 pub fn group_stats(
     app: tauri::AppHandle,
