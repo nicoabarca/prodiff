@@ -6,10 +6,8 @@ export interface Group {
   id: string;
   projectId: string;
   name: string;
-  /** A palette token name, never a colour literal. */
   color: string;
   position: number;
-  /** The applied Filter List, never a draft. */
   filters: Filter[];
   stats: ResponseEventLogStats | null;
   createdAt: string;

@@ -41,7 +41,6 @@
   }: {
     project: Project;
     group: Group;
-    /** Which of this Group's filters the editor is on, if any. */
     editingIndex?: number | null;
     onedit: (group: Group, index: number | null) => void;
     onapply: (group: Group) => void;

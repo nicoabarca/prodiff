@@ -19,9 +19,7 @@
     compare = true,
     duration = false
   }: {
-    /** One summary per Group, in the tree's own order. `null` where a Group has none. */
     summaries: (Summary | null)[];
-    /** False in one-Group mode, where there is no difference to draw. */
     compare?: boolean;
     duration?: boolean;
   } = $props();

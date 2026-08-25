@@ -32,7 +32,6 @@
     shape: DurationShape;
     encoding: "ecdf" | "box";
     compare: boolean;
-    /** The two Groups being drawn, in order, with the names and colours the user chose. */
     groups: { id: string; name: string; color: string }[];
   } = $props();
 

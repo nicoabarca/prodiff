@@ -27,7 +27,6 @@
     onchoose: (next: string[]) => void;
     truncated?: boolean;
     error?: string | null;
-    /** How many values the fetch asked for, named in the truncation note. */
     limit: number;
     labelClass?: string;
   } = $props();

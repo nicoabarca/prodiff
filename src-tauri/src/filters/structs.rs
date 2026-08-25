@@ -10,8 +10,6 @@ pub struct ChainStep {
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DurationBin {
-    /// Bin edges in milliseconds: `start` inclusive, `end` exclusive except on
-    /// the last bin, which has to hold the longest case.
     pub start_ms: f64,
     pub end_ms: f64,
     pub cases: i64,
@@ -20,10 +18,7 @@ pub struct DurationBin {
 #[derive(serde::Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct DayLoad {
-    /// Midnight UTC of the day, in epoch milliseconds.
     pub day_ms: i64,
-    /// Cases running on that day: started on or before it, finished on or after
-    /// it. A case is counted on every day of its life.
     pub cases: i64,
 }
 
@@ -31,7 +26,6 @@ pub struct DayLoad {
 #[serde(rename_all = "camelCase")]
 pub struct PreviewTable {
     pub columns: Vec<String>,
-    /// Every cell rendered as a string; the table displays them verbatim.
     pub rows: Vec<Vec<String>>,
     pub total_events: usize,
 }
@@ -40,7 +34,5 @@ pub struct PreviewTable {
 #[serde(rename_all = "camelCase")]
 pub struct DistinctValues {
     pub values: Vec<String>,
-    /// True when the column has more distinct values than `limit`. The picker
-    /// shows the first `limit` alphabetically.
     pub truncated: bool,
 }

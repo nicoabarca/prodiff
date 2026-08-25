@@ -10,13 +10,9 @@
 export const OVERSCAN = 6;
 
 export interface Window {
-  /** Index of the first row to render. */
   start: number;
-  /** Index one past the last row to render. */
   end: number;
-  /** Filler above the rendered rows, so the scrollbar spans the whole list. */
   padTop: number;
-  /** Filler below. */
   padBottom: number;
 }
 

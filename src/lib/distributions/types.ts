@@ -60,14 +60,12 @@ export interface Bar {
   label: string;
   a: number;
   b: number;
-  /** Set on the `Other` bucket, which is a fold, not a value. */
   collapsed?: number;
 }
 
 /** One column of the cumulative curve: a duration and each Group's share. */
 export interface CurveRow {
   value: number;
-  /** 0 to 1, or `null` where that Group has no values at all. */
   a: number | null;
   b: number | null;
 }
@@ -78,8 +76,6 @@ export type Sort = "difference" | "name";
 /** One card in the grid, before its numbers have arrived. */
 export interface GridAttribute {
   name: string;
-  /** The node's Significance Test, when one ran for this attribute here. */
   test: Test | null;
-  /** False for an attribute the build never tested, added by hand. */
   inBuild: boolean;
 }

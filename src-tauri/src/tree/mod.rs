@@ -47,11 +47,8 @@ pub enum Summary {
         median: f64,
         q3: f64,
         max: f64,
-        /// Tukey whiskers: the extreme observations still within 1.5·IQR of the
-        /// box. `min`/`max` are the full range the panel reports.
         whisker_low: f64,
         whisker_high: f64,
-        /// Observations past the whiskers, as a count.
         outliers_low: usize,
         outliers_high: usize,
     },
@@ -65,28 +62,19 @@ pub enum Summary {
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Test {
-    /// `"mannwhitney"` for numeric attributes, `"chi2"` for categorical.
     pub test: &'static str,
     pub statistic: f64,
     pub p_value: f64,
-    /// Magnitude only: rank-biserial for Mann-Whitney, Cramér's V for chi².
     pub effect_size: f64,
-    /// Signed rank-biserial: positive = the first Group ranks higher. `None`
-    /// for chi², which is non-directional.
     pub effect_signed: Option<f64>,
-    /// Benjamini-Hochberg at α = 0.05, corrected within this attribute's family.
     pub significant: bool,
-        /// Which Group ranks higher, by id. `None` for chi², which is
-        /// non-directional.
     pub higher: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeBlock {
-    /// One summary per Group, by id. A Group with nothing to summarize is absent.
     pub summaries: HashMap<String, Summary>,
-    /// `None` when either Group has fewer than five cases here.
     pub test: Option<Test>,
 }
 
@@ -95,8 +83,6 @@ pub struct AttributeBlock {
 pub struct Comovement {
     pub attribute_x: String,
     pub attribute_y: String,
-    /// `"concordant"` when both attributes shift the same way between Groups,
-    /// `"divergent"` when they shift opposite ways.
     pub relationship: &'static str,
 }
 
@@ -104,19 +90,12 @@ pub struct Comovement {
 #[serde(rename_all = "camelCase")]
 pub struct TreeNode {
     pub id: usize,
-    /// `None` only for the synthetic Start root.
     pub parent: Option<usize>,
     pub label: String,
-    /// Cases reaching this node, by Group id.
     pub cases: HashMap<String, i64>,
     pub event_level: HashMap<String, AttributeBlock>,
-    /// The edge from the parent, not the node itself. `None` at the root and
-    /// whenever Transition Time wasn't selected.
     pub transition_time: Option<AttributeBlock>,
     pub comovement: Vec<Comovement>,
-    /// The Variant this node terminates, `None` on every other node. Every path
-    /// from the root ends at exactly one of these, so it is what the view tests
-    /// against the selected Variants, on the key the build itself used.
     pub variant_key: Option<String>,
 }
 
@@ -124,8 +103,6 @@ pub struct TreeNode {
 #[serde(rename_all = "camelCase")]
 pub struct GroupBlock {
     pub id: String,
-    /// Cases in the Group, before the variant cut, so it can exceed the root
-    /// node's count.
     pub case_count: i64,
     pub case_level: HashMap<String, Summary>,
 }
@@ -134,22 +111,13 @@ pub struct GroupBlock {
 #[serde(rename_all = "camelCase")]
 pub struct DirectedTree {
     pub nodes: Vec<TreeNode>,
-    /// The Groups on this tree, in the order they were asked for. One ordered
-    /// array carries both order and identity; everything below keys by id.
-    /// One entry is single-Group mode, where nothing is compared.
     pub groups: Vec<GroupBlock>,
     pub case_level_tests: HashMap<String, Test>,
-    /// Cases in both Groups. Non-zero means the samples are not independent,
-    /// which both tests assume. The view warns.
     pub overlap_cases: i64,
     pub variants_total: usize,
     pub variants_included: usize,
-    /// Fraction of the two Groups' combined cases the included Variants hold.
     pub case_coverage: f64,
-    /// True when the log has more Variants than `MAX_VARIANTS` ships.
     pub capped_by_ceiling: bool,
-    /// `startComplete` = start(N) − complete(N−1); `completeOnly` =
-    /// complete(N) − complete(N−1), which absorbs the activity's own duration.
     pub transition_time_basis: &'static str,
     pub has_activity_duration: bool,
 }
@@ -163,10 +131,7 @@ struct AttrSpec {
 }
 
 enum Source {
-    /// A mapped column, by name.
     Column(String),
-    /// complete − start, per event. Transition Time has no variant here: it is
-    /// scoped to the edge and computed once per row alongside the case split.
     Duration,
 }
 
@@ -214,12 +179,7 @@ struct NodeBuild {
     parent: Option<usize>,
     label: String,
     cases: [i64; 2],
-    /// Set only on a terminal node, which is exactly one Variant's endpoint.
-    /// Carried through to `TreeNode` so the view can match a leaf against the
-    /// selected Variants without re-deriving the key from node labels.
     variant_key: Option<String>,
-    /// One accumulator per attribute per group. Index `attrs.len()` is the
-    /// transition into this node, when Transition Time is selected.
     acc: Vec<[Acc; 2]>,
 }
 
@@ -228,13 +188,9 @@ struct NodeBuild {
 /// case column are whole cases in trace order.
 struct GroupRows {
     case_ids: Vec<String>,
-    /// `(start, end)` row range per case, parallel to `case_ids`.
     bounds: Vec<(usize, usize)>,
     activities: Vec<String>,
-    /// Per attribute, parallel to the `AttrSpec` list.
     values: Vec<Values>,
-    /// Time into each event from the previous one; `None` at a case's first
-    /// event. Always computed; the selection only decides whether it is shipped.
     transition: Vec<Option<f64>>,
 }
 

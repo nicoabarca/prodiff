@@ -68,8 +68,6 @@ pub enum ColumnGranularity {
 pub struct ColumnMapping {
     pub name: String,
     pub role: ColumnRole,
-    /// Older payloads and the filter tests omit these; both default rather
-    /// than failing the whole mapping.
     #[serde(rename = "type", default)]
     pub column_type: ColumnType,
     #[serde(default)]

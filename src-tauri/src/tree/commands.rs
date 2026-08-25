@@ -42,7 +42,6 @@ fn read_groups(
 pub struct VariantRow {
     pub key: String,
     pub activities: Vec<String>,
-    /// Cases walking this Variant, by Group id.
     pub cases: std::collections::HashMap<String, i64>,
 }
 

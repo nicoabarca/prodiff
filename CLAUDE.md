@@ -53,7 +53,7 @@ Dependencies run one way — `statistics | tree | distributions → groups → f
 
 **Conventions:** kebab-case filenames and folders throughout. Deep imports, no barrel files — `import type { Slice } from "$lib/slices/types"`, not from a domain index. Prefer the `$lib` alias over relative paths.
 
-**Comments document, they don't argue.** A comment says what a thing is, the units and contracts it carries, or a behavior surprising enough to trip the next reader (`min-h-0` being load-bearing, `log(0)` not existing, an effect that would retrigger itself). It never justifies the design: no "rather than X", no "instead of Y", no "deliberately", no pointers to an ADR. Rationale belongs in `docs/adr/`, where it can be read and superseded. Delete a stale comment with the code it describes. No em dashes, in comments or in user-facing copy.
+**Comments document, they don't argue.** A comment says what a thing is, the units and contracts it carries, or a behavior surprising enough to trip the next reader (`min-h-0` being load-bearing, `log(0)` not existing, an effect that would retrigger itself). It never justifies the design: no "rather than X", no "instead of Y", no "deliberately", no pointers to an ADR. Rationale belongs in `docs/adr/`, where it can be read and superseded. Delete a stale comment with the code it describes. No em dashes, in comments or in user-facing copy. No comments on the members of an interface, type, struct, enum or prop list either: the field name and its type carry it, and anything else goes above the declaration.
 
 **Routes stay thin.** `src/routes/` handles URL structure and page composition. Four routes are still fat (`distributions`, `new`, `filters`, `tree`) and are a known deferred cleanup — don't add to them.
 

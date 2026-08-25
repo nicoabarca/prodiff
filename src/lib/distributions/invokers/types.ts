@@ -5,7 +5,6 @@
 
 export interface CategoryCount {
   value: string;
-  /** Events holding this value, by Group id. */
   counts: Record<string, number>;
 }
 
@@ -16,10 +15,8 @@ export interface BoxStats {
   median: number;
   q3: number;
   max: number;
-  /** Extreme observations still inside 1.5·IQR, not the fences themselves. */
   whiskerLow: number;
   whiskerHigh: number;
-  /** Points past the whiskers, as a count. */
   outliersLow: number;
   outliersHigh: number;
 }
@@ -29,13 +26,8 @@ export interface BoxStats {
  * Transition Time carry one; none of it survives the equal-width bins.
  */
 export interface DurationShape {
-    /**
-     * Value at percentile `i`, `i` in `0..=100`, by Group id. The percentile is
-     * the index. A Group with no values is absent.
-     */
   ecdf: Record<string, number[]>;
   boxStats: Record<string, BoxStats>;
-  /** `logEdges.length === logCounts[id].length + 1`; shared by every Group. */
   logEdges: number[];
   logCounts: Record<string, number[]>;
 }
@@ -72,11 +64,6 @@ export interface GroupTotals {
 }
 
 export interface ResponseNodeDistributions {
-    /**
-     * The Groups on this card, in the order they were asked for. Carries both
-     * order and identity; everything else is keyed by id.
-     */
   groups: GroupTotals[];
-  /** In the order the attributes were requested, so the cards keep theirs. */
   attributes: [string, Distribution][];
 }

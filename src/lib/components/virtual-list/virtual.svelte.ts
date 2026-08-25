@@ -9,9 +9,7 @@
 import { windowRange, type Window } from "$lib/components/virtual-list/virtual";
 
 export interface VirtualRange extends Window {
-  /** Wire to the scroll container's `onscroll`. */
   onScroll: (event: Event) => void;
-  /** Wire to the scroll container's `clientHeight`, via `bind:clientHeight`. */
   setViewport: (height: number) => void;
 }
 

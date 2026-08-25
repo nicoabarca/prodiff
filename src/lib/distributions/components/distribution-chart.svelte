@@ -49,13 +49,10 @@
     attribute: string;
     distribution: Distribution;
     scope: Scope;
-    /** The node's Significance Test for this attribute, when one ran. */
     test: Test | null;
     compare: boolean;
-    /** The two Groups being drawn, in order, with the names and colours the user chose. */
     groups: { id: string; name: string; color: string }[];
     expanded: boolean;
-    /** Only read on a duration; every other attribute has bars and nothing else. */
     encoding: Encoding;
     onEncoding: (next: Encoding) => void;
     onToggleExpanded: () => void;

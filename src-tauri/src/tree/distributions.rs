@@ -52,9 +52,7 @@ const DURATION_EDGES: [f64; 16] = [
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
-    /// The single event at this node's own position in the trace.
     AtStep,
-    /// Every event of those cases, at every position.
     WholeCase,
 }
 
@@ -62,7 +60,6 @@ pub enum Scope {
 #[serde(rename_all = "camelCase")]
 pub struct CategoryCount {
     pub value: String,
-    /// Events holding this value, by Group id.
     pub counts: HashMap<String, i64>,
 }
 
@@ -93,12 +90,8 @@ pub struct BoxStats {
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DurationShape {
-    /// Value at percentile `i` for `i` in `0..=ECDF_STEPS`, the percentile left
-    /// implicit in the index, by Group id. A Group with no values is absent.
     pub ecdf: HashMap<String, Vec<f64>>,
     pub box_stats: HashMap<String, BoxStats>,
-    /// Log-ish bin edges shared by every Group, so the series are read against
-    /// each other. `log_edges.len() == log_counts[id].len() + 1`.
     pub log_edges: Vec<f64>,
     pub log_counts: HashMap<String, Vec<i64>>,
 }
@@ -106,30 +99,19 @@ pub struct DurationShape {
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Distribution {
-    /// Categories by pooled count, biggest first, capped at `SHIP_VALUES`.
-    /// `totals` counts *every* value including the ones cut, so the frontend's
-    /// `other` bucket is exact at whatever cutoff it draws:
-    /// `other[id] = totals[id] - sum(shown.counts[id])`.
     #[serde(rename_all = "camelCase")]
     Categorical {
         values: Vec<CategoryCount>,
-        /// Distinct values counted, before any cut.
         distinct: usize,
         totals: HashMap<String, i64>,
     },
-    /// Bin edges are computed once over every Group pooled, so the series are
-    /// drawn on the same axis and can be read against each other.
-    /// `edges.len() == counts[id].len() + 1`.
     #[serde(rename_all = "camelCase")]
     Numerical {
         edges: Vec<f64>,
         counts: HashMap<String, Vec<i64>>,
         n: HashMap<String, usize>,
-        /// Set for Activity Duration and Transition Time only; `None` says the
-        /// card has nothing but the equal-width bins to draw.
         shape: Option<DurationShape>,
     },
-    /// Every value was null, so there is nothing to bin or count.
     Empty,
 }
 
@@ -147,10 +129,7 @@ pub struct GroupTotals {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct NodeDistributions {
-    /// The Groups on this card, in the order they were asked for. One ordered
-    /// array carries both order and identity; everything below keys by id.
     pub groups: Vec<GroupTotals>,
-    /// In the order the attributes were requested, so the cards keep theirs.
     pub attributes: Vec<(String, Distribution)>,
 }
 
@@ -158,14 +137,7 @@ pub struct NodeDistributions {
 struct Plan {
     name: String,
     numeric: bool,
-    /// A case-granularity column carries one value per case, repeated on every
-    /// row. Counting it once per event would multiply it by the trace length
-    /// under `wholeCase`, so it is read from the case's first row in both
-    /// Scopes, which makes the two Scopes identical for such a column.
     per_case: bool,
-    /// Index into `GroupRows::values`. `None` for Transition Time, which isn't
-    /// a column: `read_group` computes it alongside the case split, so it is
-    /// read off `GroupRows::transition` instead.
     value_index: Option<usize>,
 }
 

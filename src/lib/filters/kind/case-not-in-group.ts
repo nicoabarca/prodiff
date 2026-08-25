@@ -4,7 +4,6 @@
  */
 export interface CaseNotInGroupFilter {
   kind: "case_not_in_group";
-  /** The Group whose cases are removed. Ids are never reused. */
   groupId: string;
 }
 

@@ -29,14 +29,11 @@ export type GroupFocus = "all" | "shared" | (string & {});
  * What the view decides, all of it drawn from the tree already in hand.
  */
 export interface TreeView {
-  /** Keep only Variants containing at least one significant Significance Test. */
   significantOnly: boolean;
-  /** Nodes whose subtree is folded away. */
   collapsed: Set<number>;
   direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
-  /** Mean Transition Time on each edge. Only has an effect when it was built. */
   edgeLabels: boolean;
 }
 
@@ -60,15 +57,9 @@ export type Standing = "finding" | "weak" | "untested";
 
 export interface Visible {
   ids: Set<number>;
-  /** Nodes folded into a collapsed ancestor, for the "+n" badge. */
   hiddenBelow: Map<number, number>;
   variantsShown: number;
   variantsHidden: number;
-  /** Cases on the Variants that survived, both Groups together. */
   casesShown: number;
-  /**
-   * Per-node case counts by Group id, restricted to the surviving Variants. A
-   * node's own `cases` sums over every Variant the tree was built with.
-   */
   cases: Map<number, Record<string, number>>;
 }
