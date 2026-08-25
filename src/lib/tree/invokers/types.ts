@@ -5,8 +5,12 @@
  */
 export interface ResponseDirectedTree {
   nodes: TreeNode[];
-  groupA: GroupBlock;
-  groupB: GroupBlock | null;
+  /**
+   * The Groups on this tree, in the order they were asked for — one ordered
+   * array carrying both order and identity, with everything below keyed by id.
+   * One entry is single-Group mode, where nothing is compared.
+   */
+  groups: GroupBlock[];
   caseLevelTests: Record<string, Test>;
   /** Cases in both Groups. Non-zero breaks the independence both tests assume. */
   overlapCases: number;
@@ -23,8 +27,8 @@ export interface TreeNode {
   /** `null` only for the synthetic Start root. */
   parent: number | null;
   label: string;
-  groupACases: number;
-  groupBCases: number;
+  /** Cases reaching this node, by Group id. */
+  cases: Record<string, number>;
   eventLevel: Record<string, AttributeBlock>;
   /** The edge from the parent, not the node. `null` at the root. */
   transitionTime: AttributeBlock | null;
@@ -40,13 +44,13 @@ export interface TreeNode {
 export interface ResponseVariantRow {
   key: string;
   activities: string[];
-  casesA: number;
-  casesB: number;
+  /** Cases walking this Variant, by Group id. */
+  cases: Record<string, number>;
 }
 
 export interface AttributeBlock {
-  groupA: Summary | null;
-  groupB: Summary | null;
+  /** One summary per Group, by id. A Group with nothing here is absent. */
+  summaries: Record<string, Summary>;
   /** `null` when either Group has fewer than five cases here. */
   test: Test | null;
 }
@@ -79,7 +83,12 @@ export interface Test {
   effectSize: number;
   effectSigned: number | null;
   significant: boolean;
-  direction: "aHigher" | "bHigher" | null;
+  /**
+   * Which Group ranks higher, by id. `null` for chi², which is
+   * non-directional. An id rather than "A"/"B" because with three Groups
+   * "A higher" would name nothing.
+   */
+  higher: string | null;
 }
 
 export interface Comovement {
@@ -89,6 +98,8 @@ export interface Comovement {
 }
 
 export interface GroupBlock {
+  id: string;
+  /** Cases in the Group, before the variant cut. */
   caseCount: number;
   caseLevel: Record<string, Summary>;
 }

@@ -203,15 +203,12 @@ test("log bars are labelled by their own edges", () => {
   // Unequal widths are the point, so the range has to be on the axis rather
   // than an index.
   const shape = {
-    ecdfA: [],
-    ecdfB: [],
-    boxA: null,
-    boxB: null,
+    ecdf: {},
+    boxStats: {},
     logEdges: [0, 1_000, 60_000, 3_600_000],
-    logCountsA: [7, 3, 1],
-    logCountsB: [2, 8, 0]
+    logCounts: { a: [7, 3, 1], b: [2, 8, 0] }
   } satisfies DurationShape;
-  expect(logBars(shape)).toEqual([
+  expect(logBars(shape, ["a", "b"])).toEqual([
     { label: "0s–1s", a: 7, b: 2 },
     { label: "1s–1m 0s", a: 3, b: 8 },
     { label: "1m 0s–1h 0m", a: 1, b: 0 }

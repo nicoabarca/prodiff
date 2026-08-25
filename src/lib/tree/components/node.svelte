@@ -5,21 +5,17 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Split from "@lucide/svelte/icons/split";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
-  import { colorVar } from "$lib/format";
-  import { comparedGroups } from "$lib/tree/state/tree.svelte";
 
   let { data }: { data: TreeNodeData } = $props();
 
   // A path only one Group follows reads in that Group's accent, a shared one in
   // the Original's grey.
-  const groups = $derived(comparedGroups());
-  const colorA = $derived(colorVar(groups[0]?.color ?? "group-1"));
-  const colorB = $derived(colorVar(groups[1]?.color ?? "group-2"));
   const accent = $derived(
-    data.membership === "a" ? colorA : data.membership === "b" ? colorB : "var(--group-original)"
+    data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const fill = $derived(`color-mix(in oklab, ${accent} 8%, var(--card))`);
-  const border = $derived(`color-mix(in oklab, ${accent} 45%, var(--card))`);
+  const accentVar = $derived(`--${accent}`);
+  const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
+  const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
   const vertical = $derived(data.direction === "TB");
 </script>
 
@@ -45,7 +41,7 @@
       <Tooltip.Trigger class="min-w-0 text-center">
         <span
           class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
-          style="color:var({accent})"
+          style="color:var({accentVar})"
         >
           {data.label}
         </span>
@@ -63,12 +59,11 @@
   </div>
 
   <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
-    {#if data.secondaryA !== null}
-      <span style="color:{colorA}">A: {data.secondaryA}</span>
-    {/if}
-    {#if data.secondaryB !== null}
-      <span style="color:{colorB}">B: {data.secondaryB}</span>
-    {/if}
+    {#each data.groups as group, index (group.id)}
+      {#if data.secondaries[index] !== null && data.secondaries[index] !== undefined}
+        <span style="color:var(--{group.color})">{data.secondaries[index]}</span>
+      {/if}
+    {/each}
   </div>
 
   {#if data.significantCount > 0 && data.peakStep}

@@ -42,8 +42,8 @@ fn read_groups(
 pub struct VariantRow {
     pub key: String,
     pub activities: Vec<String>,
-    pub cases_a: i64,
-    pub cases_b: i64,
+    /// Cases walking this Variant, by Group id.
+    pub cases: std::collections::HashMap<String, i64>,
 }
 
 /// Every Variant of the Groups as they stand, for the picker. Available before
@@ -59,14 +59,11 @@ pub fn list_variants(
 ) -> Result<Vec<VariantRow>, String> {
     let (a, b) = read_groups(&app, &project_id, &groups)?;
 
-    let mut rows = super::variant_rows(&a, b.as_ref(), &columns)?;
+    let mut rows = super::variant_rows(&groups, &a, b.as_ref(), &columns)?;
     // Same order the cold-build cut uses, so the list the user sees and the set
     // the backend would have picked rank identically.
-    rows.sort_by(|x, y| {
-        (y.cases_a + y.cases_b)
-            .cmp(&(x.cases_a + x.cases_b))
-            .then_with(|| x.key.cmp(&y.key))
-    });
+    let total = |row: &VariantRow| row.cases.values().sum::<i64>();
+    rows.sort_by(|x, y| total(y).cmp(&total(x)).then_with(|| x.key.cmp(&y.key)));
     Ok(rows)
 }
 
@@ -86,6 +83,7 @@ pub fn directed_tree(
     let (a, b) = read_groups(&app, &project_id, &groups)?;
 
     build(
+        &groups,
         &a,
         b.as_ref(),
         &columns,
@@ -116,6 +114,7 @@ pub fn node_distributions(
     let (a, b) = read_groups(&app, &project_id, &groups)?;
 
     distributions(
+        &groups,
         &a,
         b.as_ref(),
         &columns,

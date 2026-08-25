@@ -9,8 +9,12 @@
   let { test }: { test: Test | null | undefined } = $props();
 
   const groups = $derived(comparedGroups());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+
+  /** The name the user gave the Group a test names as higher. */
+  function nameOf(id: string | null): string | null {
+    if (id === null) return null;
+    return groups.find((group) => group?.id === id)?.name ?? null;
+  }
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
   const label = $derived(!test ? "" : !test.significant ? "no difference" : (band ?? ""));
@@ -22,12 +26,8 @@
     const name = test.test === "chi2" ? "Chi-square" : "Mann-Whitney U";
     const effect = test.test === "chi2" ? "Cramér's V" : "rank-biserial r";
     const p = test.pValue < 0.001 ? test.pValue.toExponential(1) : test.pValue.toFixed(3);
-    const direction =
-      test.direction === "aHigher"
-        ? ` · ${nameA} higher`
-        : test.direction === "bHigher"
-          ? ` · ${nameB} higher`
-          : "";
+    const higher = nameOf(test.higher);
+    const direction = higher ? ` · ${higher} higher` : "";
     return `${name} · p = ${p}, corrected for the number of attributes tested · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
   });
 </script>

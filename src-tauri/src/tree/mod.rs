@@ -62,13 +62,6 @@ pub enum Summary {
     },
 }
 
-#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum Direction {
-    AHigher,
-    BHigher,
-}
-
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Test {
@@ -78,19 +71,21 @@ pub struct Test {
     pub p_value: f64,
     /// Magnitude only: rank-biserial for Mann-Whitney, Cramér's V for chi².
     pub effect_size: f64,
-    /// Signed rank-biserial: positive = Group A higher. `None` for chi², which
-    /// is non-directional.
+    /// Signed rank-biserial: positive = the first Group ranks higher. `None`
+    /// for chi², which is non-directional.
     pub effect_signed: Option<f64>,
     /// Benjamini-Hochberg at α = 0.05, corrected within this attribute's family.
     pub significant: bool,
-    pub direction: Option<Direction>,
+    /// Which Group ranks higher, by id. `None` for chi². An id rather than
+    /// "A"/"B" because with three Groups "A higher" would name nothing.
+    pub higher: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeBlock {
-    pub group_a: Option<Summary>,
-    pub group_b: Option<Summary>,
+    /// One summary per Group, by id. A Group with nothing to summarize is absent.
+    pub summaries: HashMap<String, Summary>,
     /// `None` when either Group has fewer than five cases here.
     pub test: Option<Test>,
 }
@@ -112,8 +107,8 @@ pub struct TreeNode {
     /// `None` only for the synthetic Start root.
     pub parent: Option<usize>,
     pub label: String,
-    pub group_a_cases: i64,
-    pub group_b_cases: i64,
+    /// Cases reaching this node, by Group id.
+    pub cases: HashMap<String, i64>,
     pub event_level: HashMap<String, AttributeBlock>,
     /// The edge from the parent, not the node itself. `None` at the root and
     /// whenever Transition Time wasn't selected.
@@ -128,8 +123,9 @@ pub struct TreeNode {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupBlock {
-    /// Cases surviving the Group's filter chain, before the variant cut, so it
-    /// can exceed the root node's count.
+    pub id: String,
+    /// Cases in the Group, before the variant cut, so it can exceed the root
+    /// node's count.
     pub case_count: i64,
     pub case_level: HashMap<String, Summary>,
 }
@@ -138,9 +134,10 @@ pub struct GroupBlock {
 #[serde(rename_all = "camelCase")]
 pub struct DirectedTree {
     pub nodes: Vec<TreeNode>,
-    pub group_a: GroupBlock,
-    /// `None` in one-Group mode, where nothing is compared and no test runs.
-    pub group_b: Option<GroupBlock>,
+    /// The Groups on this tree, in the order they were asked for. One ordered
+    /// array carries both order and identity; everything below keys by id.
+    /// One entry is single-Group mode, where nothing is compared.
+    pub groups: Vec<GroupBlock>,
     pub case_level_tests: HashMap<String, Test>,
     /// Cases in both Groups. Non-zero means the samples are not independent,
     /// which both tests assume. The view warns.
@@ -424,6 +421,7 @@ fn variant_counts(groups: &[Option<GroupRows>; 2]) -> HashMap<String, [i64; 2]> 
 /// The Variant census for the picker. Reads only the case-id and activity
 /// columns, so it is cheap enough to run on opening a panel.
 pub fn variant_rows(
+    ids: &[String],
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
     mapping: &[ColumnMapping],
@@ -440,8 +438,7 @@ pub fn variant_rows(
         .map(|(key, cases)| commands::VariantRow {
             activities: key.split('\u{1}').map(str::to_string).collect(),
             key,
-            cases_a: cases[0],
-            cases_b: cases[1],
+            cases: by_group(ids, [Some(cases[0]), (ids.len() > 1).then_some(cases[1])]),
         })
         .collect())
 }
@@ -525,6 +522,7 @@ fn cut_variants(
 /// one-Group mode, where no test runs anywhere. `selection` is the picker's
 /// checked Variants; see `cut_variants` for what `None` means.
 pub fn build(
+    ids: &[String],
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
     mapping: &[ColumnMapping],
@@ -636,13 +634,12 @@ pub fn build(
                     let numeric = i >= attrs.len() || attrs[i].numeric;
                     let (a, b) = (&node.acc[i][0], &node.acc[i][1]);
                     AttributeBlock {
-                        group_a: a.summary(),
-                        group_b: b.summary(),
+                        summaries: by_group(ids, [a.summary(), b.summary()]),
                         test: if comparing
                             && a.len() >= MIN_GROUP_CASES
                             && b.len() >= MIN_GROUP_CASES
                         {
-                            stats::compare(&[a, b], numeric)
+                            stats::compare(ids, &[a, b], numeric)
                         } else {
                             None
                         },
@@ -710,8 +707,7 @@ pub fn build(
                 id,
                 parent: node.parent,
                 label: node.label.clone(),
-                group_a_cases: node.cases[0],
-                group_b_cases: node.cases[1],
+                cases: by_group(ids, [Some(node.cases[0]), comparing.then_some(node.cases[1])]),
                 event_level: blocks
                     .into_iter()
                     .enumerate()
@@ -724,13 +720,12 @@ pub fn build(
         })
         .collect();
 
-    let (group_a_block, group_b_block, case_level_tests) =
-        case_level_blocks(&groups, group_a, group_b, &case_attrs)?;
+    let (group_blocks, case_level_tests) =
+        case_level_blocks(ids, &groups, group_a, group_b, &case_attrs)?;
 
     Ok(DirectedTree {
         nodes: out_nodes,
-        group_a: group_a_block,
-        group_b: group_b_block,
+        groups: group_blocks,
         case_level_tests,
         overlap_cases: overlap(&groups),
         variants_total,
@@ -746,6 +741,17 @@ pub fn build(
     })
 }
 
+/// Pairs per-Group values with the ids they belong to, dropping the ones with
+/// nothing to say. The internals index Groups positionally; only the payload
+/// speaks in ids, and this is where the two meet.
+fn by_group<T>(ids: &[String], values: [Option<T>; 2]) -> HashMap<String, T> {
+    ids.iter()
+        .cloned()
+        .zip(values)
+        .filter_map(|(id, value)| Some((id, value?)))
+        .collect()
+}
+
 fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
     let (Some(a), Some(b)) = (&groups[0], &groups[1]) else {
         return 0;
@@ -758,11 +764,12 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
 /// taken from its first event. Computed over the whole Group, before the
 /// coverage cut, so it matches `case_count`.
 fn case_level_blocks(
+    ids: &[String],
     groups: &[Option<GroupRows>; 2],
     df_a: &DataFrame,
     df_b: Option<&DataFrame>,
     case_attrs: &[AttrSpec],
-) -> Result<(GroupBlock, Option<GroupBlock>, HashMap<String, Test>), String> {
+) -> Result<(Vec<GroupBlock>, HashMap<String, Test>), String> {
     let per_group = |df: &DataFrame, rows: &GroupRows| -> Result<Vec<Acc>, String> {
         case_attrs
             .iter()
@@ -798,7 +805,8 @@ fn case_level_blocks(
         _ => None,
     };
 
-    let block = |accs: &[Acc], case_count: i64| GroupBlock {
+    let block = |id: &String, accs: &[Acc], case_count: i64| GroupBlock {
+        id: id.clone(),
         case_count,
         case_level: case_attrs
             .iter()
@@ -817,7 +825,7 @@ fn case_level_blocks(
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
-                Some((spec.name.clone(), stats::compare(&[a, b], spec.numeric)?))
+                Some((spec.name.clone(), stats::compare(ids, &[a, b], spec.numeric)?))
             })
             .collect();
         // Case-level attributes are their own family: one test each, no nodes.
@@ -837,11 +845,11 @@ fn case_level_blocks(
         }
     }
 
-    Ok((
-        block(&accs_a, rows_a.case_ids.len() as i64),
-        accs_b.map(|(accs, count)| block(&accs, count)),
-        tests,
-    ))
+    let mut blocks = vec![block(&ids[0], &accs_a, rows_a.case_ids.len() as i64)];
+    if let (Some(id), Some((accs, count))) = (ids.get(1), &accs_b) {
+        blocks.push(block(id, accs, *count));
+    }
+    Ok((blocks, tests))
 }
 
 #[cfg(test)]
@@ -894,9 +902,19 @@ mod tests {
         .unwrap()
     }
 
+    /// Group ids the tests read results back by. Two when a second frame is
+    /// given, one otherwise — the same shape the commands send.
+    fn ids(b: Option<&DataFrame>) -> Vec<String> {
+        let mut ids = vec!["a".to_string()];
+        if b.is_some() {
+            ids.push("b".to_string());
+        }
+        ids
+    }
+
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(a, b, &mapping(), &attributes, None).unwrap()
+        build(&ids(b), a, b, &mapping(), &attributes, None).unwrap()
     }
 
     /// The key the builder gives a trace: activities joined the way
@@ -913,13 +931,20 @@ mod tests {
     ) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
         let keys: Vec<String> = selection.iter().map(|v| key(v)).collect();
-        build(a, b, &mapping(), &attributes, Some(&keys)).unwrap()
+        build(&ids(b), a, b, &mapping(), &attributes, Some(&keys)).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {
         tree.nodes
             .iter()
-            .map(|n| (n.parent, n.label.as_str(), n.group_a_cases, n.group_b_cases))
+            .map(|n| {
+                (
+                    n.parent,
+                    n.label.as_str(),
+                    n.cases.get("a").copied().unwrap_or(0),
+                    n.cases.get("b").copied().unwrap_or(0),
+                )
+            })
             .collect()
     }
 
@@ -1070,8 +1095,8 @@ mod tests {
 
         let mean_at_a = |tree: &DirectedTree| -> f64 {
             let node = tree.nodes.iter().find(|n| n.label == "A").unwrap();
-            match node.event_level["cost"].group_a {
-                Some(Summary::Numerical { mean, .. }) => mean,
+            match node.event_level["cost"].summaries.get("a") {
+                Some(Summary::Numerical { mean, .. }) => *mean,
                 _ => panic!("expected a numeric summary at `A`"),
             }
         };
@@ -1138,7 +1163,7 @@ mod tests {
         assert!(shared.event_level["cost"].test.is_some());
         let a_only = tree.nodes.iter().find(|n| n.label == "B").unwrap();
         assert!(a_only.event_level["cost"].test.is_none());
-        assert_eq!(a_only.group_b_cases, 0);
+        assert_eq!(a_only.cases.get("b").copied().unwrap_or(0), 0);
     }
 
     #[test]
@@ -1157,7 +1182,7 @@ mod tests {
 
         let node = tree.nodes.iter().find(|n| n.label == "A").unwrap();
         let test = node.event_level["cost"].test.as_ref().unwrap();
-        assert_eq!(test.direction, Some(Direction::BHigher));
+        assert_eq!(test.higher.as_deref(), Some("b"));
         assert!(test.effect_signed.unwrap() < 0.0);
         assert!(test.significant, "10 vs 90 with n=8 each is a real gap");
     }
@@ -1174,17 +1199,19 @@ mod tests {
         let df = log(&[("1", &["A", "B"], &[10, 20])]);
         let tree = build_with(&df, None, &[TRANSITION_TIME]);
         let root_child = tree.nodes.iter().find(|n| n.label == "A").unwrap();
-        assert!(matches!(
-            root_child.transition_time.as_ref().unwrap().group_a,
-            None
-        ));
+        assert!(!root_child
+            .transition_time
+            .as_ref()
+            .unwrap()
+            .summaries
+            .contains_key("a"));
         let second = tree.nodes.iter().find(|n| n.label == "B").unwrap();
         let Some(Summary::Numerical { mean, n, .. }) =
-            second.transition_time.as_ref().unwrap().group_a
+            second.transition_time.as_ref().unwrap().summaries.get("a")
         else {
             panic!("expected a numeric transition summary");
         };
-        assert_eq!(n, 1);
-        assert_eq!(mean, 1_000.0);
+        assert_eq!(*n, 1);
+        assert_eq!(*mean, 1_000.0);
     }
 }

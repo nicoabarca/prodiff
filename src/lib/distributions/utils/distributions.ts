@@ -15,17 +15,21 @@ import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
  */
 export function categoryBars(
   distribution: Extract<Distribution, { type: "categorical" }>,
-  showAll: boolean
+  showAll: boolean,
+  ids: string[]
 ): Bar[] {
+  const [idA, idB] = ids;
   const shown = showAll ? distribution.values : distribution.values.slice(0, TOP_CATEGORIES);
   const bars: Bar[] = shown.map((count) => ({
     label: count.value,
-    a: count.a,
-    b: count.b
+    a: count.counts[idA] ?? 0,
+    b: count.counts[idB] ?? 0
   }));
 
-  const otherA = distribution.totalA - shown.reduce((sum, c) => sum + c.a, 0);
-  const otherB = distribution.totalB - shown.reduce((sum, c) => sum + c.b, 0);
+  const otherA =
+    (distribution.totals[idA] ?? 0) - bars.reduce((sum, bar) => sum + bar.a, 0);
+  const otherB =
+    (distribution.totals[idB] ?? 0) - bars.reduce((sum, bar) => sum + bar.b, 0);
   const collapsed = distribution.distinct - shown.length;
   if (collapsed > 0 && otherA + otherB > 0) {
     bars.push({ label: "Other", a: otherA, b: otherB, collapsed });
@@ -49,13 +53,15 @@ function edgeDigits(edges: number[]): number {
 
 export function binBars(
   distribution: Extract<Distribution, { type: "numerical" }>,
-  attribute: string
+  attribute: string,
+  ids: string[]
 ): Bar[] {
   const duration = isDurationAttribute(attribute);
-  return distribution.countsA.map((a, index) => ({
+  const [countsA, countsB] = ids.map((id) => distribution.counts[id] ?? []);
+  return countsA.map((a, index) => ({
     label: binLabel(distribution.edges, index, duration),
     a,
-    b: distribution.countsB[index]
+    b: countsB?.[index] ?? 0
   }));
 }
 
@@ -91,11 +97,12 @@ export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
 }
 
 /** The bars of the log ladder, labelled by their own edges: the width is the information. */
-export function logBars(shape: DurationShape): Bar[] {
-  return shape.logCountsA.map((a, index) => ({
+export function logBars(shape: DurationShape, ids: string[]): Bar[] {
+  const [countsA, countsB] = ids.map((id) => shape.logCounts[id] ?? []);
+  return countsA.map((a, index) => ({
     label: `${formatDuration(shape.logEdges[index])}–${formatDuration(shape.logEdges[index + 1])}`,
     a,
-    b: shape.logCountsB[index]
+    b: countsB?.[index] ?? 0
   }));
 }
 
@@ -153,9 +160,17 @@ export function gridAttributes(
     });
 }
 
-/** The bars a card draws, whatever kind of Distribution it holds. */
-export function bars(distribution: Distribution, attribute: string, showAll: boolean): Bar[] {
-  if (distribution.type === "categorical") return categoryBars(distribution, showAll);
-  if (distribution.type === "numerical") return binBars(distribution, attribute);
+/**
+ * The bars a card draws, whatever kind of Distribution it holds. `ids` is the
+ * two Groups being compared, in the order the card draws them.
+ */
+export function bars(
+  distribution: Distribution,
+  attribute: string,
+  showAll: boolean,
+  ids: string[]
+): Bar[] {
+  if (distribution.type === "categorical") return categoryBars(distribution, showAll, ids);
+  if (distribution.type === "numerical") return binBars(distribution, attribute, ids);
   return [];
 }

@@ -9,15 +9,16 @@
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
+  const caseLevel = $derived(Object.keys(tree.groups[0]?.caseLevel ?? {}));
+  const comparing = $derived(tree.groups.length > 1);
   const hasContent = $derived(
-    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !tree.groupB
+    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !comparing
   );
 </script>
 
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
-    {#if !tree.groupB}
+    {#if !comparing}
       <Badge variant="secondary" class="self-start">One group — no comparison</Badge>
     {/if}
 
@@ -50,9 +51,8 @@
               <EffectChip test={tree.caseLevelTests[name]} />
             </div>
             <SummaryCompare
-              groupA={tree.groupA.caseLevel[name] ?? null}
-              groupB={tree.groupB?.caseLevel[name] ?? null}
-              compare={tree.groupB !== null}
+              summaries={tree.groups.map((group) => group.caseLevel[name] ?? null)}
+              compare={comparing}
             />
           </div>
         {/each}

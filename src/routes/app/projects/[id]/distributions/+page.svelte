@@ -51,20 +51,28 @@
     }
   });
 
-  /** The trace down to this step and everything that follows it. */
+  /** The trace down to this step and everything that follows it — no siblings. */
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
-  const compare = $derived(tree?.groupB !== null);
+  const compare = $derived((tree?.groups.length ?? 0) > 1);
   const stale = $derived(isStale());
 
   const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
-  const colorA = $derived(colorVar(groups[0]?.color ?? "group-1"));
-  const colorB = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
-  /** Every card the node could show, dismissals included, in a fixed order. */
+  /** The Groups as the charts need them: id to read the payload, name and colour to draw. */
+  const chartGroups = $derived(
+    groups
+      .filter((group) => group !== null)
+      .map((group) => ({ id: group.id, name: group.name, color: group.color }))
+  );
+
+  /**
+   * What is fetched: every card the node could show, dismissals included and in
+   * a fixed order, so hiding and re-sorting never cost a round trip.
+   */
   const requested = $derived(node ? gridAttributes(node, charts.extra, [], "name") : []);
   /** What is drawn, in the order the user asked for. */
   const grid = $derived(
@@ -73,7 +81,7 @@
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
-  /** Attributes the build never tested here. */
+  /** Attributes the build never tested here — the only ones worth offering. */
   const available = $derived.by(() => {
     if (!project) return [];
     const open = new Set(requested.map((card) => card.name));
@@ -88,15 +96,15 @@
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
 
-  /** Each Group's case count in its own colour. */
+  /** Each Group's case count in its own colour — the one its marks are drawn in. */
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];
-    const rows = [{ name: nameA, cases: data.casesA, color: colorA }];
-    if (compare) {
-      rows.push({ name: nameB, cases: data.casesB, color: colorB });
-    }
-    return rows;
+    return data.groups.map((totals, index) => ({
+      name: index === 0 ? nameA : nameB,
+      cases: totals.cases,
+      color: colorVar(chartGroups[index]?.color ?? "group-original")
+    }));
   });
 
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
@@ -111,8 +119,10 @@
     untrack(forgetDistributions);
   });
 
-  // Inputs listed explicitly and the call untracked: `loadDistributions` reads
-  // the same `loaded` fields it writes.
+  // Every input listed explicitly and the call untracked: `loadDistributions`
+  // reads the same `loaded` fields it writes, so tracking its reads would make
+  // the effect retrigger itself. `significantOnly` and the Variant selection are
+  // in here because both prune leaves, which changes the case set.
   $effect(() => {
     const names = requested.map((card) => card.name);
     void [
@@ -159,22 +169,22 @@
         <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
         {#if loaded.data && !stale}
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <!-- Whole class names, never `text-{token}`: Tailwind finds classes
-                 by scanning the source, so an interpolated one is never built. -->
+            <!-- Colours come from the Group's own palette token as inline
+                 styles: the user picks them, so no class name can be known
+                 ahead of time for Tailwind to build. -->
             {#each groupCounts as { name, cases, color } (name)}
               <span
                 class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold"
                 style="color:{color}"
               >
-                <span class="size-2.5 shrink-0" style="background-color:{color}" aria-hidden="true"
-                ></span>
+                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"></span>
                 <span class="truncate">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>
               </span>
             {/each}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(loaded.data.eventsA + loaded.data.eventsB)} events counted
+              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events counted
             </span>
           </div>
         {/if}
@@ -256,7 +266,7 @@
         <span class="text-muted-foreground">
           {SCOPE_HINT[charts.scope]}.
           {#if loaded.data && !stale}
-            Same {formatNumber(loaded.data.casesA + loaded.data.casesB)} cases either way.
+            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases either way.
           {/if}
         </span>
       </p>
@@ -313,8 +323,7 @@
                 {distribution}
                 test={card.test}
                 {compare}
-                {nameA}
-                {nameB}
+                groups={chartGroups}
                 scope={charts.scope}
                 encoding={charts.encoding}
                 onEncoding={(next) => (charts.encoding = next)}

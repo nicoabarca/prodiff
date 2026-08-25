@@ -22,34 +22,36 @@
   import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
   import { curveRows, outlierNote } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
-  import { comparedGroups } from "$lib/tree/state/tree.svelte";
 
   let {
     shape,
     encoding,
     compare,
-    nameA,
-    nameB
+    groups
   }: {
     shape: DurationShape;
     encoding: "ecdf" | "box";
     compare: boolean;
-    nameA: string;
-    nameB: string;
+    /** The two Groups being drawn, in order, with the names and colours the user chose. */
+    groups: { id: string; name: string; color: string }[];
   } = $props();
 
-  const groups = $derived(comparedGroups());
+  const nameA = $derived(groups[0]?.name ?? "Group A");
+  const nameB = $derived(groups[1]?.name ?? "Group B");
   const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
   const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
-  const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
+  const ecdfA = $derived(shape.ecdf[groups[0]?.id] ?? []);
+  const ecdfB = $derived(shape.ecdf[groups[1]?.id] ?? []);
+
+  const rows = $derived(curveRows(ecdfA, compare ? ecdfB : []));
 
   /** A curve needs two distinct durations: with one the scale has a zero-width domain. */
   const oneValue = $derived(rows.length < 2);
 
   /** The widest value either Group reaches, so both are drawn to one scale. */
   const max = $derived(
-    Math.max(shape.ecdfA.at(-1) ?? 0, shape.ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0)
+    Math.max(ecdfA.at(-1) ?? 0, ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0)
   );
 
   /** Where symlog stops being linear: the ladder's first rung. */
@@ -61,8 +63,8 @@
   const boxes = $derived(
     (
       [
-        [nameA, shape.boxA],
-        [nameB, shape.boxB]
+        [nameA, shape.boxStats[groups[0]?.id] ?? null],
+        [nameB, shape.boxStats[groups[1]?.id] ?? null]
       ] as [string, BoxStats | null][]
     )
       .filter(([, stats], index) => stats !== null && (index === 0 || compare))
@@ -124,7 +126,7 @@
             <!-- Both curves off one set of rows, keyed on the union of the two ladders'
                  durations: `bisect-x` needs a single sorted x to search. -->
             <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
-            {#if compare && shape.ecdfB.length > 0}
+            {#if compare && ecdfB.length > 0}
               <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
             {/if}
             <Highlight lines points={{ fill: COLOR_A }} />
@@ -157,8 +159,8 @@
       {#each [["Median", 50], ["P90", 90]] as [label, at] (label)}
         <span class="bg-secondary px-2 py-1">
           {label}: {nameA}
-          {formatDuration(shape.ecdfA[at as number] ?? 0)}{#if compare && shape.ecdfB.length > 0}
-            · {nameB} {formatDuration(shape.ecdfB[at as number] ?? 0)}{/if}
+          {formatDuration(ecdfA[at as number] ?? 0)}{#if compare && ecdfB.length > 0}
+            · {nameB} {formatDuration(ecdfB[at as number] ?? 0)}{/if}
         </span>
       {/each}
     </div>

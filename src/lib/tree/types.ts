@@ -16,11 +16,14 @@ export const DEFAULT_COVERAGE = 0.8;
 
 export type Direction = "TB" | "LR";
 
-/** What the node face shows under the activity name. */
-export type Secondary = "cases" | "casesA" | "casesB" | (string & {});
+/** What the node face shows under the activity name: `cases`, a Group id, or an attribute. */
+export type Secondary = "cases" | (string & {});
 
-/** Which Groups stay at full opacity; the rest are dimmed, never removed. */
-export type GroupFocus = "all" | "a" | "b" | "shared";
+/**
+ * Which Groups stay at full opacity; the rest are dimmed, never removed.
+ * `"all"`, `"shared"`, or one Group's id.
+ */
+export type GroupFocus = "all" | "shared" | (string & {});
 
 /**
  * What the view decides, all of it drawn from the tree already in hand.
@@ -64,8 +67,8 @@ export interface Visible {
   /** Cases on the Variants that survived, both Groups together. */
   casesShown: number;
   /**
-   * Per-node case counts restricted to the surviving Variants. A node's own
-   * `groupACases`/`groupBCases` sum over every Variant the tree was built with.
+   * Per-node case counts by Group id, restricted to the surviving Variants. A
+   * node's own `cases` sums over every Variant the tree was built with.
    */
-  cases: Map<number, { groupACases: number; groupBCases: number }>;
+  cases: Map<number, Record<string, number>>;
 }
