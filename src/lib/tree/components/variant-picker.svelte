@@ -41,9 +41,14 @@
     }
   });
 
+  // Group ids in the order the tree lists them, so a row's two columns are the
+  // same two Groups the canvas paints.
+  const ids = $derived(comparedGroups().map((group) => group?.id ?? ""));
+  const casesIn = (row: ResponseVariantRow, index: number) => row.cases[ids[index]] ?? 0;
+
   const totals = $derived({
-    a: variants.rows.reduce((sum, row) => sum + row.casesA, 0),
-    b: variants.rows.reduce((sum, row) => sum + row.casesB, 0)
+    a: variants.rows.reduce((sum, row) => sum + casesIn(row, 0), 0),
+    b: variants.rows.reduce((sum, row) => sum + casesIn(row, 1), 0)
   });
   const comparing = $derived(totals.b > 0);
 
@@ -202,6 +207,8 @@
         {#snippet row(item: ResponseVariantRow)}
           <!-- A plain div, not a `<label>`: the checkbox includes the Variant in the
                build, the rest of the row only shows its trace. -->
+          {@const casesA = casesIn(item, 0)}
+          {@const casesB = casesIn(item, 1)}
           <div
             class="flex h-14 items-center gap-3 rounded px-1 text-xs {preview === item.key ||
             shownVariant.key === item.key
@@ -222,13 +229,13 @@
                 Variant {numbers.get(item.key)}
               </span>
               <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
-                {#if item.casesA > 0}
-                  <span style="color:{accents.a}">{formatNumber(item.casesA)}</span>
+                {#if casesA > 0}
+                  <span style="color:{accents.a}">{formatNumber(casesA)}</span>
                   <span class="text-[0.625rem] opacity-70" style="color:{accents.a}">
-                    {share(item.casesA, totals.a)}
+                    {share(casesA, totals.a)}
                   </span>
                   {#if originalCases}
-                    <span class="text-[0.625rem]">{share(item.casesA, originalCases)}</span>
+                    <span class="text-[0.625rem]">{share(casesA, originalCases)}</span>
                   {/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
@@ -236,13 +243,13 @@
               </span>
               {#if comparing}
                 <span class="flex w-28 flex-col items-end tabular-nums">
-                  {#if item.casesB > 0}
-                    <span style="color:{accents.b}">{formatNumber(item.casesB)}</span>
+                  {#if casesB > 0}
+                    <span style="color:{accents.b}">{formatNumber(casesB)}</span>
                     <span class="text-[0.625rem] opacity-70" style="color:{accents.b}">
-                      {share(item.casesB, totals.b)}
+                      {share(casesB, totals.b)}
                     </span>
                     {#if originalCases}
-                      <span class="text-[0.625rem]">{share(item.casesB, originalCases)}</span>
+                      <span class="text-[0.625rem]">{share(casesB, originalCases)}</span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>

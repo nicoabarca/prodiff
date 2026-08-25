@@ -18,7 +18,6 @@
   import { ENCODINGS, ENCODING_HINT, ENCODING_LABEL, type Encoding, PLOT_TOGGLE, SCOPE_LABEL, type Scope, TOP_CATEGORIES } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
-  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Test } from "$lib/tree/invokers/types";
   import { isDurationAttribute } from "$lib/tree/utils/settings";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -31,8 +30,7 @@
     scope,
     test,
     compare,
-    nameA,
-    nameB,
+    groups,
     expanded,
     encoding,
     onEncoding,
@@ -45,8 +43,8 @@
     /** The node's Significance Test for this attribute, when one ran. */
     test: Test | null;
     compare: boolean;
-    nameA: string;
-    nameB: string;
+    /** The two Groups being drawn, in order, with the names and colours the user chose. */
+    groups: { id: string; name: string; color: string }[];
     expanded: boolean;
     /** Only read on a duration; every other attribute has bars and nothing else. */
     encoding: Encoding;
@@ -55,9 +53,11 @@
     onRemove: () => void;
   } = $props();
 
-  const groups = $derived(comparedGroups());
+  const nameA = $derived(groups[0]?.name ?? "Group A");
+  const nameB = $derived(groups[1]?.name ?? "Group B");
   const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
   const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
+  const ids = $derived(groups.map((group) => group.id));
 
   /**
    * The duration-only encodings, when the backend computed them. Absent on
@@ -67,7 +67,9 @@
 
   /** Bars unless a duration asked for something else, where they are the log ladder. */
   const data = $derived(
-    shape && encoding === "logBins" ? logBars(shape) : bars(distribution, attribute, expanded)
+    shape && encoding === "logBins"
+      ? logBars(shape, ids)
+      : bars(distribution, attribute, expanded, ids)
   );
 
   const series = $derived(
@@ -87,7 +89,7 @@
 
   /** A numeric attribute whose values are all identical. Stated in words, not drawn. */
   const constant = $derived(
-    distribution.type === "numerical" && distribution.countsA.length === 1
+    distribution.type === "numerical" && (distribution.counts[ids[0]]?.length ?? 0) === 1
       ? distribution.edges[0]
       : null
   );
@@ -101,9 +103,11 @@
   /** Totals the tooltip reads shares against. */
   const totals = $derived.by(() => {
     if (distribution.type === "categorical") {
-      return { a: distribution.totalA, b: distribution.totalB };
+      return { a: distribution.totals[ids[0]] ?? 0, b: distribution.totals[ids[1]] ?? 0 };
     }
-    if (distribution.type === "numerical") return { a: distribution.nA, b: distribution.nB };
+    if (distribution.type === "numerical") {
+      return { a: distribution.n[ids[0]] ?? 0, b: distribution.n[ids[1]] ?? 0 };
+    }
     return { a: 0, b: 0 };
   });
 
@@ -210,7 +214,7 @@
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}
-    <DurationPlot {shape} {encoding} {compare} {nameA} {nameB} />
+    <DurationPlot {shape} {encoding} {compare} {groups} />
   {:else if data.length === 0}
     <p
       class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"

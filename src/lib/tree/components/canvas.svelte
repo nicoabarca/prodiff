@@ -3,7 +3,7 @@
   import "@xyflow/svelte/dist/style.css";
   import ActivityNode from "$lib/tree/components/node.svelte";
   import { toFlow } from "$lib/tree/utils/flow";
-  import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups, selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
 
@@ -30,6 +30,15 @@
     return { ...all, ids: new Set([...all.ids].filter((id) => kept.has(id))) };
   });
 
+  // The canvas paints Groups in the names and colours the user chose, so the
+  // payload can stay ids-only and a rename never leaves a stale label behind.
+  const flowGroups = $derived(
+    tree.groups.map((group) => {
+      const known = comparedGroups().find((candidate) => candidate?.id === group.id);
+      return { id: group.id, name: known?.name ?? group.id, color: known?.color ?? "group-original" };
+    })
+  );
+
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);
     if (next.has(id)) next.delete(id);
@@ -39,6 +48,7 @@
 
   const flow = $derived(
     toFlow(tree, visible, {
+      groups: flowGroups,
       direction: view.direction,
       secondary: view.secondary,
       focus: view.focus,

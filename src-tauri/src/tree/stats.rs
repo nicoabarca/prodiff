@@ -2,7 +2,7 @@
 //! chi-square for categorical, and the Benjamini-Hochberg correction applied
 //! per attribute family.
 
-use super::{Acc, Direction, Summary, Test};
+use super::{Acc, Summary, Test};
 use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
 use std::collections::HashMap;
 
@@ -118,7 +118,7 @@ fn midranks(combined: &[f64]) -> (Vec<f64>, f64) {
 ///
 /// ponytail: no exact permutation branch for tiny samples; add one if findings
 /// at n ≈ 5 ever need to be defended precisely.
-fn mann_whitney(a: &[f64], b: &[f64]) -> Option<Test> {
+fn mann_whitney(ids: &[String], a: &[f64], b: &[f64]) -> Option<Test> {
     let (n1, n2) = (a.len() as f64, b.len() as f64);
     let combined: Vec<f64> = a.iter().chain(b).copied().collect();
     let (ranks, tie_term) = midranks(&combined);
@@ -148,11 +148,9 @@ fn mann_whitney(a: &[f64], b: &[f64]) -> Option<Test> {
         effect_size: effect_signed.abs(),
         effect_signed: Some(effect_signed),
         significant: false, // set by the Benjamini-Hochberg pass
-        direction: Some(if effect_signed >= 0.0 {
-            Direction::AHigher
-        } else {
-            Direction::BHigher
-        }),
+        higher: ids
+            .get(if effect_signed >= 0.0 { 0 } else { 1 })
+            .cloned(),
     })
 }
 
@@ -195,7 +193,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
         effect_size: (statistic / total).sqrt(),
         effect_signed: None,
         significant: false,
-        direction: None,
+        higher: None,
     })
 }
 
@@ -203,12 +201,12 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
 ///
 /// Takes a collection so the shape admits N Groups, and refuses anything but
 /// two: the tests below are two-sample tests. See `docs/statistics.md`.
-pub(super) fn compare(groups: &[&Acc], numeric: bool) -> Option<Test> {
+pub(super) fn compare(ids: &[String], groups: &[&Acc], numeric: bool) -> Option<Test> {
     let [a, b] = groups else {
         return None;
     };
     match (a, b) {
-        (Acc::Num(a), Acc::Num(b)) if numeric => mann_whitney(a, b),
+        (Acc::Num(a), Acc::Num(b)) if numeric => mann_whitney(ids, a, b),
         (Acc::Cat(a), Acc::Cat(b)) => chi_square(a, b),
         _ => None,
     }
@@ -233,6 +231,10 @@ pub(super) fn benjamini_hochberg(p_values: &[f64], alpha: f64) -> f64 {
 mod tests {
     use super::*;
 
+    fn ids() -> Vec<String> {
+        vec!["a".to_string(), "b".to_string()]
+    }
+
     #[test]
     fn quantiles_interpolate_like_a_box_plot() {
         let Summary::Numerical { q1, median, q3, .. } = numeric_summary(&[1.0, 2.0, 3.0, 4.0, 5.0])
@@ -244,18 +246,18 @@ mod tests {
 
     #[test]
     fn mann_whitney_separates_disjoint_samples() {
-        let test =
-            mann_whitney(&[1.0, 2.0, 3.0, 4.0, 5.0], &[10.0, 11.0, 12.0, 13.0, 14.0]).unwrap();
-        // Group A ranks entirely below B: U = 0, rank-biserial = −1.
+        let test = mann_whitney(&ids(), &[1.0, 2.0, 3.0, 4.0, 5.0], &[10.0, 11.0, 12.0, 13.0, 14.0])
+            .unwrap();
+        // The first Group ranks entirely below the second: U = 0, rank-biserial = −1.
         assert_eq!(test.statistic, 0.0);
         assert_eq!(test.effect_signed, Some(-1.0));
-        assert_eq!(test.direction, Some(Direction::BHigher));
+        assert_eq!(test.higher.as_deref(), Some("b"));
         assert!(test.p_value < 0.05);
     }
 
     #[test]
     fn identical_samples_are_never_a_finding() {
-        let test = mann_whitney(&[7.0; 6], &[7.0; 6]).unwrap();
+        let test = mann_whitney(&ids(), &[7.0; 6], &[7.0; 6]).unwrap();
         assert_eq!(test.p_value, 1.0);
         assert_eq!(test.effect_signed, Some(0.0));
     }
@@ -269,7 +271,7 @@ mod tests {
         assert!((test.statistic - 36.0).abs() < 1e-9);
         assert!((test.effect_size - 0.6).abs() < 1e-9);
         assert!(test.p_value < 1e-6);
-        assert!(test.direction.is_none(), "chi² is non-directional");
+        assert!(test.higher.is_none(), "chi² is non-directional");
     }
 
     #[test]

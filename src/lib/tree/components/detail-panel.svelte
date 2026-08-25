@@ -25,29 +25,33 @@
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
-  const compare = $derived(tree.groupB !== null);
+  const compare = $derived(tree.groups.length > 1);
   /** Restricted to the surviving Variants: raw totals over-count. */
   const cases = $derived(
     node
-      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {
-          groupACases: 0,
-          groupBCases: 0
-        })
+      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {})
       : null
   );
 
   const groups = $derived(comparedGroups());
+  const ids = $derived(tree.groups.map((group) => group.id));
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
-  /** Attributes strongest first, negligible and untestable ones folded away. */
+  /**
+   * Attributes strongest first, with the negligible and untestable ones folded
+   * away. At a few thousand cases per Group nearly every test is significant.
+   */
   const ranked = $derived(
     node
       ? rankedBlocks(node)
       : { finding: [], weak: [], untested: [] as [string, AttributeBlock][] }
   );
 
-  /** One-Group mode: attributes stay in build order and all are shown. */
+  /**
+   * One-Group mode has no differences to rank: attributes stay in build order
+   * and all of them are shown.
+   */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
     const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
@@ -55,12 +59,12 @@
     return entries;
   });
 
-  /** Why a block carries no Significance Test. */
+  /** Why a block carries no Significance Test, in the user's terms. */
   function untestable(block: AttributeBlock): string {
     if (!compare) return "One-group mode — nothing to compare against.";
-    const n = (side: "groupA" | "groupB") => block[side]?.n ?? 0;
-    if (n("groupA") < 5 || n("groupB") < 5) {
-      return `Too few cases to test — ${nameA}: ${n("groupA")}, ${nameB}: ${n("groupB")} (minimum 5 each).`;
+    const n = (index: number) => block.summaries[tree.groups[index]?.id]?.n ?? 0;
+    if (n(0) < 5 || n(1) < 5) {
+      return `Too few cases to test — ${nameA}: ${n(0)}, ${nameB}: ${n(1)} (minimum 5 each).`;
     }
     return "Not enough distinct values to compare.";
   }
@@ -83,8 +87,7 @@
     {/if}
 
     <SummaryCompare
-      groupA={block.groupA}
-      groupB={block.groupB}
+      summaries={tree.groups.map((group) => block.summaries[group.id] ?? null)}
       {compare}
       duration={isDurationAttribute(name)}
     />
@@ -120,9 +123,9 @@
         <h2 class="text-sm font-semibold">{node.label}</h2>
         <div class="flex shrink-0 items-center gap-1">
           <Badge variant="secondary">
-            {membership(node) === "shared"
-              ? "Both groups"
-              : `${membership(node) === "a" ? nameA : nameB} only`}
+            {membership(node, ids) === "shared"
+              ? "Every group"
+              : `${groups.find((group) => group?.id === membership(node, ids))?.name ?? "Group"} only`}
           </Badge>
           <Popover.Root>
             <Popover.Trigger>
@@ -164,9 +167,12 @@
         </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
-        {nameA}
-        {formatNumber(cases?.groupACases ?? 0)}
-        {#if compare}· {nameB} {formatNumber(cases?.groupBCases ?? 0)}{/if} cases
+        {tree.groups
+          .map((group, index) => {
+            const name = index === 0 ? nameA : nameB;
+            return `${name} ${formatNumber(cases?.[group.id] ?? 0)}`;
+          })
+          .join(" · ")} cases
       </p>
       <p
         class="text-muted-foreground truncate text-[0.625rem]"

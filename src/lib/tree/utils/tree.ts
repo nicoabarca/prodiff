@@ -2,19 +2,24 @@ import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
 
+/** Cases reaching a node, summed over every Group on the tree. */
 export function nodeCases(node: TreeNode): number {
-  return node.groupACases + node.groupBCases;
+  return Object.values(node.cases).reduce((sum, cases) => sum + cases, 0);
+}
+
+/** Cases one Group brings to a node. Absent means none reached it. */
+export function groupCasesAt(node: TreeNode, groupId: string): number {
+  return node.cases[groupId] ?? 0;
 }
 
 export function isDivergent(node: TreeNode): boolean {
   return node.comovement.some((pair) => pair.relationship === "divergent");
 }
 
-/** Which Groups reach a node. */
-export function membership(node: TreeNode): "a" | "b" | "shared" {
-  if (node.groupBCases === 0) return "a";
-  if (node.groupACases === 0) return "b";
-  return "shared";
+/** The only Group that reaches a node, or `"shared"` when more than one does. */
+export function membership(node: TreeNode, groupIds: string[]): string {
+  const reaching = groupIds.filter((id) => groupCasesAt(node, id) > 0);
+  return reaching.length === 1 ? reaching[0] : "shared";
 }
 
 export function children(tree: ResponseDirectedTree): Map<number, number[]> {
@@ -75,9 +80,14 @@ export function leaves(tree: ResponseDirectedTree): TreeNode[] {
   return tree.nodes.filter((n) => !kids.has(n.id));
 }
 
-/** Cases in both Groups before any cut: the denominator for every share. */
+/** Cases in every Group before any cut: the denominator for every share. */
 export function totalCases(tree: ResponseDirectedTree): number {
-  return Number(tree.groupA.caseCount) + Number(tree.groupB?.caseCount ?? 0);
+  return tree.groups.reduce((sum, group) => sum + Number(group.caseCount), 0);
+}
+
+/** The Groups on a tree, in payload order. */
+export function groupIds(tree: ResponseDirectedTree): string[] {
+  return tree.groups.map((group) => group.id);
 }
 
 /**
@@ -106,15 +116,15 @@ export function visibleNodes(
     .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id);
 
   const kept = new Set<number>();
-  const cases = new Map<number, { groupACases: number; groupBCases: number }>();
+  const cases = new Map<number, Record<string, number>>();
+  const groups = groupIds(tree);
   let casesShown = 0;
   for (const leaf of ranked) {
     casesShown += nodeCases(leaf);
     for (const node of pathTo(tree, leaf.id)) {
       kept.add(node.id);
-      const acc = cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 };
-      acc.groupACases += leaf.groupACases;
-      acc.groupBCases += leaf.groupBCases;
+      const acc = cases.get(node.id) ?? Object.fromEntries(groups.map((id) => [id, 0]));
+      for (const id of groups) acc[id] += groupCasesAt(leaf, id);
       cases.set(node.id, acc);
     }
   }

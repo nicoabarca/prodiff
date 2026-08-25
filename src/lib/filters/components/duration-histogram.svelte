@@ -21,7 +21,7 @@
     project,
     /** Filters applied before this one. The distribution shown is theirs. */
     chain = [],
-    /** The editing Group's accent. */
+    /** The editing slice's accent, so the chart reads as that population. */
     color = "var(--group-original)",
     min = $bindable(),
     max = $bindable()

@@ -20,7 +20,7 @@
     project,
     /** Filters applied before this one. The load shown is theirs. */
     chain = [],
-    /** The editing Group's accent. */
+    /** The editing slice's accent, so the chart reads as that population. */
     color = "var(--group-original)",
     from = $bindable(),
     to = $bindable()

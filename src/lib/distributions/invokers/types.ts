@@ -5,8 +5,8 @@
 
 export interface CategoryCount {
   value: string;
-  a: number;
-  b: number;
+  /** Events holding this value, by Group id. */
+  counts: Record<string, number>;
 }
 
 /** A Group's five-number summary with Tukey whiskers. Mirrors `BoxStats`. */
@@ -29,15 +29,15 @@ export interface BoxStats {
  * Transition Time carry one; none of it survives the equal-width bins.
  */
 export interface DurationShape {
-  /** Value at percentile `i`, `i` in `0..=100`; the percentile is the index. */
-  ecdfA: number[];
-  ecdfB: number[];
-  boxA: BoxStats | null;
-  boxB: BoxStats | null;
-  /** `logEdges.length === logCountsA.length + 1`; shared by both Groups. */
+  /**
+   * Value at percentile `i`, `i` in `0..=100` — the percentile is the index —
+   * by Group id. A Group with no values is absent rather than empty.
+   */
+  ecdf: Record<string, number[]>;
+  boxStats: Record<string, BoxStats>;
+  /** `logEdges.length === logCounts[id].length + 1`; shared by every Group. */
   logEdges: number[];
-  logCountsA: number[];
-  logCountsB: number[];
+  logCounts: Record<string, number[]>;
 }
 
 export type Distribution =
@@ -47,28 +47,36 @@ export type Distribution =
       values: CategoryCount[];
       /** Distinct values counted, before any cut. */
       distinct: number;
-      /** Every value counted, cut ones included. What makes `Other` exact. */
-      totalA: number;
-      totalB: number;
+      /** Every value counted per Group, cut ones included. What makes `Other` exact. */
+      totals: Record<string, number>;
     }
   | {
       type: "numerical";
-      /** `edges.length === countsA.length + 1`; shared by both Groups. */
+      /** `edges.length === counts[id].length + 1`; shared by every Group. */
       edges: number[];
-      countsA: number[];
-      countsB: number[];
-      nA: number;
-      nB: number;
+      counts: Record<string, number[]>;
+      n: Record<string, number>;
       /** Set for durations only; `null` leaves the card with bars alone. */
       shape: DurationShape | null;
     }
   | { type: "empty" };
 
+/**
+ * One Group's totals at this node. `events` says how much wider `wholeCase` is
+ * than `atStep`, which is the difference the Scope badge is about.
+ */
+export interface GroupTotals {
+  id: string;
+  cases: number;
+  events: number;
+}
+
 export interface ResponseNodeDistributions {
+  /**
+   * The Groups on this card, in the order they were asked for — one ordered
+   * array carrying both order and identity, with everything below keyed by id.
+   */
+  groups: GroupTotals[];
   /** In the order the attributes were requested, so the cards keep theirs. */
   attributes: [string, Distribution][];
-  casesA: number;
-  casesB: number;
-  eventsA: number;
-  eventsB: number;
 }
