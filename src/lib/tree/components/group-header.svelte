@@ -10,8 +10,6 @@
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
   const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
-  // Group names and case counts live on the filter summary bar, which already
-  // names every slice — this strip only carries what that bar cannot say.
   const hasContent = $derived(
     tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !tree.groupB
   );

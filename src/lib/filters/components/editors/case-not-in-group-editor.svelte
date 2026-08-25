@@ -9,11 +9,7 @@
   import { colorVar } from "$lib/format";
   import Users from "@lucide/svelte/icons/users";
 
-  /**
-   * Which Groups can be excluded is decided by the caller — the filter domain
-   * knows nothing about Groups beyond the id it stores, and reaching into their
-   * state here would point the dependency the wrong way.
-   */
+  /** Which Groups can be excluded is decided by the caller. */
   let {
     initial = null,
     excludable,

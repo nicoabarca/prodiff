@@ -1,10 +1,10 @@
 <script lang="ts" generics="T">
   /**
-   * A scrolling list that only renders what is on screen; the windowing
-   * arithmetic lives in `virtualRange`.
+  * A scrolling list that only renders what is on screen; the windowing arithmetic
+  * lives in `virtualRange`.
    *
-   * Rows must all be `rowHeight` tall — the maths assumes it, and a row that
-   * disagrees will drift out of place as the list scrolls.
+  * Rows must all be `rowHeight` tall: the maths assumes it, and a row that
+  * disagrees drifts out of place as the list scrolls.
    */
   import { virtualRange } from "$lib/components/virtual-list/virtual.svelte";
   import type { Snippet } from "svelte";

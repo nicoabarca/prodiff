@@ -54,7 +54,7 @@ mod tests {
     fn keep_selected_trims_events_and_leaves_partial_cases() {
         let df = run(AttributeMode::KeepSelected, &["Gold"]);
         assert_eq!(cases(&df), ["1", "2"]);
-        // Case 2 keeps only its Gold event — the trace is now a sub-sequence.
+        // Case 2 keeps only its Gold event, so the trace is now a sub-sequence.
         assert_eq!(df.height(), 3);
     }
 
@@ -65,7 +65,7 @@ mod tests {
     }
 
     /// The attribute picker offers text and boolean columns only, and Polars
-    /// coerces the literal for the boolean one — so no cast is needed there.
+    /// coerces the literal for the boolean one, so no cast is needed there.
     #[test]
     fn attribute_filter_matches_a_boolean_column() {
         let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 3_000, 4_000])

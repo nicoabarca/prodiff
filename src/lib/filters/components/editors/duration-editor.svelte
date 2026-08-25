@@ -11,9 +11,8 @@
   import ModePicker from "../mode-picker.svelte";
 
   /**
-   * How long a case runs, first event to last. The filter's bounds are days;
-   * the histogram brushes milliseconds, so the two are converted at this
-   * boundary and nowhere else.
+  * How long a case runs, first event to last. The filter's bounds are days and
+  * the histogram brushes milliseconds; the two are converted here and nowhere else.
    */
   let {
     project,
@@ -31,8 +30,8 @@
 
   const DAY_MS = 86_400_000;
 
-  // Seeded once, then owned here: the editor is remounted (via `{#key}`) to
-  // point at a different filter, so tracking the prop would fight the user.
+  // Seeded once, then owned here: the editor is remounted (via `{#key}`) to point
+  // at a different filter.
   const seed = untrack(() => initial);
 
   let mode = $state<NumericMode>(seed?.mode ?? "between");

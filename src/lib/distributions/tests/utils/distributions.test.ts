@@ -6,7 +6,7 @@ import type { AttributeBlock, ResponseDirectedTree, Test, TreeNode } from "$lib/
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 
-/** Named `testResult` rather than `test`, which is Vitest's. */
+/** Named `testResult` because `test` is Vitest's. */
 function testResult(effectSize: number, significant = true): Test {
   return {
     test: "chi2",
@@ -47,7 +47,7 @@ describe("gridAttributes", () => {
   });
 
   test("an untested block sorts below every tested one, whatever the sort", () => {
-    // So the "untested" divider is one cut down the list rather than a scatter.
+    // So the "untested" divider is one cut down the list.
     const n = node({
       Zeta: block(testResult(0.61)),
       Alpha: block(null),
@@ -163,8 +163,8 @@ describe("stepContext", () => {
 });
 
 test("the ladder's index is its percentile", () => {
-  // An off-by-one here reads every duration against the wrong share — and still
-  // looks like a plausible curve.
+  // An off-by-one here reads every duration against the wrong share, and still
+  // draws a plausible curve.
   const ladder = [0, 10, 20, 30, 40];
   expect(shareAt(ladder, 0)).toBe(0);
   expect(shareAt(ladder, 20)).toBe(0.5);
@@ -175,7 +175,7 @@ test("the ladder's index is its percentile", () => {
   // Past the top everything has finished; below the bottom, nothing has.
   expect(shareAt(ladder, 999)).toBe(1);
   expect(shareAt(ladder, -1)).toBe(0);
-  // A Group with no values has no share rather than a share of zero.
+  // A Group with no values has no share, not a share of zero.
   expect(shareAt([], 5)).toBe(null);
   expect(shareAt([7], 7)).toBe(null);
 });

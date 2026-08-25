@@ -118,10 +118,7 @@ export function dependentsOf(group: Group): Group[] {
   );
 }
 
-/**
- * Deletes a Group and everything that excludes it, then re-packs the positions
- * of the rest. Cascading rather than blocking.
- */
+/** Deletes a Group and everything that excludes it, then re-packs the positions. */
 export async function removeGroup(id: string) {
   const group = groups.find((g) => g.id === id);
   if (!group) return;

@@ -1,7 +1,7 @@
 import type { ColumnGranularity, ColumnRole, ColumnType } from "$lib/event-log/invokers/types";
 
-// Roles assignable in the "Required fields" step. Every other ColumnRole —
-// "other" — has no picker; unassigned columns fall through to "other".
+// Roles assignable in the "Required fields" step. Unassigned columns fall
+// through to "other", which has no picker.
 export type AssignableRole = Extract<
   ColumnRole,
   "case_id" | "activity_name" | "complete_timestamp" | "start_timestamp"
@@ -36,7 +36,7 @@ export function emptyAssignments(): Record<AssignableRole, string | null> {
 }
 
 // Granularity and data type for required/start-timestamp roles are fixed by
-// what the role means — the app sets them, not the user.
+// what the role means. The app sets them, not the user.
 export const requiredFieldSettings: Record<
   AssignableRole,
   { granularity: ColumnGranularity; type: ColumnType }

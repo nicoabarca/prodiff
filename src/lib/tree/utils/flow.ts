@@ -12,7 +12,7 @@ import { children, isDivergent, membership } from "$lib/tree/utils/tree";
 import { formatDuration, formatNumber } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
-// lines inside it rather than widening every node to the longest one.
+// lines inside it.
 export const NODE_WIDTH = 170;
 export const NODE_HEIGHT = 80;
 

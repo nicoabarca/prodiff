@@ -1,6 +1,6 @@
-//! The Comparison Directed Tree — a prefix tree over the Variants of two
-//! Groups, with every Node Aggregate and Significance Test computed here and
-//! shipped whole. The frontend renders and filters; it never re-aggregates.
+//! The Comparison Directed Tree: a prefix tree over the Variants of two Groups,
+//! with every Node Aggregate and Significance Test computed here and shipped
+//! whole. The frontend renders and filters; it never re-aggregates.
 //!
 //! Two rules shape the structure:
 //!
@@ -9,7 +9,7 @@
 //! * A Variant that is a strict prefix of another gets its own leaf: node
 //!   identity is `(parent, activity, terminates-here)`, not the prefix alone.
 //!   `A→B` and `A→B→C` therefore give `A` two children both labelled `B`, and
-//!   the cases split between them rather than being counted twice.
+//!   the cases split between them.
 
 pub mod commands;
 pub mod distributions;
@@ -19,20 +19,18 @@ use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnR
 use polars::prelude::*;
 use std::collections::HashMap;
 
-/// Derived attributes. Not columns of the log — the picker offers them
-/// alongside the mapped ones and they cost test budget like any other.
+/// Derived attributes. Not columns of the log: the picker offers them alongside
+/// the mapped ones and they cost test budget like any other.
 pub const ACTIVITY_DURATION: &str = "Activity Duration";
 pub const TRANSITION_TIME: &str = "Transition Time";
 
-/// Neither test says anything below this. Hardcoded rather than exposed:
-/// lowering it manufactures findings instead of revealing them.
+/// Neither test says anything below this.
 const MIN_GROUP_CASES: usize = 5;
 /// How many Variants a build ships at most, so a pathological log can't hand
 /// the renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
 const MAX_VARIANTS: usize = 400;
 /// What a build with no explicit limit opens on: the fewest Variants holding
-/// this share of the cases, so a first look is the common behaviour rather
-/// than the tail.
+/// this share of the cases.
 const DEFAULT_COVERAGE: f64 = 0.8;
 const ALPHA: f64 = 0.05;
 
@@ -50,12 +48,10 @@ pub enum Summary {
         q3: f64,
         max: f64,
         /// Tukey whiskers: the extreme observations still within 1.5·IQR of the
-        /// box. Shipped alongside `min`/`max` rather than instead of them —
-        /// they are what a box plot's whiskers reach to, while `min`/`max` are
-        /// what the panel says the full range was.
+        /// box. `min`/`max` are the full range the panel reports.
         whisker_low: f64,
         whisker_high: f64,
-        /// Observations past the whiskers, counted rather than listed.
+        /// Observations past the whiskers, as a count.
         outliers_low: usize,
         outliers_high: usize,
     },
@@ -80,7 +76,7 @@ pub struct Test {
     pub test: &'static str,
     pub statistic: f64,
     pub p_value: f64,
-    /// Magnitude only — rank-biserial for Mann-Whitney, Cramér's V for chi².
+    /// Magnitude only: rank-biserial for Mann-Whitney, Cramér's V for chi².
     pub effect_size: f64,
     /// Signed rank-biserial: positive = Group A higher. `None` for chi², which
     /// is non-directional.
@@ -95,8 +91,7 @@ pub struct Test {
 pub struct AttributeBlock {
     pub group_a: Option<Summary>,
     pub group_b: Option<Summary>,
-    /// `None` when either Group has fewer than five cases here — a node one
-    /// Group never reaches has nothing to compare.
+    /// `None` when either Group has fewer than five cases here.
     pub test: Option<Test>,
 }
 
@@ -124,19 +119,17 @@ pub struct TreeNode {
     /// whenever Transition Time wasn't selected.
     pub transition_time: Option<AttributeBlock>,
     pub comovement: Vec<Comovement>,
-    /// The Variant this node terminates, `None` on every other node. Every
-    /// path from the root ends at exactly one of these, so it is what the view
-    /// tests against the selected Variants — matching on the key the build
-    /// itself used rather than re-joining node labels, which would silently
-    /// draw nothing if the two ever disagreed on separator or root handling.
+    /// The Variant this node terminates, `None` on every other node. Every path
+    /// from the root ends at exactly one of these, so it is what the view tests
+    /// against the selected Variants, on the key the build itself used.
     pub variant_key: Option<String>,
 }
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GroupBlock {
-    /// Cases surviving the Group's filter chain — before the variant cut, so
-    /// it can exceed the root node's count.
+    /// Cases surviving the Group's filter chain, before the variant cut, so it
+    /// can exceed the root node's count.
     pub case_count: i64,
     pub case_level: HashMap<String, Summary>,
 }
@@ -149,8 +142,8 @@ pub struct DirectedTree {
     /// `None` in one-Group mode, where nothing is compared and no test runs.
     pub group_b: Option<GroupBlock>,
     pub case_level_tests: HashMap<String, Test>,
-    /// Cases in both Groups. Non-zero means the samples aren't independent,
-    /// which both tests assume — the view warns rather than refusing.
+    /// Cases in both Groups. Non-zero means the samples are not independent,
+    /// which both tests assume. The view warns.
     pub overlap_cases: i64,
     pub variants_total: usize,
     pub variants_included: usize,
@@ -244,8 +237,7 @@ struct GroupRows {
     /// Per attribute, parallel to the `AttrSpec` list.
     values: Vec<Values>,
     /// Time into each event from the previous one; `None` at a case's first
-    /// event. Present regardless of whether the user selected it — computing it
-    /// costs one pass and the selection only decides whether it is shipped.
+    /// event. Always computed; the selection only decides whether it is shipped.
     transition: Vec<Option<f64>>,
 }
 
@@ -387,7 +379,7 @@ fn read_group(
 
     // Transition into event N: from the previous event's completion to this
     // one's start when start timestamps exist, otherwise completion to
-    // completion — which absorbs activity N's own duration.
+    // completion, which absorbs activity N's own duration.
     let mut transition = vec![None; cases.len()];
     for &(from, to) in &bounds {
         for r in (from + 1)..to {
@@ -416,10 +408,8 @@ fn variant_key(rows: &GroupRows, case: usize) -> String {
     rows.activities[from..to].join("\u{1}")
 }
 
-/// Counts cases per Variant across both Groups. The census the cut and the
-/// picker both read from — `list_variants` ships it to the view so the user can
-/// choose from every Variant the filtered log has, not only the ones a previous
-/// build happened to include.
+/// Counts cases per Variant across both Groups. `list_variants` ships this to
+/// the view, so the picker lists every Variant the filtered log has.
 fn variant_counts(groups: &[Option<GroupRows>; 2]) -> HashMap<String, [i64; 2]> {
     let mut counts: HashMap<String, [i64; 2]> = HashMap::new();
     for (group, rows) in groups.iter().enumerate() {
@@ -432,8 +422,7 @@ fn variant_counts(groups: &[Option<GroupRows>; 2]) -> HashMap<String, [i64; 2]> 
 }
 
 /// The Variant census for the picker. Reads only the case-id and activity
-/// columns — no attributes, no aggregation — which is what separates this from
-/// a build and keeps it cheap enough to run on opening a panel.
+/// columns, so it is cheap enough to run on opening a panel.
 pub fn variant_rows(
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
@@ -459,16 +448,13 @@ pub fn variant_rows(
 
 /// The Variants to include. This cut runs *before* anything is accumulated, so
 /// every Node Aggregate and Significance Test downstream describes exactly the
-/// Variants included and no others — which is why the selection is a build
-/// input and not something the view can apply to a tree already in hand.
+/// Variants included, which is why the selection is a build input.
 ///
-/// `selection` is what the picker has checked, as of the last build. `None` is
-/// a cold build with nothing to honour yet, and opens on `DEFAULT_COVERAGE` of
-/// the cases — the same set the picker seeds itself with.
+/// `selection` is what the picker has checked, as of the last build. `None` is a
+/// cold build and opens on `DEFAULT_COVERAGE` of the cases.
 ///
-/// A selected Variant that no longer exists under these chains is dropped
-/// rather than failing the build: the frontend intersects on its side too, but
-/// the chains can change between the picker's last read and this call.
+/// A selected Variant that no longer exists under these chains is dropped: the
+/// chains can change between the picker's last read and this call.
 fn cut_variants(
     groups: &[Option<GroupRows>; 2],
     selection: Option<&[String]>,
@@ -493,9 +479,9 @@ fn cut_variants(
     };
 
     if let Some(selection) = selection {
-        // The ceiling still binds: it exists to stop a pathological selection
-        // handing the renderer tens of thousands of nodes. Ordering by cases
-        // keeps the truncation predictable rather than arbitrary.
+        // The ceiling still binds, to stop a pathological selection handing the
+        // renderer tens of thousands of nodes. Ordering by cases keeps the
+        // truncation predictable.
         let mut kept: Vec<String> = selection
             .iter()
             .filter(|k| counts.contains_key(*k))
@@ -521,8 +507,7 @@ fn cut_variants(
     let mut included = Vec::new();
     let mut covered = 0;
     for (key, count) in ordered {
-        // At least one Variant always survives: an empty tree is never what a
-        // cold build meant.
+        // At least one Variant always survives.
         if covered >= target && !included.is_empty() {
             break;
         }
@@ -538,7 +523,7 @@ fn cut_variants(
 
 /// Builds the tree and everything hanging off it. `group_b` is `None` in
 /// one-Group mode, where no test runs anywhere. `selection` is the picker's
-/// checked Variants — see `cut_variants` for what `None` means.
+/// checked Variants; see `cut_variants` for what `None` means.
 pub fn build(
     group_a: &DataFrame,
     group_b: Option<&DataFrame>,
@@ -560,8 +545,8 @@ pub fn build(
         cut_variants(&groups, selection);
     let included: std::collections::HashSet<String> = included.into_iter().collect();
 
-    // Index `attrs.len()` is the transition into the node, which is scoped to
-    // the edge rather than the event but accumulates identically.
+    // Index `attrs.len()` is the transition into the node, scoped to the edge
+    // but accumulating identically.
     let acc_count = attrs.len() + usize::from(wants_transition);
     let new_accs = || -> Vec<[Acc; 2]> {
         attrs
@@ -694,8 +679,7 @@ pub fn build(
         .zip(blocks)
         .map(|((id, node), node_blocks)| {
             // Co-movement compares Effect Directions, so it needs two numeric
-            // attributes that both actually moved — a pair where neither
-            // difference is real says nothing about how they move together.
+            // attributes that both actually moved.
             let directions: Vec<(usize, f64)> = node_blocks
                 .iter()
                 .enumerate()
@@ -770,9 +754,9 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
     b.case_ids.iter().filter(|id| ids.contains(id)).count() as i64
 }
 
-/// Case-level attributes aggregate per Group rather than per node — one value
-/// per case, taken from its first event. Computed over the whole Group, before
-/// the coverage cut, so it matches `case_count`.
+/// Case-level attributes aggregate per Group, not per node: one value per case,
+/// taken from its first event. Computed over the whole Group, before the
+/// coverage cut, so it matches `case_count`.
 fn case_level_blocks(
     groups: &[Option<GroupRows>; 2],
     df_a: &DataFrame,
@@ -915,7 +899,7 @@ mod tests {
         build(a, b, &mapping(), &attributes, None).unwrap()
     }
 
-    /// The key the builder gives a trace — activities joined the way
+    /// The key the builder gives a trace: activities joined the way
     /// `variant_key` joins them, so tests select the way the picker does.
     fn key(activities: &[&str]) -> String {
         activities.join("\u{1}")
@@ -955,7 +939,7 @@ mod tests {
     }
 
     /// A Variant that is a strict prefix of another gets its own leaf, and the
-    /// cases split between the two nodes rather than being counted twice.
+    /// cases split between the two nodes.
     #[test]
     fn a_prefix_variant_gets_its_own_terminal_node() {
         let df = log(&[
@@ -976,9 +960,8 @@ mod tests {
         );
     }
 
-    /// A build with no limit opens on the common behaviour rather than the
-    /// tail, and reports the whole log's Variant count so the slider knows how
-    /// far it can travel.
+    /// A build with no limit opens on the common behaviour, and reports the
+    /// whole log's Variant count so the slider knows how far it can travel.
     #[test]
     fn an_unlimited_build_opens_on_the_default_coverage() {
         // Nine cases share the variant `A`; `B` and `C` are one case each, so
@@ -1066,9 +1049,9 @@ mod tests {
         assert!((tree.case_coverage - 0.5).abs() < 1e-9);
     }
 
-    /// The point of cutting Variants in the builder rather than in the view:
-    /// every Node Aggregate is re-derived over exactly the Variants included,
-    /// so a shared node stops describing cases that are no longer on screen.
+    /// Cutting Variants in the builder re-derives every Node Aggregate over
+    /// exactly the Variants included, so a shared node stops describing cases
+    /// that are no longer on screen.
     #[test]
     fn cutting_a_variant_re_derives_the_aggregates_of_the_nodes_above_it() {
         // Six cases go `A→B` at cost 10; five go `A→C` at cost 100. `A` is

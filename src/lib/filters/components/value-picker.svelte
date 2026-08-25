@@ -8,9 +8,8 @@
   import Search from "@lucide/svelte/icons/search";
 
   /**
-   * One checkable list of a column's values. The search term is the picker's
-   * own — a filter kind that shows two lists gives each its own box, and
-   * neither the term nor the filtering reaches the editor around it.
+  * One checkable list of a column's values. The search term is the picker's own,
+  * so neither it nor the filtering reaches the editor around it.
    */
   let {
     label,

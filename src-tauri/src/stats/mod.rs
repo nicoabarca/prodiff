@@ -1,4 +1,4 @@
-//! Statistics derived from an Event Log. `summarize` is the whole surface —
+//! Statistics derived from an Event Log. `summarize` is the whole surface:
 //! callers hand over a DataFrame and the Column Mapping and get every figure
 //! the dashboard shows.
 
@@ -120,8 +120,7 @@ fn timestamps_as_millis(df: &DataFrame, column: &str) -> Result<Vec<i64>, String
 }
 
 /// Mean, median, min and max case duration, all `None` for an empty log.
-/// Aggregated in Polars rather than over a collected column so the empty case
-/// falls out naturally instead of dividing by zero.
+/// Aggregated in Polars so the empty case does not divide by zero.
 type DurationSummary = (Option<f64>, Option<f64>, Option<f64>, Option<f64>);
 
 fn duration_summary(per_case: &DataFrame) -> Result<DurationSummary, String> {
@@ -157,8 +156,8 @@ fn duration_summary(per_case: &DataFrame) -> Result<DurationSummary, String> {
 }
 
 /// One row per case: its trace, its endpoints and its duration. Every
-/// case-shaped metric is derived from this single frame rather than a group_by
-/// each — a variant is a distinct ordered sequence of activities within a case.
+/// case-shaped metric is derived from this frame. A variant is a distinct
+/// ordered sequence of activities within a case.
 fn per_case(
     df: &DataFrame,
     case_col: &str,
@@ -194,7 +193,7 @@ mod tests {
     use super::*;
 
     /// Exactly the shape the frontend sends (see buildColumnMapping in
-    /// mapping/+page.svelte) — pins the serde contract across the seam.
+    /// mapping/+page.svelte). Pins the serde contract across the seam.
     fn frontend_mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[

@@ -1,5 +1,5 @@
-//! Commands that take a Filter List rather than a Group id, plus the pickers
-//! the editor fills its controls from. Nothing here persists.
+//! Commands that take a Filter List, not a Group id, plus the pickers the
+//! editor fills its controls from. Nothing here persists.
 
 use super::queries::{
     case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,

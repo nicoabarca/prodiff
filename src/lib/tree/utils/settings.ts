@@ -1,7 +1,7 @@
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
 
-/** Derived attributes — not columns, but selectable like any other. */
+/** Derived attributes: not columns, but selectable like any other. */
 export const ACTIVITY_DURATION = "Activity Duration";
 export const TRANSITION_TIME = "Transition Time";
 

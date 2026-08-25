@@ -1,6 +1,6 @@
 /**
- * What the Distributions view decides — the Scope it counts under, the encoding
- * a duration is read in, and the shapes the grid draws.
+* What the Distributions view decides: the Scope it counts under, the encoding a
+* duration is read in, and the shapes the grid draws.
  */
 import type { Test } from "$lib/tree/invokers/types";
 
@@ -31,9 +31,9 @@ export const ENCODING_LABEL: Record<Encoding, string> = {
 };
 
 /**
- * The selected option of a plot control, in the theme's indigo. The full
- * variant chain is repeated rather than shortened: the `border-l-0` it has to
- * beat carries all of it, and a shorter selector loses on specificity.
+* The selected option of a plot control. The full variant chain is repeated
+* because the `border-l-0` it has to beat carries all of it, and a shorter
+* selector loses on specificity.
  */
 export const PLOT_TOGGLE = [
   "data-[state=on]:border-primary",
@@ -60,7 +60,7 @@ export interface Bar {
   label: string;
   a: number;
   b: number;
-  /** Set on the `Other` bucket, which is a fold rather than a value. */
+  /** Set on the `Other` bucket, which is a fold, not a value. */
   collapsed?: number;
 }
 

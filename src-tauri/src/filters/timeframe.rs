@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn timeframe_distinguishes_intersecting_from_contained() {
-        // Window covers ts 1000..2500 — case 1 straddles it, case 2 does too.
+        // Window covers ts 1000..2500: case 1 straddles it, case 2 does too.
         let intersects = run(TimeframeMode::Intersects, 1000, 2500);
         assert_eq!(cases(&intersects), ["1", "2"]);
         // Nothing is fully inside that window, but case 1 is inside 0..1000.

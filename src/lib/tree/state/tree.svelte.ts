@@ -98,8 +98,7 @@ export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
  * The Groups being compared, in position order. Only applied Groups can be
- * read, and with none applied the tree falls back to the Original. Capped at
- * two here rather than in the payload, which admits N.
+* read, and with none applied the tree falls back to the Original. Capped at two.
  */
 export function comparedGroups(): [Group, Group | null] {
   const applied = groups.filter((group) => group.stats !== null);

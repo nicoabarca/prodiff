@@ -45,7 +45,7 @@ pub fn applied_groups(
         .collect()
 }
 
-/// Cases in both Groups. Reported rather than removed (see `docs/adr/0006`).
+/// Cases in both Groups. Reported, never removed.
 #[tauri::command]
 pub fn shared_cases(
     app: tauri::AppHandle,

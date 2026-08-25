@@ -12,8 +12,7 @@ export interface DurationFilter {
 const DAY_MS = 86_400_000;
 
 export function describeDuration(filter: DurationFilter): { title: string; detail: string } {
-  // Bounds are days but read as durations — a brushed range is rarely a whole
-  // number of them.
+  // Bounds are days but read as durations: a brushed range is rarely a whole number.
   const span = (days: number | null) => (days === null ? "∞" : formatDuration(days * DAY_MS));
   return {
     title: "Case duration",

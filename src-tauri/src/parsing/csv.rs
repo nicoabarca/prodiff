@@ -5,9 +5,8 @@ use std::path::PathBuf;
 
 const CANDIDATE_SEPARATORS: &[u8] = &[b',', b';', b'\t', b'|'];
 
-/// Sniffs the delimiter from the header line rather than assuming comma —
-/// e.g. many European-locale exports use `;` (comma is the decimal separator
-/// there, so tools avoid it as a column delimiter).
+/// Sniffs the delimiter from the header line. Many European-locale exports use
+/// `;`, since comma is the decimal separator there.
 fn detect_separator(path: &str) -> u8 {
     let Ok(file) = File::open(path) else {
         return b',';
@@ -41,10 +40,9 @@ pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFr
 
 pub(crate) fn column_to_strings(df: &DataFrame, name: &str) -> Result<Vec<String>, String> {
     let series = df.column(name).map_err(|e| e.to_string())?;
-    // AnyValue's Display impl wraps String values in literal quotes (it's
-    // meant for debug-printing); str_value() gives the raw value instead. Its
-    // Null variant str_value()s to the literal text "null", which reads like
-    // real data in a preview — surface missing values as empty instead.
+    // AnyValue's Display impl wraps String values in literal quotes; str_value()
+    // gives the raw value. Its Null variant str_value()s to the text "null",
+    // which reads like real data, so missing values are surfaced as empty.
     Ok((0..series.len())
         .map(|i| match series.get(i) {
             Ok(AnyValue::Null) | Err(_) => String::new(),
