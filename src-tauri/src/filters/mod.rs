@@ -8,6 +8,7 @@ mod duration;
 mod endpoint;
 mod enums;
 mod follower;
+mod group_membership;
 mod numeric;
 mod predicates;
 pub(crate) mod queries;
@@ -19,6 +20,12 @@ pub(crate) use predicates::timestamp_millis;
 
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use polars::prelude::*;
+use std::collections::{HashMap, HashSet};
+
+/// Case ids to exclude, by Group id. Resolved before a Filter List runs, since
+/// `case_not_in_group` reads another Group's file rather than the current
+/// frame; every other kind ignores it.
+pub type ExcludedCases = HashMap<String, HashSet<String>>;
 
 /// Applies one filter. `case_col` drives every case-level lift.
 fn apply_one(
@@ -27,6 +34,7 @@ fn apply_one(
     case_col: &str,
     activity_col: &str,
     timestamp_col: &str,
+    excluded: &ExcludedCases,
 ) -> Result<LazyFrame, String> {
     match filter {
         Filter::Attribute {
@@ -57,21 +65,27 @@ fn apply_one(
             reference,
             follower,
         } => follower::apply(lf, column, *mode, reference, follower, case_col),
+        Filter::CaseNotInGroup { group_id } => group_membership::apply(
+            lf,
+            excluded.get(group_id).unwrap_or(&HashSet::new()),
+            case_col,
+        ),
     }
 }
 
-/// Applies a whole chain in order. An empty chain is the identity.
+/// Applies a whole Filter List in order. An empty one is the identity.
 pub fn apply(
     lf: LazyFrame,
     filters: &[Filter],
     mapping: &[ColumnMapping],
+    excluded: &ExcludedCases,
 ) -> Result<LazyFrame, String> {
     let case_col = require_role(mapping, ColumnRole::CaseId)?.to_string();
     let activity_col = require_role(mapping, ColumnRole::ActivityName)?.to_string();
     let timestamp_col = require_role(mapping, ColumnRole::CompleteTimestamp)?.to_string();
 
     filters.iter().try_fold(lf, |acc, f| {
-        apply_one(acc, f, &case_col, &activity_col, &timestamp_col)
+        apply_one(acc, f, &case_col, &activity_col, &timestamp_col, excluded)
     })
 }
 
@@ -137,7 +151,7 @@ pub(crate) mod tests {
     use support::{cases, log, mapping, parse};
 
     fn run(filters: &[Filter]) -> DataFrame {
-        apply(log().lazy(), filters, &mapping())
+        apply(log().lazy(), filters, &mapping(), &ExcludedCases::new())
             .unwrap()
             .collect()
             .unwrap()

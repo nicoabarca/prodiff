@@ -2,8 +2,8 @@
 //! the editor fills its controls from. Nothing here persists.
 
 use super::queries::{
-    case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
-    measure, read_event_log,
+    case_durations, case_ids, case_spans, cell_to_string, count_values, daily_load, filtered,
+    histogram, measure, read_event_log,
 };
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTable};
 use super::Endpoint;
@@ -25,7 +25,7 @@ pub fn filters_impact(
     let mut steps = Vec::with_capacity(filters.len() + 1);
     steps.push(measure(&df, case_col)?);
     for filter in &filters {
-        df = filtered(&df, std::slice::from_ref(filter), &columns)?;
+        df = filtered(&app, &project_id, &df, std::slice::from_ref(filter), &columns)?;
         steps.push(measure(&df, case_col)?);
     }
     Ok(steps)
@@ -43,12 +43,8 @@ pub fn shared_cases(
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let df = read_event_log(&app, &project_id)?;
 
-    let ids = |chain: &[Filter]| -> Result<std::collections::HashSet<String>, String> {
-        let filtered = filtered(&df, chain, &columns)?;
-        let column = filtered.column(case_col).map_err(|e| e.to_string())?;
-        Ok((0..filtered.height())
-            .map(|i| cell_to_string(column, i))
-            .collect())
+    let ids = |filters: &[Filter]| -> Result<std::collections::HashSet<String>, String> {
+        case_ids(&filtered(&app, &project_id, &df, filters, &columns)?, case_col)
     };
 
     let a = ids(&chain_a)?;
@@ -66,7 +62,7 @@ pub fn duration_histogram(
 ) -> Result<Vec<DurationBin>, String> {
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
-    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    let df = filtered(&app, &project_id, &read_event_log(&app, &project_id)?, &chain, &columns)?;
     Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
 }
 
@@ -80,7 +76,7 @@ pub fn daily_case_load(
 ) -> Result<Vec<DayLoad>, String> {
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
-    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    let df = filtered(&app, &project_id, &read_event_log(&app, &project_id)?, &chain, &columns)?;
     Ok(daily_load(&case_spans(df, case_col, timestamp_col)?))
 }
 
@@ -92,7 +88,7 @@ pub fn group_preview(
     columns: Vec<ColumnMapping>,
     limit: usize,
 ) -> Result<PreviewTable, String> {
-    let df = filtered(&read_event_log(&app, &project_id)?, &filters, &columns)?;
+    let df = filtered(&app, &project_id, &read_event_log(&app, &project_id)?, &filters, &columns)?;
     let total_events = df.height();
     let page = df.head(Some(limit));
 

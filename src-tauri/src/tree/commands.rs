@@ -5,25 +5,9 @@
 use super::distributions::{distributions, NodeDistributions, Scope};
 use super::{build, DirectedTree};
 use crate::column_mapping::ColumnMapping;
-use crate::event_log::storage::event_log_path;
-use crate::filters::{apply, Filter};
-use polars::prelude::*;
+use crate::filters::queries::{filtered, read_event_log as read_log};
+use crate::filters::Filter;
 
-fn filtered(
-    df: &DataFrame,
-    chain: &[Filter],
-    columns: &[ColumnMapping],
-) -> Result<DataFrame, String> {
-    apply(df.clone().lazy(), chain, columns)?
-        .collect()
-        .map_err(|e| e.to_string())
-}
-
-fn read_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFrame, String> {
-    let path = event_log_path(app, project_id)?;
-    let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
-    ParquetReader::new(file).finish().map_err(|e| e.to_string())
-}
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to
@@ -53,9 +37,9 @@ pub fn list_variants(
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
     let df = read_log(&app, &project_id)?;
-    let a = filtered(&df, &group_a, &columns)?;
+    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
     let b = match &group_b {
-        Some(chain) => Some(filtered(&df, chain, &columns)?),
+        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
         None => None,
     };
 
@@ -93,9 +77,9 @@ pub fn directed_tree(
 ) -> Result<DirectedTree, String> {
     let df = read_log(&app, &project_id)?;
 
-    let a = filtered(&df, &group_a, &columns)?;
+    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
     let b = match &group_b {
-        Some(chain) => Some(filtered(&df, chain, &columns)?),
+        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
         None => None,
     };
 
@@ -132,9 +116,9 @@ pub fn node_distributions(
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
     let df = read_log(&app, &project_id)?;
-    let a = filtered(&df, &group_a, &columns)?;
+    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
     let b = match &group_b {
-        Some(chain) => Some(filtered(&df, chain, &columns)?),
+        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
         None => None,
     };
 

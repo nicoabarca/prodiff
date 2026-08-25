@@ -7,6 +7,11 @@
  * copy, and its arms of the two functions below, mirroring `mod.rs`.
  */
 import {
+  describeCaseNotInGroup,
+  isCaseNotInGroupComplete,
+  type CaseNotInGroupFilter
+} from "$lib/filters/kind/case-not-in-group";
+import {
   describeAttribute,
   isAttributeComplete,
   type AttributeFilter
@@ -39,7 +44,8 @@ export type Filter =
   | TimeframeFilter
   | EndpointFilter
   | DurationFilter
-  | FollowerFilter;
+  | FollowerFilter
+  | CaseNotInGroupFilter;
 export type FilterKind = Filter["kind"];
 
 /** The column a filter reads, or `null` for filters not tied to one. */
@@ -64,6 +70,8 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
       return describeDuration(filter);
     case "follower":
       return describeFollower(filter);
+    case "case_not_in_group":
+      return describeCaseNotInGroup(filter);
   }
 }
 
@@ -85,5 +93,7 @@ export function isFilterComplete(filter: Filter): boolean {
       return isDurationComplete(filter);
     case "follower":
       return isFollowerComplete(filter);
+    case "case_not_in_group":
+      return isCaseNotInGroupComplete(filter);
   }
 }
