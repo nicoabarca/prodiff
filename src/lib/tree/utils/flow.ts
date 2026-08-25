@@ -59,8 +59,8 @@ function significantCount(node: TreeNode): number {
  * The node's second line, one entry per Group so each carries its colour. An
  * entry is `null` when that Group has nothing at this node.
  *
- * `secondary` is either `"cases"`, one Group's id — which shows that Group's
- * count alone — or an attribute name, which shows its mean.
+ * `secondary` is either `"cases"`, one Group's id, which shows that Group's
+ * count alone, or an attribute name, which shows its mean.
  */
 function secondaryLabels(
   node: TreeNode,

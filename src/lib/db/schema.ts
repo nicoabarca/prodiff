@@ -22,10 +22,9 @@ export const projects = sqliteTable("projects", {
 });
 
 /**
- * Groups belong to a project and are deleted with it (see `removeProject`).
- * The row is written before the Parquet it names, so a file without a row is
- * unreachable; `stats` is filled by the same pass that writes that file, which
- * makes a null one mean "not applied yet" rather than "not measured yet".
+ * Groups belong to a project and are deleted with it (see `removeProject`). The
+ * row is written before the Parquet it names, so a file without a row is
+ * unreachable. A null `stats` means the Group has no Parquet yet.
  */
 export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
@@ -40,12 +39,8 @@ export const groups = sqliteTable("groups", {
 });
 
 /**
- * Which Groups the tree compares, per project. Its own table rather than a
- * column on `tree_settings`: every table is created idempotently at startup,
- * so a new one needs no migration where a new column would.
- *
- * The ids are ordered and hold one or two entries; `original` is the whole
- * Event Log, which is what a project with no Groups compares.
+ * Which Groups the tree compares, per project. The ids are ordered and hold one
+ * or two entries; `original` is the whole Event Log.
  */
 export const comparisons = sqliteTable("comparisons", {
   projectId: text("project_id").primaryKey(),
@@ -53,11 +48,9 @@ export const comparisons = sqliteTable("comparisons", {
 });
 
 /**
- * What the Comparison Directed Tree is built from — the attributes to test and
- * the Variants to include. Its own table: every table is created idempotently
- * at startup, so a new one needs no migration where a new column would.
- *
- * The tree itself is not cached here; it lives in memory while the app is open.
+ * What the Comparison Directed Tree is built from: the attributes to test and
+ * the Variants to include. The tree itself is never cached; it lives in memory
+ * while the app is open.
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),

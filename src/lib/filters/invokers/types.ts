@@ -1,6 +1,6 @@
 /**
  * The invocation contracts for the commands that populate a filter editor's
-* pickers. Each mirrors a serde struct in `src-tauri/src/filters/structs.rs`.
+ * pickers. Each mirrors a serde struct in `src-tauri/src/filters/structs.rs`.
  */
 
 /** One day of the log's case load, counted in UTC on the Rust side. */

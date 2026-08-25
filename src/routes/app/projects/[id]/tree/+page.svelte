@@ -68,9 +68,7 @@
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
       <div class="ml-auto flex items-center gap-2">
-        <!-- Which groups the tree measures against, and what they share —
-             overlap is settled here, at selection time, rather than left for
-             the reader to notice on the finished tree. -->
+                <!-- Which groups the tree measures against, and what they share. -->
         <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
@@ -148,7 +146,7 @@
               {#if !groupsLoaded.projectId}
                 Loading slices…
               {:else if !groups[0]}
-                Create a slice in the Filters view first — a slice defines a group.
+                Create a slice in the Filters view first. A slice defines a group.
               {:else if !groups[1]}
                 Only one slice exists, so the tree will render without comparisons. Add a second
                 slice to compare two groups.

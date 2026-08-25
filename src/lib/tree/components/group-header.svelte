@@ -19,7 +19,7 @@
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
     {#if !comparing}
-      <Badge variant="secondary" class="self-start">One group — no comparison</Badge>
+      <Badge variant="secondary" class="self-start">One group, no comparison</Badge>
     {/if}
 
     {#if tree.overlapCases > 0}
@@ -37,7 +37,7 @@
 
     {#if tree.cappedByCeiling}
       <p class="text-muted-foreground text-[0.6875rem]">
-        The log has more Variants than a build ships — the rarest ones are not in this tree at all,
+        The log has more Variants than a build ships. The rarest ones are not in this tree at all,
         whatever the slider says.
       </p>
     {/if}

@@ -152,7 +152,7 @@
         {formatNumber(visible.variantsShown)} variants shown
         {#if visible.variantsHidden > 0}
           · {formatNumber(visible.variantsHidden)} hidden by these two filters, which draw less of the
-          built tree without rebuilding it — the aggregates and tests still describe every variant the
+          built tree without rebuilding it. The aggregates and tests still describe every variant the
           last build included.
         {/if}
         {#if view.collapsed.size > 0}

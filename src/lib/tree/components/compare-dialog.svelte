@@ -2,10 +2,9 @@
   /**
    * Picks the two Groups the tree compares, and reports what they share.
    *
-   * Overlap is reported rather than removed: taking the intersection out at
-   * event level would fabricate traces no case ever walked. The way out is a
-   * Difference Group — the second Group's filters plus one excluding the
-   * first's cases — which the user builds from here (`docs/adr/0006`).
+   * Overlap is reported, never removed: taking the intersection out at event level
+   * would fabricate traces no case walked. A Difference Group is the way out, and
+   * is built from here.
    */
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
@@ -69,9 +68,8 @@
   }
 
   /**
-   * Builds the Difference Group and compares against it instead. The tree is
-   * left to rebuild on its own — the user goes back to it while the new Group's
-   * Parquet is written.
+   * Builds the Difference Group and compares against it. The tree rebuilds on its
+   * own while the new Group's Parquet is written.
    */
   async function compareDifference() {
     if (!both) return;

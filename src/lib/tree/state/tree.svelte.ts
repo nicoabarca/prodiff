@@ -20,8 +20,8 @@ import type { Project } from "$lib/event-log/types";
 import type { Group } from "$lib/groups/types";
 
 /**
- * The built tree, in memory only: it survives navigating between views but
- * not a reload. One slot — switching projects drops the previous tree.
+ * The built tree, in memory only: it survives navigating between views but not a
+ * reload. One slot, so switching projects drops the previous tree.
  */
 export const built = $state<{
   projectId: string | null;
@@ -38,8 +38,8 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
 });
 
 /**
- * What is hidden, collapsed or dimmed. Nothing here reaches the backend — the
- * one input that does, which Variants to include, lives in `settings`.
+ * What is hidden, collapsed or dimmed. Nothing here reaches the backend; the one
+ * input that does, which Variants to include, lives in `settings`.
  */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
@@ -205,9 +205,9 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and selected Variants.
- * Never automatic — every input here, the Variant selection included, waits
- * for the button. An empty selection lets the backend pick by coverage.
+ * Builds the tree for the current Groups, settings and selected Variants. Never
+ * automatic: every input waits for the button. An empty selection lets the
+ * backend pick by coverage.
  */
 export async function build(project: Project) {
   if (built.building) return;

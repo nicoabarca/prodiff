@@ -46,14 +46,14 @@ export function pathTo(tree: ResponseDirectedTree, id: number): TreeNode[] {
 }
 
 /**
-* How far past the step its context reaches. Any depth works, `Infinity` included.
+ * How far past the step its context reaches. Any depth works, `Infinity` included.
  */
 export const CONTEXT_DEPTH = 1;
 
 /**
  * The nodes one step is read in the context of: its own trace down from the
  * root, and what the cases reaching it go on to do next. Siblings on other
-* traces are left out.
+ * traces are left out.
  */
 export function stepContext(
   tree: ResponseDirectedTree,
@@ -94,7 +94,7 @@ export function groupIds(tree: ResponseDirectedTree): string[] {
  * Which nodes render. Pruning works on whole Variants, so a surviving path is
  * always a trace some case followed; collapsing is applied afterwards.
  * Unchecking a Variant prunes it at once, but the aggregates above it still
-* describe it until the next build, which is why that marks the tree stale.
+ * describe it until the next build, which is why that marks the tree stale.
  */
 export function visibleNodes(
   tree: ResponseDirectedTree,
@@ -161,7 +161,7 @@ export function visibleNodes(
 }
 
 /**
-* Distance from the synthetic Start root: 0 at the root, 1 at the first
+ * Distance from the synthetic Start root: 0 at the root, 1 at the first
  * activity. The node at depth `d` is the `d`th activity of every case there.
  */
 export function nodeDepth(tree: ResponseDirectedTree, id: number): number {
@@ -169,7 +169,7 @@ export function nodeDepth(tree: ResponseDirectedTree, id: number): number {
 }
 
 /**
-* The Variant keys of every leaf under `id` that survived pruning: how a node
+ * The Variant keys of every leaf under `id` that survived pruning: how a node
  * is named to the backend when asking for its Distributions. Keyed off
  * `visible.cases`, not `visible.ids`, so collapsing a subtree never changes
  * which cases the charts describe.
@@ -195,7 +195,7 @@ export function subtreeVariants(
 
 /**
  * The nodes one Variant runs through, restricted to what is on screen. Empty
-* when that Variant isn't in this tree: unselected, pruned, or too new.
+ * when that Variant isn't in this tree: unselected, pruned, or too new.
  */
 export function variantPath(
   tree: ResponseDirectedTree,

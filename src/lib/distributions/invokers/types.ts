@@ -1,6 +1,6 @@
 /**
-* The value counts behind one node's charts, as Rust ships them. Every type here
-* mirrors a serde struct in `src-tauri/src/tree/distributions.rs`.
+ * The value counts behind one node's charts, as Rust ships them. Every type here
+ * mirrors a serde struct in `src-tauri/src/tree/distributions.rs`.
  */
 
 export interface CategoryCount {
@@ -29,10 +29,10 @@ export interface BoxStats {
  * Transition Time carry one; none of it survives the equal-width bins.
  */
 export interface DurationShape {
-  /**
-   * Value at percentile `i`, `i` in `0..=100` — the percentile is the index —
-   * by Group id. A Group with no values is absent rather than empty.
-   */
+    /**
+     * Value at percentile `i`, `i` in `0..=100`, by Group id. The percentile is
+     * the index. A Group with no values is absent.
+     */
   ecdf: Record<string, number[]>;
   boxStats: Record<string, BoxStats>;
   /** `logEdges.length === logCounts[id].length + 1`; shared by every Group. */
@@ -72,10 +72,10 @@ export interface GroupTotals {
 }
 
 export interface ResponseNodeDistributions {
-  /**
-   * The Groups on this card, in the order they were asked for — one ordered
-   * array carrying both order and identity, with everything below keyed by id.
-   */
+    /**
+     * The Groups on this card, in the order they were asked for. Carries both
+     * order and identity; everything else is keyed by id.
+     */
   groups: GroupTotals[];
   /** In the order the attributes were requested, so the cards keep theirs. */
   attributes: [string, Distribution][];

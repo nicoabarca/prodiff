@@ -1,10 +1,10 @@
 <script lang="ts">
-  /**
-   * One attribute compared across the Groups, drawn as the difference:
-   * categorical attributes as the share gap in percentage points, numeric ones
-   * as two Tukey box plots on a shared axis. Nothing is recomputed here — the
-   * backend's summary already is a box plot, outlier counts included.
-   */
+    /**
+     * One attribute compared across the Groups, drawn as the difference:
+     * categorical attributes as the share gap in percentage points, numeric ones
+     * as two Tukey box plots on a shared axis. Nothing is recomputed here; the
+     * backend's summary already is a box plot, outlier counts included.
+     */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { outlierNote } from "$lib/distributions/utils/distributions";
@@ -81,13 +81,13 @@
     ].filter((row) => row !== null)
   );
 
-  /** Groups whose cases all share one value — drawn as a dot, not a box. */
+    /** Groups whose cases all share one value, drawn as a dot. */
   const constant = $derived(boxes.filter((row) => row.min === row.max));
 
-  /**
-   * Nothing varies anywhere: the span collapses and every tick would format to
-   * the same value. The sentence below carries it instead of an axis.
-   */
+    /**
+     * Nothing varies anywhere: the span collapses and every tick would format to
+     * the same value. The sentence below carries it.
+     */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
   /** Cases past where the lines stop. */

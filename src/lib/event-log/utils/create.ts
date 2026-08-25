@@ -11,8 +11,8 @@ function deriveProjectName(fileName: string): string {
 
 /**
  * Creates a Project from a confirmed Column Mapping: writes the Event Log to
-* disk, computes its statistics, and persists the project record. Throws if the
-* mapping is invalid or the event log cannot be parsed, persisting nothing.
+ * disk, computes its statistics, and persists the project record. Throws if the
+ * mapping is invalid or the event log cannot be parsed, persisting nothing.
  */
 export async function createProject(
   draft: ProjectDraft,

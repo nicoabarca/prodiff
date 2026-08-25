@@ -59,7 +59,7 @@
 
   /** Why a block carries no Significance Test, in the user's terms. */
   function untestable(block: AttributeBlock): string {
-    if (!compare) return "One-group mode — nothing to compare against.";
+    if (!compare) return "One-group mode: nothing to compare against.";
     const n = (index: number) => block.summaries[tree.groups[index]?.id]?.n ?? 0;
     if (n(0) < 5 || n(1) < 5) {
       return `Too few cases to test. ${nameA}: ${n(0)}, ${nameB}: ${n(1)} (minimum 5 each).`;
@@ -212,7 +212,7 @@
 
         {#if !compare}
           <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
-            One group — these are its distributions, with nothing to compare them against.
+            One group. These are its distributions, with nothing to compare them against.
           </p>
           {#each flat as [name, block] (name)}
             {@render attribute(name, block)}
@@ -246,7 +246,7 @@
 
         {#if flat.length === 0}
           <p class="text-muted-foreground px-4 py-3.5 text-xs">
-            No attributes selected — pick some in Build settings and rebuild.
+            No attributes selected. Pick some in Build settings and rebuild.
           </p>
         {/if}
       </div>

@@ -1,6 +1,6 @@
 /**
-* The Distributions view's state, in memory only. Selecting another node keeps
-* the Scope, the sort and the hand-added attributes, and refetches.
+ * The Distributions view's state, in memory only. Selecting another node keeps
+ * the Scope, the sort and the hand-added attributes, and refetches.
  */
 
 import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
@@ -13,7 +13,7 @@ import type { Project } from "$lib/event-log/types";
 
 /**
  * What is charted, beyond the node's own tested attributes. `extra` outlives a
-* node change; `dismissed` does not.
+ * node change; `dismissed` does not.
  */
 export const charts = $state<{
   scope: Scope;
@@ -73,9 +73,9 @@ export function clearDismissed() {
 }
 
 /**
-* What identifies the numbers on screen. Keyed on the Variant list, not the node
-* id: that list is what the backend is asked about, so view-level pruning
-* invalidates the slot.
+ * What identifies the numbers on screen. Keyed on the Variant list, not the node
+ * id: that list is what the backend is asked about, so view-level pruning
+ * invalidates the slot.
  */
 function key(
   nodeId: number,
@@ -96,7 +96,7 @@ let latest: string | null = null;
 /**
  * Fetches the selected node's Distributions unless they are already in hand.
  * Refuses while the tree is stale: the node is named to the backend by Variant
-* keys taken from the tree on screen.
+ * keys taken from the tree on screen.
  */
 export async function loadDistributions(project: Project, attributes: string[]) {
   const tree = built.tree;

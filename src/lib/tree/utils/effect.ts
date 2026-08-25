@@ -43,8 +43,8 @@ export function peakEffect(node: TreeNode): number | null {
 }
 
 /**
-* Every attribute at a node, Transition Time last, ordered strongest first and
-* split by Standing. Untested blocks sort last.
+ * Every attribute at a node, Transition Time last, ordered strongest first and
+ * split by Standing. Untested blocks sort last.
  */
 export function rankedBlocks(node: TreeNode): Record<Standing, [string, AttributeBlock][]> {
   const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);

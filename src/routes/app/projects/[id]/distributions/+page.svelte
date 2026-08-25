@@ -58,7 +58,7 @@
     }
   });
 
-  /** The trace down to this step and everything that follows it — no siblings. */
+    /** The trace down to this step and everything that follows it. */
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
@@ -88,7 +88,7 @@
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
-  /** Attributes the build never tested here — the only ones worth offering. */
+    /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
     const open = new Set(requested.map((card) => card.name));
@@ -103,7 +103,7 @@
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
 
-  /** Each Group's case count in its own colour — the one its marks are drawn in. */
+    /** Each Group's case count in its own colour. */
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];

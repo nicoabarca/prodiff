@@ -1,6 +1,6 @@
 /**
-* The value counts behind one node's charts, arranged for drawing. Rust
-* aggregates; the one thing computed here is the `Other` bucket.
+ * The value counts behind one node's charts, arranged for drawing. Rust
+ * aggregates; the one thing computed here is the `Other` bucket.
  */
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import type { Distribution, DurationShape } from "$lib/distributions/invokers/types";
@@ -15,9 +15,9 @@ import type { TreeNode } from "$lib/tree/invokers/types";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
 
 /**
-* The bars for a categorical Distribution. Everything past the cutoff folds into
-* one `Other` bar counted from the totals, not from the rows on screen, so it
-* stays exact despite the backend's own cap on the list.
+ * The bars for a categorical Distribution. Everything past the cutoff folds into
+ * one `Other` bar counted from the totals, not from the rows on screen, so it
+ * stays exact despite the backend's own cap on the list.
  */
 export function categoryBars(
   distribution: Extract<Distribution, { type: "categorical" }>,
@@ -129,8 +129,8 @@ export function outlierNote(
 /**
  * The cards the grid shows for one node, in order. It opens on what the build
  * tested; anything else is opt-in through `extra`, which follows the user from
-* node to node. Tested attributes lead, strongest first; the untested ones
-* follow by name under their own heading.
+ * node to node. Tested attributes lead, strongest first; the untested ones
+ * follow by name under their own heading.
  */
 export function gridAttributes(
   node: TreeNode,

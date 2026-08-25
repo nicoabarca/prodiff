@@ -76,8 +76,8 @@ pub struct Test {
     pub effect_signed: Option<f64>,
     /// Benjamini-Hochberg at α = 0.05, corrected within this attribute's family.
     pub significant: bool,
-    /// Which Group ranks higher, by id. `None` for chi². An id rather than
-    /// "A"/"B" because with three Groups "A higher" would name nothing.
+        /// Which Group ranks higher, by id. `None` for chi², which is
+        /// non-directional.
     pub higher: Option<String>,
 }
 
@@ -902,8 +902,7 @@ mod tests {
         .unwrap()
     }
 
-    /// Group ids the tests read results back by. Two when a second frame is
-    /// given, one otherwise — the same shape the commands send.
+        /// given, one otherwise, the same shape the commands send.
     fn ids(b: Option<&DataFrame>) -> Vec<String> {
         let mut ids = vec!["a".to_string()];
         if b.is_some() {

@@ -1,15 +1,15 @@
 /**
-* The Comparison Directed Tree as Rust ships it. Every type here mirrors a
-* serde struct in `src-tauri/src/tree/`. The frontend filters and lays out, but
-* never re-aggregates.
+ * The Comparison Directed Tree as Rust ships it. Every type here mirrors a serde
+ * struct in `src-tauri/src/tree/`. The frontend filters and lays out, but never
+ * re-aggregates.
  */
 export interface ResponseDirectedTree {
   nodes: TreeNode[];
-  /**
-   * The Groups on this tree, in the order they were asked for — one ordered
-   * array carrying both order and identity, with everything below keyed by id.
-   * One entry is single-Group mode, where nothing is compared.
-   */
+    /**
+     * The Groups on this tree, in the order they were asked for. Carries both
+     * order and identity; everything below is keyed by id. One entry is
+     * single-Group mode.
+     */
   groups: GroupBlock[];
   caseLevelTests: Record<string, Test>;
   /** Cases in both Groups. Non-zero breaks the independence both tests assume. */
@@ -83,11 +83,9 @@ export interface Test {
   effectSize: number;
   effectSigned: number | null;
   significant: boolean;
-  /**
-   * Which Group ranks higher, by id. `null` for chi², which is
-   * non-directional. An id rather than "A"/"B" because with three Groups
-   * "A higher" would name nothing.
-   */
+    /**
+     * Which Group ranks higher, by id. `null` for chi², which is non-directional.
+     */
   higher: string | null;
 }
 
