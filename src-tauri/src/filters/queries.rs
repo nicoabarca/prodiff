@@ -2,10 +2,12 @@
 //! applying a chain, and the per-command aggregations.
 
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
-use super::{apply, timestamp_millis, Endpoint, Filter};
-use crate::column_mapping::ColumnMapping;
+use super::{apply, timestamp_millis, Endpoint, ExcludedCases, Filter};
+use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::event_log_path;
+use crate::groups::storage::read_group;
 use polars::prelude::*;
+use std::collections::HashSet;
 
 pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFrame, String> {
     let path = event_log_path(app, project_id)?;
@@ -13,12 +15,51 @@ pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFr
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
 
+/// The case ids each `case_not_in_group` filter takes away, read from the
+/// Groups it names. Resolved here rather than inside the pipeline because a
+/// Group's cases live in another file, not in the frame being filtered.
+///
+/// A Group that has never been applied contributes nothing: it has no cases to
+/// take away yet, which is the same answer as an empty Group.
+fn excluded_cases(
+    app: &tauri::AppHandle,
+    project_id: &str,
+    filters: &[Filter],
+    columns: &[ColumnMapping],
+) -> Result<ExcludedCases, String> {
+    let case_col = require_role(columns, ColumnRole::CaseId)?;
+    let mut excluded = ExcludedCases::new();
+    for filter in filters {
+        let Filter::CaseNotInGroup { group_id } = filter else {
+            continue;
+        };
+        if excluded.contains_key(group_id) {
+            continue;
+        }
+        let ids = match read_group(app, project_id, group_id) {
+            Ok(df) => case_ids(&df, case_col)?,
+            Err(_) => HashSet::new(),
+        };
+        excluded.insert(group_id.clone(), ids);
+    }
+    Ok(excluded)
+}
+
+/// Every case id in a frame, as the display strings the seam uses everywhere.
+pub fn case_ids(df: &DataFrame, case_col: &str) -> Result<HashSet<String>, String> {
+    let column = df.column(case_col).map_err(|e| e.to_string())?;
+    Ok((0..df.height()).map(|i| cell_to_string(column, i)).collect())
+}
+
 pub fn filtered(
+    app: &tauri::AppHandle,
+    project_id: &str,
     df: &DataFrame,
-    chain: &[Filter],
+    filters: &[Filter],
     columns: &[ColumnMapping],
 ) -> Result<DataFrame, String> {
-    apply(df.clone().lazy(), chain, columns)?
+    let excluded = excluded_cases(app, project_id, filters, columns)?;
+    apply(df.clone().lazy(), filters, columns, &excluded)?
         .collect()
         .map_err(|e| e.to_string())
 }

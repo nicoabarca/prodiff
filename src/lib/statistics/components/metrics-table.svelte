@@ -64,8 +64,6 @@
     </Table.Header>
     <Table.Body>
       {#each METRICS as metric (metric.label)}
-        <!-- The per-column tints paint over any row background, so a row
-             hover would only light up the untinted cells. -->
         <Table.Row class="hover:bg-transparent">
           <Table.Cell class="bg-card sticky left-0 z-10 px-4 py-2">
             {metric.label}

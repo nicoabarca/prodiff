@@ -109,14 +109,29 @@ export async function recolorGroup(group: Group, color: string) {
   await patch(group.id, { color });
 }
 
-/** Deletes a Group and re-packs the positions of the rest. */
+/** Groups whose Filter List excludes this one, and so cannot outlive it. */
+export function dependentsOf(group: Group): Group[] {
+  return groups.filter((other) =>
+    other.filters.some(
+      (filter) => filter.kind === "case_not_in_group" && filter.groupId === group.id
+    )
+  );
+}
+
+/**
+ * Deletes a Group and everything that excludes it, then re-packs the positions
+ * of the rest. Cascading rather than blocking.
+ */
 export async function removeGroup(id: string) {
   const group = groups.find((g) => g.id === id);
   if (!group) return;
 
-  await deleteGroupFile(group.projectId, id);
-  await db().delete(groupsTable).where(eq(groupsTable.id, id));
-  groups.splice(groups.indexOf(group), 1);
+  for (const doomed of [...dependentsOf(group), group]) {
+    await deleteGroupFile(doomed.projectId, doomed.id);
+    await db().delete(groupsTable).where(eq(groupsTable.id, doomed.id));
+    const index = groups.indexOf(doomed);
+    if (index !== -1) groups.splice(index, 1);
+  }
 
   await Promise.all(
     groups.map((other, position) =>
@@ -139,31 +154,34 @@ export function filtersKey(filters: Filter[]): string {
   return JSON.stringify(filters);
 }
 
-/** Measured Filter Lists, keyed by Group id. The stored `key` detects a stale one. */
+/**
+ * Measured Filter Lists, keyed by Group id. The stored `key` detects a stale
+ * one. The draft preview: it measures whatever list the editor is holding.
+ */
 export const impacts = $state<Record<string, { key: string; steps: ResponseFilterStep[] }>>({});
 
-export async function loadImpact(project: Project, group: Group) {
-  const key = filtersKey(group.filters);
+export async function loadImpact(project: Project, group: Group, filters = group.filters) {
+  const key = filtersKey(filters);
   if (impacts[group.id]?.key === key) return;
-  const steps = await filtersImpact(project, group.filters);
+  const steps = await filtersImpact(project, filters);
   impacts[group.id] = { key, steps };
 }
 
-/** A Group's measured Filter List, or null while it is stale or in flight. */
-export function groupSteps(group: Group): ResponseFilterStep[] | null {
+/** A measured Filter List, or null while it is stale or still in flight. */
+export function groupSteps(group: Group, filters = group.filters): ResponseFilterStep[] | null {
   const measured = impacts[group.id];
-  return measured?.key === filtersKey(group.filters) ? measured.steps : null;
+  return measured?.key === filtersKey(filters) ? measured.steps : null;
 }
 
 /** Cases remaining after a Group's whole Filter List. */
-export function groupCases(group: Group): number | null {
-  const steps = groupSteps(group);
+export function groupCases(group: Group, filters = group.filters): number | null {
+  const steps = groupSteps(group, filters);
   return steps ? (steps[steps.length - 1]?.cases ?? null) : null;
 }
 
 /** Events remaining after a Group's whole Filter List. */
-export function groupEvents(group: Group): number | null {
-  const steps = groupSteps(group);
+export function groupEvents(group: Group, filters = group.filters): number | null {
+  const steps = groupSteps(group, filters);
   return steps ? (steps[steps.length - 1]?.events ?? null) : null;
 }
 

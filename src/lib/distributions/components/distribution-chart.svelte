@@ -1,12 +1,11 @@
 <script lang="ts">
   /**
-   * One attribute's Distribution at the selected node — vertical columns, one
-   * band per value or bin, one bar per Group within it.
+   * One attribute's Distribution at the selected node: vertical columns, one band
+   * per value or bin, one bar per Group within it.
    *
-   * The plot's width comes from the column count, not the cell, and the card
-   * scrolls sideways when that overflows. The height is pinned explicitly:
-   * `Chart.Container` is `aspect-video` by default, and a chart left to fill a
-   * flex box has no resolvable height and draws axes with no bars between them.
+   * The height is pinned explicitly. `Chart.Container` is `aspect-video` by
+   * default, and a chart left to fill a flex box has no resolvable height and
+   * draws axes with no bars between them.
    */
   import { BarChart, Tooltip } from "layerchart";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -56,8 +55,6 @@
     onRemove: () => void;
   } = $props();
 
-  // The Groups keep the colours they carry in the tree and the differences
-  // panel, so a resource that is "the blue one" stays blue across all three.
   const groups = $derived(comparedGroups());
   const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
   const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
@@ -68,10 +65,7 @@
    */
   const shape = $derived(distribution.type === "numerical" ? distribution.shape : null);
 
-  /**
-   * Bars are what the card draws unless a duration asked for something else.
-   * On a duration they are the log ladder, not the equal-width bins.
-   */
+  /** Bars unless a duration asked for something else, where they are the log ladder. */
   const data = $derived(
     shape && encoding === "logBins" ? logBars(shape) : bars(distribution, attribute, expanded)
   );
@@ -91,10 +85,7 @@
     return entries;
   });
 
-  /**
-   * A numeric attribute whose values are all identical. The backend ships one
-   * bin, which would draw as a full-width bar; the value is stated in words.
-   */
+  /** A numeric attribute whose values are all identical. Stated in words, not drawn. */
   const constant = $derived(
     distribution.type === "numerical" && distribution.countsA.length === 1
       ? distribution.edges[0]
@@ -165,10 +156,6 @@
     </Button>
   </div>
 
-  <!-- Durations are heavily right-skewed, so the card opens on the cumulative
-       curve: it is the one encoding that reads the median, the spread and the
-       tail in a single glance without a binning choice to defend. The other two
-       are a click away for the readings they are better at. -->
   {#if shape && constant === null}
     <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
       <ToggleGroup.Root
@@ -231,8 +218,6 @@
       Nothing to plot here.
     </p>
   {:else}
-    <!-- The plot is as wide as its columns need; the card scrolls sideways when
-         that is more than the drawer's current width allows. -->
     <div class="overflow-x-auto px-3 py-2">
       <Chart.Container
         {config}
@@ -253,8 +238,8 @@
           props={{
             bars: { stroke: "none", radius: 2, rounded: "all" },
             highlight: { area: { fill: "none" } },
-            // The label gutter is fixed, so a long resource code is cut rather
-            // than allowed to run off the card. The tooltip carries the full one.
+            // The label gutter is fixed, so a long resource code is cut. The tooltip
+            // carries the full one.
             xAxis: {
               format: truncate,
               tickLabelProps: { rotate: -45, textAnchor: "end", svgProps: { y: 4 } }
@@ -262,8 +247,7 @@
             yAxis: { ticks: 4, format: (value: number) => formatNumber(value) }
           }}
         >
-          <!-- The `tooltip` snippet, not `children`: children would replace the
-               chart's own layout wholesale rather than add to it. -->
+          <!-- The `tooltip` snippet, not `children`: children replace the chart's own layout. -->
           {#snippet tooltip()}
             <Tooltip.Root props={{ root: { class: "w-max" } }}>
               {#snippet children({ data: row })}

@@ -14,7 +14,7 @@
   let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
-  /** Identifies the Groups on screen. Keyed on this rather than the array itself. */
+  /** Identifies the Groups on screen. */
   const wantedKey = $derived(
     shown.map((group) => `${group.id}:${filtersKey(group.filters)}`).join("|")
   );
@@ -34,7 +34,7 @@
       })
       .catch((cause) => {
         error = String(cause);
-        // A failed run must not be treated as done, or it would never retry.
+        // A failed run must not be marked done, or it would never retry.
         lastKey = "";
       });
   });
@@ -42,8 +42,6 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <!-- Capped and centred: the tables are read column by column, and a grid
-         stretched to a wide window puts the figures too far apart to compare. -->
     <div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>

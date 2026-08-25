@@ -62,7 +62,6 @@
 
   const ready = $derived(groups.filter((group) => stats[group.id]));
 
-  // Single series, so each row carries its own colour and the `c` range is that column.
   const colors = $derived(ready.map((group) => colorVar(group.color)));
 
   const config = $derived(
@@ -109,8 +108,6 @@
     </div>
   </div>
 
-  <!-- gap-px over the border colour: the hairlines between cards are the grid's
-       own gaps, so a card never carries a border its neighbour repeats. -->
   <div class="bg-border grid grid-cols-[repeat(auto-fit,minmax(17rem,1fr))] gap-px">
     {#each CHARTS as chart (chart.title)}
       <div class="bg-card flex flex-col gap-2 px-4 py-3.5">

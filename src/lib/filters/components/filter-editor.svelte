@@ -21,6 +21,7 @@
   import AttributeEditor from "./editors/attribute-editor.svelte";
   import FollowerEditor from "./editors/follower-editor.svelte";
   import EndpointEditor from "./editors/endpoint-editor.svelte";
+  import CaseNotInGroupEditor from "./editors/case-not-in-group-editor.svelte";
 
   let {
     project,
@@ -29,6 +30,11 @@
     precedingChain = [],
     /** The accent of the Group being edited. */
     color = "var(--group-original)",
+    /**
+     * Groups this filter may exclude: every other Group of the project. Passed
+     * in because the filter domain sits below Groups and cannot read them.
+     */
+    excludable = [],
     onsave,
     oncancel
   }: {
@@ -36,6 +42,7 @@
     filter?: Filter | null;
     precedingChain?: Filter[];
     color?: string;
+    excludable?: { id: string; name: string; color: string }[];
     onsave: (filter: Filter) => void;
     oncancel: () => void;
   } = $props();
@@ -85,6 +92,12 @@
         label: "Follows",
         description: "Selects cases where one value is followed by another in the same column.",
         available: eventLevel.length > 0
+      },
+      {
+        kind: "case_not_in_group" as const,
+        label: "Not in group",
+        description: "Removes the cases that also belong to another group, so the two stop overlapping.",
+        available: excludable.length > 0
       }
     ].filter((k) => k.available)
   );
@@ -153,7 +166,7 @@
       }}
       variant="outline"
       spacing={1}
-      class="grid w-full grid-cols-5"
+      class="grid w-full grid-cols-4"
     >
       {#each kinds as option (option.kind)}
         <ToggleGroup.Item
@@ -212,16 +225,18 @@
       {color}
       ondraft={(next) => (draft = next)}
     />
+  {:else if kind === "case_not_in_group"}
+    <CaseNotInGroupEditor
+      initial={initial?.kind === "case_not_in_group" ? initial : null}
+      {excludable}
+      ondraft={(next) => (draft = next)}
+    />
   {/if}
 
-  <!-- Only shown once the filter is complete enough to measure — an incomplete
-       draft has no impact worth naming. -->
   {#if valid}
     <Field.FieldSeparator />
   {/if}
 
-  <!-- Impact and the actions share one row, so the measurement reads as the
-       thing being confirmed rather than a note above the buttons. -->
   <div class="flex flex-wrap items-center justify-between gap-3">
     {#if valid}
       <Field.Field class="min-w-48 flex-1">

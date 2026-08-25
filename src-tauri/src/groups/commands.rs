@@ -17,7 +17,7 @@ pub fn apply_group(
     columns: Vec<ColumnMapping>,
 ) -> Result<EventLogStats, String> {
     let df = read_event_log(&app, &project_id)?;
-    let mut applied = filtered(&df, &filters, &columns)?;
+    let mut applied = filtered(&app, &project_id, &df, &filters, &columns)?;
     write_group(&app, &project_id, &group_id, &mut applied)?;
     summarize(&applied, &columns)
 }

@@ -112,4 +112,10 @@ pub enum Filter {
         reference: Vec<String>,
         follower: Vec<String>,
     },
+    /// Keeps the cases that are not in another Group. The only kind that reads
+    /// something other than the log: its case ids are resolved before the
+    /// pipeline runs. `camelCase` because the id is one, unlike every other
+    /// field here.
+    #[serde(rename_all = "camelCase")]
+    CaseNotInGroup { group_id: String },
 }

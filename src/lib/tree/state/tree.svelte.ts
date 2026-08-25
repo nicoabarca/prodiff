@@ -187,7 +187,6 @@ function clear() {
   built.error = null;
   selected.id = null;
   view.collapsed = new Set();
-  // The Variant list belongs to chains that are no longer current.
   variants.key = null;
   variants.rows = [];
   variants.error = null;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** One attribute's Significance Test, said in one word. The magnitude leads. */
+  /** One attribute's Significance Test, said in one word. */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { comparedGroups } from "$lib/tree/state/tree.svelte";

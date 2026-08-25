@@ -11,9 +11,9 @@
     view.secondary === "cases"
       ? `Cases (${nameA} · ${nameB})`
       : view.secondary === "casesA"
-        ? `Cases — ${nameA}`
+        ? `Cases (${nameA})`
         : view.secondary === "casesB"
-          ? `Cases — ${nameB}`
+          ? `Cases (${nameB})`
           : `Mean ${view.secondary}`
   );
 
@@ -39,8 +39,6 @@
   {#each items as item (item)}
     <Badge variant="secondary" class="bg-background/90 backdrop-blur">{item}</Badge>
   {/each}
-  <!-- The badge on a node is coloured, not just counted, so the ramp needs a
-       key on the canvas itself — the panel's is behind a click. -->
   <Badge variant="secondary" class="bg-background/90 gap-1.5 backdrop-blur">
     Difference size
     <span class="flex items-center gap-px" aria-hidden="true">
