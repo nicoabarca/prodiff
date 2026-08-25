@@ -25,7 +25,7 @@
 
   const selected = $derived(groups.find((g) => g.id === selectedId) ?? groups[0]);
 
-  // Hidden columns are inert in all analysis, so they never reach the table.
+  // Hidden columns never reach the table.
   const visible = $derived(
     (preview?.columns ?? [])
       .map((name, index) => ({ name, index }))

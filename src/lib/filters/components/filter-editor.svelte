@@ -31,7 +31,7 @@
     /** The accent of the Group being edited. */
     color = "var(--group-original)",
     /**
-     * Groups this filter may exclude — every other Group of the project. Passed
+     * Groups this filter may exclude: every other Group of the project. Passed
      * in because the filter domain sits below Groups and cannot read them.
      */
     excludable = [],
@@ -233,14 +233,10 @@
     />
   {/if}
 
-  <!-- Only shown once the filter is complete enough to measure — an incomplete
-       draft has no impact worth naming. -->
   {#if valid}
     <Field.FieldSeparator />
   {/if}
 
-  <!-- Impact and the actions share one row, so the measurement reads as the
-       thing being confirmed rather than a note above the buttons. -->
   <div class="flex flex-wrap items-center justify-between gap-3">
     {#if valid}
       <Field.Field class="min-w-48 flex-1">

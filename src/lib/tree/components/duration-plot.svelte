@@ -4,9 +4,9 @@
    * box plot.
    *
    * Both axes are symlog, not log: a duration of zero is ordinary here and
-   * `log(0)` does not exist. Symlog's `constant` is set to the ladder's first
-   * rung rather than its default of 1, which in milliseconds would spend half
-   * the axis on the range under a second. Ticks come from the backend's ladder.
+   * `log(0)` does not exist. Symlog's `constant` is the ladder's first rung, not
+   * its default of 1, which in milliseconds would spend half the axis under a
+   * second. Ticks come from the backend's ladder.
    */
   import { scaleBand, scaleSymlog } from "d3-scale";
   import {
@@ -38,18 +38,13 @@
     nameB: string;
   } = $props();
 
-  // The Groups keep the colours they carry in the tree and the differences
-  // panel, so a shift that is "the blue one" stays blue across all three.
   const groups = $derived(comparedGroups());
   const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
   const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
   const rows = $derived(curveRows(shape.ecdfA, compare ? shape.ecdfB : []));
 
-  /**
-   * A curve needs two distinct durations. With one the scale has a zero-width
-   * domain and d3 draws a stroke at coordinates belonging to no plot.
-   */
+  /** A curve needs two distinct durations: with one the scale has a zero-width domain. */
   const oneValue = $derived(rows.length < 2);
 
   /** The widest value either Group reaches, so both are drawn to one scale. */
@@ -57,13 +52,10 @@
     Math.max(shape.ecdfA.at(-1) ?? 0, shape.ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0)
   );
 
-  /**
-   * Where symlog stops being linear. The ladder's first rung — below it the
-   * ladder draws no boundary, so a log stretch has nothing to separate.
-   */
+  /** Where symlog stops being linear: the ladder's first rung. */
   const linearBelow = $derived(shape.logEdges.find((edge) => edge > 0) ?? max ?? 1);
 
-  /** Interior rungs of the ladder — 0 and the data's own end are the axis. */
+  /** Interior rungs of the ladder. 0 and the data's own end are the axis. */
   const ticks = $derived(shape.logEdges.filter((edge) => edge > 0 && edge < max));
 
   const boxes = $derived(
@@ -79,24 +71,14 @@
 
   const colorOf = (group: string) => (group === nameA ? COLOR_A : COLOR_B);
 
-  /**
-   * The box plot's axis spans the whiskers and nothing else — not the data's
-   * range, whose outliers are counted rather than drawn, and not anchored at
-   * zero, which would spend most of the axis reaching the interesting band.
-   */
+  /** The box plot's axis spans the whiskers. */
   const boxLow = $derived(Math.min(...boxes.map((box) => box.whiskerLow)));
   const boxHigh = $derived(Math.max(...boxes.map((box) => box.whiskerHigh)));
 
-  /**
-   * Whiskers collapsed onto a single value: the quartiles are all the same
-   * number, so there is no box to draw.
-   */
+  /** Whiskers collapsed onto a single value: no box to draw. */
   const flat = $derived(boxes.length === 0 || !(boxHigh > boxLow));
 
-  /**
-   * Rungs strictly inside the span. A narrow span can contain none, in which
-   * case the scale picks its own.
-   */
+  /** Rungs strictly inside the span. A narrow span can contain none. */
   const boxTicks = $derived.by(() => {
     const inside = shape.logEdges.filter((edge) => edge > boxLow && edge < boxHigh);
     return inside.length >= 2 ? inside : undefined;
@@ -110,8 +92,6 @@
 </script>
 
 {#snippet noSpread(value: number)}
-  <!-- Both encodings say it the same way, from one place: a constant attribute
-       is the same finding whichever plot was asked for. -->
   <p class="flex flex-1 items-center justify-center p-3 text-center text-xs">
     All values are <span class="ml-1 font-semibold">{formatDuration(value)}</span>.
   </p>
@@ -138,16 +118,11 @@
           <Axis placement="left" grid rule ticks={[0, 0.25, 0.5, 0.75, 1]} format={percent} />
           <Axis placement="bottom" rule {ticks} format={formatDuration} />
           <!-- Nothing an SVG layer draws is clipped by default, so a path with a
-               coordinate outside the plot is painted across the page — over the
-               neighbouring cards and out of the window. The marks are bounded to
-               the plot so a bad number stays a bad number instead of vandalising
-               the grid. -->
+               coordinate outside the plot is painted across the page. The marks are
+               bounded to the plot. -->
           <ChartClipPath>
-            <!-- Both curves off one set of rows, keyed on the union of the two
-                 ladders' durations. `bisect-x` needs a single sorted x to
-                 search, and the ECDF is a step function anyway, so sampling it
-                 at every point either Group turns on is exact rather than a
-                 compromise. -->
+            <!-- Both curves off one set of rows, keyed on the union of the two ladders'
+                 durations: `bisect-x` needs a single sorted x to search. -->
             <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
             {#if compare && shape.ecdfB.length > 0}
               <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
@@ -155,8 +130,6 @@
             <Highlight lines points={{ fill: COLOR_A }} />
           </ChartClipPath>
         </Layer>
-        <!-- The reading the curve is for: at this duration, how far along is
-             each Group. Hovering anywhere snaps to the nearest column. -->
         <Tooltip.Root contained="container" props={{ root: { class: "w-40" } }}>
           {#snippet children({ data: row })}
             <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
@@ -180,8 +153,6 @@
         </Tooltip.Root>
       </Chart>
     </div>
-    <!-- The two percentiles the curve is usually read at, said in words: the
-         middle of the distribution and the tail that actually hurts. -->
     <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
       {#each [["Median", 50], ["P90", 90]] as [label, at] (label)}
         <span class="bg-secondary px-2 py-1">
@@ -196,10 +167,6 @@
   <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
 {:else}
   {#if flat}
-    <!-- Whiskers and quartiles all on one value. Since the percentile fallback
-         in `tukey`, that only happens when the sample really is constant — a box
-         of zero height is a line that reads as a broken plot, and the value is
-         the finding. -->
     {@render noSpread(boxes[0].median)}
   {:else}
     <div class="h-64 px-3 py-2">
@@ -217,14 +184,12 @@
         <Layer>
           <Axis placement="left" grid rule ticks={boxTicks} format={formatDuration} />
           <Axis placement="bottom" rule />
-          <!-- Bounded for the same reason as the curve: an unclipped SVG layer
-               paints a stray coordinate across the whole page. -->
+          <!-- Bounded like the curve: an unclipped SVG layer paints a stray coordinate
+               across the whole page. -->
           <ChartClipPath>
             {#each boxes as box (box.group)}
-              <!-- `min`/`max` are the whisker ends by this component's own
-               definition — the extremes excluding outliers — which is exactly
-               what the backend computed. The outliers themselves are counts,
-               not points, so they are stated below rather than drawn. -->
+              <!-- `min`/`max` are the whisker ends by this component's definition: the
+                   extremes excluding outliers. The outliers are counts, not points. -->
               <BoxPlot
                 data={box}
                 min="whiskerLow"
@@ -241,16 +206,8 @@
             <Highlight area />
           </ChartClipPath>
         </Layer>
-        <!-- The numbers the box encodes, said out loud: read off a drawing they
-             are estimates, and the whole reason to hover is to stop estimating.
-             `Min`/`Max` are the observed extremes, which the whiskers
-             deliberately stop short of.
-
-             Kept small and `contained` on purpose. The grid this card sits in
-             scrolls, so anything the tooltip pushes outside the card is clipped
-             by that scroll box rather than drawn over it — a tooltip that fits
-             the plot is the only one that can't be cut. The whisker rows are
-             gone for the same reason: the caps are already on screen. -->
+        <!-- The numbers the box encodes. Kept small and `contained`: the grid this
+             card sits in scrolls, so anything pushed outside the card is clipped. -->
         <Tooltip.Root contained="container" props={{ root: { class: "w-40" } }}>
           {#snippet children({ data: box })}
             <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
@@ -273,8 +230,6 @@
       </Chart>
     </div>
   {/if}
-  <!-- Shown whether or not the boxes drew: when the whiskers collapse these
-       chips are the only place the numbers appear. -->
   <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
     {#each boxes as box (box.group)}
       <span class="bg-secondary px-2 py-1">

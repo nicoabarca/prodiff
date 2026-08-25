@@ -22,9 +22,8 @@ use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
 
-/// Case ids to exclude, by Group id. Resolved before a Filter List runs, since
-/// `case_not_in_group` reads another Group's file rather than the current
-/// frame; every other kind ignores it.
+/// Case ids to exclude, by Group id. Resolved before a Filter List runs:
+/// `case_not_in_group` reads another Group's file, not the current frame.
 pub type ExcludedCases = HashMap<String, HashSet<String>>;
 
 /// Applies one filter. `case_col` drives every case-level lift.
@@ -180,8 +179,6 @@ pub(crate) mod tests {
               {"kind":"attribute","column":"type","mode":"keep_selected","values":["Gold"]}
             ]"#,
         ));
-        // Same surviving case here, but reached the other way round — and the
-        // trace differs from applying the endpoint filter to the trimmed log.
         assert_eq!(cases(&endpoint_then_trim), ["2"]);
         assert_eq!(endpoint_then_trim.height(), 1);
     }

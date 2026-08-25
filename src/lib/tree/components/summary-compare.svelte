@@ -25,7 +25,6 @@
     duration?: boolean;
   } = $props();
 
-  // Colours and names come from the Groups themselves.
   const groups = $derived(comparedGroups());
   const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
   const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
@@ -61,7 +60,7 @@
       const pad = Math.max(Math.abs(hi) * 0.1, 1);
       return { lo: lo - pad, hi: hi + pad, lowest, highest };
     }
-    // Headroom so a whisker cap lands inside the plot rather than on its edge.
+    // Headroom so a whisker cap lands inside the plot.
     const pad = (hi - lo) * 0.04;
     return { lo: lo - pad, hi: hi + pad, lowest, highest };
   });
@@ -79,7 +78,7 @@
   /** Nothing varies anywhere, so the sentence below replaces the axis. */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
-  /** Cases past where the lines stop, counted rather than drawn. */
+  /** Cases past where the lines stop. */
   const beyond = $derived(
     boxes.map((row) => outlierNote(row.group, row, format)).filter((note) => note !== null)
   );
@@ -138,7 +137,7 @@
 
   const barLabel = (value: number) => {
     if (!compare) return `${value.toFixed(1)}%`;
-    // No sign under 0.05: rounding would read as a direction the gap does not have.
+    // No sign under 0.05: rounding turns a 0.04 gap into a direction it does not have.
     const sign = Math.abs(value) < 0.05 ? "" : value > 0 ? "+" : "−";
     return `${sign}${Math.abs(value).toFixed(1)} pp`;
   };
@@ -156,8 +155,6 @@
           <span class="font-semibold">{delta.leader}</span>
           {delta.word} by {delta.amount} at the median
           {#if delta.percent !== null}
-            <!-- Magnitude only: the sentence already names which group leads, so
-                 a sign here would contradict it half the time. -->
             <span class="text-muted-foreground">· {Math.abs(delta.percent).toFixed(0)}%</span>
           {/if}
         {/if}
@@ -193,8 +190,6 @@
                 <Axis placement="bottom" rule={false} grid={false} ticks={3} {format} />
                 {#each boxes as row (row.group)}
                   {#if row.min === row.max}
-                    <!-- Zero spread: a box with no width reads as a truncated
-                       one, so draw the single value the cases actually share. -->
                     <circle
                       cx={context.xScale(row.median)}
                       cy={context.yScale(row.group) + (context.yScale.bandwidth?.() ?? 0) / 2}
@@ -205,9 +200,8 @@
                       fill-opacity="0.35"
                     />
                   {:else}
-                    <!-- `min`/`max` are the whisker ends by this component's own
-                       definition — the extremes excluding outliers — so the
-                       Tukey bounds go there and nothing needs clamping. -->
+                    <!-- `min`/`max` are the whisker ends by this component's definition: the
+                       extremes excluding outliers. -->
                     <BoxPlot
                       data={row}
                       min="whiskerLow"
@@ -223,10 +217,6 @@
                       capWidth={0.7}
                       tooltip
                     />
-                    <!-- Drawn over the box in the surface colour. The median line
-                       the mark draws itself is the box's own stroke colour on
-                       the box's own fill, which is invisible — and the median
-                       is the one thing the reader came for. -->
                     <line
                       x1={context.xScale(row.median)}
                       x2={context.xScale(row.median)}
@@ -240,13 +230,10 @@
                 {/each}
               </Svg>
 
-              <!-- Wide and short on purpose, clamped to the window rather than
-                 the plot: the plot is only a few rem tall and sits inside the
-                 panel's scroll viewport, so a tall tooltip gets pushed up out
-                 of the chart and clipped at the viewport's top edge. -->
-              <!-- `w-max`: the root is absolutely positioned, so without it the
-                 box shrinks to whatever space is left at the container's right
-                 edge and the columns collapse into each other. -->
+              <!-- Clamped to the window, not the plot: the plot is a few rem tall inside a
+                 scroll viewport, so a tall tooltip is clipped at its top edge. -->
+              <!-- `w-max`: the root is absolutely positioned, so without it the box shrinks
+                 to the space left at the container's right edge. -->
               <Tooltip.Root contained="window" props={{ root: { class: "w-max" } }}>
                 {#snippet children({ data })}
                   <div
@@ -254,9 +241,6 @@
                   >
                     <p class="mb-1 text-[0.6875rem] font-semibold">{data.group}</p>
                     <dl class="grid grid-cols-3 gap-x-3 gap-y-1 font-mono text-[0.625rem]">
-                      <!-- The whiskers are listed because they are what is drawn:
-                         `min`/`max` are the true extremes and the box
-                         deliberately stops short of them. -->
                       {#each [["min", format(data.min)], ["q1", format(data.q1)], ["median", format(data.median)], ["q3", format(data.q3)], ["max", format(data.max)], ["n", formatNumber(data.n)], ["whisker lo", format(data.whiskerLow)], ["whisker hi", format(data.whiskerHigh)]] as [label, value] (label)}
                         <div>
                           <dt class="text-muted-foreground">{label}</dt>
@@ -271,9 +255,6 @@
           </ChartRoot>
         </Chart.Container>
 
-        <!-- Medians sit outside the plot so the axis keeps its full width. The
-           rows are fixed-height and the band scale centres in the same boxes,
-           so the two columns line up without measuring anything. -->
         <div class="flex shrink-0 flex-col pb-5">
           {#each boxes as row (row.group)}
             <span
@@ -320,9 +301,6 @@
 
     <div class="relative">
       {#if compare}
-        <!-- Above the bars, in the surface colour: every bar starts at zero, so
-             behind them the rule would never be visible. As a gap it reads as
-             the baseline the two sides are measured from. -->
         <div
           class="bg-sidebar pointer-events-none absolute inset-y-0 z-10 w-0.5"
           style="left:calc(50% + {(PAD_LEFT - PAD_RIGHT) / 2 - 1}px)"
@@ -356,8 +334,7 @@
           }}
           labels={{ placement: "outside", format: barLabel }}
         >
-          <!-- The `tooltip` snippet, not `children`: children would replace the
-               chart's own layout wholesale rather than add to it. -->
+          <!-- The `tooltip` snippet, not `children`: children replace the chart's own layout. -->
           {#snippet tooltip()}
             <Tooltip.Root props={{ root: { class: "w-max" } }}>
               {#snippet children({ data })}

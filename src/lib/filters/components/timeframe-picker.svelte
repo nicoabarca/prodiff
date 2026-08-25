@@ -1,11 +1,10 @@
 <script lang="ts">
   /**
    * How many cases are open on each day of the log, with the timeframe filter's
-   * window selected by brushing the chart or by the two calendars. All three
-   * write the same pair.
+   * window selected by brushing the chart or by the two calendars.
    *
    * `from`/`to` are epoch milliseconds and day-aligned: `from` at midnight, `to`
-   * at the last millisecond of its day, the inclusive window the filter applies.
+   * at the last millisecond of its day.
    */
   import { CalendarDate, type DateValue } from "@internationalized/date";
   import { Area, Axis, Chart, Svg } from "layerchart";
@@ -19,7 +18,7 @@
 
   let {
     project,
-    /** Filters applied before this one — the load shown is theirs. */
+    /** Filters applied before this one. The load shown is theirs. */
     chain = [],
     /** The editing Group's accent. */
     color = "var(--group-original)",
@@ -52,9 +51,8 @@
     };
   });
 
-  // Days are counted in UTC on the Rust side, and the log's timestamps carry no
-  // zone, so every conversion here stays in UTC rather than the machine's zone —
-  // a local reading would slide the whole chart by the offset.
+  // Days are counted in UTC on the Rust side and the log's timestamps carry no
+  // zone, so every conversion here stays in UTC.
   function toCalendarDate(millis: number): CalendarDate {
     const date = new Date(millis);
     return new CalendarDate(date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate());
@@ -71,7 +69,7 @@
       : { first: 0, last: 0 }
   );
 
-  /** A brush edge as a plain number — the brush reports `null` when unset. */
+  /** A brush edge as a plain number. The brush reports `null` when unset. */
   function edge(value: number | Date | null | undefined): number | null {
     return typeof value === "number" ? value : null;
   }
@@ -104,9 +102,9 @@
       handle: { style: `background: ${color}` },
       handleSize: 6,
       onChange: (e) => {
-        // Snapped to whole days. The brush's right edge is exclusive — it sits
-        // at the midnight that *ends* the last selected day, which is why the
-        // domain runs a day past the log and the last day holds `end - 1`.
+        // Snapped to whole days. The brush's right edge is exclusive: it sits at the
+        // midnight that ends the last selected day, which is why the domain runs a day
+        // past the log and the last day holds `end - 1`.
         const start = edge(e.brush.x?.[0]);
         const end = edge(e.brush.x?.[1]);
         from = start === null ? null : dayStart(start);
@@ -125,10 +123,6 @@
     </Svg>
   </Chart>
 
-  <!-- One calendar per end of the window, as the filter reads: the first day on
-       the left, the last on the right. Each is bounded by the other, so an
-       inverted window cannot be picked in the first place. `placeholder` opens
-       them on the log's own months rather than on today. -->
   <div class="grid gap-3 sm:grid-cols-2">
     <div class="border-border grid gap-1 border p-2">
       <span class="text-muted-foreground px-1 text-xs">First day</span>

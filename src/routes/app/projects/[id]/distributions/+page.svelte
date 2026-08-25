@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * Every attribute of one node, side by side, ranked by how much the two Groups
-   * differ. Reachable only from a selected node.
-   */
+  /** Every attribute of one node, side by side, ranked by how much the Groups differ. */
   import { goto } from "$app/navigation";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -48,7 +45,6 @@
     tree && selected.id !== null ? (tree.nodes.find((n) => n.id === selected.id) ?? null) : null
   );
 
-  // Without a node there is nothing to draw, so go back to the tree.
   $effect(() => {
     if (project && (!built.tree || selected.id === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
@@ -105,13 +101,11 @@
 
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
-  // A dismissal hides a card at the node being read, and does not follow to the next.
   $effect(() => {
     void selected.id;
     untrack(clearDismissed);
   });
 
-  // The numbers describe one node of one tree; both change here.
   $effect(() => {
     void [project?.id, built.key];
     untrack(forgetDistributions);
@@ -142,11 +136,6 @@
 
 {#if project && tree && node}
   <div class="flex min-h-0 flex-1">
-    <!-- The step picker is the canvas itself, not a drawing of it: clicking a
-         node here already selects it, and nothing can drift out of sync. It is
-         narrowed to this step's own trace and what follows it — the cases the
-         cards count are exactly the ones on those paths, so a sibling branch
-         here would be an activity none of the numbers describe. -->
     <aside class="border-border bg-card flex w-68 shrink-0 flex-col border-r">
       <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-2">
         <Button variant="ghost" size="sm" href="/app/projects/{project.id}/tree">
@@ -167,15 +156,8 @@
       <div
         class="border-border flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2"
       >
-        <!-- The step names itself and nothing more: the trace that led here is
-             drawn in the picker on the left, where it can be walked rather than
-             only read. -->
         <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
         {#if loaded.data && !stale}
-          <!-- How much of each Group is behind every card on the grid, in that
-               Group's own colour — the same one its bars, boxes and curves are
-               drawn in. The name carries it too, so the colour is never the
-               only thing saying which Group a number belongs to. -->
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <!-- Whole class names, never `text-{token}`: Tailwind finds classes
                  by scanning the source, so an interpolated one is never built. -->
@@ -198,10 +180,6 @@
         {/if}
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
-          <!-- "Count events from", not "Showing". The toggle picks which of a
-               case's events are counted, never which cases; under "Showing",
-               "At this step" read as a filter on the case set, which it is not.
-               Stated again in words below and as a badge on each card. -->
           <div class="flex items-center gap-2">
             <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
               Count events from
@@ -273,11 +251,6 @@
         </div>
       </div>
 
-      <!-- Said at full size because the two readings are easy to confuse, and
-           because what they have in common is the part that gets missed: the
-           case set is identical either way, only the events differ. So the
-           count is repeated here, after the sentence, rather than left to the
-           header to imply. -->
       <p class="border-border bg-secondary/50 shrink-0 border-b px-4 py-2 text-sm">
         <span class="text-primary font-semibold">{SCOPE_LABEL[charts.scope]}:</span>
         <span class="text-muted-foreground">
@@ -289,9 +262,6 @@
       </p>
 
       {#if stale}
-        <!-- The node is named to the backend by the Variant keys of the tree on
-             screen, so answering under edited chains would describe a case set
-             matching neither the drawing nor the filters. -->
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
           <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
           <p class="max-w-md text-xs">
@@ -324,14 +294,9 @@
           </p>
         </div>
       {:else}
-        <!-- Three to a row whatever the window: the cards are read against each
-             other, and a count that changes with the viewport moves a card to a
-             different place on every resize. -->
         <div class="grid min-h-0 flex-1 auto-rows-min grid-cols-3 gap-3 overflow-y-auto p-3">
           {#each grid as card, index (card.name)}
             {#if index === firstUntested}
-              <!-- An unbadged card among ranked ones otherwise reads as "no
-                   difference found" when it means "never looked". -->
               <div class="col-span-full flex items-baseline gap-2 pt-1">
                 <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
                   Untested

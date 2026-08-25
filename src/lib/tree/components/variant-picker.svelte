@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * Which Variants the tree is built from: a build input, not a view filter, so
-   * checking a box marks the tree stale until Rebuild.
-   */
+  /** Which Variants the tree is built from. Checking a box marks the tree stale. */
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -36,10 +33,8 @@
 
   const selected = $derived(selectedVariants());
 
-  // Fetched on open rather than on mount, so the scan is only paid for when used.
   $effect(() => {
     if (open) loadVariants(project);
-    // Closing the picker puts the tree back the way it was.
     else {
       preview = null;
       shownVariant.key = null;
@@ -52,13 +47,11 @@
   });
   const comparing = $derived(totals.b > 0);
 
-  // Named and coloured by the user in Filters; "Group A" is internal vocabulary.
   const groupNames = $derived.by(() => {
     const [a, b] = comparedGroups();
     return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
   });
 
-  // Accents come from the Groups themselves, never from a colour written here.
   const accents = $derived.by(() => {
     const [a, b] = comparedGroups();
     return { a: colorVar(a?.color ?? "group-1"), b: colorVar(b?.color ?? "group-2") };
@@ -78,7 +71,7 @@
     selectedOnly ? variants.rows.filter((row) => selected.has(row.key)) : variants.rows
   );
 
-  // Looked up rather than stored, so a reload that drops the Variant closes its trace.
+  // Looked up, not stored, so a reload that drops the Variant closes its trace.
   const previewRow = $derived(variants.rows.find((row) => row.key === preview) ?? null);
 
   const visible = $derived(tree ? visibleNodes(tree, view, selected) : null);
@@ -138,7 +131,6 @@
     {/snippet}
   </Popover.Trigger>
 
-  <!-- Anchored left so the hover flyout has room on the right. -->
   <Popover.Content align="start" class="relative flex max-h-[70vh] w-80 flex-col gap-3 p-3">
     <div class="flex shrink-0 flex-wrap items-center gap-3">
       <Button
@@ -162,7 +154,7 @@
     </div>
 
     <p class="text-muted-foreground shrink-0 text-[0.625rem] leading-relaxed">
-      Click a row to show its variant — lit on the tree, or listed step by step when the tree has no
+      Click a row to show its variant: lit on the tree, or listed step by step when the tree has no
       such path. The checkbox includes it in the build.
       <br />
       Per cell: cases · <span class="opacity-70">% of that group</span> ·
@@ -185,9 +177,6 @@
     >
       <span class="w-6"></span>
       <span class="shrink-0 whitespace-nowrap">Variant</span>
-      <!-- The Group's own total, so a row's share has its denominator in
-           sight. Summed over the Variant list, which is every case the
-           filtered log has — not what any build happened to include. -->
       <span class="ml-auto flex w-28 flex-col items-end truncate text-right" style="color:{accents.a}">
         <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
         <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
@@ -211,10 +200,8 @@
     {:else}
       <VirtualList items={rows} rowHeight={56}>
         {#snippet row(item: ResponseVariantRow)}
-          <!-- A row is two controls, not one: the checkbox includes the
-               Variant in the build, the rest of the row only shows its trace.
-               Hence a plain div — a `<label>` would make every click on the
-               row a selection. -->
+          <!-- A plain div, not a `<label>`: the checkbox includes the Variant in the
+               build, the rest of the row only shows its trace. -->
           <div
             class="flex h-14 items-center gap-3 rounded px-1 text-xs {preview === item.key ||
             shownVariant.key === item.key
@@ -234,10 +221,6 @@
               <span class="shrink-0 whitespace-nowrap tabular-nums">
                 Variant {numbers.get(item.key)}
               </span>
-              <!-- Same colours the canvas gives the Groups, so a column reads
-                   as the same thing as a node's A/B line. An absent Variant
-                   gets a grey dash instead of a coloured zero: "only in one
-                   group" should be visible at a glance. -->
               <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
                 {#if item.casesA > 0}
                   <span style="color:{accents.a}">{formatNumber(item.casesA)}</span>
@@ -285,10 +268,6 @@
     </p>
 
     {#if previewRow}
-      <!-- Positioned off the panel rather than off the row, so step 1 is in
-           the same place for every Variant. A child of the panel instead of a
-           second floating layer: no second dismiss handler to fight the
-           popover's own. -->
       <div
         class="bg-popover text-popover-foreground ring-foreground/10 absolute top-0 left-full ml-2 flex max-h-[70vh] w-72 flex-col gap-1 overflow-y-auto p-2.5 text-xs shadow-md ring-1"
       >

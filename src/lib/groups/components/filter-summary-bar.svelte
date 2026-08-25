@@ -53,9 +53,8 @@
   {:else}
     {#each entries as group, index (group.id)}
       {#if index > 0}
-        <!-- self-stretch: a vertical separator has no height of its own in a
-             flex row that only stretches to its content, so it stops short
-             of the bar's own top and bottom without this. -->
+        <!-- self-stretch: a vertical separator has no height of its own in a flex row
+             that only stretches to its content. -->
         <Separator orientation="vertical" class="self-stretch" />
       {/if}
       <HoverCard.Root openDelay={120}>

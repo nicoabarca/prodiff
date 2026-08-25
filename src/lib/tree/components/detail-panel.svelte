@@ -26,7 +26,7 @@
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
   const compare = $derived(tree.groupB !== null);
-  /** Restricted to the surviving Variants, since raw totals over-count. */
+  /** Restricted to the surviving Variants: raw totals over-count. */
   const cases = $derived(
     node
       ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {
@@ -90,8 +90,6 @@
     />
 
     {#if !block.test}
-      <!-- In one-Group mode every block is untestable for the same reason, said
-           once at the top rather than under each attribute. -->
       {#if compare}
         <p class="text-muted-foreground text-[0.625rem]">{untestable(block)}</p>
       {/if}
@@ -179,8 +177,7 @@
     </div>
 
     <!-- `min-h-0` is load-bearing: a flex item's automatic minimum size is its
-         content, so without it the scroll root grows past the panel and the
-         viewport never has anything to scroll. -->
+         content, so without it the scroll root grows past the panel. -->
     <ScrollArea.Root class="min-h-0 flex-1">
       <div class="flex flex-col">
         {#if node.comovement.length > 0}
@@ -190,8 +187,6 @@
               <Table.Header>
                 <Table.Row class="hover:bg-transparent">
                   <Table.Head class="h-6 px-0 text-[0.6875rem]">movement</Table.Head>
-                  <!-- The two attributes of the pair. Unlabelled: neither is
-                       first in any meaningful sense. -->
                   <Table.Head class="h-6 px-2"></Table.Head>
                   <Table.Head class="h-6 px-0"></Table.Head>
                 </Table.Row>

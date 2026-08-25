@@ -37,7 +37,6 @@
   );
 
   let panelOpen = $state(false);
-  // The panel follows the selection.
   $effect(() => {
     panelOpen = selected.id !== null;
   });
@@ -52,12 +51,7 @@
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      <!-- The size of what is on screen, and the control over it, first thing
-           on the bar: the tree itself never says what it left out. Available
-           before the first build too — the variant list doesn't need one. -->
       <VariantPicker {project} tree={built.tree} />
-      <!-- Silent while building: the button's own spinner already says the
-           numbers are catching up. -->
       {#if stale && !built.building}
         <p class="text-destructive text-xs">
           Filters, variants or settings changed since this tree was built.
@@ -71,8 +65,6 @@
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
-        <!-- An empty selection is prevented rather than reported: it would
-             build a tree with nothing on it. -->
         <Button
           size="sm"
           disabled={built.building || !groups[0] || noVariants}
@@ -96,15 +88,8 @@
         <div class="relative flex min-h-0 flex-1">
           <Canvas tree={built.tree} {stale} />
           <ViewLegend />
-          <!-- Only offered while a node is selected: with nothing selected the
-               panel has nothing to compare, so "Show" would open an empty
-               rail. -->
           {#if selected.id !== null}
             <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-              <!-- The panel says what differs at this node and stays beside the
-                   tree; the distributions are a wall of histograms that wants
-                   the whole window, so they get their own view rather than a
-                   drawer squeezing the canvas from below. -->
               <Button
                 variant="outline"
                 size="sm"

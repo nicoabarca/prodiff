@@ -14,7 +14,7 @@ export const GROUP_COLORS = [
   "group-12"
 ] as const;
 
-/** The Original's colour. Not offered as a choice. */
+/** The Original's colour. */
 export const ORIGINAL_COLOR = "group-original";
 
 /** The colour a Group created at `position` starts with. */

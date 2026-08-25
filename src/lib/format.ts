@@ -33,7 +33,7 @@ export function formatDuration(millis: number | null): string {
   return parts.length > 0 ? parts.join(" ") : "0s";
 }
 
-/** Every non-zero unit of a duration ("1d 2h 30m 15s"), for text meant to be edited. */
+/** Every non-zero unit of a duration ("1d 2h 30m 15s"). */
 export function formatDurationParts(millis: number): string {
   let remaining = Math.round(millis / 1000);
   const parts: string[] = [];
