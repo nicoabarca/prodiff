@@ -208,7 +208,16 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
     })
 }
 
-pub(super) fn compare(a: &Acc, b: &Acc, numeric: bool) -> Option<Test> {
+/// Compares the Groups of one attribute at one node.
+///
+/// Takes a collection so the shape admits N Groups, and refuses anything but
+/// two, because the tests below are two-sample tests. Three would need an
+/// omnibus test first and Cramér's V would need its full denominator back —
+/// see `docs/statistics.md`. The shape is N-ready; the statistics are not.
+pub(super) fn compare(groups: &[&Acc], numeric: bool) -> Option<Test> {
+    let [a, b] = groups else {
+        return None;
+    };
     match (a, b) {
         (Acc::Num(a), Acc::Num(b)) if numeric => mann_whitney(a, b),
         (Acc::Cat(a), Acc::Cat(b)) => chi_square(a, b),

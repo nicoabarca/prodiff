@@ -2,8 +2,8 @@
 //! `groups` table and hands over ids; Rust owns the files those ids name.
 
 use super::storage::{delete_group, group_path, read_group, write_group};
-use crate::column_mapping::ColumnMapping;
-use crate::filters::queries::{filtered, read_event_log};
+use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
+use crate::filters::queries::{case_ids, filtered, read_event_log};
 use crate::filters::Filter;
 use crate::stats::{summarize, EventLogStats};
 
@@ -43,6 +43,21 @@ pub fn applied_groups(
         .iter()
         .map(|id| Ok(group_path(&app, &project_id, id)?.exists()))
         .collect()
+}
+
+/// Cases in both Groups. Reported rather than removed (see `docs/adr/0006`).
+#[tauri::command]
+pub fn shared_cases(
+    app: tauri::AppHandle,
+    project_id: String,
+    group_a: String,
+    group_b: String,
+    columns: Vec<ColumnMapping>,
+) -> Result<i64, String> {
+    let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let a = case_ids(&read_group(&app, &project_id, &group_a)?, case_col)?;
+    let b = case_ids(&read_group(&app, &project_id, &group_b)?, case_col)?;
+    Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
 }
 
 /// Statistics for several Groups at once, in the order asked.

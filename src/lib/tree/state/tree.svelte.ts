@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
-import { filtersKey, groups } from "$lib/groups/state/groups.svelte";
+import { groups, originalGroup } from "$lib/groups/state/groups.svelte";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
@@ -40,10 +40,9 @@ export const variants = $state<{
   dropped: number;
 }>({ key: null, rows: [], loading: false, error: null, dropped: 0 });
 
-/** The chains the Variant list would have to be built from to still be current. */
-function variantsKey(): string | null {
-  const chains = groupChains();
-  return chains ? filtersKey([chains.a, chains.b] as unknown as Filter[]) : null;
+/** The Groups the Variant list would have to be built from to still be current. */
+function variantsKey(): string {
+  return comparedIds().join("|");
 }
 
 export function selectedVariants(): Set<string> {
@@ -56,14 +55,12 @@ export function selectedVariants(): Set<string> {
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
-  if (!key || variants.loading || (!force && variants.key === key)) return;
+  if (variants.loading || (!force && variants.key === key)) return;
 
   variants.loading = true;
   variants.error = null;
   try {
-    const chains = groupChains();
-    if (!chains) return;
-    const rows = await listVariants(project, chains.a, chains.b);
+    const rows = await listVariants(project, comparedIds());
     variants.rows = rows;
     variants.key = key;
 
@@ -99,15 +96,23 @@ export const selected = $state<{ id: number | null }>({ id: null });
 /** The Variant the canvas lights up. Outlives the picker. */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
-/** The two Groups being compared: the project's first two, in position order. */
-export function comparedGroups(): [Group | null, Group | null] {
-  return [groups[0] ?? null, groups[1] ?? null];
+/**
+ * The Groups being compared, in position order. Only applied Groups can be
+ * read, and with none applied the tree falls back to the Original. Capped at
+ * two here rather than in the payload, which admits N.
+ */
+export function comparedGroups(): [Group, Group | null] {
+  const applied = groups.filter((group) => group.stats !== null);
+  const projectId = groups[0]?.projectId ?? built.projectId ?? "";
+  if (applied.length === 0) return [originalGroup(projectId), null];
+  if (applied.length === 1) return [originalGroup(projectId), applied[0]];
+  return [applied[0], applied[1]];
 }
 
-export function groupChains(): { a: Filter[]; b: Filter[] | null } | null {
+/** The ids the seam takes: one for a single-Group tree, two for a comparison. */
+export function comparedIds(): string[] {
   const [a, b] = comparedGroups();
-  if (!a) return null;
-  return { a: a.filters, b: b ? b.filters : null };
+  return b ? [a.id, b.id] : [a.id];
 }
 
 export async function loadSettings(projectId: string) {
@@ -137,9 +142,8 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
 }
 
 /** The key the tree on screen would need to match to still be current. */
-export function currentKey(): string | null {
-  const chains = groupChains();
-  return chains ? treeKey(chains.a, chains.b, settings.value) : null;
+export function currentKey(): string {
+  return treeKey(comparedIds(), settings.value);
 }
 
 export function isStale(): boolean {
@@ -151,13 +155,12 @@ export function isStale(): boolean {
  * automatic. An empty selection lets the backend pick by coverage.
  */
 export async function build(project: Project) {
-  const chains = groupChains();
-  if (!chains || built.building) return;
+  if (built.building) return;
 
   built.building = true;
   built.error = null;
   try {
-    const tree = await directedTree(project, chains.a, chains.b, settings.value);
+    const tree = await directedTree(project, comparedIds(), settings.value);
     built.projectId = project.id;
     built.tree = tree;
     selected.id = null;

@@ -21,12 +21,12 @@ pub fn run() {
             groups::commands::delete_group_file,
             groups::commands::applied_groups,
             groups::commands::group_stats,
+            groups::commands::shared_cases,
             filters::commands::filters_impact,
             filters::commands::group_preview,
             filters::commands::distinct_values,
             filters::commands::duration_histogram,
             filters::commands::daily_case_load,
-            filters::commands::shared_cases,
             tree::commands::directed_tree,
             tree::commands::list_variants,
             tree::commands::node_distributions

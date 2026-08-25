@@ -657,7 +657,7 @@ pub fn build(
                             && a.len() >= MIN_GROUP_CASES
                             && b.len() >= MIN_GROUP_CASES
                         {
-                            stats::compare(a, b, numeric)
+                            stats::compare(&[a, b], numeric)
                         } else {
                             None
                         },
@@ -833,7 +833,7 @@ fn case_level_blocks(
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
-                Some((spec.name.clone(), stats::compare(a, b, spec.numeric)?))
+                Some((spec.name.clone(), stats::compare(&[a, b], spec.numeric)?))
             })
             .collect();
         // Case-level attributes are their own family: one test each, no nodes.

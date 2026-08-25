@@ -185,17 +185,19 @@ export function groupEvents(group: Group, filters = group.filters): number | nul
   return steps ? (steps[steps.length - 1]?.events ?? null) : null;
 }
 
-/** Cases in both Groups' Filter Lists, keyed by the pair. */
+/** Cases in both Groups, keyed by the pair and by what each one holds. */
 const sharedCasesCache = $state<Record<string, number>>({});
 
 function sharedCasesKey(a: Group, b: Group): string {
-  return `${filtersKey(a.filters)}|${filtersKey(b.filters)}`;
+  return `${a.id}:${filtersKey(a.filters)}|${b.id}:${filtersKey(b.filters)}`;
 }
 
+/** Unapplied Groups have no Parquet to intersect, so there is nothing to ask. */
 export async function loadSharedCases(project: Project, a: Group, b: Group) {
+  if (!isApplied(a) || !isApplied(b)) return;
   const key = sharedCasesKey(a, b);
   if (key in sharedCasesCache) return;
-  sharedCasesCache[key] = await fetchSharedCases(project, a.filters, b.filters);
+  sharedCasesCache[key] = await fetchSharedCases(project, a.id, b.id);
 }
 
 /** Cases shared between two Groups, or null while unmeasured. */

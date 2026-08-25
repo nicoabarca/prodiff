@@ -1,5 +1,4 @@
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import type { Filter } from "$lib/filters/kind/filter";
 import type { TreeSettings } from "$lib/tree/types";
 
 /** Derived attributes — not columns, but selectable like any other. */
@@ -32,15 +31,6 @@ export function isDurationAttribute(attribute: string): boolean {
  * Identifies the numbers a build produces, for the in-memory cache. Sorted, so
  * checking Variants in a different order doesn't read as a different tree.
  */
-export function treeKey(
-  groupA: Filter[],
-  groupB: Filter[] | null,
-  settings: TreeSettings
-): string {
-  return JSON.stringify([
-    groupA,
-    groupB,
-    settings.attributes,
-    [...settings.selectedVariants].sort()
-  ]);
+export function treeKey(groups: string[], settings: TreeSettings): string {
+  return JSON.stringify([groups, settings.attributes, [...settings.selectedVariants].sort()]);
 }

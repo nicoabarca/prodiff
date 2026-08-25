@@ -7,7 +7,7 @@
 import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
-import { built, groupChains, isStale, selected } from "$lib/tree/state/tree.svelte";
+import { built, comparedIds, isStale, selected } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
 import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
@@ -116,9 +116,6 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   // The Start root has no event of its own, so `atStep` has nothing to count.
   if (charts.scope === "atStep" && depth === 0) return;
 
-  const chains = groupChains();
-  if (!chains) return;
-
   const visible = visibleNodes(tree, view, selectedVariants());
   const variants = subtreeVariants(tree, visible, nodeId);
   const next = key(nodeId, depth, variants, attributes, charts.scope);
@@ -130,8 +127,7 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   try {
     const data = await nodeDistributions(
       project,
-      chains.a,
-      chains.b,
+      comparedIds(),
       attributes,
       variants,
       depth,

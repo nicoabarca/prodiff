@@ -1,12 +1,39 @@
-//! The Comparison Directed Tree seam. Like the filter commands, Rust is
-//! stateless here: the frontend composes each Group's chain (base first) and
-//! hands it over whole, and nothing derived is persisted on this side.
+//! The Comparison Directed Tree seam. Every command here takes Group ids and
+//! reads the Parquet each one names — Filter Lists never reach this side, and
+//! nothing derived is persisted.
+//!
+//! `groups` is ordered and holds one or two ids. One is single-Group mode: the
+//! tree still renders, with case counts and aggregates but no comparison
+//! anywhere. The cap lives here rather than in the payload shape.
 
 use super::distributions::{distributions, NodeDistributions, Scope};
 use super::{build, DirectedTree};
 use crate::column_mapping::ColumnMapping;
-use crate::filters::queries::{filtered, read_event_log as read_log};
-use crate::filters::Filter;
+use crate::groups::storage::read_group;
+use polars::prelude::DataFrame;
+
+/// The one or two Groups a command was asked for, read from their files.
+fn read_groups(
+    app: &tauri::AppHandle,
+    project_id: &str,
+    groups: &[String],
+) -> Result<(DataFrame, Option<DataFrame>), String> {
+    let Some(first) = groups.first() else {
+        return Err("A comparison needs at least one group.".to_string());
+    };
+    if groups.len() > 2 {
+        return Err(format!(
+            "Comparing {} groups is not supported yet; pick two.",
+            groups.len()
+        ));
+    }
+    let a = read_group(app, project_id, first)?;
+    let b = match groups.get(1) {
+        Some(id) => Some(read_group(app, project_id, id)?),
+        None => None,
+    };
+    Ok((a, b))
+}
 
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
@@ -32,16 +59,10 @@ pub struct VariantRow {
 pub fn list_variants(
     app: tauri::AppHandle,
     project_id: String,
-    group_a: Vec<Filter>,
-    group_b: Option<Vec<Filter>>,
+    groups: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
-    let df = read_log(&app, &project_id)?;
-    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
-    let b = match &group_b {
-        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
-        None => None,
-    };
+    let (a, b) = read_groups(&app, &project_id, &groups)?;
 
     let mut rows = super::variant_rows(&a, b.as_ref(), &columns)?;
     // Same order the cold-build cut uses, so the list the user sees and the set
@@ -54,12 +75,8 @@ pub fn list_variants(
     Ok(rows)
 }
 
-/// Builds the whole tree in one pass: both Groups share a single read of the
-/// Parquet file, and every Node Aggregate, Significance Test and Co-movement
-/// pair ships with it.
-///
-/// `group_b` is `None` in one-Group mode — the tree still renders, with case
-/// counts and aggregates but no comparison anywhere.
+/// Builds the whole tree in one pass: every Node Aggregate, Significance Test
+/// and Co-movement pair ships with it.
 ///
 /// `variants` is the set the picker has checked, by Variant key. It cuts before
 /// any aggregation, so the Significance Tests describe the Variants included
@@ -69,19 +86,12 @@ pub fn list_variants(
 pub fn directed_tree(
     app: tauri::AppHandle,
     project_id: String,
-    group_a: Vec<Filter>,
-    group_b: Option<Vec<Filter>>,
+    groups: Vec<String>,
     attributes: Vec<String>,
     columns: Vec<ColumnMapping>,
     variants: Option<Vec<String>>,
 ) -> Result<DirectedTree, String> {
-    let df = read_log(&app, &project_id)?;
-
-    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
-    let b = match &group_b {
-        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
-        None => None,
-    };
+    let (a, b) = read_groups(&app, &project_id, &groups)?;
 
     build(
         &a,
@@ -107,20 +117,14 @@ pub fn directed_tree(
 pub fn node_distributions(
     app: tauri::AppHandle,
     project_id: String,
-    group_a: Vec<Filter>,
-    group_b: Option<Vec<Filter>>,
+    groups: Vec<String>,
     columns: Vec<ColumnMapping>,
     attributes: Vec<String>,
     variants: Vec<String>,
     depth: usize,
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
-    let df = read_log(&app, &project_id)?;
-    let a = filtered(&app, &project_id, &df, &group_a, &columns)?;
-    let b = match &group_b {
-        Some(chain) => Some(filtered(&app, &project_id, &df, chain, &columns)?),
-        None => None,
-    };
+    let (a, b) = read_groups(&app, &project_id, &groups)?;
 
     distributions(
         &a,

@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Scope } from "$lib/distributions/types";
 
@@ -11,8 +10,7 @@ import type { Scope } from "$lib/distributions/types";
  */
 export function nodeDistributions(
   project: Project,
-  groupA: Filter[],
-  groupB: Filter[] | null,
+  groups: string[],
   attributes: string[],
   variants: string[],
   depth: number,
@@ -20,8 +18,7 @@ export function nodeDistributions(
 ): Promise<ResponseNodeDistributions> {
   return invoke<ResponseNodeDistributions>("node_distributions", {
     projectId: project.id,
-    groupA,
-    groupB,
+    groups,
     columns: project.columns,
     attributes,
     variants,
