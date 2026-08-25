@@ -55,19 +55,17 @@ export const ENCODING_HINT: Record<Encoding, string> = {
 /** Categories a card shows before the rest fold into `Other`. */
 export const TOP_CATEGORIES = 12;
 
-/** One bar: a label and the two Groups' counts. */
+/** One bar: a label and every Group's count, keyed by Group id. */
 export interface Bar {
   label: string;
-  a: number;
-  b: number;
+  counts: Record<string, number>;
   collapsed?: number;
 }
 
-/** One column of the cumulative curve: a duration and each Group's share. */
+/** One column of the cumulative curve: a duration and each Group's share, keyed by Group id. */
 export interface CurveRow {
   value: number;
-  a: number | null;
-  b: number | null;
+  shares: Record<string, number | null>;
 }
 
 /** How the Distributions grid orders its cards. */

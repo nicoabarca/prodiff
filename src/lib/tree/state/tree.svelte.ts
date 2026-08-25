@@ -150,7 +150,7 @@ export async function saveComparison(projectId: string, groupIds: string[]) {
  * that has since been deleted or un-applied falls away, so a stale selection
  * degrades to the Original. Capped at two.
  */
-export function comparedGroups(): [Group, Group | null] {
+export function comparedGroups(): Group[] {
   const projectId = groups[0]?.projectId ?? built.projectId ?? "";
   const original = originalGroup(projectId);
   const known = (id: string): Group | null =>
@@ -159,14 +159,12 @@ export function comparedGroups(): [Group, Group | null] {
       : (groups.find((group) => group.id === id && isApplied(group)) ?? null);
 
   const picked = comparison.groupIds.map(known).filter((group): group is Group => group !== null);
-  if (picked.length === 0) return [original, null];
-  return [picked[0], picked[1] ?? null];
+  return picked.length === 0 ? [original] : picked.slice(0, 2);
 }
 
 /** The ids the seam takes: one for a single-Group tree, two for a comparison. */
 export function comparedIds(): string[] {
-  const [a, b] = comparedGroups();
-  return b ? [a.id, b.id] : [a.id];
+  return comparedGroups().map((group) => group.id);
 }
 
 export async function loadSettings(projectId: string) {

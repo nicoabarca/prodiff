@@ -50,11 +50,11 @@
   const first = $derived(options.find((group) => group.id === firstId) ?? null);
   const second = $derived(options.find((group) => group.id === secondId) ?? null);
 
-  const both = $derived(first && second ? ([first, second] as const) : null);
-  const shared = $derived(both ? sharedCases(both[0], both[1]) : null);
+  const both = $derived(first && second ? [first, second] : null);
+  const shared = $derived(both ? sharedCases(both) : null);
 
   $effect(() => {
-    if (both) loadSharedCases(project, both[0], both[1]);
+    if (both) loadSharedCases(project, both);
   });
 
   const name = (id: string) =>
@@ -73,16 +73,16 @@
    */
   async function compareDifference() {
     if (!both) return;
-    const [a, b] = both;
+    const [baseline, other] = both;
     building = true;
     error = null;
     try {
-      const difference = await createGroup(project.id, `${b.name} without ${a.name}`);
+      const difference = await createGroup(project.id, `${other.name} without ${baseline.name}`);
       await applyGroup(project, difference, [
-        ...b.filters,
-        { kind: "case_not_in_group", groupId: a.id }
+        ...other.filters,
+        { kind: "case_not_in_group", groupId: baseline.id }
       ]);
-      await saveComparison(project.id, [a.id, difference.id]);
+      await saveComparison(project.id, [baseline.id, difference.id]);
       open = false;
     } catch (cause) {
       error = String(cause);

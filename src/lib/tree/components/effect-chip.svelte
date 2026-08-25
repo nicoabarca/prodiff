@@ -13,7 +13,7 @@
   /** The name the user gave the Group a test names as higher. */
   function nameOf(id: string | null): string | null {
     if (id === null) return null;
-    return groups.find((group) => group?.id === id)?.name ?? null;
+    return groups.find((group) => group.id === id)?.name ?? null;
   }
 
   const band = $derived(test ? effectBand(test.effectSize) : null);

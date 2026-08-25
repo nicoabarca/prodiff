@@ -23,7 +23,8 @@
     PLOT_TOGGLE,
     SCOPE_LABEL,
     type Scope,
-    TOP_CATEGORIES
+    TOP_CATEGORIES,
+    type Bar
   } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
@@ -59,11 +60,9 @@
     onRemove: () => void;
   } = $props();
 
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
-  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
-  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
-  const ids = $derived(groups.map((group) => group.id));
+  /** The Groups drawn, in order. Without comparison only the first is drawn. */
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
+  const ids = $derived(drawn.map((group) => group.id));
 
   /**
    * The duration-only encodings, when the backend computed them. Absent on
@@ -79,17 +78,19 @@
   );
 
   const series = $derived(
-    compare
-      ? [
-          { key: "a", label: nameA, color: COLOR_A },
-          { key: "b", label: nameB, color: COLOR_B }
-        ]
-      : [{ key: "a", label: nameA, color: COLOR_A }]
+    drawn.map((group) => ({
+      key: group.id,
+      label: group.name,
+      color: colorVar(group.color),
+      value: (bar: Bar) => bar.counts[group.id] ?? 0
+    }))
   );
 
   const config = $derived.by((): Chart.ChartConfig => {
-    const entries: Chart.ChartConfig = { a: { label: nameA, color: COLOR_A } };
-    if (compare) entries.b = { label: nameB, color: COLOR_B };
+    const entries: Chart.ChartConfig = {};
+    for (const group of drawn) {
+      entries[group.id] = { label: group.name, color: colorVar(group.color) };
+    }
     return entries;
   });
 
@@ -106,16 +107,18 @@
       : (value: number) => formatNumber(Math.round(value))
   );
 
-  /** Totals the tooltip reads shares against. */
-  const totals = $derived.by(() => {
-    if (distribution.type === "categorical") {
-      return { a: distribution.totals[ids[0]] ?? 0, b: distribution.totals[ids[1]] ?? 0 };
-    }
-    if (distribution.type === "numerical") {
-      return { a: distribution.n[ids[0]] ?? 0, b: distribution.n[ids[1]] ?? 0 };
-    }
-    return { a: 0, b: 0 };
+  /** Totals the tooltip reads shares against, keyed by Group id. */
+  const totals = $derived.by((): Record<string, number> => {
+    const source =
+      distribution.type === "categorical"
+        ? distribution.totals
+        : distribution.type === "numerical"
+          ? distribution.n
+          : {};
+    return Object.fromEntries(ids.map((id) => [id, source[id] ?? 0]));
   });
+
+  const totalN = $derived(ids.reduce((sum, id) => sum + totals[id], 0));
 
   const hiddenCategories = $derived(
     distribution.type === "categorical" ? Math.max(0, distribution.distinct - TOP_CATEGORIES) : 0
@@ -147,9 +150,9 @@
         {:else if distribution.type === "numerical" && constant === null}
           <span class="text-muted-foreground text-[0.625rem]">
             {#if shape && encoding !== "logBins"}
-              n {formatNumber(totals.a + totals.b)}
+              n {formatNumber(totalN)}
             {:else}
-              {data.length} bins · n {formatNumber(totals.a + totals.b)}
+              {data.length} bins · n {formatNumber(totalN)}
             {/if}
           </span>
         {/if}
@@ -193,10 +196,14 @@
     <div
       class="text-muted-foreground border-border flex shrink-0 items-center gap-3 border-b px-3 py-1.5 text-[0.625rem]"
     >
-      {#each [[nameA, COLOR_A], [nameB, COLOR_B]] as [name, color] (name)}
+      {#each drawn as group (group.id)}
         <span class="inline-flex min-w-0 items-center gap-1.5">
-          <span class="size-2 shrink-0" style="background:{color}" aria-hidden="true"></span>
-          <span class="truncate">{name}</span>
+          <span
+            class="size-2 shrink-0"
+            style="background:{colorVar(group.color)}"
+            aria-hidden="true"
+          ></span>
+          <span class="truncate">{group.name}</span>
         </span>
       {/each}
     </div>
@@ -214,9 +221,8 @@
         Every value is <span class="font-semibold">{format(constant)}</span>.
       </p>
       <p class="text-muted-foreground text-[0.625rem]">
-        {nameA}
-        {formatNumber(totals.a)}{#if compare}
-          · {nameB} {formatNumber(totals.b)}{/if} values, so there is no spread to plot.
+        {drawn.map((group) => `${group.name} ${formatNumber(totals[group.id])}`).join(" · ")} values,
+        so there is no spread to plot.
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}
@@ -271,16 +277,13 @@
                     {/if}
                   </p>
                   <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
-                    <dt class="text-muted-foreground truncate">{nameA}</dt>
-                    <dd class="text-right">
-                      {formatNumber(row.a)} · {share(row.a, totals.a)}
-                    </dd>
-                    {#if compare}
-                      <dt class="text-muted-foreground truncate">{nameB}</dt>
+                    {#each drawn as group (group.id)}
+                      {@const count = row.counts[group.id] ?? 0}
+                      <dt class="text-muted-foreground truncate">{group.name}</dt>
                       <dd class="text-right">
-                        {formatNumber(row.b)} · {share(row.b, totals.b)}
+                        {formatNumber(count)} · {share(count, totals[group.id])}
                       </dd>
-                    {/if}
+                    {/each}
                   </dl>
                 </div>
               {/snippet}

@@ -51,7 +51,9 @@
               <EffectChip test={tree.caseLevelTests[name]} />
             </div>
             <SummaryCompare
-              summaries={tree.groups.map((group) => group.caseLevel[name] ?? null)}
+              summaries={Object.fromEntries(
+                tree.groups.map((group) => [group.id, group.caseLevel[name] ?? null])
+              )}
               compare={comparing}
             />
           </div>

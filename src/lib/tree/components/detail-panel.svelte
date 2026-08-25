@@ -33,8 +33,6 @@
 
   const groups = $derived(comparedGroups());
   const ids = $derived(tree.groups.map((group) => group.id));
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /**
    * Attributes strongest first, with the negligible and untestable ones folded
@@ -60,9 +58,13 @@
   /** Why a block carries no Significance Test, in the user's terms. */
   function untestable(block: AttributeBlock): string {
     if (!compare) return "One-group mode: nothing to compare against.";
-    const n = (index: number) => block.summaries[tree.groups[index]?.id]?.n ?? 0;
-    if (n(0) < 5 || n(1) < 5) {
-      return `Too few cases to test. ${nameA}: ${n(0)}, ${nameB}: ${n(1)} (minimum 5 each).`;
+    const counted = groups.map((group) => ({
+      name: group.name,
+      n: block.summaries[group.id]?.n ?? 0
+    }));
+    if (counted.some((group) => group.n < 5)) {
+      const listed = counted.map((group) => `${group.name}: ${group.n}`).join(", ");
+      return `Too few cases to test. ${listed} (minimum 5 each).`;
     }
     return "Not enough distinct values to compare.";
   }
@@ -84,11 +86,7 @@
       </p>
     {/if}
 
-    <SummaryCompare
-      summaries={tree.groups.map((group) => block.summaries[group.id] ?? null)}
-      {compare}
-      duration={isDurationAttribute(name)}
-    />
+    <SummaryCompare summaries={block.summaries} {compare} duration={isDurationAttribute(name)} />
 
     {#if !block.test}
       {#if compare}
@@ -165,12 +163,7 @@
         </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
-        {tree.groups
-          .map((group, index) => {
-            const name = index === 0 ? nameA : nameB;
-            return `${name} ${formatNumber(cases?.[group.id] ?? 0)}`;
-          })
-          .join(" · ")} cases
+        {groups.map((group) => `${group.name} ${formatNumber(cases?.[group.id] ?? 0)}`).join(" · ")} cases
       </p>
       <p
         class="text-muted-foreground truncate text-[0.625rem]"

@@ -4,9 +4,11 @@
 //! depth, so nothing here re-derives node identity by joining activity labels.
 
 use super::stats::{quantile, tukey};
-use super::{read_group, variant_key, Acc, AttrSpec, GroupRows, Source, ACTIVITY_DURATION, TRANSITION_TIME};
+use super::{
+    read_group, variant_key, Acc, AttrSpec, GroupLog, GroupRows, Source, ACTIVITY_DURATION,
+    TRANSITION_TIME,
+};
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
-use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 /// How many categories ship at most. The frontend cuts to its own top-N and
@@ -371,9 +373,8 @@ fn bin_by_edges(values: &[f64], edges: &[f64]) -> Vec<i64> {
 }
 
 /// The three duration-only encodings, computed from the sorted values in hand.
-fn duration_shape(ids: &[String], sorted_a: &[f64], sorted_b: &[f64], max: f64) -> DurationShape {
+fn duration_shape(ids: &[String], per_group: [&[f64]; 2], max: f64) -> DurationShape {
     let edges = log_edges(max);
-    let per_group = [sorted_a, sorted_b];
     DurationShape {
         ecdf: keyed(
             ids,
@@ -396,11 +397,16 @@ fn keyed<T>(ids: &[String], values: [Option<T>; 2]) -> HashMap<String, T> {
         .collect()
 }
 
-fn numerical(ids: &[String], a: &[f64], b: &[f64], duration: bool) -> Distribution {
-    if a.is_empty() && b.is_empty() {
+fn numerical(ids: &[String], per_group: [&[f64]; 2], duration: bool) -> Distribution {
+    if per_group.iter().all(|values| values.is_empty()) {
         return Distribution::Empty;
     }
-    let mut pooled: Vec<f64> = a.iter().chain(b).copied().filter(|v| v.is_finite()).collect();
+    let mut pooled: Vec<f64> = per_group
+        .iter()
+        .flat_map(|values| values.iter())
+        .copied()
+        .filter(|v| v.is_finite())
+        .collect();
     if pooled.is_empty() {
         return Distribution::Empty;
     }
@@ -422,39 +428,32 @@ fn numerical(ids: &[String], a: &[f64], b: &[f64], duration: bool) -> Distributi
             own.sort_by(|x, y| x.partial_cmp(y).unwrap_or(std::cmp::Ordering::Equal));
             own
         };
-        duration_shape(ids, &sorted(a), &sorted(b), max)
+        let sorted = per_group.map(|values| sorted(values));
+        duration_shape(ids, [&sorted[0], &sorted[1]], max)
     });
 
     Distribution::Numerical {
-        counts: keyed(ids, [Some(bin(a, &edges)), Some(bin(b, &edges))]),
-        n: keyed(ids, [Some(a.len()), Some(b.len())]),
+        counts: keyed(ids, per_group.map(|values| Some(bin(values, &edges)))),
+        n: keyed(ids, per_group.map(|values| Some(values.len()))),
         edges,
         shape,
     }
 }
 
-fn categorical(
-    ids: &[String],
-    a: &HashMap<String, i64>,
-    b: &HashMap<String, i64>,
-) -> Distribution {
-    let total_a: i64 = a.values().sum();
-    let total_b: i64 = b.values().sum();
-    if total_a == 0 && total_b == 0 {
+fn categorical(ids: &[String], per_group: [&HashMap<String, i64>; 2]) -> Distribution {
+    let totals = per_group.map(|counts| counts.values().sum::<i64>());
+    if totals.iter().all(|total| *total == 0) {
         return Distribution::Empty;
     }
-    let mut values: Vec<CategoryCount> = a
-        .keys()
-        .chain(b.keys())
+    let mut values: Vec<CategoryCount> = per_group
+        .iter()
+        .flat_map(|counts| counts.keys())
         .collect::<HashSet<_>>()
         .into_iter()
         .map(|value| CategoryCount {
             counts: keyed(
                 ids,
-                [
-                    Some(*a.get(value).unwrap_or(&0)),
-                    Some(*b.get(value).unwrap_or(&0)),
-                ],
+                per_group.map(|counts| Some(*counts.get(value).unwrap_or(&0))),
             ),
             value: value.clone(),
         })
@@ -468,15 +467,13 @@ fn categorical(
     Distribution::Categorical {
         values,
         distinct,
-        totals: keyed(ids, [Some(total_a), Some(total_b)]),
+        totals: keyed(ids, totals.map(Some)),
     }
 }
 
 /// Counts one node's attribute values, per Group, under one Scope.
 pub fn distributions(
-    ids: &[String],
-    group_a: &DataFrame,
-    group_b: Option<&DataFrame>,
+    logs: &[GroupLog],
     mapping: &[ColumnMapping],
     attributes: &[String],
     variants: &[String],
@@ -490,15 +487,16 @@ pub fn distributions(
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (plans, specs) = plan(attributes, mapping, has_start);
 
+    let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
     let variants: HashSet<String> = variants.iter().cloned().collect();
     let mut acc_a: Vec<Acc> = plans.iter().map(|p| Acc::new(p.numeric)).collect();
     let mut acc_b: Vec<Acc> = plans.iter().map(|p| Acc::new(p.numeric)).collect();
 
-    let rows_a = read_group(group_a, mapping, &specs)?;
+    let rows_a = read_group(&logs[0].df, mapping, &specs)?;
     let (cases_a, events_a) = accumulate(&rows_a, &plans, &variants, depth, scope, &mut acc_a);
-    let (cases_b, events_b) = match group_b {
-        Some(df) => {
-            let rows = read_group(df, mapping, &specs)?;
+    let (cases_b, events_b) = match logs.get(1) {
+        Some(log) => {
+            let rows = read_group(&log.df, mapping, &specs)?;
             accumulate(&rows, &plans, &variants, depth, scope, &mut acc_b)
         }
         None => (0, 0),
@@ -510,8 +508,8 @@ pub fn distributions(
         .map(|(plan, (a, b))| {
             let duration = plan.name == ACTIVITY_DURATION || plan.name == TRANSITION_TIME;
             let distribution = match (a, b) {
-                (Acc::Num(a), Acc::Num(b)) => numerical(ids, a, b, duration),
-                (Acc::Cat(a), Acc::Cat(b)) => categorical(ids, a, b),
+                (Acc::Num(a), Acc::Num(b)) => numerical(&ids, [a, b], duration),
+                (Acc::Cat(a), Acc::Cat(b)) => categorical(&ids, [a, b]),
                 _ => Distribution::Empty,
             };
             (plan.name.clone(), distribution)
@@ -555,7 +553,7 @@ mod tests {
     fn bins_are_shared_and_hold_every_value() {
         let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let b = vec![6.0, 7.0, 8.0, 9.0, 10.0];
-        let Distribution::Numerical { edges, counts, .. } = numerical(&ids(), &a, &b, false) else {
+        let Distribution::Numerical { edges, counts, .. } = numerical(&ids(), [&a, &b], false) else {
             panic!("expected a numerical distribution");
         };
         let (counts_a, counts_b) = (&counts["a"], &counts["b"]);
@@ -570,7 +568,7 @@ mod tests {
 
     #[test]
     fn a_constant_attribute_still_bins() {
-        let Distribution::Numerical { counts, .. } = numerical(&ids(), &[7.0, 7.0, 7.0], &[], false)
+        let Distribution::Numerical { counts, .. } = numerical(&ids(), [&[7.0, 7.0, 7.0], &[]], false)
         else {
             panic!("expected a numerical distribution");
         };
@@ -585,7 +583,7 @@ mod tests {
             values,
             distinct,
             totals,
-        } = categorical(&ids(), &a, &b)
+        } = categorical(&ids(), [&a, &b])
         else {
             panic!("expected a categorical distribution");
         };
@@ -614,11 +612,11 @@ mod tests {
         ];
         let attributes = vec!["who".to_string()];
 
+        let logs = super::super::tests::logs(&log, None);
         let at_step =
-            distributions(&ids()[..1], &log, None, &mapping, &attributes, &variants, 2, Scope::AtStep).unwrap();
+            distributions(&logs, &mapping, &attributes, &variants, 2, Scope::AtStep).unwrap();
         let whole =
-            distributions(&ids()[..1], &log, None, &mapping, &attributes, &variants, 2, Scope::WholeCase)
-                .unwrap();
+            distributions(&logs, &mapping, &attributes, &variants, 2, Scope::WholeCase).unwrap();
 
         // Same cases either way, which is the point of the Scope split.
         assert_eq!(at_step.groups[0].cases, 2);
@@ -646,9 +644,9 @@ mod tests {
 
     #[test]
     fn everything_null_is_empty_not_a_chart_of_zeroes() {
-        assert!(matches!(numerical(&ids(), &[], &[], false), Distribution::Empty));
+        assert!(matches!(numerical(&ids(), [&[], &[]], false), Distribution::Empty));
         assert!(matches!(
-            categorical(&ids(), &HashMap::new(), &HashMap::new()),
+            categorical(&ids(), [&HashMap::new(), &HashMap::new()]),
             Distribution::Empty
         ));
     }
@@ -664,11 +662,11 @@ mod tests {
     #[test]
     fn only_durations_carry_a_shape() {
         let values = skewed();
-        let Distribution::Numerical { shape, .. } = numerical(&ids(), &values, &values, false) else {
+        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], false) else {
             panic!("expected a numerical distribution");
         };
         assert!(shape.is_none());
-        let Distribution::Numerical { shape, .. } = numerical(&ids(), &values, &values, true) else {
+        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], true) else {
             panic!("expected a numerical distribution");
         };
         assert!(shape.is_some());

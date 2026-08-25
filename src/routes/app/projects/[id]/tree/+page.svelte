@@ -68,7 +68,7 @@
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
       <div class="ml-auto flex items-center gap-2">
-                <!-- Which groups the tree measures against, and what they share. -->
+        <!-- Which groups the tree measures against, and what they share. -->
         <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}

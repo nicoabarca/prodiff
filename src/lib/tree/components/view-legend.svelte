@@ -3,8 +3,6 @@
   import { comparedGroups, view } from "$lib/tree/state/tree.svelte";
 
   const groups = $derived(comparedGroups());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /** The Group a view setting names, or null when it names something else. */
   const named = (id: string) => groups.find((group) => group?.id === id)?.name ?? null;
@@ -13,7 +11,7 @@
   // same way the settings popover names it.
   const secondaryLabel = $derived(
     view.secondary === "cases"
-      ? `Cases (${nameA} · ${nameB})`
+      ? `Cases (${groups.map((group) => group.name).join(" · ")})`
       : (named(view.secondary) ?? `Mean ${view.secondary}`)
   );
 

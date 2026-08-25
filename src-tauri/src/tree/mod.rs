@@ -34,6 +34,13 @@ const MAX_VARIANTS: usize = 400;
 const DEFAULT_COVERAGE: f64 = 0.8;
 const ALPHA: f64 = 0.05;
 
+/// One Group's materialized Event Log, carrying the id every payload keys it by.
+/// The pipeline is handed these in the order the comparison lists them.
+pub struct GroupLog {
+    pub id: String,
+    pub df: DataFrame,
+}
+
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum Summary {
@@ -377,24 +384,18 @@ fn variant_counts(groups: &[Option<GroupRows>; 2]) -> HashMap<String, [i64; 2]> 
 /// The Variant census for the picker. Reads only the case-id and activity
 /// columns, so it is cheap enough to run on opening a panel.
 pub fn variant_rows(
-    ids: &[String],
-    group_a: &DataFrame,
-    group_b: Option<&DataFrame>,
+    logs: &[GroupLog],
     mapping: &[ColumnMapping],
 ) -> Result<Vec<commands::VariantRow>, String> {
-    let rows_a = read_group(group_a, mapping, &[])?;
-    let rows_b = match group_b {
-        Some(df) => Some(read_group(df, mapping, &[])?),
-        None => None,
-    };
-    let groups = [Some(rows_a), rows_b];
+    let ids = group_ids(logs);
+    let groups = read_logs(logs, mapping, &[])?;
 
     Ok(variant_counts(&groups)
         .into_iter()
         .map(|(key, cases)| commands::VariantRow {
             activities: key.split('\u{1}').map(str::to_string).collect(),
             key,
-            cases: by_group(ids, [Some(cases[0]), (ids.len() > 1).then_some(cases[1])]),
+            cases: by_group(&ids, [Some(cases[0]), (ids.len() > 1).then_some(cases[1])]),
         })
         .collect())
 }
@@ -474,13 +475,11 @@ fn cut_variants(
     (included, total_variants, coverage(covered), capped)
 }
 
-/// Builds the tree and everything hanging off it. `group_b` is `None` in
-/// one-Group mode, where no test runs anywhere. `selection` is the picker's
-/// checked Variants; see `cut_variants` for what `None` means.
+/// Builds the tree and everything hanging off it. With one Group no test runs
+/// anywhere. `selection` is the picker's checked Variants; see `cut_variants`
+/// for what `None` means.
 pub fn build(
-    ids: &[String],
-    group_a: &DataFrame,
-    group_b: Option<&DataFrame>,
+    logs: &[GroupLog],
     mapping: &[ColumnMapping],
     attributes: &[String],
     selection: Option<&[String]>,
@@ -488,12 +487,8 @@ pub fn build(
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attrs, case_attrs, wants_transition) = plan_attributes(attributes, mapping, has_start);
 
-    let rows_a = read_group(group_a, mapping, &attrs)?;
-    let rows_b = match group_b {
-        Some(df) => Some(read_group(df, mapping, &attrs)?),
-        None => None,
-    };
-    let groups = [Some(rows_a), rows_b];
+    let ids = group_ids(logs);
+    let groups = read_logs(logs, mapping, &attrs)?;
 
     let (included, variants_total, case_coverage, capped_by_ceiling) =
         cut_variants(&groups, selection);
@@ -590,12 +585,12 @@ pub fn build(
                     let numeric = i >= attrs.len() || attrs[i].numeric;
                     let (a, b) = (&node.acc[i][0], &node.acc[i][1]);
                     AttributeBlock {
-                        summaries: by_group(ids, [a.summary(), b.summary()]),
+                        summaries: by_group(&ids, [a.summary(), b.summary()]),
                         test: if comparing
                             && a.len() >= MIN_GROUP_CASES
                             && b.len() >= MIN_GROUP_CASES
                         {
-                            stats::compare(ids, &[a, b], numeric)
+                            stats::compare(&ids, &[a, b], numeric)
                         } else {
                             None
                         },
@@ -663,7 +658,7 @@ pub fn build(
                 id,
                 parent: node.parent,
                 label: node.label.clone(),
-                cases: by_group(ids, [Some(node.cases[0]), comparing.then_some(node.cases[1])]),
+                cases: by_group(&ids, [Some(node.cases[0]), comparing.then_some(node.cases[1])]),
                 event_level: blocks
                     .into_iter()
                     .enumerate()
@@ -676,8 +671,7 @@ pub fn build(
         })
         .collect();
 
-    let (group_blocks, case_level_tests) =
-        case_level_blocks(ids, &groups, group_a, group_b, &case_attrs)?;
+    let (group_blocks, case_level_tests) = case_level_blocks(logs, &groups, &case_attrs)?;
 
     Ok(DirectedTree {
         nodes: out_nodes,
@@ -708,6 +702,24 @@ fn by_group<T>(ids: &[String], values: [Option<T>; 2]) -> HashMap<String, T> {
         .collect()
 }
 
+fn group_ids(logs: &[GroupLog]) -> Vec<String> {
+    logs.iter().map(|log| log.id.clone()).collect()
+}
+
+/// The reader's two slots. Index 0 is the baseline; index 1 is empty with one Group.
+fn read_logs(
+    logs: &[GroupLog],
+    mapping: &[ColumnMapping],
+    attrs: &[AttrSpec],
+) -> Result<[Option<GroupRows>; 2], String> {
+    let mut read = logs
+        .iter()
+        .map(|log| read_group(&log.df, mapping, attrs))
+        .collect::<Result<Vec<_>, String>>()?
+        .into_iter();
+    Ok([read.next(), read.next()])
+}
+
 fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
     let (Some(a), Some(b)) = (&groups[0], &groups[1]) else {
         return 0;
@@ -720,12 +732,11 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
 /// taken from its first event. Computed over the whole Group, before the
 /// coverage cut, so it matches `case_count`.
 fn case_level_blocks(
-    ids: &[String],
+    logs: &[GroupLog],
     groups: &[Option<GroupRows>; 2],
-    df_a: &DataFrame,
-    df_b: Option<&DataFrame>,
     case_attrs: &[AttrSpec],
 ) -> Result<(Vec<GroupBlock>, HashMap<String, Test>), String> {
+    let ids = group_ids(logs);
     let per_group = |df: &DataFrame, rows: &GroupRows| -> Result<Vec<Acc>, String> {
         case_attrs
             .iter()
@@ -754,10 +765,12 @@ fn case_level_blocks(
             .collect()
     };
 
-    let rows_a = groups[0].as_ref().expect("group A is always present");
-    let accs_a = per_group(df_a, rows_a)?;
-    let accs_b = match (df_b, &groups[1]) {
-        (Some(df), Some(rows)) => Some((per_group(df, rows)?, rows.case_ids.len() as i64)),
+    let rows_a = groups[0]
+        .as_ref()
+        .expect("the baseline Group is always present");
+    let accs_a = per_group(&logs[0].df, rows_a)?;
+    let accs_b = match (logs.get(1), &groups[1]) {
+        (Some(log), Some(rows)) => Some((per_group(&log.df, rows)?, rows.case_ids.len() as i64)),
         _ => None,
     };
 
@@ -781,7 +794,7 @@ fn case_level_blocks(
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
-                Some((spec.name.clone(), stats::compare(ids, &[a, b], spec.numeric)?))
+                Some((spec.name.clone(), stats::compare(&ids, &[a, b], spec.numeric)?))
             })
             .collect();
         // Case-level attributes are their own family: one test each, no nodes.
@@ -858,18 +871,25 @@ mod tests {
         .unwrap()
     }
 
-        /// given, one otherwise, the same shape the commands send.
-    fn ids(b: Option<&DataFrame>) -> Vec<String> {
-        let mut ids = vec!["a".to_string()];
-        if b.is_some() {
-            ids.push("b".to_string());
+    /// The logs the commands would hand the pipeline: ids `a` and `b`, the
+    /// second only when there is a second log.
+    pub(super) fn logs(a: &DataFrame, b: Option<&DataFrame>) -> Vec<GroupLog> {
+        let mut logs = vec![GroupLog {
+            id: "a".to_string(),
+            df: a.clone(),
+        }];
+        if let Some(df) = b {
+            logs.push(GroupLog {
+                id: "b".to_string(),
+                df: df.clone(),
+            });
         }
-        ids
+        logs
     }
 
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(&ids(b), a, b, &mapping(), &attributes, None).unwrap()
+        build(&logs(a, b), &mapping(), &attributes, None).unwrap()
     }
 
     /// The key the builder gives a trace: activities joined the way
@@ -886,7 +906,7 @@ mod tests {
     ) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
         let keys: Vec<String> = selection.iter().map(|v| key(v)).collect();
-        build(&ids(b), a, b, &mapping(), &attributes, Some(&keys)).unwrap()
+        build(&logs(a, b), &mapping(), &attributes, Some(&keys)).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {

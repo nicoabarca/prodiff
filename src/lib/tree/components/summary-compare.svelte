@@ -1,10 +1,10 @@
 <script lang="ts">
-    /**
-     * One attribute compared across the Groups, drawn as the difference:
-     * categorical attributes as the share gap in percentage points, numeric ones
-     * as two Tukey box plots on a shared axis. Nothing is recomputed here; the
-     * backend's summary already is a box plot, outlier counts included.
-     */
+  /**
+   * One attribute compared across the Groups, drawn as the difference:
+   * categorical attributes as the share gap in percentage points, numeric ones
+   * as Tukey box plots on a shared axis. Nothing is recomputed here; the
+   * backend's summary already is a box plot, outlier counts included.
+   */
   import { Axis, BarChart, BoxPlot, Chart as ChartRoot, Svg, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { outlierNote } from "$lib/distributions/utils/distributions";
@@ -19,19 +19,19 @@
     compare = true,
     duration = false
   }: {
-    summaries: (Summary | null)[];
+    summaries: Record<string, Summary | null>;
     compare?: boolean;
     duration?: boolean;
   } = $props();
 
   const groups = $derived(comparedGroups());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
-  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
-  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
-  const groupA = $derived(summaries[0] ?? null);
-  const groupB = $derived(summaries[1] ?? null);
+  /** The Groups drawn, in order. Without comparison only the first is drawn. */
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
+
+  const accent = $derived(
+    Object.fromEntries(drawn.map((group) => [group.id, colorVar(group.color)]))
+  );
 
   /** How many categories fit before the rest go behind the disclosure. */
   const TOP = 6;
@@ -46,23 +46,32 @@
 
   // ---------------------------------------------------------------- numeric
 
-  const numericA = $derived(groupA?.type === "numerical" ? groupA : null);
-  const numericB = $derived(groupB?.type === "numerical" ? groupB : null);
-  const isNumeric = $derived(numericA !== null || numericB !== null);
+  const numeric = $derived.by(() => {
+    const entries = drawn.map((group) => {
+      const summary = summaries[group.id] ?? null;
+      return [group.id, summary?.type === "numerical" ? summary : null] as const;
+    });
+    return Object.fromEntries(entries) as Record<
+      string,
+      Extract<Summary, { type: "numerical" }> | null
+    >;
+  });
+
+  const isNumeric = $derived(drawn.some((group) => numeric[group.id] !== null));
 
   /**
-   * The axis spans the two Groups' whiskers, not the full range. Tukey bounds
-   * them at 1.5·IQR either side, so the box always keeps a readable share of
-   * the width; the outliers past them are counted underneath instead.
+   * The axis spans the Groups' whiskers, not the full range. Tukey bounds them
+   * at 1.5·IQR either side, so the box always keeps a readable share of the
+   * width; the outliers past them are counted underneath instead.
    */
   const span = $derived.by(() => {
-    const present = [numericA, numericB].filter((s) => s !== null);
+    const present = drawn.map((group) => numeric[group.id]).filter((s) => s !== null);
     if (present.length === 0) return null;
     const lowest = Math.min(...present.map((s) => s.min));
     const highest = Math.max(...present.map((s) => s.max));
     const lo = Math.min(...present.map((s) => s.whiskerLow));
     const hi = Math.max(...present.map((s) => s.whiskerHigh));
-    // Every case identical, in both Groups: a scale with nowhere to put a mark.
+    // Every case identical, in every Group: a scale with nowhere to put a mark.
     if (!(hi > lo)) {
       const pad = Math.max(Math.abs(hi) * 0.1, 1);
       return { lo: lo - pad, hi: hi + pad, lowest, highest };
@@ -73,19 +82,21 @@
   });
 
   const boxes = $derived(
-    [
-      numericA && { group: nameA, color: COLOR_A, ...numericA },
-      numericB && { group: nameB, color: COLOR_B, ...numericB }
-    ].filter((row) => row !== null)
+    drawn
+      .map((group) => {
+        const summary = numeric[group.id];
+        return summary && { group: group.name, color: accent[group.id], ...summary };
+      })
+      .filter((row) => row !== null && row !== undefined)
   );
 
-    /** Groups whose cases all share one value, drawn as a dot. */
+  /** Groups whose cases all share one value, drawn as a dot. */
   const constant = $derived(boxes.filter((row) => row.min === row.max));
 
-    /**
-     * Nothing varies anywhere: the span collapses and every tick would format to
-     * the same value. The sentence below carries it.
-     */
+  /**
+   * Nothing varies anywhere: the span collapses and every tick would format to
+   * the same value. The sentence below carries it.
+   */
   const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
 
   /** Cases past where the lines stop. */
@@ -95,13 +106,17 @@
 
   /** The headline the numeric block leads with, in the user's own group names. */
   const delta = $derived.by(() => {
-    if (!compare || !numericA || !numericB) return null;
-    const difference = numericB.median - numericA.median;
+    if (!compare || drawn.length !== 2) return null;
+    const [baseline, other] = drawn;
+    const from = numeric[baseline.id];
+    const to = numeric[other.id];
+    if (!from || !to) return null;
+    const difference = to.median - from.median;
     if (difference === 0) return { same: true } as const;
-    const percent = numericA.median === 0 ? null : (difference / Math.abs(numericA.median)) * 100;
+    const percent = from.median === 0 ? null : (difference / Math.abs(from.median)) * 100;
     return {
       same: false,
-      leader: difference > 0 ? nameB : nameA,
+      leader: difference > 0 ? other.name : baseline.name,
       word: duration ? "longer" : "higher",
       amount: format(Math.abs(difference)),
       percent
@@ -111,17 +126,30 @@
   // ------------------------------------------------------------ categorical
 
   const categories = $derived.by(() => {
-    const counts = [groupA, groupB].map((s) =>
-      s?.type === "categorical" ? s.counts : ({} as Record<string, number>)
+    const counts = Object.fromEntries(
+      drawn.map((group) => {
+        const summary = summaries[group.id] ?? null;
+        return [group.id, summary?.type === "categorical" ? summary.counts : {}];
+      })
+    ) as Record<string, Record<string, number>>;
+    const totals = Object.fromEntries(
+      drawn.map((group) => [
+        group.id,
+        Object.values(counts[group.id]).reduce((sum, n) => sum + n, 0) || 1
+      ])
     );
-    const totals = counts.map((c) => Object.values(c).reduce((sum, n) => sum + n, 0) || 1);
-    const names = [...new Set(counts.flatMap((c) => Object.keys(c)))];
+    const names = [...new Set(drawn.flatMap((group) => Object.keys(counts[group.id])))];
     return names.map((name) => {
-      const a = counts[0][name] ?? 0;
-      const b = counts[1][name] ?? 0;
-      const shareA = (a / totals[0]) * 100;
-      const shareB = (b / totals[1]) * 100;
-      return { name, a, b, shareA, shareB, gap: shareB - shareA };
+      const perGroup = Object.fromEntries(
+        drawn.map((group) => [group.id, counts[group.id][name] ?? 0])
+      );
+      const shares = Object.fromEntries(
+        drawn.map((group) => [group.id, (perGroup[group.id] / totals[group.id]) * 100])
+      );
+      const first = drawn[0]?.id;
+      const last = drawn.at(-1)?.id;
+      const gap = drawn.length > 1 ? shares[last!] - shares[first!] : 0;
+      return { name, counts: perGroup, shares, gap };
     });
   });
 
@@ -130,12 +158,12 @@
    * Colour follows the Group the value leans towards.
    */
   const bars = $derived(
-    compare
+    compare && drawn.length > 1
       ? categories
-          .map((c) => ({ ...c, value: c.gap, side: c.gap < 0 ? "a" : "b" }))
+          .map((c) => ({ ...c, value: c.gap, side: c.gap < 0 ? drawn[0].id : drawn.at(-1)!.id }))
           .sort((x, y) => Math.abs(y.value) - Math.abs(x.value))
       : categories
-          .map((c) => ({ ...c, value: c.shareA, side: "a" }))
+          .map((c) => ({ ...c, value: c.shares[drawn[0]?.id] ?? 0, side: drawn[0]?.id ?? "" }))
           .sort((x, y) => y.value - x.value)
   );
 
@@ -167,7 +195,7 @@
     {#if delta}
       <p class="text-[0.6875rem]">
         {#if delta.same}
-          Same median in both groups.
+          Same median in every group.
         {:else}
           <span class="font-semibold">{delta.leader}</span>
           {delta.word} by {delta.amount} at the median
@@ -299,19 +327,25 @@
 {:else if bars.length > 0}
   <div class="flex flex-col gap-1.5">
     <div class="text-muted-foreground flex items-center justify-between gap-2 text-[0.625rem]">
-      {#if compare}
+      {#if compare && drawn.length > 1}
         <span class="inline-flex min-w-0 items-center gap-1">
-          <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
-          <span class="truncate">◀ {nameA}</span>
+          <span class="size-2 shrink-0" style="background:{accent[drawn[0].id]}" aria-hidden="true"
+          ></span>
+          <span class="truncate">◀ {drawn[0].name}</span>
         </span>
         <span class="inline-flex min-w-0 items-center gap-1">
-          <span class="truncate">{nameB} ▶</span>
-          <span class="size-2 shrink-0" style="background:{COLOR_B}" aria-hidden="true"></span>
+          <span class="truncate">{drawn.at(-1)?.name} ▶</span>
+          <span
+            class="size-2 shrink-0"
+            style="background:{accent[drawn.at(-1)!.id]}"
+            aria-hidden="true"
+          ></span>
         </span>
-      {:else}
+      {:else if drawn.length > 0}
         <span class="inline-flex min-w-0 items-center gap-1">
-          <span class="size-2 shrink-0" style="background:{COLOR_A}" aria-hidden="true"></span>
-          <span class="truncate">{nameA}, share of cases</span>
+          <span class="size-2 shrink-0" style="background:{accent[drawn[0].id]}" aria-hidden="true"
+          ></span>
+          <span class="truncate">{drawn[0].name}, share of cases</span>
         </span>
       {/if}
     </div>
@@ -335,8 +369,8 @@
           x="value"
           y="name"
           c="side"
-          cDomain={["a", "b"]}
-          cRange={[COLOR_A, COLOR_B]}
+          cDomain={drawn.map((group) => group.id)}
+          cRange={drawn.map((group) => accent[group.id])}
           xDomain={domain}
           axis="y"
           grid={false}
@@ -358,11 +392,13 @@
                 <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
                   <p class="mb-1 text-[0.6875rem] font-semibold">{data.name}</p>
                   <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
-                    <dt class="text-muted-foreground truncate">{nameA}</dt>
-                    <dd class="text-right">{formatNumber(data.a)} · {data.shareA.toFixed(1)}%</dd>
-                    {#if compare}
-                      <dt class="text-muted-foreground truncate">{nameB}</dt>
-                      <dd class="text-right">{formatNumber(data.b)} · {data.shareB.toFixed(1)}%</dd>
+                    {#each drawn as group (group.id)}
+                      <dt class="text-muted-foreground truncate">{group.name}</dt>
+                      <dd class="text-right">
+                        {formatNumber(data.counts[group.id])} · {data.shares[group.id].toFixed(1)}%
+                      </dd>
+                    {/each}
+                    {#if compare && drawn.length > 1}
                       <dt class="text-muted-foreground">gap</dt>
                       <dd class="text-right">{barLabel(data.gap)}</dd>
                     {/if}

@@ -1,10 +1,10 @@
 <script lang="ts">
   /**
-  * Post-creation edits to what the event log means: the project's name, and per
-  * column its visibility, granularity and data type.
+   * Post-creation edits to what the event log means: the project's name, and per
+   * column its visibility, granularity and data type.
    *
-  * Required columns (case id, activity, timestamps) are shown but locked: their
-  * granularity and type are fixed by their role, as in `requiredFieldSettings`.
+   * Required columns (case id, activity, timestamps) are shown but locked: their
+   * granularity and type are fixed by their role, as in `requiredFieldSettings`.
    */
   import { untrack } from "svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";

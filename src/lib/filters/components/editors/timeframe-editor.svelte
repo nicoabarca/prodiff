@@ -16,7 +16,7 @@
 
   /**
    * How a case overlaps a window of time. The picker hands over an inclusive
-  * window: `from` at midnight, `to` at the last millisecond of its day.
+   * window: `from` at midnight, `to` at the last millisecond of its day.
    */
   let {
     project,

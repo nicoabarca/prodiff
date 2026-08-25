@@ -40,7 +40,7 @@
   // payload can stay ids-only and a rename never leaves a stale label behind.
   const flowGroups = $derived(
     tree.groups.map((group) => {
-      const known = comparedGroups().find((candidate) => candidate?.id === group.id);
+      const known = comparedGroups().find((candidate) => candidate.id === group.id);
       return {
         id: group.id,
         name: known?.name ?? group.id,

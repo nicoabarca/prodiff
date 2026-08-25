@@ -24,19 +24,21 @@ export function categoryBars(
   showAll: boolean,
   ids: string[]
 ): Bar[] {
-  const [idA, idB] = ids;
   const shown = showAll ? distribution.values : distribution.values.slice(0, TOP_CATEGORIES);
   const bars: Bar[] = shown.map((count) => ({
     label: count.value,
-    a: count.counts[idA] ?? 0,
-    b: count.counts[idB] ?? 0
+    counts: Object.fromEntries(ids.map((id) => [id, count.counts[id] ?? 0]))
   }));
 
-  const otherA = (distribution.totals[idA] ?? 0) - bars.reduce((sum, bar) => sum + bar.a, 0);
-  const otherB = (distribution.totals[idB] ?? 0) - bars.reduce((sum, bar) => sum + bar.b, 0);
+  const other = Object.fromEntries(
+    ids.map((id) => [
+      id,
+      (distribution.totals[id] ?? 0) - bars.reduce((sum, bar) => sum + bar.counts[id], 0)
+    ])
+  );
   const collapsed = distribution.distinct - shown.length;
-  if (collapsed > 0 && otherA + otherB > 0) {
-    bars.push({ label: "Other", a: otherA, b: otherB, collapsed });
+  if (collapsed > 0 && Object.values(other).some((count) => count > 0)) {
+    bars.push({ label: "Other", counts: other, collapsed });
   }
   return bars;
 }
@@ -61,11 +63,10 @@ export function binBars(
   ids: string[]
 ): Bar[] {
   const duration = isDurationAttribute(attribute);
-  const [countsA, countsB] = ids.map((id) => distribution.counts[id] ?? []);
-  return countsA.map((a, index) => ({
+  const counts = Object.fromEntries(ids.map((id) => [id, distribution.counts[id] ?? []]));
+  return (counts[ids[0]] ?? []).map((_, index) => ({
     label: binLabel(distribution.edges, index, duration),
-    a,
-    b: countsB?.[index] ?? 0
+    counts: Object.fromEntries(ids.map((id) => [id, counts[id][index] ?? 0]))
   }));
 }
 
@@ -87,26 +88,25 @@ export function shareAt(ladder: number[], value: number): number | null {
 }
 
 /**
- * Both Groups' curves on one set of rows. The two ladders sample the same
- * percentiles at *different* durations, so neither can be plotted against the
- * other's x; the union of their values gives a shared one.
+ * Every Group's curve on one set of rows. The ladders sample the same
+ * percentiles at *different* durations, so none can be plotted against
+ * another's x; the union of their values gives a shared one.
  */
-export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
-  const values = [...new Set([...ecdfA, ...ecdfB])].sort((x, y) => x - y);
+export function curveRows(ladders: Record<string, number[]>): CurveRow[] {
+  const entries = Object.entries(ladders);
+  const values = [...new Set(entries.flatMap(([, ladder]) => ladder))].sort((x, y) => x - y);
   return values.map((value) => ({
     value,
-    a: shareAt(ecdfA, value),
-    b: shareAt(ecdfB, value)
+    shares: Object.fromEntries(entries.map(([id, ladder]) => [id, shareAt(ladder, value)]))
   }));
 }
 
 /** The bars of the log ladder, labelled by their own edges: the width is the information. */
 export function logBars(shape: DurationShape, ids: string[]): Bar[] {
-  const [countsA, countsB] = ids.map((id) => shape.logCounts[id] ?? []);
-  return countsA.map((a, index) => ({
+  const counts = Object.fromEntries(ids.map((id) => [id, shape.logCounts[id] ?? []]));
+  return (counts[ids[0]] ?? []).map((_, index) => ({
     label: `${formatDuration(shape.logEdges[index])}–${formatDuration(shape.logEdges[index + 1])}`,
-    a,
-    b: countsB?.[index] ?? 0
+    counts: Object.fromEntries(ids.map((id) => [id, counts[id][index] ?? 0]))
   }));
 }
 
@@ -166,7 +166,7 @@ export function gridAttributes(
 
 /**
  * The bars a card draws, whatever kind of Distribution it holds. `ids` is the
- * two Groups being compared, in the order the card draws them.
+ * Groups being compared, in the order the card draws them.
  */
 export function bars(
   distribution: Distribution,

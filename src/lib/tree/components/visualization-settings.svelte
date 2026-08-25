@@ -29,14 +29,13 @@
 
   // Every control names the Groups the way the user does, and addresses them
   // by id, so a rename or a different pair changes nothing else here.
-  const groups = $derived(comparedGroups().filter((group) => group !== null));
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const groups = $derived(comparedGroups());
 
   const secondaryOptions = $derived([
     {
       value: "cases",
-      label: groups.length > 1 ? `Cases (${nameA} · ${nameB})` : "Cases"
+      label:
+        groups.length > 1 ? `Cases (${groups.map((group) => group.name).join(" · ")})` : "Cases"
     },
     ...groups.map((group) => ({ value: group.id, label: `Cases: ${group.name}` })),
     ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))

@@ -45,19 +45,27 @@ pub fn applied_groups(
         .collect()
 }
 
-/// Cases in both Groups. Reported, never removed.
+/// Cases present in every one of these Groups. Reported, never removed.
 #[tauri::command]
 pub fn shared_cases(
     app: tauri::AppHandle,
     project_id: String,
-    group_a: String,
-    group_b: String,
+    group_ids: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<i64, String> {
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    let a = case_ids(&read_group(&app, &project_id, &group_a)?, case_col)?;
-    let b = case_ids(&read_group(&app, &project_id, &group_b)?, case_col)?;
-    Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
+    let mut per_group = group_ids
+        .iter()
+        .map(|id| case_ids(&read_group(&app, &project_id, id)?, case_col))
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter();
+    let Some(first) = per_group.next() else {
+        return Ok(0);
+    };
+    let shared = per_group.fold(first, |kept, next| {
+        kept.into_iter().filter(|id| next.contains(id)).collect()
+    });
+    Ok(shared.len() as i64)
 }
 
 /// Statistics for several Groups at once, in the order asked.
