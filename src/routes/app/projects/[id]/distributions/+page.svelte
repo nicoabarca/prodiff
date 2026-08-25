@@ -1,10 +1,7 @@
 <script lang="ts">
   /**
-   * The Distributions view — every attribute of one node, side by side, ranked
-   * by how much the two Groups differ on it.
-   *
-   * Reachable only from a selected node, and the tree is memory-only, so a cold
-   * arrival here — a reload, a typed URL — goes back to the tree to build one.
+   * Every attribute of one node, side by side, ranked by how much the two Groups
+   * differ. Reachable only from a selected node.
    */
   import { goto } from "$app/navigation";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -16,7 +13,7 @@
   import DistributionChart from "$lib/distributions/components/distribution-chart.svelte";
   import { PLOT_TOGGLE, SCOPES, SCOPE_HINT, SCOPE_LABEL, type Scope, type Sort } from "$lib/distributions/types";
   import { gridAttributes } from "$lib/distributions/utils/distributions";
-  import { formatNumber } from "$lib/format";
+  import { colorVar, formatNumber } from "$lib/format";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
     addExtra,
@@ -31,7 +28,7 @@
   import {
     build,
     built,
-    groupSlices,
+    comparedGroups,
     isStale,
     selected,
     settings,
@@ -51,30 +48,27 @@
     tree && selected.id !== null ? (tree.nodes.find((n) => n.id === selected.id) ?? null) : null
   );
 
-  // The view exists to describe a node. Without one there is nothing to draw and
-  // no way to pick one here — the picker renders the built tree — so the tree,
-  // where both are chosen, is the only sensible place to be.
+  // Without a node there is nothing to draw, so go back to the tree.
   $effect(() => {
     if (project && (!built.tree || selected.id === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
     }
   });
 
-  /** The trace down to this step and everything that follows it — no siblings. */
+  /** The trace down to this step and everything that follows it. */
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
   const compare = $derived(tree?.groupB !== null);
   const stale = $derived(isStale());
 
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
+  const colorA = $derived(colorVar(groups[0]?.color ?? "group-1"));
+  const colorB = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
-  /**
-   * What is fetched: every card the node could show, dismissals included and in
-   * a fixed order, so hiding and re-sorting never cost a round trip.
-   */
+  /** Every card the node could show, dismissals included, in a fixed order. */
   const requested = $derived(node ? gridAttributes(node, charts.extra, [], "name") : []);
   /** What is drawn, in the order the user asked for. */
   const grid = $derived(
@@ -83,7 +77,7 @@
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
-  /** Attributes the build never tested here — the only ones worth offering. */
+  /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
     const open = new Set(requested.map((card) => card.name));
@@ -98,21 +92,20 @@
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
 
-  /** Each Group's case count in its own colour — the one its marks are drawn in. */
+  /** Each Group's case count in its own colour. */
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];
-    const rows = [{ name: nameA, cases: data.casesA, text: "text-slice-1", swatch: "bg-slice-1" }];
+    const rows = [{ name: nameA, cases: data.casesA, color: colorA }];
     if (compare) {
-      rows.push({ name: nameB, cases: data.casesB, text: "text-slice-2", swatch: "bg-slice-2" });
+      rows.push({ name: nameB, cases: data.casesB, color: colorB });
     }
     return rows;
   });
 
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
-  // A dismissal hides a card at the node being read; the next node's tested
-  // attributes are part of what it has to say, so the list does not follow.
+  // A dismissal hides a card at the node being read, and does not follow to the next.
   $effect(() => {
     void selected.id;
     untrack(clearDismissed);
@@ -124,10 +117,8 @@
     untrack(forgetDistributions);
   });
 
-  // Every input listed explicitly and the call untracked: `loadDistributions`
-  // reads the same `loaded` fields it writes, so tracking its reads would make
-  // the effect retrigger itself. `significantOnly` and the Variant selection are
-  // in here because both prune leaves, which changes the case set.
+  // Inputs listed explicitly and the call untracked: `loadDistributions` reads
+  // the same `loaded` fields it writes.
   $effect(() => {
     const names = requested.map((card) => card.name);
     void [
@@ -188,9 +179,13 @@
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <!-- Whole class names, never `text-{token}`: Tailwind finds classes
                  by scanning the source, so an interpolated one is never built. -->
-            {#each groupCounts as { name, cases, text, swatch } (name)}
-              <span class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold {text}">
-                <span class="size-2.5 shrink-0 {swatch}" aria-hidden="true"></span>
+            {#each groupCounts as { name, cases, color } (name)}
+              <span
+                class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold"
+                style="color:{color}"
+              >
+                <span class="size-2.5 shrink-0" style="background-color:{color}" aria-hidden="true"
+                ></span>
                 <span class="truncate">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>

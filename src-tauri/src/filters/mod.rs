@@ -1,12 +1,6 @@
-//! Filters narrow an Event Log to a Slice. A chain is an ordered AND pipeline:
-//! each filter applies to the previous one's output, so order is user-visible
-//! and matters (an event-level trim before an endpoint filter gives a different
-//! result than after).
-//!
-//! Every filter is evaluated as an event-level predicate lifted to the case
-//! level by a window over the case column — that lift is what the `mode` picks.
-//! Each filter kind lives in its own module and owns its tests; this file only
-//! dispatches a `Filter` to the matching module and folds a chain through them.
+//! Filters narrow an Event Log to a Group. A Filter List is an ordered AND
+//! pipeline: each filter applies to the previous one's output, so order matters.
+//! Each kind lives in its own module; this file dispatches and folds a chain.
 
 mod attribute;
 pub mod commands;
@@ -16,7 +10,7 @@ mod enums;
 mod follower;
 mod numeric;
 mod predicates;
-mod queries;
+pub(crate) mod queries;
 mod structs;
 mod timeframe;
 
@@ -26,9 +20,7 @@ pub(crate) use predicates::timestamp_millis;
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use polars::prelude::*;
 
-/// Applies one filter. `case_col` drives every case-level lift; `activity_col`
-/// and `timestamp_col` serve the endpoint and timeframe kinds. Fallible only
-/// because Polars' `over` is — the filters themselves cannot fail here.
+/// Applies one filter. `case_col` drives every case-level lift.
 fn apply_one(
     lf: LazyFrame,
     filter: &Filter,
@@ -68,8 +60,7 @@ fn apply_one(
     }
 }
 
-/// Applies a whole chain in order. An empty chain is the identity, which is how
-/// callers ask for the whole log.
+/// Applies a whole chain in order. An empty chain is the identity.
 pub fn apply(
     lf: LazyFrame,
     filters: &[Filter],

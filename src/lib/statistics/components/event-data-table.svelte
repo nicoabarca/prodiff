@@ -7,23 +7,23 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import { slicePreview } from "$lib/slices/invokers/slice-preview";
-  import type { ResponsePreviewTable } from "$lib/slices/invokers/types";
-  import type { Population } from "$lib/slices/types";
+  import { groupPreview } from "$lib/groups/invokers/group-preview";
+  import type { ResponsePreviewTable } from "$lib/groups/invokers/types";
+  import type { Group } from "$lib/groups/types";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import FilterX from "@lucide/svelte/icons/filter-x";
   import Info from "@lucide/svelte/icons/info";
 
-  let { project, populations }: { project: Project; populations: Population[] } = $props();
+  let { project, groups }: { project: Project; groups: Group[] } = $props();
 
-  /** Rows fetched per population. The table is a spot-check, not a data browser. */
+  /** Rows fetched per Group. */
   const PREVIEW_LIMIT = 100;
 
   let selectedId = $state("whole");
   let preview = $state<ResponsePreviewTable | null>(null);
   let error = $state<string | null>(null);
 
-  const selected = $derived(populations.find((p) => p.id === selectedId) ?? populations[0]);
+  const selected = $derived(groups.find((g) => g.id === selectedId) ?? groups[0]);
 
   // Hidden columns are inert in all analysis, so they never reach the table.
   const visible = $derived(
@@ -33,13 +33,13 @@
   );
 
   $effect(() => {
-    const population = selected;
-    if (!population) return;
+    const group = selected;
+    if (!group) return;
 
     let stale = false;
     preview = null;
     error = null;
-    slicePreview(project, population.chain, PREVIEW_LIMIT)
+    groupPreview(project, group.filters, PREVIEW_LIMIT)
       .then((result) => {
         if (!stale) preview = result;
       })
@@ -58,14 +58,14 @@
     <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Event log data</span>
     <Tabs.Root bind:value={selectedId} class="ml-auto">
       <Tabs.List class="bg-card gap-0 border p-0">
-        {#each populations as population (population.id)}
-          <Tabs.Trigger value={population.id} class="data-active:bg-muted border-r px-2.5 py-1">
+        {#each groups as group (group.id)}
+          <Tabs.Trigger value={group.id} class="data-active:bg-muted border-r px-2.5 py-1">
             <span
               class="size-2 shrink-0"
-              style="background:{colorVar(population.color)}"
+              style="background:{colorVar(group.color)}"
               aria-hidden="true"
             ></span>
-            {population.name}
+            {group.name}
           </Tabs.Trigger>
         {/each}
       </Tabs.List>
@@ -94,7 +94,7 @@
           </Empty.Media>
           <Empty.Title>No events</Empty.Title>
           <Empty.Description>
-            No events match this population's filters. Loosen a filter to see data here.
+            No events match this group's filters. Loosen a filter to see data here.
           </Empty.Description>
         </Empty.Header>
       </Empty.Root>

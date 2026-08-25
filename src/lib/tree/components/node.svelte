@@ -5,20 +5,25 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Split from "@lucide/svelte/icons/split";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
+  import { colorVar } from "$lib/format";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
 
   let { data }: { data: TreeNodeData } = $props();
 
   // Group membership is the primary channel: a path only one Group follows
   // reads in that Group's accent, a shared one in Base grey. Washed right down
   // — it tints a whole node face, which has to stay readable behind text.
+  const groups = $derived(comparedGroups());
+  const colorA = $derived(colorVar(groups[0]?.color ?? "group-1"));
+  const colorB = $derived(colorVar(groups[1]?.color ?? "group-2"));
   const accent = $derived(
-    data.membership === "a" ? "--slice-1" : data.membership === "b" ? "--slice-2" : "--slice-base"
+    data.membership === "a" ? colorA : data.membership === "b" ? colorB : "var(--group-original)"
   );
   // A wash for the face, a firmer version of the same hue for the border, and
   // the accent itself for the label — so membership reads at a glance without
   // any of the three fighting the text.
-  const fill = $derived(`color-mix(in oklab, var(${accent}) 8%, var(--card))`);
-  const border = $derived(`color-mix(in oklab, var(${accent}) 45%, var(--card))`);
+  const fill = $derived(`color-mix(in oklab, ${accent} 8%, var(--card))`);
+  const border = $derived(`color-mix(in oklab, ${accent} 45%, var(--card))`);
   const vertical = $derived(data.direction === "TB");
 </script>
 
@@ -63,10 +68,10 @@
 
   <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
     {#if data.secondaryA !== null}
-      <span style="color:var(--slice-1)">A: {data.secondaryA}</span>
+      <span style="color:{colorA}">A: {data.secondaryA}</span>
     {/if}
     {#if data.secondaryB !== null}
-      <span style="color:var(--slice-2)">B: {data.secondaryB}</span>
+      <span style="color:{colorB}">B: {data.secondaryB}</span>
     {/if}
   </div>
 

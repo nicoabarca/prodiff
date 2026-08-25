@@ -1,8 +1,4 @@
-/**
- * Every figure the Statistics view shows for one population. Mirrors
- * `EventLogStats` in `src-tauri/src/stats/mod.rs`. Durations are milliseconds,
- * and are `null` for a population with no cases.
- */
+/** Mirrors `EventLogStats` in Rust. Durations are milliseconds, null for a Group with no cases. */
 export interface ResponseEventLogStats {
   events: number;
   cases: number;
@@ -19,13 +15,13 @@ export interface ResponseEventLogStats {
   timespanEnd: string | null;
 }
 
-/** How much of the log survives one step of a chain. */
-export interface ResponseChainStep {
+/** How much of the log survives one step of a Filter List. */
+export interface ResponseFilterStep {
   cases: number;
   events: number;
 }
 
-/** The head of a chain's population, as raw rows. Mirrors `PreviewTable` in Rust. */
+/** Mirrors `PreviewTable` in Rust. */
 export interface ResponsePreviewTable {
   columns: string[];
   rows: string[][];

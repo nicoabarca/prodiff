@@ -3,9 +3,9 @@
   import { goto } from "$app/navigation";
   import { Button } from "$lib/components/ui/button/index.js";
   import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
-  import { loadSlices, slicesLoaded } from "$lib/slices/state/slices.svelte";
+  import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
-  import FilterSummaryBar from "$lib/slices/components/filter-summary-bar.svelte";
+  import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
@@ -26,11 +26,9 @@
     if (!project && projectsLoaded.value) goto("/app/projects");
   });
 
-  // Slices are project-scoped, so they reload whenever the addressed project
-  // changes — including when the user navigates straight from one project to
-  // another without passing through the list.
+  // Groups are project-scoped, so they reload whenever the addressed project changes.
   $effect(() => {
-    if (project && slicesLoaded.projectId !== project.id) loadSlices(project.id);
+    if (project && groupsLoaded.projectId !== project.id) loadGroups(project.id);
   });
 </script>
 

@@ -6,18 +6,12 @@
   import { Input } from "$lib/components/ui/input/index.js";
   import { Progress } from "$lib/components/ui/progress/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
-  import {
-    effectiveChain,
-    loadImpact,
-    renameSlice,
-    sliceColor,
-    sliceSteps
-  } from "$lib/slices/state/slices.svelte";
-  import type { ResponseChainStep } from "$lib/slices/invokers/types";
+  import { loadImpact, renameGroup, groupSteps } from "$lib/groups/state/groups.svelte";
+  import type { ResponseFilterStep } from "$lib/groups/invokers/types";
   import { describeFilter } from "$lib/filters/kind/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import type { Slice } from "$lib/slices/types";
+  import type { Group } from "$lib/groups/types";
   import Plus from "@lucide/svelte/icons/plus";
   import Pencil from "@lucide/svelte/icons/pencil";
   import Trash2 from "@lucide/svelte/icons/trash-2";
@@ -25,48 +19,39 @@
 
   let {
     project,
-    slice,
+    group,
     editingIndex = null,
     onedit,
     onremovefilter,
-    onremoveslice
+    onremovegroup
   }: {
     project: Project;
-    slice: Slice;
-    /** Which of this slice's filters the editor is on, if any. */
+    group: Group;
+    /** Which of this Group's filters the editor is on, if any. */
     editingIndex?: number | null;
-    onedit: (slice: Slice, index: number | null) => void;
-    onremovefilter: (slice: Slice, index: number) => void;
-    onremoveslice?: (slice: Slice) => void;
+    onedit: (group: Group, index: number | null) => void;
+    onremovefilter: (group: Group, index: number) => void;
+    onremovegroup?: (group: Group) => void;
   } = $props();
 
-  const chain = $derived(effectiveChain(slice));
-  /** Filters inherited from Base sit in front of this slice's own. */
-  const inherited = $derived(chain.length - slice.filters.length);
+  const accent = $derived(colorVar(group.color));
 
-  const accent = $derived(colorVar(sliceColor(slice)));
+  // Measurement lives in the shared cache, so the comparison summary reads the same scan.
+  const steps = $derived(groupSteps(group));
 
-  // Measurement lives in the shared cache, so the comparison summary reads the
-  // same scan instead of asking Rust for it a second time.
-  const steps = $derived(sliceSteps(slice));
-
-  // A failed measurement used to be swallowed, which left every filter row
-  // showing a skeleton forever with nothing saying why.
   let measureError = $state<string | null>(null);
 
   $effect(() => {
     measureError = null;
-    loadImpact(project, slice).catch((cause) => {
+    loadImpact(project, group).catch((cause) => {
       measureError = String(cause);
     });
   });
 
-  /** Cases before and after the filter at this slice-local index. */
-  function impact(index: number): { before: ResponseChainStep; after: ResponseChainStep } | null {
-    if (!steps) return null;
-    const global = inherited + index;
-    if (global + 1 >= steps.length) return null;
-    return { before: steps[global], after: steps[global + 1] };
+  /** Cases before and after the filter at this index. */
+  function impact(index: number): { before: ResponseFilterStep; after: ResponseFilterStep } | null {
+    if (!steps || index + 1 >= steps.length) return null;
+    return { before: steps[index], after: steps[index + 1] };
   }
 
   function retained(index: number): number | null {
@@ -80,14 +65,14 @@
   let nameInput = $state<HTMLInputElement | null>(null);
 
   function startRename() {
-    draftName = slice.name;
+    draftName = group.name;
     renaming = true;
   }
 
   async function commitRename() {
     if (!renaming) return;
     renaming = false;
-    await renameSlice(slice, draftName);
+    await renameGroup(group, draftName);
   }
 
   $effect(() => {
@@ -101,12 +86,10 @@
       <span class="flex items-center gap-2">
         <span
           class="size-2.5 shrink-0 rounded-full"
-          style="background:{colorVar(sliceColor(slice))}"
+          style="background:{accent}"
           aria-hidden="true"
         ></span>
-        {#if slice.kind === "base"}
-          {slice.name}
-        {:else if renaming}
+        {#if renaming}
           <Input
             bind:ref={nameInput}
             bind:value={draftName}
@@ -115,17 +98,17 @@
               if (event.key === "Enter") commitRename();
               if (event.key === "Escape") renaming = false;
             }}
-            aria-label="Slice name"
+            aria-label="Group name"
             class="h-7 w-48"
           />
         {:else}
-          {slice.name}
+          {group.name}
           <button
             type="button"
             onclick={startRename}
             class="text-muted-foreground hover:text-foreground focus-visible:ring-ring shrink-0 focus-visible:ring-1 focus-visible:outline-none"
-            title="Rename slice"
-            aria-label="Rename slice"
+            title="Rename group"
+            aria-label="Rename group"
           >
             <Pencil class="size-3.5" />
           </button>
@@ -133,22 +116,17 @@
       </span>
     </Card.Title>
     <Card.Description>
-      {#if slice.kind === "base"}
-        Applies to every slice before its own filters run.
-      {:else if inherited > 0}
-        Runs after Base's {inherited}
-        {inherited === 1 ? "filter" : "filters"}.
-      {:else}
-        Runs on the whole event log.
-      {/if}
+      {group.filters.length === 0
+        ? "Runs on the whole event log."
+        : `${group.filters.length} ${group.filters.length === 1 ? "filter" : "filters"}, applied in order.`}
     </Card.Description>
     <Card.Action>
       <div class="flex gap-1">
-        <Button variant="outline" size="sm" onclick={() => onedit(slice, null)}>
+        <Button variant="outline" size="sm" onclick={() => onedit(group, null)}>
           <Plus data-icon="inline-start" />
           Add filter
         </Button>
-        {#if slice.kind === "slice" && onremoveslice}
+        {#if onremovegroup}
           <Tooltip.Root>
             <Tooltip.Trigger>
               {#snippet child({ props })}
@@ -156,14 +134,14 @@
                   {...props}
                   variant="ghost"
                   size="icon-sm"
-                  onclick={() => onremoveslice(slice)}
-                  aria-label="Delete slice"
+                  onclick={() => onremovegroup(group)}
+                  aria-label="Delete group"
                 >
                   <Trash2 />
                 </Button>
               {/snippet}
             </Tooltip.Trigger>
-            <Tooltip.Content>Delete slice</Tooltip.Content>
+            <Tooltip.Content>Delete group</Tooltip.Content>
           </Tooltip.Root>
         {/if}
       </div>
@@ -171,21 +149,18 @@
   </Card.Header>
 
   <Card.Content class="px-0">
-    {#if slice.filters.length === 0}
+    {#if group.filters.length === 0}
       <Empty.Root class="py-6">
         <Empty.Header>
           <Empty.Media variant="icon">
             <SlidersHorizontal />
           </Empty.Media>
-          <Empty.Description>
-            No filters — this population is the
-            {slice.kind === "base" ? "whole event log" : "base population"}.
-          </Empty.Description>
+          <Empty.Description>No filters — this group is the whole event log.</Empty.Description>
         </Empty.Header>
       </Empty.Root>
     {:else}
       <ol class="flex flex-col">
-        {#each slice.filters as filter, index (index)}
+        {#each group.filters as filter, index (index)}
           {@const described = describeFilter(filter)}
           {@const measured = impact(index)}
           {@const pct = retained(index)}
@@ -195,7 +170,7 @@
               : ''}"
           >
             <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs">
-              {inherited + index + 1}
+              {index + 1}
             </span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium">{described.title}</p>
@@ -205,12 +180,12 @@
             <div class="w-40 shrink-0">
               {#if measured && pct !== null}
                 <div class="flex items-center gap-2">
-                  <!-- The kept portion wears the slice's own colour; the
+                  <!-- The kept portion wears the Group's own colour; the
                        indicator's default is the primary accent. -->
                   <Progress
                     value={pct}
-                    class="h-1.5 [&_[data-slot=progress-indicator]]:bg-(--slice-accent)"
-                    style="--slice-accent: {accent}"
+                    class="h-1.5 [&_[data-slot=progress-indicator]]:bg-(--group-accent)"
+                    style="--group-accent: {accent}"
                   />
                   <span class="text-muted-foreground w-9 shrink-0 text-right font-mono text-xs">
                     {pct}%
@@ -221,7 +196,7 @@
                 </p>
               {:else if measureError}
                 <p class="text-destructive text-right text-[0.6875rem]" title={measureError}>
-                  Could not measure this chain
+                  Could not measure these filters
                 </p>
               {:else}
                 <Skeleton class="h-4 w-full" />
@@ -232,7 +207,7 @@
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onclick={() => onedit(slice, index)}
+                onclick={() => onedit(group, index)}
                 aria-label="Edit filter"
               >
                 <Pencil />
@@ -240,7 +215,7 @@
               <Button
                 variant="ghost"
                 size="icon-sm"
-                onclick={() => onremovefilter(slice, index)}
+                onclick={() => onremovefilter(group, index)}
                 aria-label="Remove filter"
               >
                 <Trash2 />

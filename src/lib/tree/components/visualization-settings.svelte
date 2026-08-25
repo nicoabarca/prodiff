@@ -1,8 +1,5 @@
 <script lang="ts">
-  /**
-   * What is drawn, as opposed to what was built. Nothing here triggers a
-   * rebuild, so these controls stay usable while the tree is stale.
-   */
+  /** What is drawn, as opposed to what was built. Nothing here triggers a rebuild. */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -10,7 +7,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/tree/utils/settings";
@@ -20,16 +17,14 @@
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  // Every node carries a block per attribute built, empty ones included, so the
-  // root is enough to know what the tree can show.
+  // Every node carries a block per attribute built, so the root is enough.
   const attributes = $derived([
     ...Object.keys(tree.nodes[0]?.eventLevel ?? {}),
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
-  // The slices the Groups come from, so every control names them the way the
-  // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
-  const groups = $derived(groupSlices());
+  // Names come from the Groups themselves, falling back to "Group A"/"Group B".
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

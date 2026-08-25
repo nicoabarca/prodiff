@@ -1,31 +1,29 @@
 <script lang="ts">
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { chainKey, computeStats, populations } from "$lib/slices/state/slices.svelte";
-  import type { Population } from "$lib/slices/types";
+  import { allGroups, computeStats, filtersKey } from "$lib/groups/state/groups.svelte";
+  import type { Group } from "$lib/groups/types";
   import ComparisonCharts from "$lib/statistics/components/comparison-charts.svelte";
   import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
   import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
   import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
-  import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
+  import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 
   const project = $derived(currentProject());
-  const pops = $derived(populations());
+  const shown = $derived(project ? allGroups(project.id) : []);
 
   let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
-  /**
-   * Identifies the set of chains on screen. Keyed on this, not the populations
-   * array, which is rebuilt on every slice mutation — including the cache
-   * write `computeStats` itself performs.
-   */
-  const wantedKey = $derived(pops.map((p) => `${p.id}:${chainKey(p.chain)}`).join("|"));
+  /** Identifies the Groups on screen. Keyed on this rather than the array itself. */
+  const wantedKey = $derived(
+    shown.map((group) => `${group.id}:${filtersKey(group.filters)}`).join("|")
+  );
 
   let lastKey = "";
   $effect(() => {
     const key = wantedKey;
     const currentProjectValue = project;
-    const wanted: Population[] = pops;
+    const wanted: Group[] = shown;
     if (!currentProjectValue || key === lastKey) return;
     lastKey = key;
 
@@ -36,8 +34,7 @@
       })
       .catch((cause) => {
         error = String(cause);
-        // A failed run must not be treated as done, or editing a filter back to
-        // a previously-failing chain would show nothing and never retry.
+        // A failed run must not be treated as done, or it would never retry.
         lastKey = "";
       });
   });
@@ -52,9 +49,9 @@
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}
       <EventLogSettings {project} />
-      <ComparisonCharts populations={pops} {stats} />
-      <MetricsTable populations={pops} {stats} />
-      <EventDataTable {project} populations={pops} />
+      <ComparisonCharts groups={shown} {stats} />
+      <MetricsTable groups={shown} {stats} />
+      <EventDataTable {project} groups={shown} />
     </div>
   </main>
 {/if}

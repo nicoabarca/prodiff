@@ -3,9 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
 
-// Single source of truth is schema.ts — DDL is derived from it so the two
-// never drift apart. No drizzle-kit/migrations here: every table is generated
-// idempotently (CREATE TABLE IF NOT EXISTS) on every startup.
+// DDL is derived from schema.ts and run idempotently at startup. No migrations.
 function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   const { name, columns } = getTableConfig(table);
   const columnDefs = columns.map((column) => {
@@ -22,10 +20,7 @@ type Db = ReturnType<typeof drizzle<typeof schema>>;
 let instance: Db | null = null;
 let initPromise: Promise<Db> | null = null;
 
-/**
- * The initialized database. `initDb()` runs once in the root layout's `load()`,
- * which SvelteKit awaits before any route renders.
- */
+/** The initialized database. `initDb()` runs once in the root layout's `load()`. */
 export function db(): Db {
   if (!instance) throw new Error("db not initialized — initDb() runs in +layout.ts load()");
   return instance;
@@ -36,7 +31,7 @@ export function initDb(): Promise<Db> {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:compare.db");
       await sqlite.execute(createTableSql(schema.projects));
-      await sqlite.execute(createTableSql(schema.slices));
+      await sqlite.execute(createTableSql(schema.groups));
       await sqlite.execute(createTableSql(schema.treeSettings));
 
       instance = drizzle(

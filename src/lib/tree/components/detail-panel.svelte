@@ -6,7 +6,7 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { AttributeBlock, ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
@@ -26,8 +26,7 @@
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
   const compare = $derived(tree.groupB !== null);
-  /** Restricted to the surviving Variants — a node's raw totals over-count
-      once the slider has pruned some of its siblings away. */
+  /** Restricted to the surviving Variants, since raw totals over-count. */
   const cases = $derived(
     node
       ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {
@@ -37,24 +36,18 @@
       : null
   );
 
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
-  /**
-   * Attributes strongest first, with the negligible and untestable ones folded
-   * away. At a few thousand cases per Group nearly every test is significant.
-   */
+  /** Attributes strongest first, negligible and untestable ones folded away. */
   const ranked = $derived(
     node
       ? rankedBlocks(node)
       : { finding: [], weak: [], untested: [] as [string, AttributeBlock][] }
   );
 
-  /**
-   * One-Group mode has no differences to rank: attributes stay in build order
-   * and all of them are shown.
-   */
+  /** One-Group mode: attributes stay in build order and all are shown. */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
     const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
@@ -62,7 +55,7 @@
     return entries;
   });
 
-  /** Why a block carries no Significance Test, in the user's terms. */
+  /** Why a block carries no Significance Test. */
   function untestable(block: AttributeBlock): string {
     if (!compare) return "One-group mode — nothing to compare against.";
     const n = (side: "groupA" | "groupB") => block[side]?.n ?? 0;

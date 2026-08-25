@@ -1,6 +1,5 @@
-//! The filter seam. Rust is stateless here: the frontend owns the slices table
-//! and hands over whole filter chains, so these commands never touch sqlite and
-//! nothing derived from a chain is persisted.
+//! Commands that take a Filter List rather than a Group id, plus the pickers
+//! the editor fills its controls from. Nothing here persists.
 
 use super::queries::{
     case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
@@ -10,56 +9,29 @@ use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTab
 use super::Endpoint;
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::filters::Filter;
-use crate::stats::{summarize, EventLogStats};
 
-/// Statistics for several chains at once. Batched deliberately: the Statistics
-/// view asks for the whole log, the base and every slice on each render, and
-/// this way they share one read of the Parquet file.
-///
-/// A slice's chain arrives already composed — the frontend prepends the base
-/// chain — so the ordering rules live in one place on that side.
+/// How much of the log survives each prefix of a Filter List. Index 0 is the
+/// unfiltered log and index `i + 1` the result after filter `i`.
 #[tauri::command]
-pub fn slice_stats(
+pub fn filters_impact(
     app: tauri::AppHandle,
     project_id: String,
-    chains: Vec<Vec<Filter>>,
-    columns: Vec<ColumnMapping>,
-) -> Result<Vec<EventLogStats>, String> {
-    let df = read_event_log(&app, &project_id)?;
-    chains
-        .iter()
-        .map(|chain| summarize(&filtered(&df, chain, &columns)?, &columns))
-        .collect()
-}
-
-/// How much of the log survives each prefix of a chain. Index 0 is the
-/// unfiltered log and index `i + 1` the result after filter `i`, so the editor
-/// can show what each filter removes on its own as well as cumulatively.
-///
-/// Filters are applied one at a time rather than as a whole chain because the
-/// intermediate sizes are the point.
-#[tauri::command]
-pub fn chain_impact(
-    app: tauri::AppHandle,
-    project_id: String,
-    chain: Vec<Filter>,
+    filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<ChainStep>, String> {
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let mut df = read_event_log(&app, &project_id)?;
 
-    let mut steps = Vec::with_capacity(chain.len() + 1);
+    let mut steps = Vec::with_capacity(filters.len() + 1);
     steps.push(measure(&df, case_col)?);
-    for filter in &chain {
+    for filter in &filters {
         df = filtered(&df, std::slice::from_ref(filter), &columns)?;
         steps.push(measure(&df, case_col)?);
     }
     Ok(steps)
 }
 
-/// Cases present in both chains — the two are unrelated slices (Base is
-/// prepended by the frontend into each already), so overlap can only come
-/// from a case matching both sets of filters.
+/// Cases present in both Filter Lists.
 #[tauri::command]
 pub fn shared_cases(
     app: tauri::AppHandle,
@@ -84,8 +56,7 @@ pub fn shared_cases(
     Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
 }
 
-/// The distribution of case durations under a filter chain — the shape the
-/// duration filter's brush selects a range from.
+/// The distribution of case durations under a Filter List.
 #[tauri::command]
 pub fn duration_histogram(
     app: tauri::AppHandle,
@@ -99,9 +70,7 @@ pub fn duration_histogram(
     Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
 }
 
-/// How many cases are open on each day the log covers — the shape the timeframe
-/// filter's brush selects a window from. Every day between the first and last
-/// is present, including the quiet ones, so the chart has no gaps to invent.
+/// How many cases are open on each day the log covers, quiet days included.
 #[tauri::command]
 pub fn daily_case_load(
     app: tauri::AppHandle,
@@ -116,14 +85,14 @@ pub fn daily_case_load(
 }
 
 #[tauri::command]
-pub fn slice_preview(
+pub fn group_preview(
     app: tauri::AppHandle,
     project_id: String,
-    chain: Vec<Filter>,
+    filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
     limit: usize,
 ) -> Result<PreviewTable, String> {
-    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    let df = filtered(&read_event_log(&app, &project_id)?, &filters, &columns)?;
     let total_events = df.height();
     let page = df.head(Some(limit));
 
@@ -147,11 +116,8 @@ pub fn slice_preview(
     })
 }
 
-/// Distinct values of a column, alphabetical.
-///
-/// `endpoint` narrows the picker to what an endpoint filter can actually match:
-/// only the activities cases begin (or end) with. Offering every activity there
-/// invites selections that silently keep nothing.
+/// Distinct values of a column, alphabetical. `endpoint` narrows them to the
+/// activities cases begin (or end) with.
 #[tauri::command]
 pub fn distinct_values(
     app: tauri::AppHandle,

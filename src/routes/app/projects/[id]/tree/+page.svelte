@@ -2,12 +2,12 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { slicesLoaded } from "$lib/slices/state/slices.svelte";
+  import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import {
     build,
     built,
     forgetOtherProject,
-    groupSlices,
+    comparedGroups,
     isStale,
     loadSettings,
     selected,
@@ -28,20 +28,16 @@
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   const project = $derived(currentProject());
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
 
-  // An empty selection means two different things. Before the variant list has
-  // loaded it means "never chosen" and the backend picks by coverage; once the
-  // list has loaded the selection has been seeded, so empty means cleared.
+  // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
     variants.key !== null && settings.value.selectedVariants.length === 0
   );
 
   let panelOpen = $state(false);
-  // The panel follows the selection: clicking a node is a request to read it,
-  // and clicking the empty canvas drops the selection, so there is nothing
-  // left for the panel to say.
+  // The panel follows the selection.
   $effect(() => {
     panelOpen = selected.id !== null;
   });
@@ -148,7 +144,7 @@
             </Empty.Media>
             <Empty.Title>No tree built yet</Empty.Title>
             <Empty.Description>
-              {#if !slicesLoaded.projectId}
+              {#if !groupsLoaded.projectId}
                 Loading slices…
               {:else if !groups[0]}
                 Create a slice in the Filters view first — a slice defines a group.

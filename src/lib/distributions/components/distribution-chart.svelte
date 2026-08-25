@@ -18,7 +18,8 @@
   import type { Distribution } from "$lib/distributions/invokers/types";
   import { ENCODINGS, ENCODING_HINT, ENCODING_LABEL, type Encoding, PLOT_TOGGLE, SCOPE_LABEL, type Scope, TOP_CATEGORIES } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
-  import { formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Test } from "$lib/tree/invokers/types";
   import { isDurationAttribute } from "$lib/tree/utils/settings";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -57,8 +58,9 @@
 
   // The Groups keep the colours they carry in the tree and the differences
   // panel, so a resource that is "the blue one" stays blue across all three.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  const groups = $derived(comparedGroups());
+  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
+  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
 
   /**
    * The duration-only encodings, when the backend computed them. Absent on

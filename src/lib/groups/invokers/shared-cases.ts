@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/kind/filter";
 
-/** Cases that survive both chains — the overlap of two slices' populations. */
+/** Cases that survive both Filter Lists. */
 export function fetchSharedCases(
   project: Project,
   chainA: Filter[],
