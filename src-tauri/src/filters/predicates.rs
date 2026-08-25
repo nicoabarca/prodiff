@@ -3,8 +3,8 @@
 
 use polars::prelude::*;
 
-/// `value` is one of `values`. Built as an OR chain rather than `is_in` so the
-/// expression is independent of Polars' shifting `is_in` signature.
+/// `value` is one of `values`. An OR chain, so the expression is independent of
+/// Polars' shifting `is_in` signature.
 pub fn matches_any_of(value: Expr, values: &[String]) -> Expr {
     values.iter().fold(lit(false), |acc, v| {
         acc.or(value.clone().eq(lit(v.as_str())))

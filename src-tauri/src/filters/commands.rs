@@ -1,9 +1,9 @@
-//! Commands that take a Filter List rather than a Group id, plus the pickers
-//! the editor fills its controls from. Nothing here persists.
+//! Commands that take a Filter List, not a Group id, plus the pickers the
+//! editor fills its controls from. Nothing here persists.
 
 use super::queries::{
-    case_durations, case_ids, case_spans, cell_to_string, count_values, daily_load, filtered,
-    histogram, measure, read_event_log,
+    case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
+    measure, read_event_log,
 };
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTable};
 use super::Endpoint;
@@ -29,27 +29,6 @@ pub fn filters_impact(
         steps.push(measure(&df, case_col)?);
     }
     Ok(steps)
-}
-
-/// Cases present in both Filter Lists.
-#[tauri::command]
-pub fn shared_cases(
-    app: tauri::AppHandle,
-    project_id: String,
-    chain_a: Vec<Filter>,
-    chain_b: Vec<Filter>,
-    columns: Vec<ColumnMapping>,
-) -> Result<i64, String> {
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    let df = read_event_log(&app, &project_id)?;
-
-    let ids = |filters: &[Filter]| -> Result<std::collections::HashSet<String>, String> {
-        case_ids(&filtered(&app, &project_id, &df, filters, &columns)?, case_col)
-    };
-
-    let a = ids(&chain_a)?;
-    let b = ids(&chain_b)?;
-    Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
 }
 
 /// The distribution of case durations under a Filter List.

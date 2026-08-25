@@ -1,35 +1,30 @@
 /**
- * The Distributions view's state, in memory only — nothing here is a build
- * input. The lens is not a property of a node: selecting another keeps the
- * Scope, the sort and the hand-added attributes, and refetches.
+* The Distributions view's state, in memory only. Selecting another node keeps
+* the Scope, the sort and the hand-added attributes, and refetches.
  */
 
 import { nodeDistributions } from "$lib/distributions/invokers/node-distributions";
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
-import { built, groupChains, isStale, selected } from "$lib/tree/state/tree.svelte";
+import { built, comparedIds, isStale, selected } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
 import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
  * What is charted, beyond the node's own tested attributes. `extra` outlives a
- * node change; `dismissed` does not, since a tested attribute is part of what
- * the next node has to say.
+* node change; `dismissed` does not.
  */
 export const charts = $state<{
   scope: Scope;
   sort: Sort;
-  /**
-   * How duration cards draw — one setting for all of them, so the two duration
-   * attributes stay comparable. Opens on the curve.
-   */
+  /** How duration cards draw: one setting for all of them. Opens on the curve. */
   encoding: Encoding;
   /** Attributes the build never tested, added by hand. */
   extra: string[];
   /** Cards hidden at the current node only. */
   dismissed: string[];
-  /** Cards showing every category rather than the top twelve. */
+  /** Cards showing every category, not just the top twelve. */
   expanded: string[];
 }>({
   scope: "atStep",
@@ -40,10 +35,7 @@ export const charts = $state<{
   expanded: []
 });
 
-/**
- * The numbers for the current node, in one keyed slot. Switching nodes replaces
- * it rather than accumulating a per-node cache.
- */
+/** The numbers for the current node, in one keyed slot. */
 export const loaded = $state<{
   key: string | null;
   data: ResponseNodeDistributions | null;
@@ -81,9 +73,9 @@ export function clearDismissed() {
 }
 
 /**
- * What identifies the numbers on screen. Keyed on the Variant list, not the
- * node id: that list is what the backend is asked about, so view-level pruning
- * invalidates the slot without enumerating the ways it can change.
+* What identifies the numbers on screen. Keyed on the Variant list, not the node
+* id: that list is what the backend is asked about, so view-level pruning
+* invalidates the slot.
  */
 function key(
   nodeId: number,
@@ -104,8 +96,7 @@ let latest: string | null = null;
 /**
  * Fetches the selected node's Distributions unless they are already in hand.
  * Refuses while the tree is stale: the node is named to the backend by Variant
- * keys taken from the tree on screen, which under different chains would
- * describe a case set matching neither the drawing nor the filters.
+* keys taken from the tree on screen.
  */
 export async function loadDistributions(project: Project, attributes: string[]) {
   const tree = built.tree;
@@ -115,9 +106,6 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   const depth = nodeDepth(tree, nodeId);
   // The Start root has no event of its own, so `atStep` has nothing to count.
   if (charts.scope === "atStep" && depth === 0) return;
-
-  const chains = groupChains();
-  if (!chains) return;
 
   const visible = visibleNodes(tree, view, selectedVariants());
   const variants = subtreeVariants(tree, visible, nodeId);
@@ -130,8 +118,7 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   try {
     const data = await nodeDistributions(
       project,
-      chains.a,
-      chains.b,
+      comparedIds(),
       attributes,
       variants,
       depth,

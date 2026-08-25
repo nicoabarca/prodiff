@@ -1,7 +1,6 @@
 /**
- * Distributions — the value counts behind one node's charts, arranged for
- * drawing. Fetched per selected node; see `docs/adr/0003`. Rust aggregates and
- * the frontend only draws; the one thing computed here is the `Other` bucket.
+* The value counts behind one node's charts, arranged for drawing. Rust
+* aggregates; the one thing computed here is the `Other` bucket.
  */
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import type { Distribution, DurationShape } from "$lib/distributions/invokers/types";
@@ -10,9 +9,9 @@ import type { TreeNode } from "$lib/tree/invokers/types";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
 
 /**
- * The bars for a categorical Distribution. Everything past the cutoff folds
- * into one `Other` bar counted from the totals, not from the rows on screen,
- * so it stays exact despite the backend's own cap on the list.
+* The bars for a categorical Distribution. Everything past the cutoff folds into
+* one `Other` bar counted from the totals, not from the rows on screen, so it
+* stays exact despite the backend's own cap on the list.
  */
 export function categoryBars(
   distribution: Extract<Distribution, { type: "categorical" }>,
@@ -91,10 +90,7 @@ export function curveRows(ecdfA: number[], ecdfB: number[]): CurveRow[] {
   }));
 }
 
-/**
- * The bars of the log ladder, labelled by their own edges rather than by an
- * index: with unequal bins the width is the information.
- */
+/** The bars of the log ladder, labelled by their own edges: the width is the information. */
 export function logBars(shape: DurationShape): Bar[] {
   return shape.logCountsA.map((a, index) => ({
     label: `${formatDuration(shape.logEdges[index])}–${formatDuration(shape.logEdges[index + 1])}`,
@@ -103,10 +99,7 @@ export function logBars(shape: DurationShape): Bar[] {
   }));
 }
 
-/**
- * What a box plot leaves out, in plain words — how much was counted rather
- * than drawn, and the cutoff it stopped at. Avoids the word "whisker".
- */
+/** What a box plot leaves out: how much was counted but not drawn, and the cutoff. */
 export function outlierNote(
   group: string,
   stats: { whiskerLow: number; whiskerHigh: number; outliersLow: number; outliersHigh: number },
@@ -125,11 +118,8 @@ export function outlierNote(
 /**
  * The cards the grid shows for one node, in order. It opens on what the build
  * tested; anything else is opt-in through `extra`, which follows the user from
- * node to node.
- *
- * Tested attributes lead, strongest first. The untested ones follow by name
- * under their own heading, so an unbadged card is never read as "no difference
- * found" when it means "never looked".
+* node to node. Tested attributes lead, strongest first; the untested ones
+* follow by name under their own heading.
  */
 export function gridAttributes(
   node: TreeNode,

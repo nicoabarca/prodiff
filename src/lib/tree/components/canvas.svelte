@@ -10,9 +10,6 @@
   let {
     tree,
     stale,
-    // Dropping the selection by clicking past the nodes is right where the
-    // canvas is the view, and wrong where it is a picker driving something
-    // else: there the empty pane is just the gap between two steps.
     deselectOnPaneClick = true,
     /** Narrows the drawing to these nodes. Null draws the whole tree. */
     only = null
@@ -24,9 +21,8 @@
   } = $props();
 
   const nodeTypes = { activity: ActivityNode };
-  // Narrowed after the Variant and collapse rules have run, not instead of
-  // them: `cases` still covers every surviving path, so the counts on the nodes
-  // that remain are the same ones the full canvas shows.
+  // Narrowed after the Variant and collapse rules have run: `cases` still covers
+  // every surviving path, so the counts on the nodes that remain are unchanged.
   const visible = $derived.by(() => {
     const all = visibleNodes(tree, view, selectedVariants());
     if (!only) return all;
@@ -52,15 +48,14 @@
     })
   );
 
-  // Hovering a Variant in the picker lights up the path it drew. Applied over
-  // the finished layout rather than inside `toFlow`, so a hover never re-runs
-  // Dagre — the geometry cannot change, only what is lit.
+  // Hovering a Variant in the picker lights up the path it drew. Applied over the
+  // finished layout, so a hover never re-runs Dagre.
   const highlight = $derived(
     shownVariant.key === null ? null : variantPath(tree, visible, shownVariant.key)
   );
 
   // Svelte Flow owns these arrays while the user pans and selects, so they are
-  // local state re-seeded from the layout rather than bound to it directly.
+  // local state re-seeded from the layout.
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
   $effect(() => {
@@ -72,8 +67,7 @@
     }
     nodes = flow.nodes.map((node) => {
       const on = lit.has(Number(node.id));
-      // A node off the path dims; one on it keeps whatever the Group focus
-      // already decided, so the two channels never fight.
+      // A node off the path dims; one on it keeps whatever the Group focus decided.
       return {
         ...node,
         data: { ...node.data, dimmed: on ? node.data.dimmed : true, highlighted: on }

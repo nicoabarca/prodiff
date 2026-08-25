@@ -1,12 +1,10 @@
 /**
- * The only filter that reads another Group rather than a column. It keeps the
- * cases that are not in the Group it names, which is how two overlapping Groups
- * are pulled apart — a Filter List is an AND pipeline and the model has no OR,
- * so negating one term by term gives a different, smaller set (`docs/adr/0006`).
+* The only filter that reads another Group, not a column. It keeps the cases
+* that are not in the Group it names.
  */
 export interface CaseNotInGroupFilter {
   kind: "case_not_in_group";
-  /** The Group whose cases are removed. Never reused, so it cannot go stale. */
+  /** The Group whose cases are removed. Ids are never reused. */
   groupId: string;
 }
 

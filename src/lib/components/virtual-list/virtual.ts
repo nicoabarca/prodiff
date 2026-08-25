@@ -1,6 +1,6 @@
 /**
- * The windowing arithmetic, with no reactivity attached — which is what makes
- * it testable without a Svelte runtime. `virtual.svelte.ts` wraps this in runes.
+* The windowing arithmetic, with no reactivity attached, so it is testable
+* without a Svelte runtime. `virtual.svelte.ts` wraps this in runes.
  */
 
 /**

@@ -36,8 +36,6 @@
   let position = $state<EndpointPosition>(seed?.position ?? "start");
   let selected = $state<string[]>(seed ? [...seed.activities] : []);
 
-  // Both positions are fetched at once, so the two lists can be read side by
-  // side rather than by toggling between them.
   const startActivities = columnValues(
     () => project,
     () => activity,

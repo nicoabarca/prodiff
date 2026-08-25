@@ -1,10 +1,10 @@
 /**
  * The filter union and the dispatch over it, shared with
- * `src-tauri/src/filters/mod.rs` — any change here needs the matching serde
- * enum changed too.
+* `src-tauri/src/filters/mod.rs`. Any change here needs the matching serde enum
+* changed too.
  *
  * Each kind lives in its own module beside this one and owns its modes, its
- * copy, and its arms of the two functions below, mirroring `mod.rs`.
+* copy, and its arms of the two functions below.
  */
 import {
   describeCaseNotInGroup,
@@ -75,10 +75,7 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
   }
 }
 
-/**
- * A filter with no selection yet has no effect on the log but would read as one
- * in the UI, so the editor refuses to save it.
- */
+/** A filter with no selection yet is refused: it would read as one in the UI. */
 export function isFilterComplete(filter: Filter): boolean {
   switch (filter.kind) {
     case "attribute":

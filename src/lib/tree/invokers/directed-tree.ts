@@ -1,12 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
 
 /**
- * Builds the tree. Both chains arrive already composed by `effectiveChain`,
- * base first; `groupB` is `null` in one-Group mode.
+ * Builds the tree from the Groups' materialized Parquet files. `groups` is
+ * ordered and holds one or two ids; one is single-Group mode, which renders
+ * case counts and aggregates but no comparison.
  *
  * `settings.selectedVariants` is cut before anything is aggregated, so every
  * Significance Test describes exactly those Variants. An empty set sends
@@ -14,14 +14,12 @@ import type { TreeSettings } from "$lib/tree/types";
  */
 export function directedTree(
   project: Project,
-  groupA: Filter[],
-  groupB: Filter[] | null,
+  groups: string[],
   settings: TreeSettings
 ): Promise<ResponseDirectedTree> {
   return invoke<ResponseDirectedTree>("directed_tree", {
     projectId: project.id,
-    groupA,
-    groupB,
+    groups,
     attributes: settings.attributes,
     columns: project.columns,
     variants: settings.selectedVariants.length > 0 ? settings.selectedVariants : null

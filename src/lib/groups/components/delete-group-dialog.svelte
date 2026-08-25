@@ -5,9 +5,8 @@
   import type { Group } from "$lib/groups/types";
 
   /**
-   * Deleting cascades: a Group whose Filter List excludes this one cannot
-   * outlive it, so the confirmation names every Group that will go with it
-   * rather than refusing the delete.
+  * Deleting cascades: a Group whose Filter List excludes this one cannot outlive
+  * it, so the confirmation names every Group that will go with it.
    */
   let {
     group = $bindable(null),

@@ -1,6 +1,6 @@
 /**
- * The value counts behind one node's charts, as Rust ships them — every type
- * here mirrors a serde struct in `src-tauri/src/tree/distributions.rs`.
+* The value counts behind one node's charts, as Rust ships them. Every type here
+* mirrors a serde struct in `src-tauri/src/tree/distributions.rs`.
  */
 
 export interface CategoryCount {
@@ -19,7 +19,7 @@ export interface BoxStats {
   /** Extreme observations still inside 1.5·IQR, not the fences themselves. */
   whiskerLow: number;
   whiskerHigh: number;
-  /** Points past the whiskers, counted rather than shipped. */
+  /** Points past the whiskers, as a count. */
   outliersLow: number;
   outliersHigh: number;
 }
@@ -47,7 +47,7 @@ export type Distribution =
       values: CategoryCount[];
       /** Distinct values counted, before any cut. */
       distinct: number;
-      /** Every value counted, cut ones included — what makes `Other` exact. */
+      /** Every value counted, cut ones included. What makes `Other` exact. */
       totalA: number;
       totalB: number;
     }

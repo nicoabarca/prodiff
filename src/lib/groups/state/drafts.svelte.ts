@@ -3,12 +3,8 @@ import { filtersKey } from "$lib/groups/state/groups.svelte";
 import type { Group } from "$lib/groups/types";
 
 /**
- * Unapplied edits to a Group's Filter List, by Group id.
- *
- * Drafts live here rather than in the `groups` table on purpose: a Group that
- * carried both an applied list and a pending one would force every view to ask
- * which of the two its case count belongs to. A draft is seconds of work, so
- * losing it on reload is cheaper than that ambiguity.
+* Unapplied edits to a Group's Filter List, by Group id. In memory only, so a
+* draft is lost on reload.
  */
 const drafts = $state<Record<string, Filter[]>>({});
 
@@ -24,9 +20,8 @@ export function isDirty(group: Group): boolean {
 }
 
 /**
- * Replaces a Group's draft. Every edit — add, replace, remove, reorder, clear —
- * comes through here, because a draft is a plain array and each of those is one
- * array operation on it.
+* Replaces a Group's draft. Every edit comes through here: a draft is a plain
+* array and add, remove, reorder and clear are each one operation on it.
  */
 export function setDraft(group: Group, filters: Filter[]) {
   drafts[group.id] = filters;
@@ -67,11 +62,7 @@ export function discardDraft(group: Group) {
   delete drafts[group.id];
 }
 
-/**
- * Copies one Group's list onto another as a draft, which is what replaces the
- * old shared Base chain: two similar Groups are made by copying and editing
- * rather than by inheriting.
- */
+/** Copies one Group's list onto another as a draft. */
 export function copyDraftFrom(source: Group, target: Group) {
   setDraft(target, [...source.filters]);
 }

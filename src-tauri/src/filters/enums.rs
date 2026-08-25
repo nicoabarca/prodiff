@@ -15,7 +15,7 @@ pub enum AttributeMode {
 }
 
 /// Numeric filters are always case-level "at least one event satisfies"; the
-/// mode picks the comparison instead of the lift.
+/// mode picks the comparison.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NumericMode {
@@ -23,9 +23,9 @@ pub enum NumericMode {
     Above,
     /// `value <= max`
     Below,
-    /// `min <= value <= max` — limits included.
+    /// `min <= value <= max`, limits included.
     Between,
-    /// `value < min || value > max` — limits excluded.
+    /// `value < min || value > max`, limits excluded.
     Outside,
 }
 
@@ -50,9 +50,9 @@ pub enum EndpointMode {
 }
 
 /// Whether a reference event is followed by a follower event, and how closely.
-/// The two negatives are exact complements of the two positives — a case with
-/// no reference event at all satisfies them, so a mode and its negation
-/// partition the log rather than leaving cases in neither slice.
+/// The two negatives are exact complements of the two positives: a case with no
+/// reference event at all satisfies them, so a mode and its negation partition
+/// the log.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FollowerMode {
@@ -85,8 +85,7 @@ pub enum Filter {
         min: Option<f64>,
         max: Option<f64>,
     },
-    /// `from`/`to` are epoch milliseconds — the frontend already holds
-    /// timestamps as numbers, so no date parsing is needed on this side.
+    /// `from`/`to` are epoch milliseconds, so no date parsing is needed here.
     Timeframe {
         mode: TimeframeMode,
         from: i64,
@@ -97,8 +96,8 @@ pub enum Filter {
         mode: EndpointMode,
         activities: Vec<String>,
     },
-    /// `min`/`max` are days and may be fractional — the editor brushes them off
-    /// the duration histogram. Duration is a case's last event minus its first.
+    /// `min`/`max` are days and may be fractional. Duration is a case's last
+    /// event minus its first.
     Duration {
         mode: NumericMode,
         min: Option<f64>,

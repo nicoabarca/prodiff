@@ -48,8 +48,6 @@
   });
 </script>
 
-<!-- Column and Mode share the left column; the value picker takes the right
-     one, so picking values no longer waits at the bottom. -->
 <div class="grid gap-3 sm:grid-cols-2">
   <div class="space-y-3">
     <ColumnSelect

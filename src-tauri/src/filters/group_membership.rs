@@ -1,9 +1,8 @@
 //! `case_not_in_group`: keeps the cases that are *not* in another Group.
 //!
-//! Set difference over case ids rather than a negated predicate, because a
-//! Filter List is an AND pipeline and the model has no OR — negating
-//! `[premium = gold, region = north]` term by term gives a different, smaller
-//! set, and the trim modes have no complement at all. See `docs/adr/0006`.
+//! Set difference over case ids, not a negated predicate: a Filter List is an
+//! AND pipeline with no OR, so negating term by term gives a different set and
+//! the trim modes have no complement at all.
 //!
 //! Unlike every other kind, this one reads nothing from the row it filters: the
 //! excluded case ids are resolved before the pipeline runs and handed in.
@@ -12,8 +11,8 @@ use polars::prelude::*;
 use std::collections::HashSet;
 
 pub fn apply(lf: LazyFrame, excluded: &HashSet<String>, case_col: &str) -> Result<LazyFrame, String> {
-    // An empty exclusion set keeps everything, which is what an unapplied
-    // Group means here: it has no cases to take away yet.
+    // An empty exclusion set keeps everything, which is what an unapplied Group
+    // means here.
     if excluded.is_empty() {
         return Ok(lf);
     }

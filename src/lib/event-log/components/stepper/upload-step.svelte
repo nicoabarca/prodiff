@@ -31,7 +31,7 @@
   }
 
   // Tauri's webview intercepts OS file drops, so DOM drop events never carry
-  // paths — the drop has to be read off the webview's own event stream.
+  // paths: the drop is read off the webview's own event stream.
   $effect(() => {
     let unlisten: UnlistenFn | undefined;
     let disposed = false;

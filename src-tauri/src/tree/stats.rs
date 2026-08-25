@@ -6,8 +6,8 @@ use super::{Acc, Direction, Summary, Test};
 use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
 use std::collections::HashMap;
 
-/// Linear-interpolated quantile over a sorted slice — the same convention
-/// numpy and every box plot in the app use.
+/// Linear-interpolated quantile over a sorted slice, the convention numpy and
+/// every box plot in the app use.
 pub(super) fn quantile(sorted: &[f64], q: f64) -> f64 {
     if sorted.is_empty() {
         return f64::NAN;
@@ -26,18 +26,11 @@ const FLAT_WHISKERS: (f64, f64) = (0.025, 0.975);
 
 /// Where a box plot's whiskers reach, and how much is past them.
 ///
-/// Normally Tukey: the extreme *observations* still inside 1.5·IQR of the box,
-/// not the fences themselves — so a sample whose whole spread fits within the
-/// fences whiskers to its own min and max, and nothing is ever drawn at a value
-/// no case actually took.
+/// Tukey: the extreme observations still inside 1.5·IQR of the box, not the
+/// fences themselves, so nothing is ever drawn at a value no case took.
 ///
-/// A zero IQR breaks that rule rather than stretching it. `Q3 + 1.5·IQR`
-/// collapses onto the value itself, so every case that is not exactly it counts
-/// as an outlier — at one real node that labelled 516 of 2,500 cases, a fifth of
-/// the data, and left the plot with nothing to draw but a flat line. An
-/// attribute where most cases share one value and the rest run long is ordinary
-/// for a duration, so the whiskers fall back to percentiles, which still mean
-/// something when the middle of the distribution does not.
+/// When the IQR is zero the fences collapse onto the value itself and every
+/// other case counts as an outlier, so the whiskers fall back to percentiles.
 pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
     let (Some(&first), Some(&last)) = (sorted.first(), sorted.last()) else {
         return (f64::NAN, f64::NAN, 0, 0);
@@ -53,8 +46,7 @@ pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
             quantile(sorted, FLAT_WHISKERS.1),
         )
     };
-    // Snapped to observations either way: a whisker cap is a case that happened,
-    // never an interpolated percentile no case actually took.
+    // Snapped to observations either way: a whisker cap is a case that happened.
     let low = sorted.iter().copied().find(|v| *v >= lower).unwrap_or(first);
     let high = sorted.iter().copied().rev().find(|v| *v <= upper).unwrap_or(last);
     (
@@ -70,8 +62,7 @@ pub(super) fn numeric_summary(values: &[f64]) -> Summary {
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
     let mean = sorted.iter().sum::<f64>() / n as f64;
-    // Sample standard deviation; a single observation has no spread rather
-    // than a divide-by-zero one.
+    // Sample standard deviation. A single observation has no spread.
     let std = if n > 1 {
         (sorted.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / (n - 1) as f64).sqrt()
     } else {
@@ -123,7 +114,7 @@ fn midranks(combined: &[f64]) -> (Vec<f64>, f64) {
 }
 
 /// Two-sided Mann-Whitney U. Normal approximation with tie and continuity
-/// corrections — exact enough from n = 5 up, which is where the gate sits.
+/// corrections, exact enough from n = 5 up, which is where the gate sits.
 ///
 /// ponytail: no exact permutation branch for tiny samples; add one if findings
 /// at n ≈ 5 ever need to be defended precisely.
@@ -208,7 +199,14 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
     })
 }
 
-pub(super) fn compare(a: &Acc, b: &Acc, numeric: bool) -> Option<Test> {
+/// Compares the Groups of one attribute at one node.
+///
+/// Takes a collection so the shape admits N Groups, and refuses anything but
+/// two: the tests below are two-sample tests. See `docs/statistics.md`.
+pub(super) fn compare(groups: &[&Acc], numeric: bool) -> Option<Test> {
+    let [a, b] = groups else {
+        return None;
+    };
     match (a, b) {
         (Acc::Num(a), Acc::Num(b)) if numeric => mann_whitney(a, b),
         (Acc::Cat(a), Acc::Cat(b)) => chi_square(a, b),
@@ -216,9 +214,8 @@ pub(super) fn compare(a: &Acc, b: &Acc, numeric: bool) -> Option<Test> {
     }
 }
 
-/// Largest p-value that survives Benjamini-Hochberg at `alpha` — every test at
-/// or below it is significant. Returns a value below zero when none do, so the
-/// comparison at the call site needs no special case.
+/// Largest p-value that survives Benjamini-Hochberg at `alpha`. Every test at or
+/// below it is significant. Returns a value below zero when none do.
 pub(super) fn benjamini_hochberg(p_values: &[f64], alpha: f64) -> f64 {
     let mut sorted = p_values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));

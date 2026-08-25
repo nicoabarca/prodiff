@@ -1,12 +1,7 @@
-//! Distributions — the value counts behind one node's charts, queried per
-//! selected node rather than shipped with the build. See
-//! `docs/adr/0003-query-distributions-on-demand.md` for why this one thing
-//! doesn't travel in the tree payload like everything else does.
+//! The value counts behind one node's charts, queried per selected node.
 //!
 //! A node is named by the Variant keys of the leaves in its subtree plus its
-//! depth, which is the build's own currency — so nothing here re-derives node
-//! identity by joining activity labels, and the terminal/non-terminal split
-//! that `(parent, activity, terminates-here)` encodes comes along for free.
+//! depth, so nothing here re-derives node identity by joining activity labels.
 
 use super::stats::{quantile, tukey};
 use super::{read_group, variant_key, Acc, AttrSpec, GroupRows, Source, ACTIVITY_DURATION, TRANSITION_TIME};
@@ -15,20 +10,15 @@ use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
 
 /// How many categories ship at most. The frontend cuts to its own top-N and
-/// derives the `other` bucket from the totals, so this only bounds the payload
-/// for a free-text column with tens of thousands of distinct values.
+/// derives the `other` bucket from the totals, so this only bounds the payload.
 const SHIP_VALUES: usize = 200;
 /// Bin count is clamped here. Freedman-Diaconis on a near-constant attribute
-/// asks for one bin and on a heavy tail asks for thousands; neither draws. The
-/// ceiling is low because the bins are drawn as labelled horizontal bands — a
-/// heavy tail spends its extra bins on near-empty ranges, so raising it buys
-/// scrolling rather than detail.
+/// asks for one bin and on a heavy tail asks for thousands; neither draws.
 const MIN_BINS: usize = 8;
 const MAX_BINS: usize = 20;
 
 /// Percentiles the ECDF ladder is sampled at, 0 through 100 inclusive. One per
-/// percent is finer than a card is wide, so the curve is exact as drawn while
-/// staying two hundred floats rather than the hundred thousand values behind it.
+/// percent is finer than a card is wide, so the curve is exact as drawn.
 const ECDF_STEPS: usize = 100;
 
 /// The coarsest a log-bin ladder may get before it stops being readable.
@@ -37,8 +27,7 @@ const MAX_LOG_BINS: usize = 8;
 /// Boundaries a person would actually pick for a duration, in milliseconds.
 ///
 /// Time is not decimal, so a geometric ladder computed from the data lands on
-/// edges like "1m47s" that read as noise. Durations are the only attributes
-/// binned this way and their units are fixed, so the ladder is written down.
+/// edges like "1m47s". Durations are the only attributes binned this way.
 const DURATION_EDGES: [f64; 16] = [
     1_000.0,           // 1s
     5_000.0,           // 5s
@@ -59,7 +48,7 @@ const DURATION_EDGES: [f64; 16] = [
 ];
 
 /// Which of a node's cases' events are counted. The set of cases is the same
-/// either way — only the events change.
+/// either way; only the events change.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub enum Scope {
@@ -79,10 +68,9 @@ pub struct CategoryCount {
 
 /// A Group's five-number summary with Tukey whiskers, for the box plot.
 ///
-/// The whiskers are the extreme values still inside 1.5·IQR — actual
-/// observations, not the fences themselves. The points beyond them are counted
-/// rather than shipped: on a heavy tail they run to thousands, and a card that
-/// small says "412 above" more usefully than it draws 412 dots.
+/// The whiskers are the extreme values still inside 1.5·IQR, actual
+/// observations and not the fences. The points beyond them are counted, not
+/// shipped: on a heavy tail they run to thousands.
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BoxStats {
@@ -100,15 +88,13 @@ pub struct BoxStats {
 /// The three shapes a duration is read in, alongside the equal-width bins every
 /// numerical attribute gets.
 ///
-/// Durations are heavily right-skewed: most of the mass in the first bin and a
-/// tail running orders of magnitude out. Equal-width bins spend their whole
-/// budget on empty range, which is why these are computed here — none of them
-/// can be recovered from binned counts after the fact.
+/// Durations are heavily right-skewed, and none of these can be recovered from
+/// binned counts after the fact, so they are computed here.
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct DurationShape {
-    /// Value at percentile `i` for `i` in `0..=ECDF_STEPS` — the ECDF, with the
-    /// percentile left implicit in the index. Empty for a Group with no values.
+    /// Value at percentile `i` for `i` in `0..=ECDF_STEPS`, the percentile left
+    /// implicit in the index. Empty for a Group with no values.
     pub ecdf_a: Vec<f64>,
     pub ecdf_b: Vec<f64>,
     pub box_a: Option<BoxStats>,
@@ -173,8 +159,7 @@ struct Plan {
     /// A case-granularity column carries one value per case, repeated on every
     /// row. Counting it once per event would multiply it by the trace length
     /// under `wholeCase`, so it is read from the case's first row in both
-    /// Scopes — which makes the two Scopes identical for such a column, and
-    /// correctly so.
+    /// Scopes, which makes the two Scopes identical for such a column.
     per_case: bool,
     /// Index into `GroupRows::values`. `None` for Transition Time, which isn't
     /// a column: `read_group` computes it alongside the case split, so it is
@@ -182,8 +167,8 @@ struct Plan {
     value_index: Option<usize>,
 }
 
-/// Resolves the requested names against the mapping — dropping any it doesn't
-/// know — and builds the parallel `AttrSpec` list `read_group` consumes.
+/// Resolves the requested names against the mapping, dropping any it does not
+/// know, and builds the parallel `AttrSpec` list `read_group` consumes.
 fn plan(
     requested: &[String],
     mapping: &[ColumnMapping],
@@ -204,7 +189,7 @@ fn plan(
         }
         if name == ACTIVITY_DURATION {
             // Without a start timestamp there is no duration to derive, so the
-            // attribute is dropped rather than charted as all-null.
+            // attribute is dropped.
             if has_start {
                 plans.push(Plan {
                     name: name.clone(),
@@ -240,8 +225,7 @@ fn plan(
 }
 
 /// The rows one case contributes, given the Scope. `None` when the case is
-/// shorter than the node's depth, which a case on one of the node's own
-/// Variants never is — but a malformed selection could be.
+/// shorter than the node's depth, which only a malformed selection produces.
 fn rows_for(
     bounds: (usize, usize),
     depth: usize,
@@ -317,9 +301,8 @@ fn accumulate(
 }
 
 /// Freedman-Diaconis bin count over the pooled values: width `2·IQR·n^(-1/3)`,
-/// clamped. Falls back to `MIN_BINS` when the IQR is zero, which happens when
-/// most of the mass sits on one value — a common shape for durations, and one
-/// where FD's width collapses to nothing.
+/// clamped. Falls back to `MIN_BINS` when the IQR is zero, where FD's width
+/// collapses to nothing.
 fn bin_count(sorted: &[f64], min: f64, max: f64) -> usize {
     if max <= min {
         return 1;
@@ -340,8 +323,7 @@ fn bin(values: &[f64], edges: &[f64]) -> Vec<i64> {
     let (min, max) = (edges[0], edges[bins]);
     let mut counts = vec![0i64; bins];
     for &value in values {
-        // Half-open bins except the last, which is closed so `max` lands in it
-        // rather than falling off the end.
+        // Half-open bins except the last, which is closed so `max` lands in it.
         let index = if value >= max {
             bins - 1
         } else if value <= min {
@@ -354,8 +336,8 @@ fn bin(values: &[f64], edges: &[f64]) -> Vec<i64> {
     counts
 }
 
-/// The value at each percentile from 0 to 100. Empty in, empty out — a Group
-/// absent from this node has no curve rather than a flat line at zero.
+/// The value at each percentile from 0 to 100. Empty in, empty out: a Group
+/// absent from this node has no curve.
 fn ecdf(sorted: &[f64]) -> Vec<f64> {
     if sorted.is_empty() {
         return Vec::new();
@@ -384,33 +366,30 @@ fn box_stats(sorted: &[f64]) -> Option<BoxStats> {
 /// Bin edges from the written-down duration ladder, trimmed to the data and
 /// coarsened until few enough to label.
 ///
-/// Zero is always the first edge: a duration of nothing is common — an activity
-/// with one timestamp, a transition into the step it follows — and the log of
-/// it does not exist, so the first bin is "under the first boundary" rather
-/// than a bin the ladder has to reach down to.
+/// Zero is always the first edge: a duration of nothing is common and its log
+/// does not exist, so the first bin is "under the first boundary".
 fn log_edges(max: f64) -> Vec<f64> {
     let within: Vec<f64> = DURATION_EDGES.iter().copied().filter(|e| *e < max).collect();
-    // Coarsening by stride keeps the ladder's own boundaries rather than
-    // inventing new ones: every other rung is still a rung. `n` rungs make
-    // `n + 1` bins once the leading "under the first rung" bin is counted, so
-    // the budget the stride divides is one short of the ceiling.
+    // Coarsening by stride keeps the ladder's own boundaries: every other rung
+    // is still a rung. `n` rungs make `n + 1` bins once the leading "under the
+    // first rung" bin is counted, so the budget the stride divides is one short
+    // of the ceiling.
     let stride = within.len().div_ceil(MAX_LOG_BINS - 1).max(1);
     let mut edges = vec![0.0];
     edges.extend(within.iter().step_by(stride));
-    // The last bin is closed on the data's own maximum, so the tail has an end
-    // to be drawn against rather than running off the ladder.
+    // The last bin is closed on the data's own maximum, so the tail has an end.
     edges.push(if max > *edges.last().unwrap_or(&0.0) { max } else { max + 1.0 });
     edges
 }
 
-/// Counts into bins the edges name outright, rather than by dividing a range —
-/// the log ladder's bins are deliberately unequal.
+/// Counts into bins the edges name outright: the log ladder's bins are unequal,
+/// so a range cannot be divided.
 fn bin_by_edges(values: &[f64], edges: &[f64]) -> Vec<i64> {
     let bins = edges.len() - 1;
     let mut counts = vec![0i64; bins];
     for &value in values {
-        // The last bin is closed so the maximum lands in it rather than past
-        // the end; `partition_point` gives the first edge strictly above.
+        // The last bin is closed so the maximum lands in it; `partition_point`
+        // gives the first edge strictly above.
         let index = edges.partition_point(|edge| *edge <= value).saturating_sub(1);
         counts[index.min(bins - 1)] += 1;
     }
@@ -450,7 +429,7 @@ fn numerical(a: &[f64], b: &[f64], duration: bool) -> Distribution {
         .collect();
 
     // Sorted per Group only where a duration asks for it: the quantile ladder
-    // and the whiskers both need order, and nothing else here does.
+    // and the whiskers both need order.
     let shape = duration.then(|| {
         let sorted = |values: &[f64]| {
             let mut own: Vec<f64> = values.iter().copied().filter(|v| v.is_finite()).collect();
@@ -487,8 +466,7 @@ fn categorical(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Distributi
             value: value.clone(),
         })
         .collect();
-    // Pooled count then value, so the ranking is stable across Scopes and
-    // across renders rather than following HashMap iteration order.
+    // Pooled count then value, so the ranking is stable across Scopes and renders.
     values.sort_by(|x, y| (y.a + y.b).cmp(&(x.a + x.b)).then_with(|| x.value.cmp(&y.value)));
     let distinct = values.len();
     values.truncate(SHIP_VALUES);
@@ -584,7 +562,7 @@ mod tests {
         };
         assert_eq!(edges.len(), counts_a.len() + 1);
         assert_eq!(counts_a.len(), counts_b.len());
-        // Nothing falls off either end — the max lands in the last bin.
+        // Nothing falls off either end: the max lands in the last bin.
         assert_eq!(counts_a.iter().sum::<i64>(), 5);
         assert_eq!(counts_b.iter().sum::<i64>(), 5);
         assert_eq!(edges[0], 1.0);
@@ -643,7 +621,7 @@ mod tests {
             distributions(&log, None, &mapping, &attributes, &variants, 2, Scope::WholeCase)
                 .unwrap();
 
-        // Same cases either way — that is the whole point of the Scope split.
+        // Same cases either way, which is the point of the Scope split.
         assert_eq!(at_step.cases_a, 2);
         assert_eq!(whole.cases_a, 2);
         // One event each at depth 2; every event of both traces otherwise.
@@ -720,7 +698,7 @@ mod tests {
     #[test]
     fn whiskers_stop_at_observations_and_the_rest_are_counted() {
         // Tight body, one value far out: the high whisker stays on the body's
-        // own last value rather than reaching up to the outlier.
+        // own last value.
         let sorted = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 1_000.0];
         let stats = box_stats(&sorted).expect("values");
         assert_eq!(stats.min, 1.0);
@@ -777,7 +755,7 @@ mod tests {
         assert!(edges.windows(2).all(|pair| pair[1] > pair[0]), "{edges:?}");
         let counts = bin_by_edges(&sorted, &edges);
         assert_eq!(counts.iter().sum::<i64>(), sorted.len() as i64);
-        // The maximum lands in the last bin rather than off the end.
+        // The maximum lands in the last bin.
         assert!(*counts.last().unwrap() > 0);
     }
 

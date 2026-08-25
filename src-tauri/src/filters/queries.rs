@@ -15,12 +15,11 @@ pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFr
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
 
-/// The case ids each `case_not_in_group` filter takes away, read from the
-/// Groups it names. Resolved here rather than inside the pipeline because a
-/// Group's cases live in another file, not in the frame being filtered.
+/// The case ids each `case_not_in_group` filter takes away, read from the Groups
+/// it names. Resolved here because a Group's cases live in another file, not in
+/// the frame being filtered.
 ///
-/// A Group that has never been applied contributes nothing: it has no cases to
-/// take away yet, which is the same answer as an empty Group.
+/// A Group that has never been applied contributes nothing.
 fn excluded_cases(
     app: &tauri::AppHandle,
     project_id: &str,
@@ -129,8 +128,8 @@ pub fn case_durations(
 
 pub const DAY_MS: i64 = 86_400_000;
 
-/// Counted by the difference of a running total rather than by walking each
-/// case's days: a long case would otherwise cost a step per day it spans.
+/// Counted by the difference of a running total, so a long case costs no step
+/// per day it spans.
 pub fn daily_load(spans: &[(i64, i64)]) -> Vec<DayLoad> {
     let day = |millis: i64| millis.div_euclid(DAY_MS);
     let (Some(first), Some(last)) = (
@@ -161,13 +160,11 @@ pub fn daily_load(spans: &[(i64, i64)]) -> Vec<DayLoad> {
         .collect()
 }
 
-/// How many bins the case-duration histogram is drawn with. Fixed here rather
-/// than passed in: it is a property of the chart, and the chart is the only
-/// caller.
+/// How many bins the case-duration histogram is drawn with.
 pub const DURATION_BINS: usize = 60;
 
 /// Equal-width bins over the observed range. A log where every case shares one
-/// duration still gets a single bin rather than a zero-width division.
+/// duration still gets a single bin.
 pub fn histogram(durations: &[i64]) -> Vec<DurationBin> {
     let (Some(min), Some(max)) = (durations.iter().min(), durations.iter().max()) else {
         return Vec::new();
@@ -185,8 +182,8 @@ pub fn histogram(durations: &[i64]) -> Vec<DurationBin> {
         let offset = ((*value as f64 - min) / width) as usize;
         cases[offset.min(count - 1)] += 1;
     }
-    // Edges are interpolated rather than stepped by `width` so the last one
-    // lands exactly on `max` instead of a rounding error past it.
+    // Edges are interpolated, not stepped by `width`, so the last one lands
+    // exactly on `max`.
     let edge = |i: usize| min + (max - min) * i as f64 / count as f64;
     cases
         .into_iter()
@@ -201,9 +198,8 @@ pub fn histogram(durations: &[i64]) -> Vec<DurationBin> {
 
 /// Distinct values of a column, alphabetical.
 ///
-/// `endpoint` narrows the picker to what an endpoint filter can actually match:
-/// only the activities cases begin (or end) with. Offering every activity there
-/// invites selections that silently keep nothing.
+/// `endpoint` narrows the picker to what an endpoint filter can match: only the
+/// activities cases begin (or end) with.
 pub fn count_values(
     df: DataFrame,
     column: &str,
@@ -215,8 +211,7 @@ pub fn count_values(
         return Err(format!("Column \"{column}\" is not in this event log."));
     }
 
-    // Rows are persisted sorted by (case, timestamp), so first/last within the
-    // case group are the case's endpoints — one row per case, so a value only
+    // case group are the case's endpoints: one row per case, so a value only
     // counts here when some case actually starts/ends with it.
     let base = match endpoint {
         None => df.lazy(),
@@ -245,8 +240,7 @@ pub fn count_values(
     Ok(DistinctValues {
         values: (0..page.height())
             .filter_map(|i| {
-                // Nulls aren't selectable values — a filter on "no value" is a
-                // different feature.
+                // Nulls are not selectable values.
                 let value = cell_to_string(value_column, i);
                 if value.is_empty() {
                     return None;
@@ -289,8 +283,7 @@ mod tests {
         assert_eq!(bins.len(), DURATION_BINS);
         assert_eq!(bins[0].start_ms, 0.0);
         assert_eq!(bins[DURATION_BINS - 1].end_ms, 1000.0);
-        // The longest case lands in the last bin rather than one past the end,
-        // alongside the 999 that shares that bin.
+        // The longest case lands in the last bin, alongside the 999 that shares it.
         assert_eq!(bins.iter().map(|b| b.cases).sum::<i64>(), 5);
         assert_eq!(bins[DURATION_BINS - 1].cases, 2);
     }

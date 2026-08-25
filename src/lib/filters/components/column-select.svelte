@@ -4,9 +4,8 @@
   import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 
   /**
-   * Which column a filter reads. `color` is passed rather than inherited: the
-   * dropdown portals out of the editor's subtree, so the `--accent-color` set
-   * there does not reach it.
+  * Which column a filter reads. `color` is passed, not inherited: the dropdown
+  * portals out of the editor's subtree, so `--accent-color` does not reach it.
    */
   let {
     columns,
