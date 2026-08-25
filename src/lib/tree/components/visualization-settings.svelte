@@ -10,7 +10,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/tree/utils/settings";
@@ -29,7 +29,7 @@
 
   // The slices the Groups come from, so every control names them the way the
   // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

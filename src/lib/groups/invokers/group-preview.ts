@@ -1,16 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/kind/filter";
-import type { ResponsePreviewTable } from "$lib/slices/invokers/types";
+import type { ResponsePreviewTable } from "$lib/groups/invokers/types";
 
-export function slicePreview(
+export function groupPreview(
   project: Project,
-  chain: Filter[],
+  filters: Filter[],
   limit: number
 ): Promise<ResponsePreviewTable> {
-  return invoke<ResponsePreviewTable>("slice_preview", {
+  return invoke<ResponsePreviewTable>("group_preview", {
     projectId: project.id,
-    chain,
+    filters,
     columns: project.columns,
     limit
   });

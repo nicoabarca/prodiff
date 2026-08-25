@@ -20,8 +20,8 @@ const DURATION_UNITS = [
 
 /**
  * A duration in milliseconds as its two largest non-zero units ("8d 4h"), which
- * is as much precision as a case duration is ever read at. `null` — a
- * population with no cases — renders as an em dash.
+ * is as much precision as a case duration is ever read at. `null` — a Group
+ * with no cases — renders as an em dash.
  */
 export function formatDuration(millis: number | null): string {
   if (millis === null) return "—";
@@ -65,15 +65,15 @@ export function formatDay(millis: number): string {
   });
 }
 
-/** A slice's stored colour token as a usable CSS colour. */
+/** A Group's stored colour token as a usable CSS colour. */
 export function colorVar(token: string): string {
   return `var(--${token})`;
 }
 
 /**
- * A washed-out version of a population's colour, for tinting the column that
- * belongs to it. The whole log is left untinted so the filtered populations
- * read as the ones being compared; Base tints grey, its own accent.
+ * A washed-out version of a Group's colour, for tinting the column that belongs
+ * to it. The Original tints grey, its own accent, so the filtered Groups read
+ * as the ones being compared.
  */
 export function colorTint(token: string, percent = 7): string {
   if (token === "foreground") return "transparent";

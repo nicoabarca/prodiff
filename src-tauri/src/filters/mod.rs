@@ -1,7 +1,7 @@
-//! Filters narrow an Event Log to a Slice. A chain is an ordered AND pipeline:
-//! each filter applies to the previous one's output, so order is user-visible
-//! and matters (an event-level trim before an endpoint filter gives a different
-//! result than after).
+//! Filters narrow an Event Log to a Group. A Filter List is an ordered AND
+//! pipeline: each filter applies to the previous one's output, so order is
+//! user-visible and matters (an event-level trim before an endpoint filter
+//! gives a different result than after).
 //!
 //! Every filter is evaluated as an event-level predicate lifted to the case
 //! level by a window over the case column — that lift is what the `mode` picks.
@@ -16,7 +16,7 @@ mod enums;
 mod follower;
 mod numeric;
 mod predicates;
-mod queries;
+pub(crate) mod queries;
 mod structs;
 mod timeframe;
 

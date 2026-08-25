@@ -12,11 +12,11 @@
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
-  import { formatNumber } from "$lib/format";
+  import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import {
-    groupSlices,
+    comparedGroups,
     shownVariant,
     loadVariants,
     selectedVariants,
@@ -26,7 +26,6 @@
     variants,
     view
   } from "$lib/tree/state/tree.svelte";
-  import { baseSlice, loadImpact, sliceCases } from "$lib/slices/state/slices.svelte";
   import type { Project } from "$lib/event-log/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -59,26 +58,26 @@
   });
   const comparing = $derived(totals.b > 0);
 
-  // The slices are what the user named and coloured in Filters; "Group A" is
+  // Groups are what the user named and coloured in Filters; "Group A" is
   // internal vocabulary they never chose.
   const groupNames = $derived.by(() => {
-    const [a, b] = groupSlices();
+    const [a, b] = comparedGroups();
     return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
+  });
+
+  // Accents come from the Groups themselves, never from a colour written into
+  // a class here, so renaming or recolouring one is a change in one place.
+  const accents = $derived.by(() => {
+    const [a, b] = comparedGroups();
+    return { a: colorVar(a?.color ?? "group-1"), b: colorVar(b?.color ?? "group-2") };
   });
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
   }
 
-  /**
-   * Cases in the Base slice — the population both Groups are carved out of.
-   * `null` until `loadImpact`'s scan lands; the share it feeds isn't drawn yet.
-   */
-  const base = $derived(baseSlice());
-  const baseCases = $derived(base ? sliceCases(base) : null);
-  $effect(() => {
-    if (open && base) loadImpact(project, base);
-  });
+  /** Cases in the whole Event Log — what a Group's share is measured against. */
+  const originalCases = $derived(project.cases);
 
   /**
    * A Variant's number is its rank in the full list, not among the rendered
@@ -182,8 +181,8 @@
       such path. The checkbox includes it in the build.
       <br />
       Per cell: cases · <span class="opacity-70">% of that group</span> ·
-      <span class="text-foreground">% of base </span>{#if baseCases}
-        ({formatNumber(baseCases)} cases){/if}.
+      <span class="text-foreground">% of the event log </span>{#if originalCases}
+        ({formatNumber(originalCases)} cases){/if}.
     </p>
 
     {#if variants.dropped > 0}
@@ -204,13 +203,13 @@
       <!-- The Group's own total, so a row's share has its denominator in
            sight. Summed over the Variant list, which is every case the
            filtered log has — not what any build happened to include. -->
-      <span class="text-slice-1 ml-auto flex w-28 flex-col items-end truncate text-right">
+      <span class="ml-auto flex w-28 flex-col items-end truncate text-right" style="color:{accents.a}">
         <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
         <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
           ({formatNumber(totals.a)} cases)
         </span>
       </span>
-      <span class="text-slice-2 flex w-28 flex-col items-end truncate text-right">
+      <span class="flex w-28 flex-col items-end truncate text-right" style="color:{accents.b}">
         <span class="truncate">{comparing ? groupNames.b : "Cases"}</span>
         <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
           ({formatNumber(totals.b)} cases)
@@ -256,12 +255,12 @@
                    group" should be visible at a glance. -->
               <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
                 {#if item.casesA > 0}
-                  <span class="text-slice-1">{formatNumber(item.casesA)}</span>
-                  <span class="text-slice-1 text-[0.625rem] opacity-70">
+                  <span style="color:{accents.a}">{formatNumber(item.casesA)}</span>
+                  <span class="text-[0.625rem] opacity-70" style="color:{accents.a}">
                     {share(item.casesA, totals.a)}
                   </span>
-                  {#if baseCases}
-                    <span class="text-[0.625rem]">{share(item.casesA, baseCases)}</span>
+                  {#if originalCases}
+                    <span class="text-[0.625rem]">{share(item.casesA, originalCases)}</span>
                   {/if}
                 {:else}
                   <span class="text-muted-foreground">—</span>
@@ -270,12 +269,12 @@
               {#if comparing}
                 <span class="flex w-28 flex-col items-end tabular-nums">
                   {#if item.casesB > 0}
-                    <span class="text-slice-2">{formatNumber(item.casesB)}</span>
-                    <span class="text-slice-2 text-[0.625rem] opacity-70">
+                    <span style="color:{accents.b}">{formatNumber(item.casesB)}</span>
+                    <span class="text-[0.625rem] opacity-70" style="color:{accents.b}">
                       {share(item.casesB, totals.b)}
                     </span>
-                    {#if baseCases}
-                      <span class="text-[0.625rem]">{share(item.casesB, baseCases)}</span>
+                    {#if originalCases}
+                      <span class="text-[0.625rem]">{share(item.casesB, originalCases)}</span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>

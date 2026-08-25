@@ -2,12 +2,12 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { slicesLoaded } from "$lib/slices/state/slices.svelte";
+  import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import {
     build,
     built,
     forgetOtherProject,
-    groupSlices,
+    comparedGroups,
     isStale,
     loadSettings,
     selected,
@@ -28,7 +28,7 @@
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   const project = $derived(currentProject());
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
 
   // An empty selection means two different things. Before the variant list has
@@ -148,7 +148,7 @@
             </Empty.Media>
             <Empty.Title>No tree built yet</Empty.Title>
             <Empty.Description>
-              {#if !slicesLoaded.projectId}
+              {#if !groupsLoaded.projectId}
                 Loading slices…
               {:else if !groups[0]}
                 Create a slice in the Filters view first — a slice defines a group.

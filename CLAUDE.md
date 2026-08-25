@@ -29,7 +29,7 @@ src/lib/
 ├── utils.ts           shadcn `cn()`
 ├── event-log/         Project record, column mapping, upload wizard
 ├── filters/           filter vocabulary (one module per kind) + editor
-├── slices/            Slice records, chains, populations, impact cache
+├── groups/            Group records, Filter Lists, palette, impact cache
 ├── statistics/        comparison charts, metrics table, event data table
 ├── tree/              directed tree, variants, canvas, node detail
 └── distributions/     per-node attribute distributions
@@ -37,7 +37,7 @@ src/lib/
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | distributions → slices → filters → event-log` — plus `distributions → tree`. Nothing points back up.
+Dependencies run one way — `statistics | tree | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up.
 
 **Where new code goes:**
 
@@ -52,6 +52,10 @@ Dependencies run one way — `statistics | tree | distributions → slices → f
 
 **Routes stay thin.** `src/routes/` handles URL structure and page composition. Four routes are still fat (`distributions`, `new`, `filters`, `tree`) and are a known deferred cleanup — don't add to them.
 
-**Slices and their two measurement caches:** a slice's effective chain is the Base chain followed by its own (`effectiveChain`), and results are cached two ways: `impacts` (per-slice `{key, steps}`, in memory, filled by the Filters view via `loadImpact`, read with `sliceSteps`/`sliceCases`) and the persisted `stats`/`statsKey` columns filled by the Statistics view via `computeStats`. Both are keyed by `chainKey(effectiveChain(slice))` — anything showing a case count must compare that key before displaying, or an edited chain leaves the previous numbers on screen (see `slices/components/filter-summary-bar.svelte`, which prefers the live `sliceCases` and falls back to keyed `stats`).
+**Groups are materialized.** A Group is a Filter List applied to the Event Log and written to `{app_data}/projects/{project_id}/groups/{group_id}.parquet` (see `docs/adr/0005`). The Filter List stays the source of truth; the Parquet is its product. `apply_group` writes the file and returns the Group's figures in the same pass, so `stats` non-null means "this Group has a Parquet" and null means "not applied yet" — there is no separate key column to compare. The row is written before the file and deleted after it, so a file without a row is unreachable; `loadGroups` checks the file still exists and drops the cached figures when it does not. Group ids are eight random base62 characters and are never reused, because a copied Filter List can carry `case_not_in_group(id)`.
+
+`impacts` (per-Group `{key, steps}`, in memory, filled by the Filters view via `loadImpact`, read with `groupSteps`/`groupCases`) is the draft preview only. It writes nothing and its numbers belong to the draft, not to the Group.
+
+The Original is not a row: it is the whole Event Log, synthesized by `originalGroup()`, answering to the id `original` everywhere including in Rust.
 
 Styling convention: Tailwind utility classes directly on elements/component `class` props — no scoped `<style>` blocks with `@apply` in routes or components. Use `rem`/`em` for custom sizing, never `px`. Icons come from `@lucide/svelte`; when placed inside a shadcn `Button`, use `data-icon="inline-start"`/`"inline-end"` (the button component handles icon sizing/spacing itself — don't add manual size classes there).

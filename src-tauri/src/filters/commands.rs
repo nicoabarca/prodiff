@@ -1,6 +1,9 @@
-//! The filter seam. Rust is stateless here: the frontend owns the slices table
-//! and hands over whole filter chains, so these commands never touch sqlite and
-//! nothing derived from a chain is persisted.
+//! The filter seam: the two commands that still take a Filter List rather than
+//! a Group id, plus the pickers the editor fills its controls from.
+//!
+//! Rust is stateless here — the frontend owns the `groups` table and hands over
+//! whole Filter Lists, and nothing derived from one is persisted on this side.
+//! Materializing a Filter List is `groups::commands::apply_group`.
 
 use super::queries::{
     case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
@@ -10,56 +13,35 @@ use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTab
 use super::Endpoint;
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::filters::Filter;
-use crate::stats::{summarize, EventLogStats};
 
-/// Statistics for several chains at once. Batched deliberately: the Statistics
-/// view asks for the whole log, the base and every slice on each render, and
-/// this way they share one read of the Parquet file.
-///
-/// A slice's chain arrives already composed — the frontend prepends the base
-/// chain — so the ordering rules live in one place on that side.
-#[tauri::command]
-pub fn slice_stats(
-    app: tauri::AppHandle,
-    project_id: String,
-    chains: Vec<Vec<Filter>>,
-    columns: Vec<ColumnMapping>,
-) -> Result<Vec<EventLogStats>, String> {
-    let df = read_event_log(&app, &project_id)?;
-    chains
-        .iter()
-        .map(|chain| summarize(&filtered(&df, chain, &columns)?, &columns))
-        .collect()
-}
-
-/// How much of the log survives each prefix of a chain. Index 0 is the
+/// How much of the log survives each prefix of a Filter List. Index 0 is the
 /// unfiltered log and index `i + 1` the result after filter `i`, so the editor
 /// can show what each filter removes on its own as well as cumulatively.
 ///
-/// Filters are applied one at a time rather than as a whole chain because the
-/// intermediate sizes are the point.
+/// Filters are applied one at a time rather than as a whole list because the
+/// intermediate sizes are the point. This is the draft preview: it writes
+/// nothing, and the numbers it returns belong to the draft, not to a Group.
 #[tauri::command]
-pub fn chain_impact(
+pub fn filters_impact(
     app: tauri::AppHandle,
     project_id: String,
-    chain: Vec<Filter>,
+    filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<ChainStep>, String> {
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let mut df = read_event_log(&app, &project_id)?;
 
-    let mut steps = Vec::with_capacity(chain.len() + 1);
+    let mut steps = Vec::with_capacity(filters.len() + 1);
     steps.push(measure(&df, case_col)?);
-    for filter in &chain {
+    for filter in &filters {
         df = filtered(&df, std::slice::from_ref(filter), &columns)?;
         steps.push(measure(&df, case_col)?);
     }
     Ok(steps)
 }
 
-/// Cases present in both chains — the two are unrelated slices (Base is
-/// prepended by the frontend into each already), so overlap can only come
-/// from a case matching both sets of filters.
+/// Cases present in both Filter Lists. Groups are unrelated to each other, so
+/// overlap can only come from a case matching both sets of filters.
 #[tauri::command]
 pub fn shared_cases(
     app: tauri::AppHandle,
@@ -84,7 +66,7 @@ pub fn shared_cases(
     Ok(b.iter().filter(|id| a.contains(*id)).count() as i64)
 }
 
-/// The distribution of case durations under a filter chain — the shape the
+/// The distribution of case durations under a Filter List — the shape the
 /// duration filter's brush selects a range from.
 #[tauri::command]
 pub fn duration_histogram(
@@ -116,14 +98,14 @@ pub fn daily_case_load(
 }
 
 #[tauri::command]
-pub fn slice_preview(
+pub fn group_preview(
     app: tauri::AppHandle,
     project_id: String,
-    chain: Vec<Filter>,
+    filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
     limit: usize,
 ) -> Result<PreviewTable, String> {
-    let df = filtered(&read_event_log(&app, &project_id)?, &chain, &columns)?;
+    let df = filtered(&read_event_log(&app, &project_id)?, &filters, &columns)?;
     let total_events = df.height();
     let page = df.head(Some(limit));
 

@@ -31,7 +31,7 @@
   import {
     build,
     built,
-    groupSlices,
+    comparedGroups,
     isStale,
     selected,
     settings,
@@ -67,7 +67,7 @@
   const compare = $derived(tree?.groupB !== null);
   const stale = $derived(isStale());
 
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

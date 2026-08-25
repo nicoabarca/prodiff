@@ -5,13 +5,13 @@
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Test } from "$lib/tree/invokers/types";
   import { effectBand, effectStep } from "$lib/tree/utils/effect";
 
   let { test }: { test: Test | null | undefined } = $props();
 
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

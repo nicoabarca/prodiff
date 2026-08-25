@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
-import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
+import { filtersKey, groups } from "$lib/groups/state/groups.svelte";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
@@ -10,7 +10,7 @@ import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
-import type { Slice } from "$lib/slices/types";
+import type { Group } from "$lib/groups/types";
 
 /**
  * The built tree, in memory only: it survives navigating between views but
@@ -52,7 +52,7 @@ export const variants = $state<{
 /** The chains the Variant list would have to be built from to still be current. */
 function variantsKey(): string | null {
   const chains = groupChains();
-  return chains ? chainKey([chains.a, chains.b] as unknown as Filter[]) : null;
+  return chains ? filtersKey([chains.a, chains.b] as unknown as Filter[]) : null;
 }
 
 export function selectedVariants(): Set<string> {
@@ -113,19 +113,18 @@ export const selected = $state<{ id: number | null }>({ id: null });
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
- * Group A and Group B are the two named slices, in position order. Base is
- * never a Group: a slice's chain already contains it, and both Significance
- * Tests assume the two Groups are independent.
+ * The two Groups being compared: the first two of the project, in position
+ * order. Which two the user picks is the compare modal's job; until it exists
+ * this is the whole selection.
  */
-export function groupSlices(): [Slice | null, Slice | null] {
-  const named = namedSlices();
-  return [named[0] ?? null, named[1] ?? null];
+export function comparedGroups(): [Group | null, Group | null] {
+  return [groups[0] ?? null, groups[1] ?? null];
 }
 
 export function groupChains(): { a: Filter[]; b: Filter[] | null } | null {
-  const [a, b] = groupSlices();
+  const [a, b] = comparedGroups();
   if (!a) return null;
-  return { a: effectiveChain(a), b: b ? effectiveChain(b) : null };
+  return { a: a.filters, b: b ? b.filters : null };
 }
 
 export async function loadSettings(projectId: string) {

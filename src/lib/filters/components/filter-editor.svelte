@@ -11,8 +11,8 @@
     eventLevelColumns,
     numericColumns
   } from "$lib/filters/utils/columns";
-  import { chainImpact } from "$lib/slices/invokers/chain-impact";
-  import type { ResponseChainStep } from "$lib/slices/invokers/types";
+  import { filtersImpact } from "$lib/groups/invokers/filters-impact";
+  import type { ResponseFilterStep } from "$lib/groups/invokers/types";
   import { formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
   import DurationEditor from "./editors/duration-editor.svelte";
@@ -27,8 +27,8 @@
     filter = null,
     /** Filters applied before this one — the draft's impact is measured on top of them. */
     precedingChain = [],
-    /** The accent of the slice being edited, so its charts read as that population. */
-    color = "var(--slice-base)",
+    /** The accent of the Group being edited, so its charts read as that Group. */
+    color = "var(--group-original)",
     onsave,
     oncancel
   }: {
@@ -105,7 +105,7 @@
 
   // Live impact of the draft, measured on top of the filters that precede it.
   // Debounced because typing in a range box would otherwise re-scan per keystroke.
-  let impact = $state<{ before: ResponseChainStep; after: ResponseChainStep } | null>(null);
+  let impact = $state<{ before: ResponseFilterStep; after: ResponseFilterStep } | null>(null);
   let measuring = $state(false);
 
   $effect(() => {
@@ -118,7 +118,7 @@
     let stale = false;
     measuring = true;
     const timer = setTimeout(() => {
-      chainImpact(project, [...precedingChain, candidate])
+      filtersImpact(project, [...precedingChain, candidate])
         .then((steps) => {
           if (stale) return;
           impact = { before: steps[steps.length - 2], after: steps[steps.length - 1] };

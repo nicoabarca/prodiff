@@ -4,7 +4,7 @@ import { db } from "$lib/db/client";
 import { projects as projectsTable } from "$lib/db/schema";
 import { deleteProjectFiles } from "$lib/event-log/invokers/delete-project-files";
 import type { Project } from "$lib/event-log/types";
-import { removeSlicesForProject } from "$lib/slices/state/slices.svelte";
+import { removeGroupsForProject } from "$lib/groups/state/groups.svelte";
 
 export const projects = $state<Project[]>([]);
 export const projectsLoaded = $state<{ value: boolean }>({ value: false });
@@ -40,7 +40,7 @@ export async function updateProject(id: string, changes: Partial<Project>) {
 
 export async function removeProject(id: string) {
   await deleteProjectFiles(id);
-  await removeSlicesForProject(id);
+  await removeGroupsForProject(id);
   await db().delete(projectsTable).where(eq(projectsTable.id, id));
   const index = projects.findIndex((p) => p.id === id);
   if (index !== -1) projects.splice(index, 1);

@@ -6,7 +6,7 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { AttributeBlock, ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
@@ -37,7 +37,7 @@
       : null
   );
 
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

@@ -1,8 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/kind/filter";
-import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
-import type { SliceKind } from "$lib/slices/types";
+import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
 
 export const projects = sqliteTable("projects", {
@@ -23,20 +22,21 @@ export const projects = sqliteTable("projects", {
 });
 
 /**
- * Slices belong to a project and are deleted with it (see `removeProject`).
- * `stats` and `stats_key` are a cache of the last computed figures, so
- * reopening a project doesn't re-run every chain.
+ * Groups belong to a project and are deleted with it (see `removeProject`).
+ * The row is written before the Parquet it names, so a file without a row is
+ * unreachable; `stats` is filled by the same pass that writes that file, which
+ * makes a null one mean "not applied yet" rather than "not measured yet".
  */
-export const slices = sqliteTable("slices", {
+export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),
-  kind: text("kind").$type<SliceKind>().notNull(),
   name: text("name").notNull(),
   color: text("color").notNull(),
   position: integer("position").notNull(),
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
   stats: text("stats", { mode: "json" }).$type<ResponseEventLogStats | null>(),
-  statsKey: text("stats_key")
+  createdAt: text("created_at").notNull(),
+  editedAt: text("edited_at").notNull()
 });
 
 /**

@@ -5,7 +5,7 @@ use tauri::Manager;
 
 /// `{app_data}/projects/{project_id}/`. Rust owns this layout — the frontend
 /// stores only the project id and never a filesystem path.
-fn project_dir_path(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
+pub(crate) fn project_dir_path(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     Ok(app_data_dir.join("projects").join(project_id))
 }

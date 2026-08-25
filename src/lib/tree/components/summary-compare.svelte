@@ -9,7 +9,7 @@
   import * as Chart from "$lib/components/ui/chart/index.js";
   import { outlierNote } from "$lib/distributions/utils/distributions";
   import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Summary } from "$lib/tree/invokers/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -31,7 +31,7 @@
   // user gave their slices — "Group A"/"Group B" only if a slice has gone.
   const COLOR_A = "var(--slice-1)";
   const COLOR_B = "var(--slice-2)";
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 

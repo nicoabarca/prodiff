@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { sliceCases, sliceColor } from "$lib/slices/state/slices.svelte";
+  import { groupCases } from "$lib/groups/state/groups.svelte";
   import { colorVar, formatNumber } from "$lib/format";
-  import type { Slice } from "$lib/slices/types";
+  import type { Group } from "$lib/groups/types";
 
-  let { slices }: { slices: Slice[] } = $props();
+  let { groups }: { groups: Group[] } = $props();
 
-  /** Only slices whose chain has been measured can appear in the summary. */
+  /** Only Groups whose Filter List has been measured appear in the summary. */
   const measured = $derived(
-    slices
-      .map((slice) => ({ slice, cases: sliceCases(slice) }))
-      .filter((entry): entry is { slice: Slice; cases: number } => entry.cases !== null)
+    groups
+      .map((group) => ({ group, cases: groupCases(group) }))
+      .filter((entry): entry is { group: Group; cases: number } => entry.cases !== null)
   );
 </script>
 
@@ -21,22 +21,22 @@
       Comparison
     </span>
 
-    {#each measured as entry, index (entry.slice.id)}
+    {#each measured as entry, index (entry.group.id)}
       {#if index > 0}
         <span class="text-muted-foreground text-xs">vs</span>
       {/if}
       <span class="flex items-center gap-1.5">
         <span
           class="size-2.5 shrink-0"
-          style="background:{colorVar(sliceColor(entry.slice))}"
+          style="background:{colorVar(entry.group.color)}"
           aria-hidden="true"
         ></span>
-        <span class="text-sm font-semibold" style="color:{colorVar(sliceColor(entry.slice))}">
-          {entry.slice.name}
+        <span class="text-sm font-semibold" style="color:{colorVar(entry.group.color)}">
+          {entry.group.name}
         </span>
         <span
           class="font-mono text-sm font-semibold"
-          style="color:{colorVar(sliceColor(entry.slice))}"
+          style="color:{colorVar(entry.group.color)}"
         >
           ({formatNumber(entry.cases)})
         </span>
