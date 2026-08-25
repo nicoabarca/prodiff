@@ -6,9 +6,11 @@
   import {
     build,
     built,
+    comparison,
     forgetOtherProject,
     comparedGroups,
     isStale,
+    loadComparison,
     loadSettings,
     selected,
     settings,
@@ -16,6 +18,7 @@
   } from "$lib/tree/state/tree.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
+  import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import GroupHeader from "$lib/tree/components/group-header.svelte";
   import VariantPicker from "$lib/tree/components/variant-picker.svelte";
@@ -25,6 +28,7 @@
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
+  import GitCompare from "@lucide/svelte/icons/git-compare";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   const project = $derived(currentProject());
@@ -36,6 +40,8 @@
     variants.key !== null && settings.value.selectedVariants.length === 0
   );
 
+  let comparing = $state(false);
+
   let panelOpen = $state(false);
   $effect(() => {
     panelOpen = selected.id !== null;
@@ -45,6 +51,7 @@
     if (!project) return;
     forgetOtherProject(project.id);
     if (settings.projectId !== project.id) loadSettings(project.id);
+    if (comparison.projectId !== project.id) loadComparison(project.id);
   });
 </script>
 
@@ -61,6 +68,13 @@
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
       <div class="ml-auto flex items-center gap-2">
+        <!-- Which groups the tree measures against, and what they share —
+             overlap is settled here, at selection time, rather than left for
+             the reader to notice on the finished tree. -->
+        <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
+          <GitCompare data-icon="inline-start" />
+          {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
+        </Button>
         <BuildSettings {project} />
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
@@ -81,6 +95,8 @@
         </Button>
       </div>
     </div>
+
+    <CompareDialog {project} bind:open={comparing} />
 
     {#if built.tree}
       <GroupHeader tree={built.tree} />

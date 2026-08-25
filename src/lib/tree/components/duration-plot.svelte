@@ -50,9 +50,7 @@
   const oneValue = $derived(rows.length < 2);
 
   /** The widest value either Group reaches, so both are drawn to one scale. */
-  const max = $derived(
-    Math.max(ecdfA.at(-1) ?? 0, ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0)
-  );
+  const max = $derived(Math.max(ecdfA.at(-1) ?? 0, ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0));
 
   /** Where symlog stops being linear: the ladder's first rung. */
   const linearBelow = $derived(shape.logEdges.find((edge) => edge > 0) ?? max ?? 1);

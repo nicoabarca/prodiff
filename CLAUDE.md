@@ -63,4 +63,6 @@ Dependencies run one way — `statistics | tree | distributions → groups → f
 
 The Original is not a row: it is the whole Event Log, synthesized by `originalGroup()`, answering to the id `original` everywhere including in Rust.
 
+**Which Groups the tree compares** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the tree degrades to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
+
 Styling convention: Tailwind utility classes directly on elements/component `class` props — no scoped `<style>` blocks with `@apply` in routes or components. Use `rem`/`em` for custom sizing, never `px`. Icons come from `@lucide/svelte`; when placed inside a shadcn `Button`, use `data-icon="inline-start"`/`"inline-end"` (the button component handles icon sizing/spacing itself — don't add manual size classes there).

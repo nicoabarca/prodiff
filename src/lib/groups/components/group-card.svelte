@@ -145,7 +145,7 @@
     </Card.Title>
     <Card.Description>
       {#if dirty}
-        Unapplied edits — the numbers below are this draft's, not the group's.
+        Unapplied edits. The numbers below are this draft's, not the group's.
       {:else if filters.length === 0}
         Runs on the whole event log.
       {:else}
@@ -202,7 +202,7 @@
           <Empty.Media variant="icon">
             <SlidersHorizontal />
           </Empty.Media>
-          <Empty.Description>No filters — this group is the whole event log.</Empty.Description>
+          <Empty.Description>No filters, so this group is the whole event log.</Empty.Description>
         </Empty.Header>
       </Empty.Root>
     {:else}

@@ -48,7 +48,7 @@
   {#if entries.length === 0}
     <p class="text-muted-foreground flex items-center gap-2 text-xs">
       <SlidersHorizontal class="size-3.5" aria-hidden="true" />
-      No groups — every view shows the whole event log.
+      No groups yet. Every view shows the whole event log.
     </p>
   {:else}
     {#each entries as group, index (group.id)}
@@ -93,7 +93,7 @@
             <Separator />
             {#if group.filters.length === 0}
               <p class="text-muted-foreground text-xs">
-                No filters — this group is the whole event log.
+                No filters, so this group is the whole event log.
               </p>
             {:else}
               <ol class="flex flex-col gap-2">

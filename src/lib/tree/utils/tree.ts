@@ -174,7 +174,11 @@ export function nodeDepth(tree: ResponseDirectedTree, id: number): number {
  * `visible.cases`, not `visible.ids`, so collapsing a subtree never changes
  * which cases the charts describe.
  */
-export function subtreeVariants(tree: ResponseDirectedTree, visible: Visible, id: number): string[] {
+export function subtreeVariants(
+  tree: ResponseDirectedTree,
+  visible: Visible,
+  id: number
+): string[] {
   const byId = new Map(tree.nodes.map((n) => [n.id, n]));
   const kids = children(tree);
   const keys: string[] = [];
@@ -193,7 +197,11 @@ export function subtreeVariants(tree: ResponseDirectedTree, visible: Visible, id
  * The nodes one Variant runs through, restricted to what is on screen. Empty
 * when that Variant isn't in this tree: unselected, pruned, or too new.
  */
-export function variantPath(tree: ResponseDirectedTree, visible: Visible, key: string): Set<number> {
+export function variantPath(
+  tree: ResponseDirectedTree,
+  visible: Visible,
+  key: string
+): Set<number> {
   const leaf = tree.nodes.find((node) => node.variantKey === key);
   if (!leaf || !visible.ids.has(leaf.id)) return new Set();
   return new Set(pathTo(tree, leaf.id).map((node) => node.id));

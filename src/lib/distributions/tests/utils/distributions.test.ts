@@ -1,8 +1,19 @@
 /** The grid's ranking fails silently: a mis-sorted grid looks sorted. */
 import { describe, expect, test } from "vitest";
 import type { DurationShape } from "$lib/distributions/invokers/types";
-import { curveRows, gridAttributes, logBars, outlierNote, shareAt } from "$lib/distributions/utils/distributions";
-import type { AttributeBlock, ResponseDirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
+import {
+  curveRows,
+  gridAttributes,
+  logBars,
+  outlierNote,
+  shareAt
+} from "$lib/distributions/utils/distributions";
+import type {
+  AttributeBlock,
+  ResponseDirectedTree,
+  Test,
+  TreeNode
+} from "$lib/tree/invokers/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 

@@ -1,5 +1,8 @@
 <script lang="ts">
-  /** What is drawn, as opposed to what was built. Nothing here triggers a rebuild. */
+  /**
+   * What is drawn, as opposed to what was built. Nothing here triggers a
+   * rebuild, so these controls stay usable while the tree is stale.
+   */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -17,30 +20,37 @@
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  // Every node carries a block per attribute built, so the root is enough.
+  // Every node carries a block per attribute built, empty ones included, so the
+  // root is enough to know what the tree can show.
   const attributes = $derived([
     ...Object.keys(tree.nodes[0]?.eventLevel ?? {}),
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
-  // Names come from the Groups themselves, falling back to "Group A"/"Group B".
-  const groups = $derived(comparedGroups());
+  // Every control names the Groups the way the user does, and addresses them
+  // by id, so a rename or a different pair changes nothing else here.
+  const groups = $derived(comparedGroups().filter((group) => group !== null));
   const nameA = $derived(groups[0]?.name ?? "Group A");
   const nameB = $derived(groups[1]?.name ?? "Group B");
 
   const secondaryOptions = $derived([
-    { value: "cases", label: `Cases (${nameA} · ${nameB})` },
-    { value: "casesA", label: `Cases — ${nameA}` },
-    { value: "casesB", label: `Cases — ${nameB}` },
+    {
+      value: "cases",
+      label: groups.length > 1 ? `Cases (${nameA} · ${nameB})` : "Cases"
+    },
+    ...groups.map((group) => ({ value: group.id, label: `Cases: ${group.name}` })),
     ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))
   ]);
 
-  const focusLabels = $derived<Record<GroupFocus, string>>({
-    all: "All nodes",
-    a: `${nameA} only`,
-    b: `${nameB} only`,
-    shared: "Shared"
-  });
+  const focusOptions = $derived([
+    { value: "all", label: "All nodes" },
+    ...groups.map((group) => ({ value: group.id, label: `${group.name} only` })),
+    ...(groups.length > 1 ? [{ value: "shared", label: "Shared" }] : [])
+  ]);
+
+  const focusLabel = $derived(
+    focusOptions.find((option) => option.value === view.focus)?.label ?? "All nodes"
+  );
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
   const visible = $derived(visibleNodes(tree, view, selectedVariants()));
@@ -97,15 +107,15 @@
           value={view.focus}
           onValueChange={(value) => (view.focus = value as GroupFocus)}
         >
-          <Select.Trigger class="h-8 text-xs">{focusLabels[view.focus]}</Select.Trigger>
+          <Select.Trigger class="h-8 text-xs">{focusLabel}</Select.Trigger>
           <Select.Content>
-            {#each Object.entries(focusLabels) as [value, label] (value)}
-              <Select.Item {value}>{label}</Select.Item>
+            {#each focusOptions as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>
         <p class="text-muted-foreground text-[0.625rem]">
-          Dims the rest — the tree keeps its shape.
+          Dims the rest. The tree keeps its shape.
         </p>
       </div>
 

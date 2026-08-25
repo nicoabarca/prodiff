@@ -182,7 +182,10 @@
     >
       <span class="w-6"></span>
       <span class="shrink-0 whitespace-nowrap">Variant</span>
-      <span class="ml-auto flex w-28 flex-col items-end truncate text-right" style="color:{accents.a}">
+      <span
+        class="ml-auto flex w-28 flex-col items-end truncate text-right"
+        style="color:{accents.a}"
+      >
         <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
         <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
           ({formatNumber(totals.a)} cases)

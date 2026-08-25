@@ -4,7 +4,13 @@
  */
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
 import type { Distribution, DurationShape } from "$lib/distributions/invokers/types";
-import { TOP_CATEGORIES, type Bar, type CurveRow, type GridAttribute, type Sort } from "$lib/distributions/types";
+import {
+  TOP_CATEGORIES,
+  type Bar,
+  type CurveRow,
+  type GridAttribute,
+  type Sort
+} from "$lib/distributions/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
 import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
 
@@ -26,10 +32,8 @@ export function categoryBars(
     b: count.counts[idB] ?? 0
   }));
 
-  const otherA =
-    (distribution.totals[idA] ?? 0) - bars.reduce((sum, bar) => sum + bar.a, 0);
-  const otherB =
-    (distribution.totals[idB] ?? 0) - bars.reduce((sum, bar) => sum + bar.b, 0);
+  const otherA = (distribution.totals[idA] ?? 0) - bars.reduce((sum, bar) => sum + bar.a, 0);
+  const otherB = (distribution.totals[idB] ?? 0) - bars.reduce((sum, bar) => sum + bar.b, 0);
   const collapsed = distribution.distinct - shown.length;
   if (collapsed > 0 && otherA + otherB > 0) {
     bars.push({ label: "Other", a: otherA, b: otherB, collapsed });

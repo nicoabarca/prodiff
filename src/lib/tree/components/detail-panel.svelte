@@ -28,9 +28,7 @@
   const compare = $derived(tree.groups.length > 1);
   /** Restricted to the surviving Variants: raw totals over-count. */
   const cases = $derived(
-    node
-      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {})
-      : null
+    node ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {}) : null
   );
 
   const groups = $derived(comparedGroups());
@@ -64,7 +62,7 @@
     if (!compare) return "One-group mode — nothing to compare against.";
     const n = (index: number) => block.summaries[tree.groups[index]?.id]?.n ?? 0;
     if (n(0) < 5 || n(1) < 5) {
-      return `Too few cases to test — ${nameA}: ${n(0)}, ${nameB}: ${n(1)} (minimum 5 each).`;
+      return `Too few cases to test. ${nameA}: ${n(0)}, ${nameB}: ${n(1)} (minimum 5 each).`;
     }
     return "Not enough distinct values to compare.";
   }

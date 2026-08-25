@@ -15,7 +15,16 @@
   import DurationPlot from "$lib/tree/components/duration-plot.svelte";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import type { Distribution } from "$lib/distributions/invokers/types";
-  import { ENCODINGS, ENCODING_HINT, ENCODING_LABEL, type Encoding, PLOT_TOGGLE, SCOPE_LABEL, type Scope, TOP_CATEGORIES } from "$lib/distributions/types";
+  import {
+    ENCODINGS,
+    ENCODING_HINT,
+    ENCODING_LABEL,
+    type Encoding,
+    PLOT_TOGGLE,
+    SCOPE_LABEL,
+    type Scope,
+    TOP_CATEGORIES
+  } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
   import type { Test } from "$lib/tree/invokers/types";

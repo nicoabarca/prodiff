@@ -21,7 +21,8 @@ export function effectBand(effectSize: number): EffectBand {
 
 /** The band's step on the `--effect-*` ramp, 1 (negligible) to 4 (large). */
 export function effectStep(effectSize: number): 1 | 2 | 3 | 4 {
-  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as 1 | 2 | 3 | 4;
+  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as
+    1 | 2 | 3 | 4;
 }
 
 export function standing(block: AttributeBlock): Standing {

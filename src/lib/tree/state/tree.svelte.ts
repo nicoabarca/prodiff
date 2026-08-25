@@ -1,18 +1,28 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
-import { treeSettings as settingsTable } from "$lib/db/schema";
-import { groups, originalGroup } from "$lib/groups/state/groups.svelte";
+import { comparisons as comparisonsTable, treeSettings as settingsTable } from "$lib/db/schema";
+import { groups, isApplied, originalGroup } from "$lib/groups/state/groups.svelte";
+import { ORIGINAL_ID } from "$lib/groups/types";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
-import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
+import {
+  DEFAULT_COVERAGE,
+  type TreeSettings,
+  type TreeView,
+  defaultTreeSettings,
+  defaultTreeView
+} from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
 import type { Group } from "$lib/groups/types";
 
-/** The built tree, in memory only. One slot: switching projects drops the previous tree. */
+/**
+ * The built tree, in memory only: it survives navigating between views but
+ * not a reload. One slot — switching projects drops the previous tree.
+ */
 export const built = $state<{
   projectId: string | null;
   key: string | null;
@@ -27,10 +37,16 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
   value: { ...defaultTreeSettings }
 });
 
-/** What is hidden, collapsed or dimmed. Nothing here reaches the backend. */
+/**
+ * What is hidden, collapsed or dimmed. Nothing here reaches the backend — the
+ * one input that does, which Variants to include, lives in `settings`.
+ */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
-/** Every Variant of the current chains, cached by chain key. One slot. */
+/**
+ * Every Variant of the current chains, for the picker. Cached by chain key,
+ * fetched on first use. One slot.
+ */
 export const variants = $state<{
   key: string | null;
   rows: ResponseVariantRow[];
@@ -50,8 +66,9 @@ export function selectedVariants(): Set<string> {
 }
 
 /**
- * Loads the Variant list for the current chains, unless already in hand. Keys
- * absent under these chains are dropped; an empty selection is re-seeded.
+ * Loads the Variant list for the current chains, unless it is already in hand.
+ * Keys absent under these chains are dropped and the rest kept; only a
+ * selection left with nothing standing is re-seeded from the coverage default.
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
@@ -79,7 +96,7 @@ export async function loadVariants(project: Project, force = false) {
   }
 }
 
-/** Checks or unchecks one Variant, marking the tree stale. */
+/** Checks or unchecks one Variant. Marks the tree stale; the build honours it. */
 export function toggleVariant(project: Project, variantKey: string) {
   const next = selectedVariants();
   if (!next.delete(variantKey)) next.add(variantKey);
@@ -93,19 +110,57 @@ export function setSelectedVariants(project: Project, keys: Iterable<string>) {
 /** The node whose aggregates the detail panel is showing. */
 export const selected = $state<{ id: number | null }>({ id: null });
 
-/** The Variant the canvas lights up. Outlives the picker. */
+/**
+ * The Variant the canvas lights up. Outlives the picker, so the lit path can
+ * be read with the panel closed.
+ */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
- * The Groups being compared, in position order. Only applied Groups can be
-* read, and with none applied the tree falls back to the Original. Capped at two.
+ * What the compare modal picked, persisted per project. One or two Group ids,
+ * in the order the tree draws them.
+ */
+export const comparison = $state<{ projectId: string | null; groupIds: string[] }>({
+  projectId: null,
+  groupIds: []
+});
+
+export async function loadComparison(projectId: string) {
+  const rows = await db()
+    .select()
+    .from(comparisonsTable)
+    .where(eq(comparisonsTable.projectId, projectId));
+  comparison.projectId = projectId;
+  comparison.groupIds = rows[0]?.groupIds ?? [];
+}
+
+export async function saveComparison(projectId: string, groupIds: string[]) {
+  comparison.projectId = projectId;
+  comparison.groupIds = groupIds;
+  const row = { projectId, groupIds };
+  await db().insert(comparisonsTable).values(row).onConflictDoUpdate({
+    target: comparisonsTable.projectId,
+    set: row
+  });
+}
+
+/**
+ * The Groups being compared: what the modal picked, resolved to the Groups
+ * themselves. Only applied Groups can be read, and anything the selection names
+ * that has since been deleted or un-applied falls away, so a stale selection
+ * degrades to the Original. Capped at two.
  */
 export function comparedGroups(): [Group, Group | null] {
-  const applied = groups.filter((group) => group.stats !== null);
   const projectId = groups[0]?.projectId ?? built.projectId ?? "";
-  if (applied.length === 0) return [originalGroup(projectId), null];
-  if (applied.length === 1) return [originalGroup(projectId), applied[0]];
-  return [applied[0], applied[1]];
+  const original = originalGroup(projectId);
+  const known = (id: string): Group | null =>
+    id === ORIGINAL_ID
+      ? original
+      : (groups.find((group) => group.id === id && isApplied(group)) ?? null);
+
+  const picked = comparison.groupIds.map(known).filter((group): group is Group => group !== null);
+  if (picked.length === 0) return [original, null];
+  return [picked[0], picked[1] ?? null];
 }
 
 /** The ids the seam takes: one for a single-Group tree, two for a comparison. */
@@ -150,8 +205,9 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and selected Variants. Never
- * automatic. An empty selection lets the backend pick by coverage.
+ * Builds the tree for the current Groups, settings and selected Variants.
+ * Never automatic — every input here, the Variant selection included, waits
+ * for the button. An empty selection lets the backend pick by coverage.
  */
 export async function build(project: Project) {
   if (built.building) return;
@@ -164,7 +220,9 @@ export async function build(project: Project) {
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
-    // What the backend included, not what was asked for: a request can be cut short.
+    // What the backend included, not what was asked for: the ceiling and the
+    // log's own Variant count both cut a request short. Adopting it keeps the
+    // picker honest about what is actually on screen.
     const includedKeys = tree.nodes
       .map((node) => node.variantKey)
       .filter((key): key is string => key !== null);
@@ -174,6 +232,7 @@ export async function build(project: Project) {
         selectedVariants: includedKeys
       });
     }
+    // Keyed after the selection lands on the truth, so the tree reads current.
     built.key = currentKey();
   } catch (cause) {
     built.error = String(cause);
@@ -200,7 +259,11 @@ export function forgetOtherProject(projectId: string) {
   if (built.projectId && built.projectId !== projectId) clear();
 }
 
-/** Drops the tree outright. Called when the Column Mapping changes. */
+/**
+ * Drops the tree outright. Called when the Column Mapping changes: type and
+ * granularity decide which test ran and how it aggregated, so a tree built
+ * under the old declarations cannot be reinterpreted.
+ */
 export function invalidateTree() {
   clear();
 }

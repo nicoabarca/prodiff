@@ -8,7 +8,14 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import Canvas from "$lib/tree/components/canvas.svelte";
   import DistributionChart from "$lib/distributions/components/distribution-chart.svelte";
-  import { PLOT_TOGGLE, SCOPES, SCOPE_HINT, SCOPE_LABEL, type Scope, type Sort } from "$lib/distributions/types";
+  import {
+    PLOT_TOGGLE,
+    SCOPES,
+    SCOPE_HINT,
+    SCOPE_LABEL,
+    type Scope,
+    type Sort
+  } from "$lib/distributions/types";
   import { gridAttributes } from "$lib/distributions/utils/distributions";
   import { colorVar, formatNumber } from "$lib/format";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
@@ -177,14 +184,16 @@
                 class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold"
                 style="color:{color}"
               >
-                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"></span>
+                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"
+                ></span>
                 <span class="truncate">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>
               </span>
             {/each}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events counted
+              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events
+              counted
             </span>
           </div>
         {/if}
@@ -266,7 +275,8 @@
         <span class="text-muted-foreground">
           {SCOPE_HINT[charts.scope]}.
           {#if loaded.data && !stale}
-            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases either way.
+            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases
+            either way.
           {/if}
         </span>
       </p>

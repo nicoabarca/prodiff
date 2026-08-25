@@ -21,7 +21,12 @@ export const projects = sqliteTable("projects", {
   createdAt: text("created_at").notNull()
 });
 
-/** Groups belong to a project and are deleted with it. Null `stats` means not applied yet. */
+/**
+ * Groups belong to a project and are deleted with it (see `removeProject`).
+ * The row is written before the Parquet it names, so a file without a row is
+ * unreachable; `stats` is filled by the same pass that writes that file, which
+ * makes a null one mean "not applied yet" rather than "not measured yet".
+ */
 export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),
@@ -34,7 +39,26 @@ export const groups = sqliteTable("groups", {
   editedAt: text("edited_at").notNull()
 });
 
-/** What the Comparison Directed Tree is built from. The tree itself is never cached. */
+/**
+ * Which Groups the tree compares, per project. Its own table rather than a
+ * column on `tree_settings`: every table is created idempotently at startup,
+ * so a new one needs no migration where a new column would.
+ *
+ * The ids are ordered and hold one or two entries; `original` is the whole
+ * Event Log, which is what a project with no Groups compares.
+ */
+export const comparisons = sqliteTable("comparisons", {
+  projectId: text("project_id").primaryKey(),
+  groupIds: text("group_ids", { mode: "json" }).$type<string[]>().notNull()
+});
+
+/**
+ * What the Comparison Directed Tree is built from — the attributes to test and
+ * the Variants to include. Its own table: every table is created idempotently
+ * at startup, so a new one needs no migration where a new column would.
+ *
+ * The tree itself is not cached here; it lives in memory while the app is open.
+ */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),
   attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),
