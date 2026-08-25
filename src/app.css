@@ -66,23 +66,31 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  /* Group accents, in the order new Groups claim them. The first three are
-     validated for colour-vision separation, so don't retune them by eye. */
-  --group-1: oklch(0.55 0.196 258);
+  /* Group accents: d3-scale-chromatic's schemePaired, in its own order. Same
+     values in both themes, so a Group keeps one identity. */
+  --group-1: #a6cee3;
 
-  --group-2: oklch(0.67 0.16 55);
+  --group-2: #1f78b4;
 
-  --group-3: oklch(0.47 0.13 152);
+  --group-3: #b2df8a;
 
-  --group-4: oklch(0.52 0.19 325);
+  --group-4: #33a02c;
 
-  --group-5: oklch(0.6 0.14 195);
+  --group-5: #fb9a99;
 
-  --group-6: oklch(0.53 0.18 25);
+  --group-6: #e31a1c;
 
-  --group-7: oklch(0.58 0.12 105);
+  --group-7: #fdbf6f;
 
-  --group-8: oklch(0.5 0.15 285);
+  --group-8: #ff7f00;
+
+  --group-9: #cab2d6;
+
+  --group-10: #6a3d9a;
+
+  --group-11: #ffff99;
+
+  --group-12: #b15928;
 
   /* The Original stays grey. */
   --group-original: oklch(0.45 0.007 85);
@@ -167,23 +175,6 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  --group-1: oklch(0.68 0.16 258);
-
-  --group-2: oklch(0.76 0.15 60);
-
-  /* Lighter than its light-mode step, to keep separation from group-2. */
-  --group-3: oklch(0.75 0.12 155);
-
-  --group-4: oklch(0.72 0.16 325);
-
-  --group-5: oklch(0.76 0.12 195);
-
-  --group-6: oklch(0.7 0.15 25);
-
-  --group-7: oklch(0.75 0.11 105);
-
-  --group-8: oklch(0.7 0.13 285);
-
   --group-original: oklch(0.708 0 0);
 
   /* The ramp runs the other way here: weight is gained by getting brighter. */
@@ -262,6 +253,14 @@
   --color-group-7: var(--group-7);
 
   --color-group-8: var(--group-8);
+
+  --color-group-9: var(--group-9);
+
+  --color-group-10: var(--group-10);
+
+  --color-group-11: var(--group-11);
+
+  --color-group-12: var(--group-12);
 
   --color-group-original: var(--group-original);
 
