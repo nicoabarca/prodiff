@@ -13,11 +13,11 @@ export interface ColumnValues {
 
 /**
  * The values one column holds, kept current as the column changes. Call at the
-* top level of a component's script: it owns an `$effect`.
+ * top level of a component's script: it owns an `$effect`.
  *
  * Inputs are thunks so the fetch re-runs when they change. An empty `column`
-* clears the list without fetching. A reply that lands after the column moved on
-* is dropped.
+ * clears the list without fetching. A reply that lands after the column moved on
+ * is dropped.
  */
 export function columnValues(
   project: () => Project,

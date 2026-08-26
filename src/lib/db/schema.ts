@@ -21,7 +21,11 @@ export const projects = sqliteTable("projects", {
   createdAt: text("created_at").notNull()
 });
 
-/** Groups belong to a project and are deleted with it. Null `stats` means not applied yet. */
+/**
+ * Groups belong to a project and are deleted with it (see `removeProject`). The
+ * row is written before the Parquet it names, so a file without a row is
+ * unreachable. A null `stats` means the Group has no Parquet yet.
+ */
 export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),
@@ -34,7 +38,20 @@ export const groups = sqliteTable("groups", {
   editedAt: text("edited_at").notNull()
 });
 
-/** What the Comparison Directed Tree is built from. The tree itself is never cached. */
+/**
+ * Which Groups the tree compares, per project. The ids are ordered and hold one
+ * or two entries; `original` is the whole Event Log.
+ */
+export const comparisons = sqliteTable("comparisons", {
+  projectId: text("project_id").primaryKey(),
+  groupIds: text("group_ids", { mode: "json" }).$type<string[]>().notNull()
+});
+
+/**
+ * What the Comparison Directed Tree is built from: the attributes to test and
+ * the Variants to include. The tree itself is never cached; it lives in memory
+ * while the app is open.
+ */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),
   attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),

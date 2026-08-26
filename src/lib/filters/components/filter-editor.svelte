@@ -96,7 +96,8 @@
       {
         kind: "case_not_in_group" as const,
         label: "Not in group",
-        description: "Removes the cases that also belong to another group, so the two stop overlapping.",
+        description:
+          "Removes the cases that also belong to another group, so the two stop overlapping.",
         available: excludable.length > 0
       }
     ].filter((k) => k.available)

@@ -8,7 +8,14 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import Canvas from "$lib/tree/components/canvas.svelte";
   import DistributionChart from "$lib/distributions/components/distribution-chart.svelte";
-  import { PLOT_TOGGLE, SCOPES, SCOPE_HINT, SCOPE_LABEL, type Scope, type Sort } from "$lib/distributions/types";
+  import {
+    PLOT_TOGGLE,
+    SCOPES,
+    SCOPE_HINT,
+    SCOPE_LABEL,
+    type Scope,
+    type Sort
+  } from "$lib/distributions/types";
   import { gridAttributes } from "$lib/distributions/utils/distributions";
   import { colorVar, formatNumber } from "$lib/format";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
@@ -51,7 +58,7 @@
     }
   });
 
-  /** The trace down to this step and everything that follows it — no siblings. */
+  /** The trace down to this step and everything that follows it. */
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
@@ -59,14 +66,10 @@
   const stale = $derived(isStale());
 
   const groups = $derived(comparedGroups());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
 
   /** The Groups as the charts need them: id to read the payload, name and colour to draw. */
   const chartGroups = $derived(
-    groups
-      .filter((group) => group !== null)
-      .map((group) => ({ id: group.id, name: group.name, color: group.color }))
+    groups.map((group) => ({ id: group.id, name: group.name, color: group.color }))
   );
 
   /**
@@ -81,7 +84,7 @@
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
-  /** Attributes the build never tested here — the only ones worth offering. */
+  /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
     const open = new Set(requested.map((card) => card.name));
@@ -96,15 +99,18 @@
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
 
-  /** Each Group's case count in its own colour — the one its marks are drawn in. */
+  /** Each Group's case count in its own colour. */
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];
-    return data.groups.map((totals, index) => ({
-      name: index === 0 ? nameA : nameB,
-      cases: totals.cases,
-      color: colorVar(chartGroups[index]?.color ?? "group-original")
-    }));
+    return data.groups.map((totals) => {
+      const group = chartGroups.find((candidate) => candidate.id === totals.id);
+      return {
+        name: group?.name ?? totals.id,
+        cases: totals.cases,
+        color: colorVar(group?.color ?? "group-original")
+      };
+    });
   });
 
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
@@ -177,14 +183,16 @@
                 class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold"
                 style="color:{color}"
               >
-                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"></span>
+                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"
+                ></span>
                 <span class="truncate">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>
               </span>
             {/each}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events counted
+              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events
+              counted
             </span>
           </div>
         {/if}
@@ -266,7 +274,8 @@
         <span class="text-muted-foreground">
           {SCOPE_HINT[charts.scope]}.
           {#if loaded.data && !stale}
-            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases either way.
+            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases
+            either way.
           {/if}
         </span>
       </p>

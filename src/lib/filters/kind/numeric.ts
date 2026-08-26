@@ -1,6 +1,6 @@
 /**
-* `NUMERIC_MODES` is shared with the duration kind, which bounds a case duration
-* the same four ways. Mirrors the pairing in `enums.rs`.
+ * `NUMERIC_MODES` is shared with the duration kind, which bounds a case duration
+ * the same four ways. Mirrors the pairing in `enums.rs`.
  */
 export const NUMERIC_MODES = ["above", "below", "between", "outside"] as const;
 export type NumericMode = (typeof NUMERIC_MODES)[number];

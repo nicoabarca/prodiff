@@ -41,7 +41,6 @@
   }: {
     project: Project;
     group: Group;
-    /** Which of this Group's filters the editor is on, if any. */
     editingIndex?: number | null;
     onedit: (group: Group, index: number | null) => void;
     onapply: (group: Group) => void;
@@ -145,7 +144,7 @@
     </Card.Title>
     <Card.Description>
       {#if dirty}
-        Unapplied edits — the numbers below are this draft's, not the group's.
+        Unapplied edits. The numbers below are this draft's, not the group's.
       {:else if filters.length === 0}
         Runs on the whole event log.
       {:else}
@@ -202,7 +201,7 @@
           <Empty.Media variant="icon">
             <SlidersHorizontal />
           </Empty.Media>
-          <Empty.Description>No filters — this group is the whole event log.</Empty.Description>
+          <Empty.Description>No filters, so this group is the whole event log.</Empty.Description>
         </Empty.Header>
       </Empty.Root>
     {:else}

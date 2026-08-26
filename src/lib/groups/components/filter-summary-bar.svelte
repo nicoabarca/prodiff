@@ -23,12 +23,11 @@
 
   const entries = $derived(groups);
 
-  /** The first two Groups, only once there are two. */
-  const groupA = $derived(groups[0] ?? null);
-  const groupB = $derived(groups[1] ?? null);
+  /** The Groups the overlap is measured across, only once there are two. */
+  const overlapping = $derived(groups.length > 1 ? groups.slice(0, 2) : null);
 
   $effect(() => {
-    if (groupA && groupB) loadSharedCases(project, groupA, groupB);
+    if (overlapping) loadSharedCases(project, overlapping);
   });
 
   /** A Group's size now: the live measurement when there is one, otherwise what Apply stored. */
@@ -48,7 +47,7 @@
   {#if entries.length === 0}
     <p class="text-muted-foreground flex items-center gap-2 text-xs">
       <SlidersHorizontal class="size-3.5" aria-hidden="true" />
-      No groups — every view shows the whole event log.
+      No groups yet. Every view shows the whole event log.
     </p>
   {:else}
     {#each entries as group, index (group.id)}
@@ -93,7 +92,7 @@
             <Separator />
             {#if group.filters.length === 0}
               <p class="text-muted-foreground text-xs">
-                No filters — this group is the whole event log.
+                No filters, so this group is the whole event log.
               </p>
             {:else}
               <ol class="flex flex-col gap-2">
@@ -117,8 +116,8 @@
         </HoverCard.Content>
       </HoverCard.Root>
     {/each}
-    {#if groupA && groupB}
-      {@const shared = sharedCases(groupA, groupB)}
+    {#if overlapping}
+      {@const shared = sharedCases(overlapping)}
       <Separator orientation="vertical" class="self-stretch" />
       <span
         class="text-muted-foreground flex items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap"

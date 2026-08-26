@@ -41,26 +41,27 @@
     }
   });
 
-  // Group ids in the order the tree lists them, so a row's two columns are the
-  // same two Groups the canvas paints.
-  const ids = $derived(comparedGroups().map((group) => group?.id ?? ""));
-  const casesIn = (row: ResponseVariantRow, index: number) => row.cases[ids[index]] ?? 0;
+  // The Groups in the order the tree lists them, so a row's columns are the
+  // same Groups the canvas paints.
+  const groups = $derived(comparedGroups());
+  const casesIn = (row: ResponseVariantRow, id: string) => row.cases[id] ?? 0;
 
-  const totals = $derived({
-    a: variants.rows.reduce((sum, row) => sum + casesIn(row, 0), 0),
-    b: variants.rows.reduce((sum, row) => sum + casesIn(row, 1), 0)
-  });
-  const comparing = $derived(totals.b > 0);
+  /** Cases per Group across every Variant, keyed by Group id. */
+  const totals = $derived(
+    Object.fromEntries(
+      groups.map((group) => [
+        group.id,
+        variants.rows.reduce((sum, row) => sum + casesIn(row, group.id), 0)
+      ])
+    )
+  );
 
-  const groupNames = $derived.by(() => {
-    const [a, b] = comparedGroups();
-    return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
-  });
+  const accents = $derived(
+    Object.fromEntries(groups.map((group) => [group.id, colorVar(group.color)]))
+  );
 
-  const accents = $derived.by(() => {
-    const [a, b] = comparedGroups();
-    return { a: colorVar(a?.color ?? "group-1"), b: colorVar(b?.color ?? "group-2") };
-  });
+  /** The Groups with a column of their own: the first, plus any that has cases. */
+  const columns = $derived(groups.filter((group, index) => index === 0 || totals[group.id] > 0));
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
@@ -182,18 +183,17 @@
     >
       <span class="w-6"></span>
       <span class="shrink-0 whitespace-nowrap">Variant</span>
-      <span class="ml-auto flex w-28 flex-col items-end truncate text-right" style="color:{accents.a}">
-        <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
-          ({formatNumber(totals.a)} cases)
+      {#each columns as group, index (group.id)}
+        <span
+          class="flex w-28 flex-col items-end truncate text-right {index === 0 ? 'ml-auto' : ''}"
+          style="color:{accents[group.id]}"
+        >
+          <span class="truncate">{columns.length > 1 ? group.name : "Cases"}</span>
+          <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
+            ({formatNumber(totals[group.id])} cases)
+          </span>
         </span>
-      </span>
-      <span class="flex w-28 flex-col items-end truncate text-right" style="color:{accents.b}">
-        <span class="truncate">{comparing ? groupNames.b : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
-          ({formatNumber(totals.b)} cases)
-        </span>
-      </span>
+      {/each}
     </div>
 
     {#if variants.loading}
@@ -207,8 +207,6 @@
         {#snippet row(item: ResponseVariantRow)}
           <!-- A plain div, not a `<label>`: the checkbox includes the Variant in the
                build, the rest of the row only shows its trace. -->
-          {@const casesA = casesIn(item, 0)}
-          {@const casesB = casesIn(item, 1)}
           <div
             class="flex h-14 items-center gap-3 rounded px-1 text-xs {preview === item.key ||
             shownVariant.key === item.key
@@ -228,34 +226,24 @@
               <span class="shrink-0 whitespace-nowrap tabular-nums">
                 Variant {numbers.get(item.key)}
               </span>
-              <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
-                {#if casesA > 0}
-                  <span style="color:{accents.a}">{formatNumber(casesA)}</span>
-                  <span class="text-[0.625rem] opacity-70" style="color:{accents.a}">
-                    {share(casesA, totals.a)}
-                  </span>
-                  {#if originalCases}
-                    <span class="text-[0.625rem]">{share(casesA, originalCases)}</span>
-                  {/if}
-                {:else}
-                  <span class="text-muted-foreground">—</span>
-                {/if}
-              </span>
-              {#if comparing}
-                <span class="flex w-28 flex-col items-end tabular-nums">
-                  {#if casesB > 0}
-                    <span style="color:{accents.b}">{formatNumber(casesB)}</span>
-                    <span class="text-[0.625rem] opacity-70" style="color:{accents.b}">
-                      {share(casesB, totals.b)}
+              {#each columns as group, index (group.id)}
+                {@const cases = casesIn(item, group.id)}
+                <span
+                  class="flex w-28 flex-col items-end tabular-nums {index === 0 ? 'ml-auto' : ''}"
+                >
+                  {#if cases > 0}
+                    <span style="color:{accents[group.id]}">{formatNumber(cases)}</span>
+                    <span class="text-[0.625rem] opacity-70" style="color:{accents[group.id]}">
+                      {share(cases, totals[group.id])}
                     </span>
                     {#if originalCases}
-                      <span class="text-[0.625rem]">{share(casesB, originalCases)}</span>
+                      <span class="text-[0.625rem]">{share(cases, originalCases)}</span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
                   {/if}
                 </span>
-              {/if}
+              {/each}
             </button>
           </div>
         {/snippet}

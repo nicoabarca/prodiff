@@ -154,8 +154,8 @@
             </Card.Title>
             <Card.Description>
               {#if editingGroup}
-                In <span class="text-foreground font-medium">{editingGroup.name}</span> — filters apply
-                in order, each to the previous one's result.
+                In <span class="text-foreground font-medium">{editingGroup.name}</span>. Filters
+                apply in order, each to the previous one's result.
               {:else}
                 Pick “Add filter” on a group to configure one here.
               {/if}

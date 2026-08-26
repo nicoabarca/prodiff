@@ -8,10 +8,8 @@
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
 
-  let {
-    groups,
-    stats
-  }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } = $props();
+  let { groups, stats }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } =
+    $props();
 
   /** One metric across every Group: `value` scales the bar, `display` labels it. */
   interface ChartDef {
@@ -66,10 +64,7 @@
 
   const config = $derived(
     Object.fromEntries(
-      ready.map((group) => [
-        group.id,
-        { label: group.name, color: colorVar(group.color) }
-      ])
+      ready.map((group) => [group.id, { label: group.name, color: colorVar(group.color) }])
     ) satisfies Chart.ChartConfig
   );
 
@@ -91,9 +86,7 @@
 <Card.Root class="gap-0 py-0">
   <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b px-4 py-3">
     <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Comparison charts</span>
-    <span class="text-muted-foreground text-xs">
-      Visual read of each metric across groups.
-    </span>
+    <span class="text-muted-foreground text-xs"> Visual read of each metric across groups. </span>
     <div class="ml-auto flex flex-wrap items-center gap-3">
       {#each ready as group (group.id)}
         <span class="text-muted-foreground inline-flex items-center gap-1.5 text-[0.6875rem]">

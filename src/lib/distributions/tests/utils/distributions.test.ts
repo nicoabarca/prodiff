@@ -1,8 +1,19 @@
 /** The grid's ranking fails silently: a mis-sorted grid looks sorted. */
 import { describe, expect, test } from "vitest";
 import type { DurationShape } from "$lib/distributions/invokers/types";
-import { curveRows, gridAttributes, logBars, outlierNote, shareAt } from "$lib/distributions/utils/distributions";
-import type { AttributeBlock, ResponseDirectedTree, Test, TreeNode } from "$lib/tree/invokers/types";
+import {
+  curveRows,
+  gridAttributes,
+  logBars,
+  outlierNote,
+  shareAt
+} from "$lib/distributions/utils/distributions";
+import type {
+  AttributeBlock,
+  ResponseDirectedTree,
+  Test,
+  TreeNode
+} from "$lib/tree/invokers/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 
@@ -20,7 +31,7 @@ function testResult(effectSize: number, significant = true): Test {
 }
 
 function block(t: Test | null): AttributeBlock {
-  return { groupA: null, groupB: null, test: t } as unknown as AttributeBlock;
+  return { summaries: {}, test: t } as unknown as AttributeBlock;
 }
 
 /** A node with the given attribute blocks and no Transition Time. */
@@ -183,19 +194,19 @@ test("the ladder's index is its percentile", () => {
 test("both curves land on one sorted x", () => {
   // What lets a single hover answer for both Groups, and what `bisect-x` needs
   // to search.
-  const rows = curveRows([0, 10, 20], [10, 20, 30]);
+  const rows = curveRows({ a: [0, 10, 20], b: [10, 20, 30] });
   expect(
     rows.map((row) => row.value),
     "the union of both ladders, sorted, without duplicates"
   ).toEqual([0, 10, 20, 30]);
-  expect(rows.at(-1)).toEqual({ value: 30, a: 1, b: 1 });
+  expect(rows.at(-1)).toEqual({ value: 30, shares: { a: 1, b: 1 } });
   // At 0 the second Group has not started: its own ladder begins at 10.
-  expect(rows[0]).toEqual({ value: 0, a: 0, b: 0 });
+  expect(rows[0]).toEqual({ value: 0, shares: { a: 0, b: 0 } });
   // One-Group mode: the absent Group is null throughout, never zero, so the
   // tooltip says "—" instead of claiming nothing finished.
-  expect(curveRows([0, 10], [])).toEqual([
-    { value: 0, a: 0, b: null },
-    { value: 10, a: 1, b: null }
+  expect(curveRows({ a: [0, 10], b: [] })).toEqual([
+    { value: 0, shares: { a: 0, b: null } },
+    { value: 10, shares: { a: 1, b: null } }
   ]);
 });
 
@@ -209,9 +220,9 @@ test("log bars are labelled by their own edges", () => {
     logCounts: { a: [7, 3, 1], b: [2, 8, 0] }
   } satisfies DurationShape;
   expect(logBars(shape, ["a", "b"])).toEqual([
-    { label: "0s–1s", a: 7, b: 2 },
-    { label: "1s–1m 0s", a: 3, b: 8 },
-    { label: "1m 0s–1h 0m", a: 1, b: 0 }
+    { label: "0s–1s", counts: { a: 7, b: 2 } },
+    { label: "1s–1m 0s", counts: { a: 3, b: 8 } },
+    { label: "1m 0s–1h 0m", counts: { a: 1, b: 0 } }
   ]);
 });
 

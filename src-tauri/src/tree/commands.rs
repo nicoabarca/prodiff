@@ -5,34 +5,35 @@
 //! tree still renders, with case counts and aggregates but no comparison.
 
 use super::distributions::{distributions, NodeDistributions, Scope};
-use super::{build, DirectedTree};
+use super::{build, DirectedTree, GroupLog};
 use crate::column_mapping::ColumnMapping;
 use crate::groups::storage::read_group;
-use polars::prelude::DataFrame;
 
-/// The one or two Groups a command was asked for, read from their files.
+/// The Groups a command was asked for, read from their files, in the order asked.
 fn read_groups(
     app: &tauri::AppHandle,
     project_id: &str,
     groups: &[String],
-) -> Result<(DataFrame, Option<DataFrame>), String> {
-    let Some(first) = groups.first() else {
+) -> Result<Vec<GroupLog>, String> {
+    if groups.is_empty() {
         return Err("A comparison needs at least one group.".to_string());
-    };
+    }
     if groups.len() > 2 {
         return Err(format!(
             "Comparing {} groups is not supported yet; pick two.",
             groups.len()
         ));
     }
-    let a = read_group(app, project_id, first)?;
-    let b = match groups.get(1) {
-        Some(id) => Some(read_group(app, project_id, id)?),
-        None => None,
-    };
-    Ok((a, b))
+    groups
+        .iter()
+        .map(|id| {
+            Ok(GroupLog {
+                id: id.clone(),
+                df: read_group(app, project_id, id)?,
+            })
+        })
+        .collect()
 }
-
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to
@@ -42,7 +43,6 @@ fn read_groups(
 pub struct VariantRow {
     pub key: String,
     pub activities: Vec<String>,
-    /// Cases walking this Variant, by Group id.
     pub cases: std::collections::HashMap<String, i64>,
 }
 
@@ -57,9 +57,9 @@ pub fn list_variants(
     groups: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
-    let (a, b) = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&app, &project_id, &groups)?;
 
-    let mut rows = super::variant_rows(&groups, &a, b.as_ref(), &columns)?;
+    let mut rows = super::variant_rows(&logs, &columns)?;
     // Same order the cold-build cut uses, so the list the user sees and the set
     // the backend would have picked rank identically.
     let total = |row: &VariantRow| row.cases.values().sum::<i64>();
@@ -80,16 +80,9 @@ pub fn directed_tree(
     columns: Vec<ColumnMapping>,
     variants: Option<Vec<String>>,
 ) -> Result<DirectedTree, String> {
-    let (a, b) = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&app, &project_id, &groups)?;
 
-    build(
-        &groups,
-        &a,
-        b.as_ref(),
-        &columns,
-        &attributes,
-        variants.as_deref(),
-    )
+    build(&logs, &columns, &attributes, variants.as_deref())
 }
 
 /// One node's Distributions: value counts per attribute, per Group, under one
@@ -111,16 +104,7 @@ pub fn node_distributions(
     depth: usize,
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
-    let (a, b) = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&app, &project_id, &groups)?;
 
-    distributions(
-        &groups,
-        &a,
-        b.as_ref(),
-        &columns,
-        &attributes,
-        &variants,
-        depth,
-        scope,
-    )
+    distributions(&logs, &columns, &attributes, &variants, depth, scope)
 }

@@ -6,10 +6,8 @@
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
 
-  let {
-    groups,
-    stats
-  }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } = $props();
+  let { groups, stats }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } =
+    $props();
 
   interface Metric {
     label: string;

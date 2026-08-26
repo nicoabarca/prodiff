@@ -5,7 +5,7 @@ import type { Scope } from "$lib/distributions/types";
 
 /**
  * One node's Distributions. `variants` is the Variant key of every visible leaf
-* under the node and `depth` its distance from the Start root.
+ * under the node and `depth` its distance from the Start root.
  */
 export function nodeDistributions(
   project: Project,

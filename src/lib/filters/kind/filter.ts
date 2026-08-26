@@ -1,10 +1,10 @@
 /**
  * The filter union and the dispatch over it, shared with
-* `src-tauri/src/filters/mod.rs`. Any change here needs the matching serde enum
-* changed too.
+ * `src-tauri/src/filters/mod.rs`. Any change here needs the matching serde enum
+ * changed too.
  *
  * Each kind lives in its own module beside this one and owns its modes, its
-* copy, and its arms of the two functions below.
+ * copy, and its arms of the two functions below.
  */
 import {
   describeCaseNotInGroup,

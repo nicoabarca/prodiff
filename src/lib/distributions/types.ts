@@ -1,6 +1,6 @@
 /**
-* What the Distributions view decides: the Scope it counts under, the encoding a
-* duration is read in, and the shapes the grid draws.
+ * What the Distributions view decides: the Scope it counts under, the encoding a
+ * duration is read in, and the shapes the grid draws.
  */
 import type { Test } from "$lib/tree/invokers/types";
 
@@ -31,9 +31,9 @@ export const ENCODING_LABEL: Record<Encoding, string> = {
 };
 
 /**
-* The selected option of a plot control. The full variant chain is repeated
-* because the `border-l-0` it has to beat carries all of it, and a shorter
-* selector loses on specificity.
+ * The selected option of a plot control. The full variant chain is repeated
+ * because the `border-l-0` it has to beat carries all of it, and a shorter
+ * selector loses on specificity.
  */
 export const PLOT_TOGGLE = [
   "data-[state=on]:border-primary",
@@ -55,21 +55,17 @@ export const ENCODING_HINT: Record<Encoding, string> = {
 /** Categories a card shows before the rest fold into `Other`. */
 export const TOP_CATEGORIES = 12;
 
-/** One bar: a label and the two Groups' counts. */
+/** One bar: a label and every Group's count, keyed by Group id. */
 export interface Bar {
   label: string;
-  a: number;
-  b: number;
-  /** Set on the `Other` bucket, which is a fold, not a value. */
+  counts: Record<string, number>;
   collapsed?: number;
 }
 
-/** One column of the cumulative curve: a duration and each Group's share. */
+/** One column of the cumulative curve: a duration and each Group's share, keyed by Group id. */
 export interface CurveRow {
   value: number;
-  /** 0 to 1, or `null` where that Group has no values at all. */
-  a: number | null;
-  b: number | null;
+  shares: Record<string, number | null>;
 }
 
 /** How the Distributions grid orders its cards. */
@@ -78,8 +74,6 @@ export type Sort = "difference" | "name";
 /** One card in the grid, before its numbers have arrived. */
 export interface GridAttribute {
   name: string;
-  /** The node's Significance Test, when one ran for this attribute here. */
   test: Test | null;
-  /** False for an attribute the build never tested, added by hand. */
   inBuild: boolean;
 }

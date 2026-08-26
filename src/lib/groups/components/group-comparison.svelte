@@ -34,10 +34,7 @@
         <span class="text-sm font-semibold" style="color:{colorVar(entry.group.color)}">
           {entry.group.name}
         </span>
-        <span
-          class="font-mono text-sm font-semibold"
-          style="color:{colorVar(entry.group.color)}"
-        >
+        <span class="font-mono text-sm font-semibold" style="color:{colorVar(entry.group.color)}">
           ({formatNumber(entry.cases)})
         </span>
       </span>

@@ -130,7 +130,7 @@
     <span class="text-xs">
       {#if preview}
         Previewing {formatNumber(preview.rows.length)} of {formatNumber(preview.totalEvents)} events in
-        {selected?.name} — the full data is never loaded into the table.
+        {selected?.name}. The full data is never loaded into the table.
       {:else}
         The full data is never loaded into the table.
       {/if}

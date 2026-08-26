@@ -14,13 +14,10 @@ pub struct EventLogStats {
     pub activities: i64,
     pub variants: i64,
     pub avg_events_per_case: f64,
-    /// Case duration = last event timestamp − first, in milliseconds. `None`
-    /// when there are no cases at all (an over-narrow filter chain).
     pub avg_case_duration_ms: Option<f64>,
     pub median_case_duration_ms: Option<f64>,
     pub min_case_duration_ms: Option<f64>,
     pub max_case_duration_ms: Option<f64>,
-    /// Distinct activities that cases begin / end with.
     pub start_activities: i64,
     pub end_activities: i64,
     pub timespan_start: Option<String>,

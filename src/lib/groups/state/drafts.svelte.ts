@@ -3,8 +3,8 @@ import { filtersKey } from "$lib/groups/state/groups.svelte";
 import type { Group } from "$lib/groups/types";
 
 /**
-* Unapplied edits to a Group's Filter List, by Group id. In memory only, so a
-* draft is lost on reload.
+ * Unapplied edits to a Group's Filter List, by Group id. In memory only, so a
+ * draft is lost on reload.
  */
 const drafts = $state<Record<string, Filter[]>>({});
 
@@ -20,8 +20,8 @@ export function isDirty(group: Group): boolean {
 }
 
 /**
-* Replaces a Group's draft. Every edit comes through here: a draft is a plain
-* array and add, remove, reorder and clear are each one operation on it.
+ * Replaces a Group's draft. Every edit comes through here: a draft is a plain
+ * array and add, remove, reorder and clear are each one operation on it.
  */
 export function setDraft(group: Group, filters: Filter[]) {
   drafts[group.id] = filters;

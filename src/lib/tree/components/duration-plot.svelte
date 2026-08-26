@@ -20,6 +20,7 @@
     Tooltip
   } from "layerchart";
   import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
+  import type { CurveRow } from "$lib/distributions/types";
   import { curveRows, outlierNote } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
 
@@ -32,26 +33,30 @@
     shape: DurationShape;
     encoding: "ecdf" | "box";
     compare: boolean;
-    /** The two Groups being drawn, in order, with the names and colours the user chose. */
     groups: { id: string; name: string; color: string }[];
   } = $props();
 
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
-  const COLOR_A = $derived(colorVar(groups[0]?.color ?? "group-1"));
-  const COLOR_B = $derived(colorVar(groups[1]?.color ?? "group-2"));
+  /** The Groups drawn, in order. Without comparison only the first is plotted. */
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
 
-  const ecdfA = $derived(shape.ecdf[groups[0]?.id] ?? []);
-  const ecdfB = $derived(shape.ecdf[groups[1]?.id] ?? []);
+  const accent = $derived(
+    Object.fromEntries(drawn.map((group) => [group.id, colorVar(group.color)]))
+  );
 
-  const rows = $derived(curveRows(ecdfA, compare ? ecdfB : []));
+  const ladders = $derived(
+    Object.fromEntries(drawn.map((group) => [group.id, shape.ecdf[group.id] ?? []]))
+  );
+
+  const plotted = $derived(drawn.filter((group) => ladders[group.id].length > 0));
+
+  const rows = $derived(curveRows(ladders));
 
   /** A curve needs two distinct durations: with one the scale has a zero-width domain. */
   const oneValue = $derived(rows.length < 2);
 
-  /** The widest value either Group reaches, so both are drawn to one scale. */
+  /** The widest value any Group reaches, so all are drawn to one scale. */
   const max = $derived(
-    Math.max(ecdfA.at(-1) ?? 0, ecdfB.at(-1) ?? 0, shape.logEdges.at(-1) ?? 0)
+    Math.max(...drawn.map((group) => ladders[group.id].at(-1) ?? 0), shape.logEdges.at(-1) ?? 0)
   );
 
   /** Where symlog stops being linear: the ladder's first rung. */
@@ -61,17 +66,15 @@
   const ticks = $derived(shape.logEdges.filter((edge) => edge > 0 && edge < max));
 
   const boxes = $derived(
-    (
-      [
-        [nameA, shape.boxStats[groups[0]?.id] ?? null],
-        [nameB, shape.boxStats[groups[1]?.id] ?? null]
-      ] as [string, BoxStats | null][]
-    )
-      .filter(([, stats], index) => stats !== null && (index === 0 || compare))
-      .map(([group, stats]) => ({ group, ...(stats as BoxStats) }))
+    drawn
+      .map((group) => ({
+        group: group.name,
+        color: accent[group.id],
+        stats: shape.boxStats[group.id] ?? null
+      }))
+      .filter((box) => box.stats !== null)
+      .map(({ group, color, stats }) => ({ group, color, ...(stats as BoxStats) }))
   );
-
-  const colorOf = (group: string) => (group === nameA ? COLOR_A : COLOR_B);
 
   /** The box plot's axis spans the whiskers. */
   const boxLow = $derived(Math.min(...boxes.map((box) => box.whiskerLow)));
@@ -91,6 +94,14 @@
   );
 
   const percent = (share: number) => `${Math.round(share * 100)}%`;
+
+  /** The spread between the highest and lowest share on a row, when every Group has one. */
+  function gap(row: CurveRow): number | null {
+    if (drawn.length < 2) return null;
+    const shares = drawn.map((group) => row.shares[group.id] ?? null);
+    if (shares.some((share) => share === null)) return null;
+    return Math.max(...(shares as number[])) - Math.min(...(shares as number[]));
+  }
 </script>
 
 {#snippet noSpread(value: number)}
@@ -109,7 +120,7 @@
       <Chart
         data={rows}
         x="value"
-        y="a"
+        y={(row: CurveRow) => row.shares[drawn[0]?.id] ?? null}
         xScale={scaleSymlog().constant(linearBelow)}
         xDomain={[0, max]}
         yDomain={[0, 1]}
@@ -123,13 +134,16 @@
                coordinate outside the plot is painted across the page. The marks are
                bounded to the plot. -->
           <ChartClipPath>
-            <!-- Both curves off one set of rows, keyed on the union of the two ladders'
+            <!-- Every curve off one set of rows, keyed on the union of the ladders'
                  durations: `bisect-x` needs a single sorted x to search. -->
-            <Spline y="a" stroke={COLOR_A} strokeWidth={2} />
-            {#if compare && ecdfB.length > 0}
-              <Spline y="b" stroke={COLOR_B} strokeWidth={2} />
-            {/if}
-            <Highlight lines points={{ fill: COLOR_A }} />
+            {#each plotted as group (group.id)}
+              <Spline
+                y={(row: CurveRow) => row.shares[group.id] ?? null}
+                stroke={accent[group.id]}
+                strokeWidth={2}
+              />
+            {/each}
+            <Highlight lines points={{ fill: accent[drawn[0]?.id] }} />
           </ChartClipPath>
         </Layer>
         <Tooltip.Root contained="container" props={{ root: { class: "w-40" } }}>
@@ -139,15 +153,14 @@
                 {formatDuration(row.value)} or less
               </p>
               <dl class="grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[0.625rem]">
-                <dt class="text-muted-foreground truncate">{nameA}</dt>
-                <dd class="text-right">{row.a === null ? "—" : percent(row.a)}</dd>
-                {#if compare}
-                  <dt class="text-muted-foreground truncate">{nameB}</dt>
-                  <dd class="text-right">{row.b === null ? "—" : percent(row.b)}</dd>
-                  {#if row.a !== null && row.b !== null}
-                    <dt class="text-muted-foreground">gap</dt>
-                    <dd class="text-right">{percent(Math.abs(row.a - row.b))}</dd>
-                  {/if}
+                {#each drawn as group (group.id)}
+                  {@const share = row.shares[group.id] ?? null}
+                  <dt class="text-muted-foreground truncate">{group.name}</dt>
+                  <dd class="text-right">{share === null ? "—" : percent(share)}</dd>
+                {/each}
+                {#if gap(row) !== null}
+                  <dt class="text-muted-foreground">gap</dt>
+                  <dd class="text-right">{percent(gap(row) as number)}</dd>
                 {/if}
               </dl>
             </div>
@@ -158,9 +171,9 @@
     <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
       {#each [["Median", 50], ["P90", 90]] as [label, at] (label)}
         <span class="bg-secondary px-2 py-1">
-          {label}: {nameA}
-          {formatDuration(ecdfA[at as number] ?? 0)}{#if compare && ecdfB.length > 0}
-            · {nameB} {formatDuration(ecdfB[at as number] ?? 0)}{/if}
+          {label}: {plotted
+            .map((group) => `${group.name} ${formatDuration(ladders[group.id][at as number] ?? 0)}`)
+            .join(" · ")}
         </span>
       {/each}
     </div>
@@ -199,9 +212,9 @@
                 median="median"
                 q3="q3"
                 max="whiskerHigh"
-                fill={colorOf(box.group)}
+                fill={box.color}
                 fillOpacity={0.18}
-                stroke={colorOf(box.group)}
+                stroke={box.color}
                 strokeWidth={1.5}
               />
             {/each}

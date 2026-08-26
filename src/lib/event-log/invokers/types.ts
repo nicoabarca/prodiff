@@ -1,6 +1,6 @@
 /**
-* The invocation contracts for the event log commands. Every type here mirrors a
-* serde struct or enum in `src-tauri/src/{column_mapping,parsing,event_log}`.
+ * The invocation contracts for the event log commands. Every type here mirrors a
+ * serde struct or enum in `src-tauri/src/{column_mapping,parsing,event_log}`.
  */
 export const COLUMN_ROLES = [
   "case_id",
@@ -34,8 +34,8 @@ export interface ResponseEventLogPreview {
 
 /**
  * Result of writing the Event Log: stats plus where the files ended up on disk.
-* The per-case metrics beyond these are recomputed per population by the
-* Statistics view.
+ * The per-case metrics beyond these are recomputed per population by the
+ * Statistics view.
  */
 export interface ResponseCreateEventLog {
   events: number;

@@ -11,8 +11,8 @@
   import ModePicker from "../mode-picker.svelte";
 
   /**
-  * How long a case runs, first event to last. The filter's bounds are days and
-  * the histogram brushes milliseconds; the two are converted here and nowhere else.
+   * How long a case runs, first event to last. The filter's bounds are days and
+   * the histogram brushes milliseconds; the two are converted here and nowhere else.
    */
   let {
     project,

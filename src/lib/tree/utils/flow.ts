@@ -20,28 +20,20 @@ export const NODE_HEIGHT = 80;
 export interface FlowGroup {
   id: string;
   name: string;
-  /** A palette token, resolved to a CSS colour by the node component. */
   color: string;
 }
 
 export interface TreeNodeData {
   label: string;
-  /** The only Group reaching this node, or `"shared"` when more than one does. */
   membership: string;
   groups: FlowGroup[];
-  /**
-   * The node's second line, one entry per Group in `groups` order, each drawn
-   * in its Group's colour. `null` where that Group has nothing here.
-   */
   secondaries: (string | null)[];
   significantCount: number;
-  /** Strongest significant effect here, in words and as a ramp step. */
   peakBand: EffectBand | null;
   peakStep: 1 | 2 | 3 | 4 | null;
   divergent: boolean;
   dimmed: boolean;
   selected: boolean;
-  /** On the Variant the picker is hovering. Set after layout, in the canvas. */
   highlighted: boolean;
   hiddenBelow: number;
   hasChildren: boolean;
@@ -59,8 +51,8 @@ function significantCount(node: TreeNode): number {
  * The node's second line, one entry per Group so each carries its colour. An
  * entry is `null` when that Group has nothing at this node.
  *
- * `secondary` is either `"cases"`, one Group's id — which shows that Group's
- * count alone — or an attribute name, which shows its mean.
+ * `secondary` is either `"cases"`, one Group's id, which shows that Group's
+ * count alone, or an attribute name, which shows its mean.
  */
 function secondaryLabels(
   node: TreeNode,
@@ -91,7 +83,6 @@ function dimmed(node: TreeNode, focus: GroupFocus, ids: string[]): boolean {
 }
 
 export interface FlowOptions {
-  /** The Groups on the tree, in payload order, with the names and colours the user chose. */
   groups: FlowGroup[];
   direction: Direction;
   secondary: Secondary;
