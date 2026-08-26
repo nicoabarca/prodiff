@@ -1,6 +1,6 @@
 /**
- * Windowing arithmetic fails silently — a wrong range renders the wrong rows,
- * a wrong pad drifts them out from under the scrollbar, and neither throws.
+ * Windowing arithmetic fails silently: a wrong range renders the wrong rows, a
+ * wrong pad drifts them out from under the scrollbar, and neither throws.
  */
 import { expect, test } from "vitest";
 import { OVERSCAN, windowRange, type Window } from "./virtual";

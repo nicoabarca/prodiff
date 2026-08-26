@@ -2,13 +2,15 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { slicesLoaded } from "$lib/slices/state/slices.svelte";
+  import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import {
     build,
     built,
+    comparison,
     forgetOtherProject,
-    groupSlices,
+    comparedGroups,
     isStale,
+    loadComparison,
     loadSettings,
     selected,
     settings,
@@ -16,6 +18,7 @@
   } from "$lib/tree/state/tree.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
+  import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import GroupHeader from "$lib/tree/components/group-header.svelte";
   import VariantPicker from "$lib/tree/components/variant-picker.svelte";
@@ -25,23 +28,21 @@
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
+  import GitCompare from "@lucide/svelte/icons/git-compare";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
 
   const project = $derived(currentProject());
-  const groups = $derived(groupSlices());
+  const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
 
-  // An empty selection means two different things. Before the variant list has
-  // loaded it means "never chosen" and the backend picks by coverage; once the
-  // list has loaded the selection has been seeded, so empty means cleared.
+  // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
     variants.key !== null && settings.value.selectedVariants.length === 0
   );
 
+  let comparing = $state(false);
+
   let panelOpen = $state(false);
-  // The panel follows the selection: clicking a node is a request to read it,
-  // and clicking the empty canvas drops the selection, so there is nothing
-  // left for the panel to say.
   $effect(() => {
     panelOpen = selected.id !== null;
   });
@@ -50,18 +51,14 @@
     if (!project) return;
     forgetOtherProject(project.id);
     if (settings.projectId !== project.id) loadSettings(project.id);
+    if (comparison.projectId !== project.id) loadComparison(project.id);
   });
 </script>
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      <!-- The size of what is on screen, and the control over it, first thing
-           on the bar: the tree itself never says what it left out. Available
-           before the first build too — the variant list doesn't need one. -->
       <VariantPicker {project} tree={built.tree} />
-      <!-- Silent while building: the button's own spinner already says the
-           numbers are catching up. -->
       {#if stale && !built.building}
         <p class="text-destructive text-xs">
           Filters, variants or settings changed since this tree was built.
@@ -71,12 +68,15 @@
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
       <div class="ml-auto flex items-center gap-2">
+        <!-- Which groups the tree measures against, and what they share. -->
+        <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
+          <GitCompare data-icon="inline-start" />
+          {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
+        </Button>
         <BuildSettings {project} />
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
-        <!-- An empty selection is prevented rather than reported: it would
-             build a tree with nothing on it. -->
         <Button
           size="sm"
           disabled={built.building || !groups[0] || noVariants}
@@ -94,21 +94,16 @@
       </div>
     </div>
 
+    <CompareDialog {project} bind:open={comparing} />
+
     {#if built.tree}
       <GroupHeader tree={built.tree} />
       <div class="flex min-h-0 flex-1">
         <div class="relative flex min-h-0 flex-1">
           <Canvas tree={built.tree} {stale} />
           <ViewLegend />
-          <!-- Only offered while a node is selected: with nothing selected the
-               panel has nothing to compare, so "Show" would open an empty
-               rail. -->
           {#if selected.id !== null}
             <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-              <!-- The panel says what differs at this node and stays beside the
-                   tree; the distributions are a wall of histograms that wants
-                   the whole window, so they get their own view rather than a
-                   drawer squeezing the canvas from below. -->
               <Button
                 variant="outline"
                 size="sm"
@@ -148,10 +143,10 @@
             </Empty.Media>
             <Empty.Title>No tree built yet</Empty.Title>
             <Empty.Description>
-              {#if !slicesLoaded.projectId}
+              {#if !groupsLoaded.projectId}
                 Loading slices…
               {:else if !groups[0]}
-                Create a slice in the Filters view first — a slice defines a group.
+                Create a slice in the Filters view first. A slice defines a group.
               {:else if !groups[1]}
                 Only one slice exists, so the tree will render without comparisons. Add a second
                 slice to compare two groups.

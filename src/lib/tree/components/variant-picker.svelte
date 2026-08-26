@@ -1,22 +1,15 @@
 <script lang="ts">
-  /**
-   * Which Variants the tree is built from. Picking them is a build input, not a
-   * view filter: the cut runs before any aggregation, so checking a box prunes
-   * the canvas at once but marks the tree stale until Rebuild.
-   *
-   * The list comes from `list_variants`, not from the tree, so it reaches every
-   * Variant the filtered log has — including ones no build ever included.
-   */
+  /** Which Variants the tree is built from. Checking a box marks the tree stale. */
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
-  import { formatNumber } from "$lib/format";
+  import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import {
-    groupSlices,
+    comparedGroups,
     shownVariant,
     loadVariants,
     selectedVariants,
@@ -26,7 +19,6 @@
     variants,
     view
   } from "$lib/tree/state/tree.svelte";
-  import { baseSlice, loadImpact, sliceCases } from "$lib/slices/state/slices.svelte";
   import type { Project } from "$lib/event-log/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -36,70 +28,61 @@
 
   let open = $state(false);
   let selectedOnly = $state(false);
-  /** The Variant whose trace is on screen — clicked open, clicked closed. */
+  /** The Variant whose trace is on screen. */
   let preview = $state<string | null>(null);
 
   const selected = $derived(selectedVariants());
 
-  // Fetching on open rather than on mount: a user who never picks Variants
-  // never pays for the scan.
   $effect(() => {
     if (open) loadVariants(project);
-    // Closing the picker puts the tree back the way it was: a dimmed canvas
-    // with no panel in sight has nothing left to explain it.
     else {
       preview = null;
       shownVariant.key = null;
     }
   });
 
-  const totals = $derived({
-    a: variants.rows.reduce((sum, row) => sum + row.casesA, 0),
-    b: variants.rows.reduce((sum, row) => sum + row.casesB, 0)
-  });
-  const comparing = $derived(totals.b > 0);
+  // The Groups in the order the tree lists them, so a row's columns are the
+  // same Groups the canvas paints.
+  const groups = $derived(comparedGroups());
+  const casesIn = (row: ResponseVariantRow, id: string) => row.cases[id] ?? 0;
 
-  // The slices are what the user named and coloured in Filters; "Group A" is
-  // internal vocabulary they never chose.
-  const groupNames = $derived.by(() => {
-    const [a, b] = groupSlices();
-    return { a: a?.name ?? "Group A", b: b?.name ?? "Group B" };
-  });
+  /** Cases per Group across every Variant, keyed by Group id. */
+  const totals = $derived(
+    Object.fromEntries(
+      groups.map((group) => [
+        group.id,
+        variants.rows.reduce((sum, row) => sum + casesIn(row, group.id), 0)
+      ])
+    )
+  );
+
+  const accents = $derived(
+    Object.fromEntries(groups.map((group) => [group.id, colorVar(group.color)]))
+  );
+
+  /** The Groups with a column of their own: the first, plus any that has cases. */
+  const columns = $derived(groups.filter((group, index) => index === 0 || totals[group.id] > 0));
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
   }
 
-  /**
-   * Cases in the Base slice — the population both Groups are carved out of.
-   * `null` until `loadImpact`'s scan lands; the share it feeds isn't drawn yet.
-   */
-  const base = $derived(baseSlice());
-  const baseCases = $derived(base ? sliceCases(base) : null);
-  $effect(() => {
-    if (open && base) loadImpact(project, base);
-  });
+  /** Cases in the whole Event Log, what a Group's share is measured against. */
+  const originalCases = $derived(project.cases);
 
-  /**
-   * A Variant's number is its rank in the full list, not among the rendered
-   * rows, so narrowing the list never renumbers anything.
-   */
+  /** A Variant's number is its rank in the full list, so narrowing never renumbers. */
   const numbers = $derived(new Map(variants.rows.map((row, i) => [row.key, i + 1])));
 
   const rows = $derived(
     selectedOnly ? variants.rows.filter((row) => selected.has(row.key)) : variants.rows
   );
 
-  // Looked up rather than stored, so a reload that drops the Variant closes
-  // its trace instead of showing a stale one.
+  // Looked up, not stored, so a reload that drops the Variant closes its trace.
   const previewRow = $derived(variants.rows.find((row) => row.key === preview) ?? null);
 
   const visible = $derived(tree ? visibleNodes(tree, view, selected) : null);
 
-  /**
-   * Clicking a row lights the Variant on the canvas when the tree draws it, and
-   * otherwise opens the trace pane, since there is nothing on screen to mark.
-   */
+  /** Clicking a row lights the Variant on the canvas, or opens the trace pane. */
   function show(key: string) {
     if (tree && visible && variantPath(tree, visible, key).size > 0) {
       preview = null;
@@ -110,7 +93,7 @@
     preview = preview === key ? null : key;
   }
 
-  /** What the toolbar says: the tree on screen, not the selection pending on it. */
+  /** What the toolbar says: the tree on screen, not the pending selection. */
   const onScreen = $derived.by(() => {
     if (!tree || !visible) return null;
     const total = totalCases(tree);
@@ -154,7 +137,6 @@
     {/snippet}
   </Popover.Trigger>
 
-  <!-- Anchored left so the hover flyout has room on the right. -->
   <Popover.Content align="start" class="relative flex max-h-[70vh] w-80 flex-col gap-3 p-3">
     <div class="flex shrink-0 flex-wrap items-center gap-3">
       <Button
@@ -178,12 +160,12 @@
     </div>
 
     <p class="text-muted-foreground shrink-0 text-[0.625rem] leading-relaxed">
-      Click a row to show its variant — lit on the tree, or listed step by step when the tree has no
+      Click a row to show its variant: lit on the tree, or listed step by step when the tree has no
       such path. The checkbox includes it in the build.
       <br />
       Per cell: cases · <span class="opacity-70">% of that group</span> ·
-      <span class="text-foreground">% of base </span>{#if baseCases}
-        ({formatNumber(baseCases)} cases){/if}.
+      <span class="text-foreground">% of the event log </span>{#if originalCases}
+        ({formatNumber(originalCases)} cases){/if}.
     </p>
 
     {#if variants.dropped > 0}
@@ -201,21 +183,17 @@
     >
       <span class="w-6"></span>
       <span class="shrink-0 whitespace-nowrap">Variant</span>
-      <!-- The Group's own total, so a row's share has its denominator in
-           sight. Summed over the Variant list, which is every case the
-           filtered log has — not what any build happened to include. -->
-      <span class="text-slice-1 ml-auto flex w-28 flex-col items-end truncate text-right">
-        <span class="truncate">{comparing ? groupNames.a : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
-          ({formatNumber(totals.a)} cases)
+      {#each columns as group, index (group.id)}
+        <span
+          class="flex w-28 flex-col items-end truncate text-right {index === 0 ? 'ml-auto' : ''}"
+          style="color:{accents[group.id]}"
+        >
+          <span class="truncate">{columns.length > 1 ? group.name : "Cases"}</span>
+          <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
+            ({formatNumber(totals[group.id])} cases)
+          </span>
         </span>
-      </span>
-      <span class="text-slice-2 flex w-28 flex-col items-end truncate text-right">
-        <span class="truncate">{comparing ? groupNames.b : "Cases"}</span>
-        <span class="text-[0.625rem] font-normal normal-case tabular-nums opacity-70">
-          ({formatNumber(totals.b)} cases)
-        </span>
-      </span>
+      {/each}
     </div>
 
     {#if variants.loading}
@@ -227,10 +205,8 @@
     {:else}
       <VirtualList items={rows} rowHeight={56}>
         {#snippet row(item: ResponseVariantRow)}
-          <!-- A row is two controls, not one: the checkbox includes the
-               Variant in the build, the rest of the row only shows its trace.
-               Hence a plain div — a `<label>` would make every click on the
-               row a selection. -->
+          <!-- A plain div, not a `<label>`: the checkbox includes the Variant in the
+               build, the rest of the row only shows its trace. -->
           <div
             class="flex h-14 items-center gap-3 rounded px-1 text-xs {preview === item.key ||
             shownVariant.key === item.key
@@ -250,38 +226,24 @@
               <span class="shrink-0 whitespace-nowrap tabular-nums">
                 Variant {numbers.get(item.key)}
               </span>
-              <!-- Same colours the canvas gives the Groups, so a column reads
-                   as the same thing as a node's A/B line. An absent Variant
-                   gets a grey dash instead of a coloured zero: "only in one
-                   group" should be visible at a glance. -->
-              <span class="ml-auto flex w-28 flex-col items-end tabular-nums">
-                {#if item.casesA > 0}
-                  <span class="text-slice-1">{formatNumber(item.casesA)}</span>
-                  <span class="text-slice-1 text-[0.625rem] opacity-70">
-                    {share(item.casesA, totals.a)}
-                  </span>
-                  {#if baseCases}
-                    <span class="text-[0.625rem]">{share(item.casesA, baseCases)}</span>
-                  {/if}
-                {:else}
-                  <span class="text-muted-foreground">—</span>
-                {/if}
-              </span>
-              {#if comparing}
-                <span class="flex w-28 flex-col items-end tabular-nums">
-                  {#if item.casesB > 0}
-                    <span class="text-slice-2">{formatNumber(item.casesB)}</span>
-                    <span class="text-slice-2 text-[0.625rem] opacity-70">
-                      {share(item.casesB, totals.b)}
+              {#each columns as group, index (group.id)}
+                {@const cases = casesIn(item, group.id)}
+                <span
+                  class="flex w-28 flex-col items-end tabular-nums {index === 0 ? 'ml-auto' : ''}"
+                >
+                  {#if cases > 0}
+                    <span style="color:{accents[group.id]}">{formatNumber(cases)}</span>
+                    <span class="text-[0.625rem] opacity-70" style="color:{accents[group.id]}">
+                      {share(cases, totals[group.id])}
                     </span>
-                    {#if baseCases}
-                      <span class="text-[0.625rem]">{share(item.casesB, baseCases)}</span>
+                    {#if originalCases}
+                      <span class="text-[0.625rem]">{share(cases, originalCases)}</span>
                     {/if}
                   {:else}
                     <span class="text-muted-foreground">—</span>
                   {/if}
                 </span>
-              {/if}
+              {/each}
             </button>
           </div>
         {/snippet}
@@ -301,10 +263,6 @@
     </p>
 
     {#if previewRow}
-      <!-- Positioned off the panel rather than off the row, so step 1 is in
-           the same place for every Variant. A child of the panel instead of a
-           second floating layer: no second dismiss handler to fight the
-           popover's own. -->
       <div
         class="bg-popover text-popover-foreground ring-foreground/10 absolute top-0 left-full ml-2 flex max-h-[70vh] w-72 flex-col gap-1 overflow-y-auto p-2.5 text-xs shadow-md ring-1"
       >

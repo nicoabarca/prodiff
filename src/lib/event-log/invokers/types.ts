@@ -1,7 +1,6 @@
 /**
- * The invocation contracts for the event log commands — every type here mirrors
- * a serde struct or enum in `src-tauri/src/{column_mapping,parsing,event_log}`,
- * so a change on this side needs the matching change over there.
+ * The invocation contracts for the event log commands. Every type here mirrors a
+ * serde struct or enum in `src-tauri/src/{column_mapping,parsing,event_log}`.
  */
 export const COLUMN_ROLES = [
   "case_id",
@@ -12,9 +11,8 @@ export const COLUMN_ROLES = [
 ] as const;
 export type ColumnRole = (typeof COLUMN_ROLES)[number];
 
-// Must match (or translate cleanly from) a Rust/Polars dtype — see
-// `dtype_label` in src-tauri/src/parsing/csv.rs, which is where this value
-// actually originates for each column.
+// Must match (or translate cleanly from) a Rust/Polars dtype. See `dtype_label`
+// in src-tauri/src/parsing/csv.rs, where this value originates per column.
 export const COLUMN_TYPES = ["string", "integer", "float", "boolean", "date", "datetime"] as const;
 export type ColumnType = (typeof COLUMN_TYPES)[number];
 
@@ -36,8 +34,8 @@ export interface ResponseEventLogPreview {
 
 /**
  * Result of writing the Event Log: stats plus where the files ended up on disk.
- * Rust returns the full `EventLogStats`; the per-case metrics beyond these are
- * recomputed per population by the Statistics view rather than stored.
+ * The per-case metrics beyond these are recomputed per population by the
+ * Statistics view.
  */
 export interface ResponseCreateEventLog {
   events: number;

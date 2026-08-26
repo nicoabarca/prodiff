@@ -1,6 +1,7 @@
 mod column_mapping;
 mod event_log;
 mod filters;
+mod groups;
 mod parsing;
 mod stats;
 mod time;
@@ -16,13 +17,16 @@ pub fn run() {
             parsing::commands::preview_event_log,
             event_log::commands::create_event_log,
             event_log::commands::delete_project_files,
-            filters::commands::slice_stats,
-            filters::commands::chain_impact,
-            filters::commands::slice_preview,
+            groups::commands::apply_group,
+            groups::commands::delete_group_file,
+            groups::commands::applied_groups,
+            groups::commands::group_stats,
+            groups::commands::shared_cases,
+            filters::commands::filters_impact,
+            filters::commands::group_preview,
             filters::commands::distinct_values,
             filters::commands::duration_histogram,
             filters::commands::daily_case_load,
-            filters::commands::shared_cases,
             tree::commands::directed_tree,
             tree::commands::list_variants,
             tree::commands::node_distributions

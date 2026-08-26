@@ -1,20 +1,27 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
-import { treeSettings as settingsTable } from "$lib/db/schema";
-import { chainKey, effectiveChain, namedSlices } from "$lib/slices/state/slices.svelte";
+import { comparisons as comparisonsTable, treeSettings as settingsTable } from "$lib/db/schema";
+import { groups, isApplied, originalGroup } from "$lib/groups/state/groups.svelte";
+import { ORIGINAL_ID } from "$lib/groups/types";
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
-import { DEFAULT_COVERAGE, type TreeSettings, type TreeView, defaultTreeSettings, defaultTreeView } from "$lib/tree/types";
+import {
+  DEFAULT_COVERAGE,
+  type TreeSettings,
+  type TreeView,
+  defaultTreeSettings,
+  defaultTreeView
+} from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
-import type { Slice } from "$lib/slices/types";
+import type { Group } from "$lib/groups/types";
 
 /**
- * The built tree, in memory only: it survives navigating between views but
- * not a reload. One slot — switching projects drops the previous tree.
+ * The built tree, in memory only: it survives navigating between views but not a
+ * reload. One slot, so switching projects drops the previous tree.
  */
 export const built = $state<{
   projectId: string | null;
@@ -31,8 +38,8 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
 });
 
 /**
- * What is hidden, collapsed or dimmed. Nothing here reaches the backend — the
- * one input that does, which Variants to include, lives in `settings`.
+ * What is hidden, collapsed or dimmed. Nothing here reaches the backend; the one
+ * input that does, which Variants to include, lives in `settings`.
  */
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
@@ -49,10 +56,9 @@ export const variants = $state<{
   dropped: number;
 }>({ key: null, rows: [], loading: false, error: null, dropped: 0 });
 
-/** The chains the Variant list would have to be built from to still be current. */
-function variantsKey(): string | null {
-  const chains = groupChains();
-  return chains ? chainKey([chains.a, chains.b] as unknown as Filter[]) : null;
+/** The Groups the Variant list would have to be built from to still be current. */
+function variantsKey(): string {
+  return comparedIds().join("|");
 }
 
 export function selectedVariants(): Set<string> {
@@ -66,14 +72,12 @@ export function selectedVariants(): Set<string> {
  */
 export async function loadVariants(project: Project, force = false) {
   const key = variantsKey();
-  if (!key || variants.loading || (!force && variants.key === key)) return;
+  if (variants.loading || (!force && variants.key === key)) return;
 
   variants.loading = true;
   variants.error = null;
   try {
-    const chains = groupChains();
-    if (!chains) return;
-    const rows = await listVariants(project, chains.a, chains.b);
+    const rows = await listVariants(project, comparedIds());
     variants.rows = rows;
     variants.key = key;
 
@@ -113,19 +117,54 @@ export const selected = $state<{ id: number | null }>({ id: null });
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
- * Group A and Group B are the two named slices, in position order. Base is
- * never a Group: a slice's chain already contains it, and both Significance
- * Tests assume the two Groups are independent.
+ * What the compare modal picked, persisted per project. One or two Group ids,
+ * in the order the tree draws them.
  */
-export function groupSlices(): [Slice | null, Slice | null] {
-  const named = namedSlices();
-  return [named[0] ?? null, named[1] ?? null];
+export const comparison = $state<{ projectId: string | null; groupIds: string[] }>({
+  projectId: null,
+  groupIds: []
+});
+
+export async function loadComparison(projectId: string) {
+  const rows = await db()
+    .select()
+    .from(comparisonsTable)
+    .where(eq(comparisonsTable.projectId, projectId));
+  comparison.projectId = projectId;
+  comparison.groupIds = rows[0]?.groupIds ?? [];
 }
 
-export function groupChains(): { a: Filter[]; b: Filter[] | null } | null {
-  const [a, b] = groupSlices();
-  if (!a) return null;
-  return { a: effectiveChain(a), b: b ? effectiveChain(b) : null };
+export async function saveComparison(projectId: string, groupIds: string[]) {
+  comparison.projectId = projectId;
+  comparison.groupIds = groupIds;
+  const row = { projectId, groupIds };
+  await db().insert(comparisonsTable).values(row).onConflictDoUpdate({
+    target: comparisonsTable.projectId,
+    set: row
+  });
+}
+
+/**
+ * The Groups being compared: what the modal picked, resolved to the Groups
+ * themselves. Only applied Groups can be read, and anything the selection names
+ * that has since been deleted or un-applied falls away, so a stale selection
+ * degrades to the Original. Capped at two.
+ */
+export function comparedGroups(): Group[] {
+  const projectId = groups[0]?.projectId ?? built.projectId ?? "";
+  const original = originalGroup(projectId);
+  const known = (id: string): Group | null =>
+    id === ORIGINAL_ID
+      ? original
+      : (groups.find((group) => group.id === id && isApplied(group)) ?? null);
+
+  const picked = comparison.groupIds.map(known).filter((group): group is Group => group !== null);
+  return picked.length === 0 ? [original] : picked.slice(0, 2);
+}
+
+/** The ids the seam takes: one for a single-Group tree, two for a comparison. */
+export function comparedIds(): string[] {
+  return comparedGroups().map((group) => group.id);
 }
 
 export async function loadSettings(projectId: string) {
@@ -155,9 +194,8 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
 }
 
 /** The key the tree on screen would need to match to still be current. */
-export function currentKey(): string | null {
-  const chains = groupChains();
-  return chains ? treeKey(chains.a, chains.b, settings.value) : null;
+export function currentKey(): string {
+  return treeKey(comparedIds(), settings.value);
 }
 
 export function isStale(): boolean {
@@ -165,18 +203,17 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and selected Variants.
- * Never automatic — every input here, the Variant selection included, waits
- * for the button. An empty selection lets the backend pick by coverage.
+ * Builds the tree for the current Groups, settings and selected Variants. Never
+ * automatic: every input waits for the button. An empty selection lets the
+ * backend pick by coverage.
  */
 export async function build(project: Project) {
-  const chains = groupChains();
-  if (!chains || built.building) return;
+  if (built.building) return;
 
   built.building = true;
   built.error = null;
   try {
-    const tree = await directedTree(project, chains.a, chains.b, settings.value);
+    const tree = await directedTree(project, comparedIds(), settings.value);
     built.projectId = project.id;
     built.tree = tree;
     selected.id = null;
@@ -209,7 +246,6 @@ function clear() {
   built.error = null;
   selected.id = null;
   view.collapsed = new Set();
-  // The Variant list belongs to chains that are no longer current.
   variants.key = null;
   variants.rows = [];
   variants.error = null;

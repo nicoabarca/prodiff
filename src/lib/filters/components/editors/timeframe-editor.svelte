@@ -16,8 +16,7 @@
 
   /**
    * How a case overlaps a window of time. The picker hands over an inclusive
-   * window — `from` at midnight, `to` at the last millisecond of its day — so
-   * the bounds are the filter's own and need no adjusting here.
+   * window: `from` at midnight, `to` at the last millisecond of its day.
    */
   let {
     project,

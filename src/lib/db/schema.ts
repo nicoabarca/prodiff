@@ -1,8 +1,7 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/kind/filter";
-import type { ResponseEventLogStats } from "$lib/slices/invokers/types";
-import type { SliceKind } from "$lib/slices/types";
+import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
 
 export const projects = sqliteTable("projects", {
@@ -23,28 +22,35 @@ export const projects = sqliteTable("projects", {
 });
 
 /**
- * Slices belong to a project and are deleted with it (see `removeProject`).
- * `stats` and `stats_key` are a cache of the last computed figures, so
- * reopening a project doesn't re-run every chain.
+ * Groups belong to a project and are deleted with it (see `removeProject`). The
+ * row is written before the Parquet it names, so a file without a row is
+ * unreachable. A null `stats` means the Group has no Parquet yet.
  */
-export const slices = sqliteTable("slices", {
+export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),
-  kind: text("kind").$type<SliceKind>().notNull(),
   name: text("name").notNull(),
   color: text("color").notNull(),
   position: integer("position").notNull(),
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
   stats: text("stats", { mode: "json" }).$type<ResponseEventLogStats | null>(),
-  statsKey: text("stats_key")
+  createdAt: text("created_at").notNull(),
+  editedAt: text("edited_at").notNull()
 });
 
 /**
- * What the Comparison Directed Tree is built from — the attributes to test and
- * the Variants to include. Its own table: every table is created idempotently
- * at startup, so a new one needs no migration where a new column would.
- *
- * The tree itself is not cached here; it lives in memory while the app is open.
+ * Which Groups the tree compares, per project. The ids are ordered and hold one
+ * or two entries; `original` is the whole Event Log.
+ */
+export const comparisons = sqliteTable("comparisons", {
+  projectId: text("project_id").primaryKey(),
+  groupIds: text("group_ids", { mode: "json" }).$type<string[]>().notNull()
+});
+
+/**
+ * What the Comparison Directed Tree is built from: the attributes to test and
+ * the Variants to include. The tree itself is never cached; it lives in memory
+ * while the app is open.
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),

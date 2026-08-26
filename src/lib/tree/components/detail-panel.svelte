@@ -6,7 +6,7 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { formatNumber } from "$lib/format";
-  import { groupSlices } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { AttributeBlock, ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/tree/utils/settings";
@@ -25,21 +25,14 @@
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
-  const compare = $derived(tree.groupB !== null);
-  /** Restricted to the surviving Variants — a node's raw totals over-count
-      once the slider has pruned some of its siblings away. */
+  const compare = $derived(tree.groups.length > 1);
+  /** Restricted to the surviving Variants: raw totals over-count. */
   const cases = $derived(
-    node
-      ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {
-          groupACases: 0,
-          groupBCases: 0
-        })
-      : null
+    node ? (visibleNodes(tree, view, selectedVariants()).cases.get(node.id) ?? {}) : null
   );
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const groups = $derived(comparedGroups());
+  const ids = $derived(tree.groups.map((group) => group.id));
 
   /**
    * Attributes strongest first, with the negligible and untestable ones folded
@@ -64,10 +57,14 @@
 
   /** Why a block carries no Significance Test, in the user's terms. */
   function untestable(block: AttributeBlock): string {
-    if (!compare) return "One-group mode — nothing to compare against.";
-    const n = (side: "groupA" | "groupB") => block[side]?.n ?? 0;
-    if (n("groupA") < 5 || n("groupB") < 5) {
-      return `Too few cases to test — ${nameA}: ${n("groupA")}, ${nameB}: ${n("groupB")} (minimum 5 each).`;
+    if (!compare) return "One-group mode: nothing to compare against.";
+    const counted = groups.map((group) => ({
+      name: group.name,
+      n: block.summaries[group.id]?.n ?? 0
+    }));
+    if (counted.some((group) => group.n < 5)) {
+      const listed = counted.map((group) => `${group.name}: ${group.n}`).join(", ");
+      return `Too few cases to test. ${listed} (minimum 5 each).`;
     }
     return "Not enough distinct values to compare.";
   }
@@ -89,16 +86,9 @@
       </p>
     {/if}
 
-    <SummaryCompare
-      groupA={block.groupA}
-      groupB={block.groupB}
-      {compare}
-      duration={isDurationAttribute(name)}
-    />
+    <SummaryCompare summaries={block.summaries} {compare} duration={isDurationAttribute(name)} />
 
     {#if !block.test}
-      <!-- In one-Group mode every block is untestable for the same reason, said
-           once at the top rather than under each attribute. -->
       {#if compare}
         <p class="text-muted-foreground text-[0.625rem]">{untestable(block)}</p>
       {/if}
@@ -129,9 +119,9 @@
         <h2 class="text-sm font-semibold">{node.label}</h2>
         <div class="flex shrink-0 items-center gap-1">
           <Badge variant="secondary">
-            {membership(node) === "shared"
-              ? "Both groups"
-              : `${membership(node) === "a" ? nameA : nameB} only`}
+            {membership(node, ids) === "shared"
+              ? "Every group"
+              : `${groups.find((group) => group?.id === membership(node, ids))?.name ?? "Group"} only`}
           </Badge>
           <Popover.Root>
             <Popover.Trigger>
@@ -173,9 +163,7 @@
         </div>
       </div>
       <p class="text-muted-foreground font-mono text-[0.6875rem]">
-        {nameA}
-        {formatNumber(cases?.groupACases ?? 0)}
-        {#if compare}· {nameB} {formatNumber(cases?.groupBCases ?? 0)}{/if} cases
+        {groups.map((group) => `${group.name} ${formatNumber(cases?.[group.id] ?? 0)}`).join(" · ")} cases
       </p>
       <p
         class="text-muted-foreground truncate text-[0.625rem]"
@@ -186,8 +174,7 @@
     </div>
 
     <!-- `min-h-0` is load-bearing: a flex item's automatic minimum size is its
-         content, so without it the scroll root grows past the panel and the
-         viewport never has anything to scroll. -->
+         content, so without it the scroll root grows past the panel. -->
     <ScrollArea.Root class="min-h-0 flex-1">
       <div class="flex flex-col">
         {#if node.comovement.length > 0}
@@ -197,8 +184,6 @@
               <Table.Header>
                 <Table.Row class="hover:bg-transparent">
                   <Table.Head class="h-6 px-0 text-[0.6875rem]">movement</Table.Head>
-                  <!-- The two attributes of the pair. Unlabelled: neither is
-                       first in any meaningful sense. -->
                   <Table.Head class="h-6 px-2"></Table.Head>
                   <Table.Head class="h-6 px-0"></Table.Head>
                 </Table.Row>
@@ -220,7 +205,7 @@
 
         {#if !compare}
           <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
-            One group — these are its distributions, with nothing to compare them against.
+            One group. These are its distributions, with nothing to compare them against.
           </p>
           {#each flat as [name, block] (name)}
             {@render attribute(name, block)}
@@ -254,7 +239,7 @@
 
         {#if flat.length === 0}
           <p class="text-muted-foreground px-4 py-3.5 text-xs">
-            No attributes selected — pick some in Build settings and rebuild.
+            No attributes selected. Pick some in Build settings and rebuild.
           </p>
         {/if}
       </div>

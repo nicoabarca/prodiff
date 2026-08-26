@@ -3,16 +3,19 @@
   import "@xyflow/svelte/dist/style.css";
   import ActivityNode from "$lib/tree/components/node.svelte";
   import { toFlow } from "$lib/tree/utils/flow";
-  import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
+  import {
+    comparedGroups,
+    selected,
+    selectedVariants,
+    shownVariant,
+    view
+  } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
 
   let {
     tree,
     stale,
-    // Dropping the selection by clicking past the nodes is right where the
-    // canvas is the view, and wrong where it is a picker driving something
-    // else: there the empty pane is just the gap between two steps.
     deselectOnPaneClick = true,
     /** Narrows the drawing to these nodes. Null draws the whole tree. */
     only = null
@@ -24,15 +27,27 @@
   } = $props();
 
   const nodeTypes = { activity: ActivityNode };
-  // Narrowed after the Variant and collapse rules have run, not instead of
-  // them: `cases` still covers every surviving path, so the counts on the nodes
-  // that remain are the same ones the full canvas shows.
+  // Narrowed after the Variant and collapse rules have run: `cases` still covers
+  // every surviving path, so the counts on the nodes that remain are unchanged.
   const visible = $derived.by(() => {
     const all = visibleNodes(tree, view, selectedVariants());
     if (!only) return all;
     const kept = only;
     return { ...all, ids: new Set([...all.ids].filter((id) => kept.has(id))) };
   });
+
+  // The canvas paints Groups in the names and colours the user chose, so the
+  // payload can stay ids-only and a rename never leaves a stale label behind.
+  const flowGroups = $derived(
+    tree.groups.map((group) => {
+      const known = comparedGroups().find((candidate) => candidate.id === group.id);
+      return {
+        id: group.id,
+        name: known?.name ?? group.id,
+        color: known?.color ?? "group-original"
+      };
+    })
+  );
 
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);
@@ -43,6 +58,7 @@
 
   const flow = $derived(
     toFlow(tree, visible, {
+      groups: flowGroups,
       direction: view.direction,
       secondary: view.secondary,
       focus: view.focus,
@@ -52,15 +68,14 @@
     })
   );
 
-  // Hovering a Variant in the picker lights up the path it drew. Applied over
-  // the finished layout rather than inside `toFlow`, so a hover never re-runs
-  // Dagre — the geometry cannot change, only what is lit.
+  // Hovering a Variant in the picker lights up the path it drew. Applied over the
+  // finished layout, so a hover never re-runs Dagre.
   const highlight = $derived(
     shownVariant.key === null ? null : variantPath(tree, visible, shownVariant.key)
   );
 
   // Svelte Flow owns these arrays while the user pans and selects, so they are
-  // local state re-seeded from the layout rather than bound to it directly.
+  // local state re-seeded from the layout.
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
   $effect(() => {
@@ -72,8 +87,7 @@
     }
     nodes = flow.nodes.map((node) => {
       const on = lit.has(Number(node.id));
-      // A node off the path dims; one on it keeps whatever the Group focus
-      // already decided, so the two channels never fight.
+      // A node off the path dims; one on it keeps whatever the Group focus decided.
       return {
         ...node,
         data: { ...node.data, dimmed: on ? node.data.dimmed : true, highlighted: on }

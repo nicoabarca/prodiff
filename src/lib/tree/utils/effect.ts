@@ -21,7 +21,8 @@ export function effectBand(effectSize: number): EffectBand {
 
 /** The band's step on the `--effect-*` ramp, 1 (negligible) to 4 (large). */
 export function effectStep(effectSize: number): 1 | 2 | 3 | 4 {
-  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as 1 | 2 | 3 | 4;
+  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as
+    1 | 2 | 3 | 4;
 }
 
 export function standing(block: AttributeBlock): Standing {
@@ -42,8 +43,8 @@ export function peakEffect(node: TreeNode): number | null {
 }
 
 /**
- * Every attribute at a node — Transition Time last, as the edge into it —
- * ordered strongest first and split by Standing. Untested blocks sort last.
+ * Every attribute at a node, Transition Time last, ordered strongest first and
+ * split by Standing. Untested blocks sort last.
  */
 export function rankedBlocks(node: TreeNode): Record<Standing, [string, AttributeBlock][]> {
   const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);

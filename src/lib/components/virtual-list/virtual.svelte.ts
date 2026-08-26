@@ -1,17 +1,15 @@
 /**
  * Windowing for a long list: which rows are worth putting in the DOM, and how
- * much empty space stands in for the rest. Headless — `virtual-list.svelte`
- * wraps this, and the maths itself lives in `virtual.ts`, free of runes.
+ * much empty space stands in for the rest. Headless: `virtual-list.svelte` wraps
+ * this, and the maths lives in `virtual.ts`, free of runes.
  *
- * Fixed row height only: no measuring, and so no reflow loop where measuring
- * changes what is measured.
+ * Fixed row height only. Nothing is measured, so measuring cannot change what is
+ * measured.
  */
 import { windowRange, type Window } from "$lib/components/virtual-list/virtual";
 
 export interface VirtualRange extends Window {
-  /** Wire to the scroll container's `onscroll`. */
   onScroll: (event: Event) => void;
-  /** Wire to the scroll container's `clientHeight`, via `bind:clientHeight`. */
   setViewport: (height: number) => void;
 }
 

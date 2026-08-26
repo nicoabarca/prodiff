@@ -1,12 +1,11 @@
 <script lang="ts">
   /**
-   * One attribute's Distribution at the selected node — vertical columns, one
-   * band per value or bin, one bar per Group within it.
+   * One attribute's Distribution at the selected node: vertical columns, one band
+   * per value or bin, one bar per Group within it.
    *
-   * The plot's width comes from the column count, not the cell, and the card
-   * scrolls sideways when that overflows. The height is pinned explicitly:
-   * `Chart.Container` is `aspect-video` by default, and a chart left to fill a
-   * flex box has no resolvable height and draws axes with no bars between them.
+   * The height is pinned explicitly. `Chart.Container` is `aspect-video` by
+   * default, and a chart left to fill a flex box has no resolvable height and
+   * draws axes with no bars between them.
    */
   import { BarChart, Tooltip } from "layerchart";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -16,9 +15,19 @@
   import DurationPlot from "$lib/tree/components/duration-plot.svelte";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import type { Distribution } from "$lib/distributions/invokers/types";
-  import { ENCODINGS, ENCODING_HINT, ENCODING_LABEL, type Encoding, PLOT_TOGGLE, SCOPE_LABEL, type Scope, TOP_CATEGORIES } from "$lib/distributions/types";
+  import {
+    ENCODINGS,
+    ENCODING_HINT,
+    ENCODING_LABEL,
+    type Encoding,
+    PLOT_TOGGLE,
+    SCOPE_LABEL,
+    type Scope,
+    TOP_CATEGORIES,
+    type Bar
+  } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
-  import { formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDuration, formatNumber } from "$lib/format";
   import type { Test } from "$lib/tree/invokers/types";
   import { isDurationAttribute } from "$lib/tree/utils/settings";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -31,8 +40,7 @@
     scope,
     test,
     compare,
-    nameA,
-    nameB,
+    groups,
     expanded,
     encoding,
     onEncoding,
@@ -42,23 +50,19 @@
     attribute: string;
     distribution: Distribution;
     scope: Scope;
-    /** The node's Significance Test for this attribute, when one ran. */
     test: Test | null;
     compare: boolean;
-    nameA: string;
-    nameB: string;
+    groups: { id: string; name: string; color: string }[];
     expanded: boolean;
-    /** Only read on a duration; every other attribute has bars and nothing else. */
     encoding: Encoding;
     onEncoding: (next: Encoding) => void;
     onToggleExpanded: () => void;
     onRemove: () => void;
   } = $props();
 
-  // The Groups keep the colours they carry in the tree and the differences
-  // panel, so a resource that is "the blue one" stays blue across all three.
-  const COLOR_A = "var(--slice-1)";
-  const COLOR_B = "var(--slice-2)";
+  /** The Groups drawn, in order. Without comparison only the first is drawn. */
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
+  const ids = $derived(drawn.map((group) => group.id));
 
   /**
    * The duration-only encodings, when the backend computed them. Absent on
@@ -66,35 +70,33 @@
    */
   const shape = $derived(distribution.type === "numerical" ? distribution.shape : null);
 
-  /**
-   * Bars are what the card draws unless a duration asked for something else.
-   * On a duration they are the log ladder, not the equal-width bins.
-   */
+  /** Bars unless a duration asked for something else, where they are the log ladder. */
   const data = $derived(
-    shape && encoding === "logBins" ? logBars(shape) : bars(distribution, attribute, expanded)
+    shape && encoding === "logBins"
+      ? logBars(shape, ids)
+      : bars(distribution, attribute, expanded, ids)
   );
 
   const series = $derived(
-    compare
-      ? [
-          { key: "a", label: nameA, color: COLOR_A },
-          { key: "b", label: nameB, color: COLOR_B }
-        ]
-      : [{ key: "a", label: nameA, color: COLOR_A }]
+    drawn.map((group) => ({
+      key: group.id,
+      label: group.name,
+      color: colorVar(group.color),
+      value: (bar: Bar) => bar.counts[group.id] ?? 0
+    }))
   );
 
   const config = $derived.by((): Chart.ChartConfig => {
-    const entries: Chart.ChartConfig = { a: { label: nameA, color: COLOR_A } };
-    if (compare) entries.b = { label: nameB, color: COLOR_B };
+    const entries: Chart.ChartConfig = {};
+    for (const group of drawn) {
+      entries[group.id] = { label: group.name, color: colorVar(group.color) };
+    }
     return entries;
   });
 
-  /**
-   * A numeric attribute whose values are all identical. The backend ships one
-   * bin, which would draw as a full-width bar; the value is stated in words.
-   */
+  /** A numeric attribute whose values are all identical. Stated in words, not drawn. */
   const constant = $derived(
-    distribution.type === "numerical" && distribution.countsA.length === 1
+    distribution.type === "numerical" && (distribution.counts[ids[0]]?.length ?? 0) === 1
       ? distribution.edges[0]
       : null
   );
@@ -105,14 +107,18 @@
       : (value: number) => formatNumber(Math.round(value))
   );
 
-  /** Totals the tooltip reads shares against. */
-  const totals = $derived.by(() => {
-    if (distribution.type === "categorical") {
-      return { a: distribution.totalA, b: distribution.totalB };
-    }
-    if (distribution.type === "numerical") return { a: distribution.nA, b: distribution.nB };
-    return { a: 0, b: 0 };
+  /** Totals the tooltip reads shares against, keyed by Group id. */
+  const totals = $derived.by((): Record<string, number> => {
+    const source =
+      distribution.type === "categorical"
+        ? distribution.totals
+        : distribution.type === "numerical"
+          ? distribution.n
+          : {};
+    return Object.fromEntries(ids.map((id) => [id, source[id] ?? 0]));
   });
+
+  const totalN = $derived(ids.reduce((sum, id) => sum + totals[id], 0));
 
   const hiddenCategories = $derived(
     distribution.type === "categorical" ? Math.max(0, distribution.distinct - TOP_CATEGORIES) : 0
@@ -144,9 +150,9 @@
         {:else if distribution.type === "numerical" && constant === null}
           <span class="text-muted-foreground text-[0.625rem]">
             {#if shape && encoding !== "logBins"}
-              n {formatNumber(totals.a + totals.b)}
+              n {formatNumber(totalN)}
             {:else}
-              {data.length} bins · n {formatNumber(totals.a + totals.b)}
+              {data.length} bins · n {formatNumber(totalN)}
             {/if}
           </span>
         {/if}
@@ -163,10 +169,6 @@
     </Button>
   </div>
 
-  <!-- Durations are heavily right-skewed, so the card opens on the cumulative
-       curve: it is the one encoding that reads the median, the spread and the
-       tail in a single glance without a binning choice to defend. The other two
-       are a click away for the readings they are better at. -->
   {#if shape && constant === null}
     <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
       <ToggleGroup.Root
@@ -194,10 +196,14 @@
     <div
       class="text-muted-foreground border-border flex shrink-0 items-center gap-3 border-b px-3 py-1.5 text-[0.625rem]"
     >
-      {#each [[nameA, COLOR_A], [nameB, COLOR_B]] as [name, color] (name)}
+      {#each drawn as group (group.id)}
         <span class="inline-flex min-w-0 items-center gap-1.5">
-          <span class="size-2 shrink-0" style="background:{color}" aria-hidden="true"></span>
-          <span class="truncate">{name}</span>
+          <span
+            class="size-2 shrink-0"
+            style="background:{colorVar(group.color)}"
+            aria-hidden="true"
+          ></span>
+          <span class="truncate">{group.name}</span>
         </span>
       {/each}
     </div>
@@ -215,13 +221,12 @@
         Every value is <span class="font-semibold">{format(constant)}</span>.
       </p>
       <p class="text-muted-foreground text-[0.625rem]">
-        {nameA}
-        {formatNumber(totals.a)}{#if compare}
-          · {nameB} {formatNumber(totals.b)}{/if} values, so there is no spread to plot.
+        {drawn.map((group) => `${group.name} ${formatNumber(totals[group.id])}`).join(" · ")} values,
+        so there is no spread to plot.
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}
-    <DurationPlot {shape} {encoding} {compare} {nameA} {nameB} />
+    <DurationPlot {shape} {encoding} {compare} {groups} />
   {:else if data.length === 0}
     <p
       class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"
@@ -229,8 +234,6 @@
       Nothing to plot here.
     </p>
   {:else}
-    <!-- The plot is as wide as its columns need; the card scrolls sideways when
-         that is more than the drawer's current width allows. -->
     <div class="overflow-x-auto px-3 py-2">
       <Chart.Container
         {config}
@@ -251,8 +254,8 @@
           props={{
             bars: { stroke: "none", radius: 2, rounded: "all" },
             highlight: { area: { fill: "none" } },
-            // The label gutter is fixed, so a long resource code is cut rather
-            // than allowed to run off the card. The tooltip carries the full one.
+            // The label gutter is fixed, so a long resource code is cut. The tooltip
+            // carries the full one.
             xAxis: {
               format: truncate,
               tickLabelProps: { rotate: -45, textAnchor: "end", svgProps: { y: 4 } }
@@ -260,8 +263,7 @@
             yAxis: { ticks: 4, format: (value: number) => formatNumber(value) }
           }}
         >
-          <!-- The `tooltip` snippet, not `children`: children would replace the
-               chart's own layout wholesale rather than add to it. -->
+          <!-- The `tooltip` snippet, not `children`: children replace the chart's own layout. -->
           {#snippet tooltip()}
             <Tooltip.Root props={{ root: { class: "w-max" } }}>
               {#snippet children({ data: row })}
@@ -275,16 +277,13 @@
                     {/if}
                   </p>
                   <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
-                    <dt class="text-muted-foreground truncate">{nameA}</dt>
-                    <dd class="text-right">
-                      {formatNumber(row.a)} · {share(row.a, totals.a)}
-                    </dd>
-                    {#if compare}
-                      <dt class="text-muted-foreground truncate">{nameB}</dt>
+                    {#each drawn as group (group.id)}
+                      {@const count = row.counts[group.id] ?? 0}
+                      <dt class="text-muted-foreground truncate">{group.name}</dt>
                       <dd class="text-right">
-                        {formatNumber(row.b)} · {share(row.b, totals.b)}
+                        {formatNumber(count)} · {share(count, totals[group.id])}
                       </dd>
-                    {/if}
+                    {/each}
                   </dl>
                 </div>
               {/snippet}

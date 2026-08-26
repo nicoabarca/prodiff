@@ -1,6 +1,6 @@
 /**
- * The windowing arithmetic, with no reactivity attached — which is what makes
- * it testable without a Svelte runtime. `virtual.svelte.ts` wraps this in runes.
+ * The windowing arithmetic, with no reactivity attached, so it is testable
+ * without a Svelte runtime. `virtual.svelte.ts` wraps this in runes.
  */
 
 /**
@@ -10,13 +10,9 @@
 export const OVERSCAN = 6;
 
 export interface Window {
-  /** Index of the first row to render. */
   start: number;
-  /** Index one past the last row to render. */
   end: number;
-  /** Filler above the rendered rows, so the scrollbar spans the whole list. */
   padTop: number;
-  /** Filler below. */
   padBottom: number;
 }
 

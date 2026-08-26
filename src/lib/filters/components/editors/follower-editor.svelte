@@ -79,8 +79,6 @@
   onselect={(v) => (mode = v)}
 />
 
-<!-- Reference on the left, follower on the right: the pair reads in the order
-     the filter looks for it. -->
 <div class="grid gap-3 sm:grid-cols-2">
   <div class="border-border border p-2">
     <ValuePicker

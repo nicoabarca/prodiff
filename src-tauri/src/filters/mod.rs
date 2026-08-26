@@ -1,12 +1,6 @@
-//! Filters narrow an Event Log to a Slice. A chain is an ordered AND pipeline:
-//! each filter applies to the previous one's output, so order is user-visible
-//! and matters (an event-level trim before an endpoint filter gives a different
-//! result than after).
-//!
-//! Every filter is evaluated as an event-level predicate lifted to the case
-//! level by a window over the case column — that lift is what the `mode` picks.
-//! Each filter kind lives in its own module and owns its tests; this file only
-//! dispatches a `Filter` to the matching module and folds a chain through them.
+//! Filters narrow an Event Log to a Group. A Filter List is an ordered AND
+//! pipeline: each filter applies to the previous one's output, so order matters.
+//! Each kind lives in its own module; this file dispatches and folds a chain.
 
 mod attribute;
 pub mod commands;
@@ -14,9 +8,10 @@ mod duration;
 mod endpoint;
 mod enums;
 mod follower;
+mod group_membership;
 mod numeric;
 mod predicates;
-mod queries;
+pub(crate) mod queries;
 mod structs;
 mod timeframe;
 
@@ -25,16 +20,20 @@ pub(crate) use predicates::timestamp_millis;
 
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use polars::prelude::*;
+use std::collections::{HashMap, HashSet};
 
-/// Applies one filter. `case_col` drives every case-level lift; `activity_col`
-/// and `timestamp_col` serve the endpoint and timeframe kinds. Fallible only
-/// because Polars' `over` is — the filters themselves cannot fail here.
+/// Case ids to exclude, by Group id. Resolved before a Filter List runs:
+/// `case_not_in_group` reads another Group's file, not the current frame.
+pub type ExcludedCases = HashMap<String, HashSet<String>>;
+
+/// Applies one filter. `case_col` drives every case-level lift.
 fn apply_one(
     lf: LazyFrame,
     filter: &Filter,
     case_col: &str,
     activity_col: &str,
     timestamp_col: &str,
+    excluded: &ExcludedCases,
 ) -> Result<LazyFrame, String> {
     match filter {
         Filter::Attribute {
@@ -65,22 +64,27 @@ fn apply_one(
             reference,
             follower,
         } => follower::apply(lf, column, *mode, reference, follower, case_col),
+        Filter::CaseNotInGroup { group_id } => group_membership::apply(
+            lf,
+            excluded.get(group_id).unwrap_or(&HashSet::new()),
+            case_col,
+        ),
     }
 }
 
-/// Applies a whole chain in order. An empty chain is the identity, which is how
-/// callers ask for the whole log.
+/// Applies a whole Filter List in order. An empty one is the identity.
 pub fn apply(
     lf: LazyFrame,
     filters: &[Filter],
     mapping: &[ColumnMapping],
+    excluded: &ExcludedCases,
 ) -> Result<LazyFrame, String> {
     let case_col = require_role(mapping, ColumnRole::CaseId)?.to_string();
     let activity_col = require_role(mapping, ColumnRole::ActivityName)?.to_string();
     let timestamp_col = require_role(mapping, ColumnRole::CompleteTimestamp)?.to_string();
 
     filters.iter().try_fold(lf, |acc, f| {
-        apply_one(acc, f, &case_col, &activity_col, &timestamp_col)
+        apply_one(acc, f, &case_col, &activity_col, &timestamp_col, excluded)
     })
 }
 
@@ -146,7 +150,7 @@ pub(crate) mod tests {
     use support::{cases, log, mapping, parse};
 
     fn run(filters: &[Filter]) -> DataFrame {
-        apply(log().lazy(), filters, &mapping())
+        apply(log().lazy(), filters, &mapping(), &ExcludedCases::new())
             .unwrap()
             .collect()
             .unwrap()
@@ -175,8 +179,6 @@ pub(crate) mod tests {
               {"kind":"attribute","column":"type","mode":"keep_selected","values":["Gold"]}
             ]"#,
         ));
-        // Same surviving case here, but reached the other way round — and the
-        // trace differs from applying the endpoint filter to the trimmed log.
         assert_eq!(cases(&endpoint_then_trim), ["2"]);
         assert_eq!(endpoint_then_trim.height(), 1);
     }

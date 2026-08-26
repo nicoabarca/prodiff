@@ -3,57 +3,40 @@
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import {
-    baseSlice,
-    chainKey,
-    effectiveChain,
+    groupCases,
+    groupEvents,
+    groups,
     loadSharedCases,
-    namedSlices,
-    sharedCases,
-    sliceCases,
-    sliceColor,
-    sliceEvents
-  } from "$lib/slices/state/slices.svelte";
+    sharedCases
+  } from "$lib/groups/state/groups.svelte";
   import { describeFilter } from "$lib/filters/kind/filter";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
-  import type { Slice } from "$lib/slices/types";
+  import type { Group } from "$lib/groups/types";
   import type { Snippet } from "svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
-  /**
-   * `trailing` is for whatever the current view wants to say about the same
-   * populations — the tree's variant coverage, for instance.
-   */
+  /** `trailing` is whatever the current view wants to say about the same Groups. */
   let { project, trailing, actions }: { project: Project; trailing?: Snippet; actions?: Snippet } =
     $props();
   const projectId = $derived(project.id);
 
-  const entries = $derived(
-    [baseSlice(), ...namedSlices()].filter((slice): slice is Slice => slice !== null)
-  );
+  const entries = $derived(groups);
 
-  /** Both groups, only once there are two — nothing to share with one. */
-  const groupA = $derived(namedSlices()[0] ?? null);
-  const groupB = $derived(namedSlices()[1] ?? null);
+  /** The Groups the overlap is measured across, only once there are two. */
+  const overlapping = $derived(groups.length > 1 ? groups.slice(0, 2) : null);
 
   $effect(() => {
-    if (groupA && groupB) loadSharedCases(project, groupA, groupB);
+    if (overlapping) loadSharedCases(project, overlapping);
   });
 
-  /**
-   * A size of the chain as it stands right now: the Filters view's live
-   * measurement when it has one, otherwise the stats cache — but only when its
-   * key still matches, or an edit would leave the old count on screen.
-   */
-  function current(slice: Slice, metric: "cases" | "events"): number | null {
-    const measured = metric === "cases" ? sliceCases(slice) : sliceEvents(slice);
-    if (measured !== null) return measured;
-    return slice.statsKey === chainKey(effectiveChain(slice))
-      ? (slice.stats?.[metric] ?? null)
-      : null;
+  /** A Group's size now: the live measurement when there is one, otherwise what Apply stored. */
+  function current(group: Group, metric: "cases" | "events"): number | null {
+    const measured = metric === "cases" ? groupCases(group) : groupEvents(group);
+    return measured ?? group.stats?.[metric] ?? null;
   }
 
-  /** `12,345 cases (48%)` — the share omitted when there is no total to divide by. */
+  /** `12,345 cases (48%)`, the share omitted with no total to divide by. */
   function size(value: number, total: number, unit: string): string {
     const share = total > 0 ? ` (${Math.round((value / total) * 100)}%)` : "";
     return `${formatNumber(value)} ${unit}${share}`;
@@ -64,14 +47,13 @@
   {#if entries.length === 0}
     <p class="text-muted-foreground flex items-center gap-2 text-xs">
       <SlidersHorizontal class="size-3.5" aria-hidden="true" />
-      No filters — every view shows the whole event log.
+      No groups yet. Every view shows the whole event log.
     </p>
   {:else}
-    {#each entries as slice, index (slice.id)}
+    {#each entries as group, index (group.id)}
       {#if index > 0}
-        <!-- self-stretch: a vertical separator has no height of its own in a
-             flex row that only stretches to its content, so it stops short
-             of the bar's own top and bottom without this. -->
+        <!-- self-stretch: a vertical separator has no height of its own in a flex row
+             that only stretches to its content. -->
         <Separator orientation="vertical" class="self-stretch" />
       {/if}
       <HoverCard.Root openDelay={120}>
@@ -81,13 +63,13 @@
         >
           <span
             class="size-2 shrink-0 rounded-full"
-            style="background:{colorVar(sliceColor(slice))}"
+            style="background:{colorVar(group.color)}"
             aria-hidden="true"
           ></span>
-          <span class="text-xs font-semibold">{slice.name}</span>
-          <Badge variant="secondary">{slice.filters.length}</Badge>
-          {@const cases = current(slice, "cases")}
-          {@const events = current(slice, "events")}
+          <span class="text-xs font-semibold">{group.name}</span>
+          <Badge variant="secondary">{group.filters.length}</Badge>
+          {@const cases = current(group, "cases")}
+          {@const events = current(group, "events")}
           {#if cases !== null}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
               {size(cases, project.cases, "cases")}
@@ -102,22 +84,19 @@
             <div class="flex items-center gap-1.5">
               <span
                 class="size-2 shrink-0 rounded-full"
-                style="background:{colorVar(sliceColor(slice))}"
+                style="background:{colorVar(group.color)}"
                 aria-hidden="true"
               ></span>
-              <span class="text-sm font-semibold">{slice.name}</span>
+              <span class="text-sm font-semibold">{group.name}</span>
             </div>
             <Separator />
-            <!-- The slice's own filters only. Base's are listed on Base's own
-                 chip, so repeating them here was noise on every slice. -->
-            {#if slice.filters.length === 0}
+            {#if group.filters.length === 0}
               <p class="text-muted-foreground text-xs">
-                No filters — this population is the
-                {slice.kind === "base" ? "whole event log" : "base population"}.
+                No filters, so this group is the whole event log.
               </p>
             {:else}
               <ol class="flex flex-col gap-2">
-                {#each slice.filters as filter, index (index)}
+                {#each group.filters as filter, index (index)}
                   {@const described = describeFilter(filter)}
                   <li class="flex items-start gap-2">
                     <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs">
@@ -137,8 +116,8 @@
         </HoverCard.Content>
       </HoverCard.Root>
     {/each}
-    {#if groupA && groupB}
-      {@const shared = sharedCases(groupA, groupB)}
+    {#if overlapping}
+      {@const shared = sharedCases(overlapping)}
       <Separator orientation="vertical" class="self-stretch" />
       <span
         class="text-muted-foreground flex items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap"

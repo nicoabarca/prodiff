@@ -77,13 +77,13 @@
         >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the
         <span class="font-bold">{roleMeta[activeRole].label.toUpperCase()}</span> column</span
       >
-      {" — "}
+      {": "}
       {roleMeta[activeRole].hint}
     </span>
   {:else}
     <Check class="h-5 w-5 shrink-0" />
     <span class="font-semibold tracking-wide uppercase"
-      >All required fields mapped — review the highlights, then continue</span
+      >All required fields mapped. Review the highlights, then continue</span
     >
   {/if}
 </div>

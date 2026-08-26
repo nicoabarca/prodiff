@@ -9,9 +9,8 @@ import {
 } from "$lib/event-log/invokers/types";
 
 /**
- * Frontend-side validation of the column mapping payload before it's sent to
- * Rust or written to sqlite. Local single-user app, so this doubles as the
- * only validation boundary (see docs/adr/0001).
+ * Frontend-side validation of the column mapping payload before it is sent to
+ * Rust or written to sqlite. The only validation boundary.
  */
 export function validateColumnMapping(
   mapping: unknown,

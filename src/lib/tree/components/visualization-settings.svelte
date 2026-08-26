@@ -10,7 +10,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { groupSlices, selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/tree/utils/settings";
@@ -27,25 +27,29 @@
     ...(tree.nodes[0]?.transitionTime ? [TRANSITION_TIME] : [])
   ]);
 
-  // The slices the Groups come from, so every control names them the way the
-  // user does. They fall back to "Group A"/"Group B" only if a slice is gone.
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  // Every control names the Groups the way the user does, and addresses them
+  // by id, so a rename or a different pair changes nothing else here.
+  const groups = $derived(comparedGroups());
 
   const secondaryOptions = $derived([
-    { value: "cases", label: `Cases (${nameA} · ${nameB})` },
-    { value: "casesA", label: `Cases — ${nameA}` },
-    { value: "casesB", label: `Cases — ${nameB}` },
+    {
+      value: "cases",
+      label:
+        groups.length > 1 ? `Cases (${groups.map((group) => group.name).join(" · ")})` : "Cases"
+    },
+    ...groups.map((group) => ({ value: group.id, label: `Cases: ${group.name}` })),
     ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))
   ]);
 
-  const focusLabels = $derived<Record<GroupFocus, string>>({
-    all: "All nodes",
-    a: `${nameA} only`,
-    b: `${nameB} only`,
-    shared: "Shared"
-  });
+  const focusOptions = $derived([
+    { value: "all", label: "All nodes" },
+    ...groups.map((group) => ({ value: group.id, label: `${group.name} only` })),
+    ...(groups.length > 1 ? [{ value: "shared", label: "Shared" }] : [])
+  ]);
+
+  const focusLabel = $derived(
+    focusOptions.find((option) => option.value === view.focus)?.label ?? "All nodes"
+  );
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
   const visible = $derived(visibleNodes(tree, view, selectedVariants()));
@@ -102,15 +106,15 @@
           value={view.focus}
           onValueChange={(value) => (view.focus = value as GroupFocus)}
         >
-          <Select.Trigger class="h-8 text-xs">{focusLabels[view.focus]}</Select.Trigger>
+          <Select.Trigger class="h-8 text-xs">{focusLabel}</Select.Trigger>
           <Select.Content>
-            {#each Object.entries(focusLabels) as [value, label] (value)}
-              <Select.Item {value}>{label}</Select.Item>
+            {#each focusOptions as option (option.value)}
+              <Select.Item value={option.value}>{option.label}</Select.Item>
             {/each}
           </Select.Content>
         </Select.Root>
         <p class="text-muted-foreground text-[0.625rem]">
-          Dims the rest — the tree keeps its shape.
+          Dims the rest. The tree keeps its shape.
         </p>
       </div>
 
@@ -147,7 +151,7 @@
         {formatNumber(visible.variantsShown)} variants shown
         {#if visible.variantsHidden > 0}
           · {formatNumber(visible.variantsHidden)} hidden by these two filters, which draw less of the
-          built tree without rebuilding it — the aggregates and tests still describe every variant the
+          built tree without rebuilding it. The aggregates and tests still describe every variant the
           last build included.
         {/if}
         {#if view.collapsed.size > 0}

@@ -36,8 +36,8 @@ export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {
   }
 }
 
-// Backend has no dedicated "number" dtype — floats cover both int- and
-// float-shaped extra columns until a use for the distinction shows up.
+// Backend has no dedicated "number" dtype: floats cover both int- and
+// float-shaped extra columns.
 export function extraFieldTypeToColumnType(type: ExtraFieldType): ColumnType {
   return type === "number" ? "float" : type;
 }

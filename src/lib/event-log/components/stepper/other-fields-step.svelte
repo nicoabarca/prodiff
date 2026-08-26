@@ -48,7 +48,7 @@
 <div class="border-border bg-card mb-5 flex shrink-0 items-center gap-3 border px-4 py-2">
   <Info class="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
   <p class="text-muted-foreground text-xs">
-    Hidden columns aren't lost — you'll be able to toggle them back to visible later from the
+    Hidden columns aren't lost. You'll be able to toggle them back to visible later from the
     project's settings.
   </p>
 </div>

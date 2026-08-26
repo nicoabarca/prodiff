@@ -6,9 +6,8 @@
 
   let { children } = $props();
 
-  // Collapsed to the icon rail on load — the analysis views want the width, and
-  // the rail keeps every destination one click away. Toggling persists in a
-  // cookie, so this only decides the first visit.
+  // Collapsed to the icon rail on load. Toggling persists in a cookie, so this
+  // only decides the first visit.
   let sidebarOpen = $state(false);
 
   loadProjects();
@@ -19,7 +18,6 @@
 </script>
 
 <div class="h-screen overflow-hidden">
-  <!-- The trailing --sidebar-width wins over the provider's own default. -->
   <Sidebar.Provider
     bind:open={sidebarOpen}
     class="h-full min-h-0"

@@ -24,20 +24,28 @@ A column in an Event Log the user has excluded from all analysis — filtering, 
 _Avoid_: Excluded column, disabled column
 
 **Filter**:
-One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. Filters are never destructive: they are stored as a definition and re-evaluated on demand, never materialized.
+One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. A Filter is a definition, never a destructive edit of the Event Log.
 _Avoid_: Query, condition, rule
 
-**Slice**:
-A named, ordered chain of Filters over a Project's Event Log, and the population it produces. A chain is an AND pipeline — each Filter applies to the previous one's output, so order is user-visible and matters. Slices are the unit later compared against each other.
-_Avoid_: Segment, cohort, subset, view
+**Filter List**:
+An ordered list of Filters that, applied in order to an Event Log, produces a Group. Each Filter applies to the previous one's output, so the list is an AND pipeline and its order is user-visible and matters. A Filter List is the recipe, never the result: it is what *creates* a Group, and is not the Group itself.
+_Avoid_: Filter chain, chain, query
 
-**Base**:
-The one Slice per Project (`kind: base`) whose chain applies to every other Slice — the shared cleanup applied before any comparison. Every other Slice's effective chain is the Base chain followed by its own. Created lazily on first use, so an unfiltered Project has no Slice rows at all.
-_Avoid_: Root slice, default filter
+**Group**:
+A named set of cases produced by applying one Filter List to an Event Log. A Project has zero to N Groups. Each carries a user-chosen name and colour, and is a unit that can enter a Comparison. The Original is a Group too — the one whose Filter List is empty.
+_Avoid_: Slice, subset, segment, cohort, population
 
-**Population**:
-A set of cases the Statistics view puts in one column: the whole log (no chain), the Base, or a Slice. The whole log is a Population but not a Slice — it has no chain and is never stored.
-_Avoid_: Group, set
+**Original**:
+The Group of the whole, unfiltered Event Log — the one Group with an empty Filter List. Named "Event Log" everywhere the user can see it; "Original" is the internal name only. Every Project has exactly one, and it exists before any other Group does.
+_Avoid_: Raw, base, unfiltered log
+
+**Comparison**:
+Two or more Groups selected to be measured against each other. Groups may overlap: a case belonging to both sides is counted on both, and the count of such cases is reported when the Comparison is chosen so the reader knows the sides are not independent. A Comparison of one Group is a description rather than a comparison, and carries no Significance Test. The model admits N Groups; a given release may cap what the interface offers.
+_Avoid_: A/B, versus
+
+**Difference Group**:
+A Group created from another Group's Filter List plus one Filter excluding the cases of a second Group, so the two no longer overlap. Offered when a Comparison reports shared cases. It is an ordinary Group once created, and depends on the Group it excludes: deleting that one deletes this one too.
+_Avoid_: Complement, exclusive group, negation
 
 **Distribution**:
 The counts of one attribute's values over a chosen set of a node's events, split by Group — one bar per value for a categorical attribute, one bar per bin for a numeric one. A Distribution describes a shape; it never compares two Groups the way a Significance Test does, so it carries no p-value and no Effect Direction.

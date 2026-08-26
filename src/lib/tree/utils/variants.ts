@@ -1,8 +1,8 @@
 import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 
-/** Cases on a Variant across both Groups — the ranking the backend cut uses. */
+/** Cases on a Variant across every Group: the ranking the backend cut uses. */
 export function variantCases(row: ResponseVariantRow): number {
-  return row.casesA + row.casesB;
+  return Object.values(row.cases).reduce((sum, cases) => sum + cases, 0);
 }
 
 /**

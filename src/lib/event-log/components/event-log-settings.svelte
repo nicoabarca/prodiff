@@ -1,11 +1,10 @@
 <script lang="ts">
   /**
-   * Post-creation edits to what the event log *means*: the project's name, and
-   * per column its visibility, granularity and data type.
+   * Post-creation edits to what the event log means: the project's name, and per
+   * column its visibility, granularity and data type.
    *
-   * Required columns (case id, activity, timestamps) are shown but locked —
-   * their granularity and type are fixed by their role, as in
-   * `requiredFieldSettings`.
+   * Required columns (case id, activity, timestamps) are shown but locked: their
+   * granularity and type are fixed by their role, as in `requiredFieldSettings`.
    */
   import { untrack } from "svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -38,8 +37,8 @@
   let open = $state(false);
 
   // The name field is only re-seeded when the addressed project changes, so a
-  // half-typed name isn't clobbered by the write-back of an earlier save —
-  // hence the untracked initial read.
+  // half-typed name is not clobbered by the write-back of an earlier save. Hence
+  // the untracked initial read.
   let name = $state(untrack(() => project.name));
   let seeded = untrack(() => project.id);
   $effect(() => {
@@ -200,7 +199,7 @@
       <p class="text-muted-foreground text-xs">
         A column's type decides which Significance Test it gets and its granularity decides whether
         it aggregates per node or per group, so changing either discards the built tree. Declaring a
-        text column as a number reads as empty, not as an error — the stored event log is not
+        text column as a number reads as empty, not as an error. The stored event log is not
         re-parsed.
       </p>
       <div class="flex justify-end">

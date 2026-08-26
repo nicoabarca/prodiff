@@ -1,25 +1,26 @@
 <script lang="ts">
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { groupSlices, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups, view } from "$lib/tree/state/tree.svelte";
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const groups = $derived(comparedGroups());
 
-  // Anything not one of the three case counts is an attribute name, shown the
+  /** The Group a view setting names, or null when it names something else. */
+  const named = (id: string) => groups.find((group) => group?.id === id)?.name ?? null;
+
+  // Anything that is not `cases` or a Group id is an attribute name, shown the
   // same way the settings popover names it.
   const secondaryLabel = $derived(
     view.secondary === "cases"
-      ? `Cases (${nameA} · ${nameB})`
-      : view.secondary === "casesA"
-        ? `Cases — ${nameA}`
-        : view.secondary === "casesB"
-          ? `Cases — ${nameB}`
-          : `Mean ${view.secondary}`
+      ? `Cases (${groups.map((group) => group.name).join(" · ")})`
+      : (named(view.secondary) ?? `Mean ${view.secondary}`)
   );
 
   const focusLabel = $derived(
-    { all: "", a: `${nameA} only`, b: `${nameB} only`, shared: "Shared" }[view.focus]
+    view.focus === "all"
+      ? ""
+      : view.focus === "shared"
+        ? "Shared"
+        : `${named(view.focus) ?? "Group"} only`
   );
 
   const items = $derived(
@@ -40,8 +41,6 @@
   {#each items as item (item)}
     <Badge variant="secondary" class="bg-background/90 backdrop-blur">{item}</Badge>
   {/each}
-  <!-- The badge on a node is coloured, not just counted, so the ramp needs a
-       key on the canvas itself — the panel's is behind a click. -->
   <Badge variant="secondary" class="bg-background/90 gap-1.5 backdrop-blur">
     Difference size
     <span class="flex items-center gap-px" aria-hidden="true">

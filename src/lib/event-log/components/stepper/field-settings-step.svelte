@@ -97,7 +97,7 @@
       >
     </div>
     <p class="text-muted-foreground px-4 py-8 text-center text-sm">
-      No extra columns to configure — every visible field is either required or was left out in the
+      No extra columns to configure. Every visible field is either required or was left out in the
       previous step.
     </p>
   </div>

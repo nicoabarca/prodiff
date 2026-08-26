@@ -9,18 +9,17 @@
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  const caseLevel = $derived(Object.keys(tree.groupA.caseLevel));
-  // Group names and case counts live on the filter summary bar, which already
-  // names every slice — this strip only carries what that bar cannot say.
+  const caseLevel = $derived(Object.keys(tree.groups[0]?.caseLevel ?? {}));
+  const comparing = $derived(tree.groups.length > 1);
   const hasContent = $derived(
-    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !tree.groupB
+    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !comparing
   );
 </script>
 
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
-    {#if !tree.groupB}
-      <Badge variant="secondary" class="self-start">One group — no comparison</Badge>
+    {#if !comparing}
+      <Badge variant="secondary" class="self-start">One group, no comparison</Badge>
     {/if}
 
     {#if tree.overlapCases > 0}
@@ -38,7 +37,7 @@
 
     {#if tree.cappedByCeiling}
       <p class="text-muted-foreground text-[0.6875rem]">
-        The log has more Variants than a build ships — the rarest ones are not in this tree at all,
+        The log has more Variants than a build ships. The rarest ones are not in this tree at all,
         whatever the slider says.
       </p>
     {/if}
@@ -52,9 +51,10 @@
               <EffectChip test={tree.caseLevelTests[name]} />
             </div>
             <SummaryCompare
-              groupA={tree.groupA.caseLevel[name] ?? null}
-              groupB={tree.groupB?.caseLevel[name] ?? null}
-              compare={tree.groupB !== null}
+              summaries={Object.fromEntries(
+                tree.groups.map((group) => [group.id, group.caseLevel[name] ?? null])
+              )}
+              compare={comparing}
             />
           </div>
         {/each}

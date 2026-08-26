@@ -1,14 +1,12 @@
 /**
- * The Comparison Directed Tree as Rust ships it — every type here mirrors a
- * serde struct in `src-tauri/src/tree/`. Everything the view can show arrives
- * in one payload: the frontend filters and lays out, but never re-aggregates.
+ * The Comparison Directed Tree as Rust ships it. Every type here mirrors a serde
+ * struct in `src-tauri/src/tree/`. The frontend filters and lays out, but never
+ * re-aggregates.
  */
 export interface ResponseDirectedTree {
   nodes: TreeNode[];
-  groupA: GroupBlock;
-  groupB: GroupBlock | null;
+  groups: GroupBlock[];
   caseLevelTests: Record<string, Test>;
-  /** Cases in both Groups. Non-zero breaks the independence both tests assume. */
   overlapCases: number;
   variantsTotal: number;
   variantsIncluded: number;
@@ -20,20 +18,12 @@ export interface ResponseDirectedTree {
 
 export interface TreeNode {
   id: number;
-  /** `null` only for the synthetic Start root. */
   parent: number | null;
   label: string;
-  groupACases: number;
-  groupBCases: number;
+  cases: Record<string, number>;
   eventLevel: Record<string, AttributeBlock>;
-  /** The edge from the parent, not the node — `null` at the root. */
   transitionTime: AttributeBlock | null;
   comovement: Comovement[];
-  /**
-   * The Variant this node terminates, `null` on every other node. Rust sets it
-   * on the key it cut with, so matching a leaf against the selection never
-   * depends on the frontend re-joining labels the same way.
-   */
   variantKey: string | null;
 }
 
@@ -41,14 +31,11 @@ export interface TreeNode {
 export interface ResponseVariantRow {
   key: string;
   activities: string[];
-  casesA: number;
-  casesB: number;
+  cases: Record<string, number>;
 }
 
 export interface AttributeBlock {
-  groupA: Summary | null;
-  groupB: Summary | null;
-  /** `null` when either Group has fewer than five cases here. */
+  summaries: Record<string, Summary>;
   test: Test | null;
 }
 
@@ -63,10 +50,10 @@ export type Summary =
       median: number;
       q3: number;
       max: number;
-      /** Tukey whiskers — the extreme observations within 1.5·IQR of the box. */
+      /** Tukey whiskers: the extreme observations within 1.5·IQR of the box. */
       whiskerLow: number;
       whiskerHigh: number;
-      /** Observations past the whiskers, counted rather than listed. */
+      /** Observations past the whiskers, as a count. */
       outliersLow: number;
       outliersHigh: number;
     }
@@ -76,11 +63,10 @@ export interface Test {
   test: "mannwhitney" | "chi2";
   statistic: number;
   pValue: number;
-  /** Magnitude only; `effectSigned` carries the Effect Direction. */
   effectSize: number;
   effectSigned: number | null;
   significant: boolean;
-  direction: "aHigher" | "bHigher" | null;
+  higher: string | null;
 }
 
 export interface Comovement {
@@ -90,6 +76,7 @@ export interface Comovement {
 }
 
 export interface GroupBlock {
+  id: string;
   caseCount: number;
   caseLevel: Record<string, Summary>;
 }

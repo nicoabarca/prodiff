@@ -1,6 +1,6 @@
 /**
  * The invocation contracts for the commands that populate a filter editor's
- * pickers — each mirrors a serde struct in `src-tauri/src/filters/structs.rs`.
+ * pickers. Each mirrors a serde struct in `src-tauri/src/filters/structs.rs`.
  */
 
 /** One day of the log's case load, counted in UTC on the Rust side. */
@@ -16,7 +16,7 @@ export interface ResponseDurationBin {
   cases: number;
 }
 
-/** The values a column holds, capped — `truncated` says the cap was hit. */
+/** The values a column holds, capped. `truncated` says the cap was hit. */
 export interface ResponseDistinctValues {
   values: string[];
   truncated: boolean;

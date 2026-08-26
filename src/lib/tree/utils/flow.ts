@@ -8,28 +8,32 @@ import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { isDurationAttribute } from "$lib/tree/utils/settings";
-import { children, isDivergent, membership } from "$lib/tree/utils/tree";
+import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
 import { formatDuration, formatNumber } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
-// lines inside it rather than widening every node to the longest one.
+// lines inside it.
 export const NODE_WIDTH = 170;
 export const NODE_HEIGHT = 80;
 
+/** One Group as the canvas needs it: what to call it and what colour to use. */
+export interface FlowGroup {
+  id: string;
+  name: string;
+  color: string;
+}
+
 export interface TreeNodeData {
   label: string;
-  membership: "a" | "b" | "shared";
-  /** Per-Group halves of the node's second line, each in its Group's colour. */
-  secondaryA: string | null;
-  secondaryB: string | null;
+  membership: string;
+  groups: FlowGroup[];
+  secondaries: (string | null)[];
   significantCount: number;
-  /** Strongest significant effect here, in words and as a ramp step. */
   peakBand: EffectBand | null;
   peakStep: 1 | 2 | 3 | 4 | null;
   divergent: boolean;
   dimmed: boolean;
   selected: boolean;
-  /** On the Variant the picker is hovering. Set after layout, in the canvas. */
   highlighted: boolean;
   hiddenBelow: number;
   hasChildren: boolean;
@@ -44,38 +48,42 @@ function significantCount(node: TreeNode): number {
 }
 
 /**
- * The node's second line, split per Group so each half carries its colour.
- * A half is `null` when that Group has nothing at this node.
+ * The node's second line, one entry per Group so each carries its colour. An
+ * entry is `null` when that Group has nothing at this node.
+ *
+ * `secondary` is either `"cases"`, one Group's id, which shows that Group's
+ * count alone, or an attribute name, which shows its mean.
  */
 function secondaryLabels(
   node: TreeNode,
   secondary: Secondary,
-  cases: { groupACases: number; groupBCases: number }
-): [string | null, string | null] {
-  if (secondary === "cases" || secondary === "casesA" || secondary === "casesB") {
-    const a =
-      secondary === "casesB" || cases.groupACases === 0 ? null : formatNumber(cases.groupACases);
-    const b =
-      secondary === "casesA" || cases.groupBCases === 0 ? null : formatNumber(cases.groupBCases);
-    return [a, b];
+  cases: Record<string, number>,
+  ids: string[]
+): (string | null)[] {
+  if (secondary === "cases" || ids.includes(secondary)) {
+    return ids.map((id) => {
+      const count = cases[id] ?? 0;
+      if (count === 0) return null;
+      return secondary !== "cases" && secondary !== id ? null : formatNumber(count);
+    });
   }
 
   const block = secondary === "Transition Time" ? node.transitionTime : node.eventLevel[secondary];
   const format = (value: number) =>
     isDurationAttribute(secondary) ? formatDuration(value) : formatNumber(Math.round(value));
-  const mean = (side: "groupA" | "groupB") => {
-    const summary = block?.[side];
+  return ids.map((id) => {
+    const summary = block?.summaries[id];
     return summary?.type === "numerical" ? format(summary.mean) : null;
-  };
-  return [mean("groupA"), mean("groupB")];
+  });
 }
 
-function dimmed(node: TreeNode, focus: GroupFocus): boolean {
+function dimmed(node: TreeNode, focus: GroupFocus, ids: string[]): boolean {
   if (focus === "all") return false;
-  return membership(node) !== focus;
+  return membership(node, ids) !== focus;
 }
 
 export interface FlowOptions {
+  groups: FlowGroup[];
   direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
@@ -88,12 +96,15 @@ export interface FlowOptions {
  * The edge's label: mean Transition Time per Group. Empty unless Transition
  * Time was one of the attributes built.
  */
-function edgeLabel(node: TreeNode): string | undefined {
+function edgeLabel(node: TreeNode, groups: FlowGroup[]): string | undefined {
   const block = node.transitionTime;
   if (!block) return undefined;
-  const side = (summary: typeof block.groupA, name: string) =>
-    summary?.type === "numerical" ? `${name} ${formatDuration(summary.mean)}` : null;
-  const parts = [side(block.groupA, "A"), side(block.groupB, "B")].filter(Boolean);
+  const parts = groups
+    .map((group) => {
+      const summary = block.summaries[group.id];
+      return summary?.type === "numerical" ? `${group.name} ${formatDuration(summary.mean)}` : null;
+    })
+    .filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : undefined;
 }
 
@@ -112,6 +123,7 @@ export function toFlow(
 
   const shown = tree.nodes.filter((node) => visible.ids.has(node.id));
   const kids = children(tree);
+  const ids = groupIds(tree);
   for (const node of shown) {
     graph.setNode(String(node.id), { width: NODE_WIDTH, height: NODE_HEIGHT });
   }
@@ -123,16 +135,16 @@ export function toFlow(
   dagre.layout(graph);
 
   const nodeCases = (node: TreeNode) => {
-    const c = visible.cases.get(node.id);
-    return c ? c.groupACases + c.groupBCases : 0;
+    const counted = visible.cases.get(node.id);
+    return counted ? Object.values(counted).reduce((sum, cases) => sum + cases, 0) : 0;
   };
   const busiest = Math.max(1, ...shown.map(nodeCases));
   const vertical = options.direction === "TB";
 
   const nodes: Node[] = shown.map((node) => {
     const placed = graph.node(String(node.id));
-    const cases = visible.cases.get(node.id) ?? { groupACases: 0, groupBCases: 0 };
-    const [secondaryA, secondaryB] = secondaryLabels(node, options.secondary, cases);
+    const cases = visible.cases.get(node.id) ?? {};
+    const secondaries = secondaryLabels(node, options.secondary, cases, ids);
     const peak = peakEffect(node);
     return {
       id: String(node.id),
@@ -144,14 +156,14 @@ export function toFlow(
       draggable: false,
       data: {
         label: node.label,
-        membership: membership(node),
-        secondaryA,
-        secondaryB,
+        membership: membership(node, ids),
+        groups: options.groups,
+        secondaries,
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
         divergent: isDivergent(node),
-        dimmed: dimmed(node, options.focus),
+        dimmed: dimmed(node, options.focus, ids),
         selected: options.selected === node.id,
         highlighted: false,
         hiddenBelow: visible.hiddenBelow.get(node.id) ?? 0,
@@ -169,12 +181,12 @@ export function toFlow(
       source: String(node.parent),
       target: String(node.id),
       type: vertical ? "smoothstep" : "bezier",
-      label: options.edgeLabels ? edgeLabel(node) : undefined,
+      label: options.edgeLabels ? edgeLabel(node, options.groups) : undefined,
       labelStyle:
         "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap",
       style: `stroke-width:${(0.5 + (nodeCases(node) / busiest) * 5).toFixed(2)}`,
       // Significance is a property of nodes, so dimming follows the child.
-      class: dimmed(node, options.focus) ? "opacity-25" : undefined
+      class: dimmed(node, options.focus, ids) ? "opacity-25" : undefined
     }));
 
   return { nodes, edges };

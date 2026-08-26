@@ -5,40 +5,28 @@
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributeMode {
-    /// Keep cases with at least one matching event. Retained cases stay whole.
     Mandatory,
-    /// Drop cases with at least one matching event. Survivors stay whole.
     Forbidden,
-    /// Event-level: surviving cases keep only matching events, so their variant
-    /// becomes a sub-sequence of the original.
     KeepSelected,
 }
 
 /// Numeric filters are always case-level "at least one event satisfies"; the
-/// mode picks the comparison instead of the lift.
+/// mode picks the comparison.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NumericMode {
-    /// `value >= min`
     Above,
-    /// `value <= max`
     Below,
-    /// `min <= value <= max` — limits included.
     Between,
-    /// `value < min || value > max` — limits excluded.
     Outside,
 }
 
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum TimeframeMode {
-    /// Case has at least one event inside the window.
     Intersects,
-    /// Case has no event inside the window.
     Disjoint,
-    /// Case starts and ends inside the window.
     Contained,
-    /// Event-level: keep only the events inside the window.
     Trim,
 }
 
@@ -50,15 +38,13 @@ pub enum EndpointMode {
 }
 
 /// Whether a reference event is followed by a follower event, and how closely.
-/// The two negatives are exact complements of the two positives — a case with
-/// no reference event at all satisfies them, so a mode and its negation
-/// partition the log rather than leaving cases in neither slice.
+/// The two negatives are exact complements of the two positives: a case with no
+/// reference event at all satisfies them, so a mode and its negation partition
+/// the log.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum FollowerMode {
-    /// A follower event occurs anywhere after a reference event.
     Eventually,
-    /// A follower event is the very next event after a reference event.
     Directly,
     NeverEventually,
     NeverDirectly,
@@ -85,8 +71,6 @@ pub enum Filter {
         min: Option<f64>,
         max: Option<f64>,
     },
-    /// `from`/`to` are epoch milliseconds — the frontend already holds
-    /// timestamps as numbers, so no date parsing is needed on this side.
     Timeframe {
         mode: TimeframeMode,
         from: i64,
@@ -97,19 +81,17 @@ pub enum Filter {
         mode: EndpointMode,
         activities: Vec<String>,
     },
-    /// `min`/`max` are days and may be fractional — the editor brushes them off
-    /// the duration histogram. Duration is a case's last event minus its first.
     Duration {
         mode: NumericMode,
         min: Option<f64>,
         max: Option<f64>,
     },
-    /// One column read twice: a case matches when *some* event holding a
-    /// `reference` value is followed by *some* event holding a `follower` one.
     Follower {
         column: String,
         mode: FollowerMode,
         reference: Vec<String>,
         follower: Vec<String>,
     },
+    #[serde(rename_all = "camelCase")]
+    CaseNotInGroup { group_id: String },
 }

@@ -8,17 +8,14 @@
 
   let { data }: { data: TreeNodeData } = $props();
 
-  // Group membership is the primary channel: a path only one Group follows
-  // reads in that Group's accent, a shared one in Base grey. Washed right down
-  // — it tints a whole node face, which has to stay readable behind text.
+  // A path only one Group follows reads in that Group's accent, a shared one in
+  // the Original's grey.
   const accent = $derived(
-    data.membership === "a" ? "--slice-1" : data.membership === "b" ? "--slice-2" : "--slice-base"
+    data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  // A wash for the face, a firmer version of the same hue for the border, and
-  // the accent itself for the label — so membership reads at a glance without
-  // any of the three fighting the text.
-  const fill = $derived(`color-mix(in oklab, var(${accent}) 8%, var(--card))`);
-  const border = $derived(`color-mix(in oklab, var(${accent}) 45%, var(--card))`);
+  const accentVar = $derived(`--${accent}`);
+  const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
+  const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
   const vertical = $derived(data.direction === "TB");
 </script>
 
@@ -29,8 +26,8 @@
   isConnectable={false}
 />
 
-<!-- Explicit radius: the app's theme is square (`--radius: 0`), so `rounded-lg`
-     would resolve to nothing here. -->
+<!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
+     resolves to nothing here. -->
 <div
   class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-opacity {data.dimmed
     ? 'opacity-25'
@@ -44,7 +41,7 @@
       <Tooltip.Trigger class="min-w-0 text-center">
         <span
           class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
-          style="color:var({accent})"
+          style="color:var({accentVar})"
         >
           {data.label}
         </span>
@@ -56,25 +53,20 @@
         <Tooltip.Trigger>
           <Split class="text-destructive size-3.5 shrink-0" aria-hidden="true" />
         </Tooltip.Trigger>
-        <Tooltip.Content>Divergent attributes — they move opposite ways here</Tooltip.Content>
+        <Tooltip.Content>Divergent attributes: they move opposite ways here</Tooltip.Content>
       </Tooltip.Root>
     {/if}
   </div>
 
   <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
-    {#if data.secondaryA !== null}
-      <span style="color:var(--slice-1)">A: {data.secondaryA}</span>
-    {/if}
-    {#if data.secondaryB !== null}
-      <span style="color:var(--slice-2)">B: {data.secondaryB}</span>
-    {/if}
+    {#each data.groups as group, index (group.id)}
+      {#if data.secondaries[index] !== null && data.secondaries[index] !== undefined}
+        <span style="color:var(--{group.color})">{data.secondaries[index]}</span>
+      {/if}
+    {/each}
   </div>
 
   {#if data.significantCount > 0 && data.peakStep}
-    <!-- Outside the node box, so a count never competes with the figures for
-         the little horizontal room a narrow node has. The count says how many
-         differences are here; the fill says whether the biggest one is worth
-         crossing the canvas for, which the count alone never could. -->
     <Tooltip.Root>
       <Tooltip.Trigger
         class="absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full bg-(--fill) font-mono text-[0.625rem] font-semibold text-(--ink) ring-1 ring-(--ink)/30"
