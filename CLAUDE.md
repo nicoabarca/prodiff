@@ -33,12 +33,13 @@ src/lib/
 ├── groups/            Group records, Filter Lists, palette, impact cache
 ├── statistics/        comparison charts, metrics table, event data table
 ├── tree/              directed tree, variants, canvas, node detail
+├── dfg/               directly-follows graph, Fuzzy simplification, layout
 └── distributions/     per-node attribute distributions
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
 **Where new code goes:**
 
