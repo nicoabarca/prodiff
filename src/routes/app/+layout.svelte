@@ -18,14 +18,20 @@
 </script>
 
 <div class="h-screen overflow-hidden">
-  <Sidebar.Provider
-    bind:open={sidebarOpen}
-    class="h-full min-h-0"
-    style="--sidebar-width: 12.5rem;"
-  >
-    <AppSidebar {activeProject} />
-    <Sidebar.Inset class="min-h-0">
+  {#if activeProject}
+    <Sidebar.Provider
+      bind:open={sidebarOpen}
+      class="h-full min-h-0"
+      style="--sidebar-width: 12.5rem;"
+    >
+      <AppSidebar {activeProject} />
+      <Sidebar.Inset class="min-h-0">
+        {@render children()}
+      </Sidebar.Inset>
+    </Sidebar.Provider>
+  {:else}
+    <div class="flex h-full min-h-0 flex-col">
       {@render children()}
-    </Sidebar.Inset>
-  </Sidebar.Provider>
+    </div>
+  {/if}
 </div>

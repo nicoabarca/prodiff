@@ -1,7 +1,5 @@
 <script lang="ts">
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
-  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import { Separator } from "$lib/components/ui/separator/index.js";
   import type { Snippet } from "svelte";
   import type { Project } from "$lib/event-log/types";
 
@@ -23,11 +21,9 @@
 </script>
 
 <header class="border-border bg-background flex h-10 shrink-0 items-center gap-2 border-b px-2">
-  <Sidebar.Trigger class="cursor-pointer" />
-  <Separator orientation="vertical" class="mr-1 h-4" />
   <Breadcrumb.Root>
     <Breadcrumb.List>
-      <Breadcrumb.Item>
+      <Breadcrumb.Item class="ml-1">
         <Breadcrumb.Link href="/app/projects">Projects</Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator />
