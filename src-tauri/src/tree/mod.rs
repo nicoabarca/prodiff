@@ -13,77 +13,21 @@
 
 pub mod commands;
 pub mod distributions;
-mod stats;
 
+use crate::analysis::{
+    stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
+    MIN_GROUP_CASES, TRANSITION_TIME,
+};
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
 use polars::prelude::*;
 use std::collections::HashMap;
 
-/// Derived attributes. Not columns of the log: the picker offers them alongside
-/// the mapped ones and they cost test budget like any other.
-pub const ACTIVITY_DURATION: &str = "Activity Duration";
-pub const TRANSITION_TIME: &str = "Transition Time";
-
-/// Neither test says anything below this.
-const MIN_GROUP_CASES: usize = 5;
 /// How many Variants a build ships at most, so a pathological log can't hand
 /// the renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
 const MAX_VARIANTS: usize = 400;
 /// What a build with no explicit limit opens on: the fewest Variants holding
 /// this share of the cases.
 const DEFAULT_COVERAGE: f64 = 0.8;
-const ALPHA: f64 = 0.05;
-
-/// One Group's materialized Event Log, carrying the id every payload keys it by.
-/// The pipeline is handed these in the order the comparison lists them.
-pub struct GroupLog {
-    pub id: String,
-    pub df: DataFrame,
-}
-
-#[derive(serde::Serialize, Debug, Clone)]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum Summary {
-    #[serde(rename_all = "camelCase")]
-    Numerical {
-        n: usize,
-        mean: f64,
-        std: f64,
-        min: f64,
-        q1: f64,
-        median: f64,
-        q3: f64,
-        max: f64,
-        whisker_low: f64,
-        whisker_high: f64,
-        outliers_low: usize,
-        outliers_high: usize,
-    },
-    #[serde(rename_all = "camelCase")]
-    Categorical {
-        n: usize,
-        counts: HashMap<String, i64>,
-    },
-}
-
-#[derive(serde::Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Test {
-    pub test: &'static str,
-    pub statistic: f64,
-    pub p_value: f64,
-    pub effect_size: f64,
-    pub effect_signed: Option<f64>,
-    pub significant: bool,
-    pub higher: Option<String>,
-}
-
-#[derive(serde::Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct AttributeBlock {
-    pub summaries: HashMap<String, Summary>,
-    pub test: Option<Test>,
-}
 
 #[derive(serde::Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -146,40 +90,6 @@ enum Source {
 enum Values {
     Num(Vec<Option<f64>>),
     Cat(Vec<Option<String>>),
-}
-
-enum Acc {
-    Num(Vec<f64>),
-    Cat(HashMap<String, i64>),
-}
-
-impl Acc {
-    fn new(numeric: bool) -> Self {
-        if numeric {
-            Acc::Num(Vec::new())
-        } else {
-            Acc::Cat(HashMap::new())
-        }
-    }
-
-    fn len(&self) -> usize {
-        match self {
-            Acc::Num(v) => v.len(),
-            Acc::Cat(c) => c.values().sum::<i64>() as usize,
-        }
-    }
-
-    fn summary(&self) -> Option<Summary> {
-        match self {
-            Acc::Num(v) if v.is_empty() => None,
-            Acc::Num(v) => Some(stats::numeric_summary(v)),
-            Acc::Cat(c) if c.is_empty() => None,
-            Acc::Cat(c) => Some(Summary::Categorical {
-                n: c.values().sum::<i64>() as usize,
-                counts: c.clone(),
-            }),
-        }
-    }
 }
 
 struct NodeBuild {

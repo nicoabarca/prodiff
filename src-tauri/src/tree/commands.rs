@@ -5,35 +5,9 @@
 //! tree still renders, with case counts and aggregates but no comparison.
 
 use super::distributions::{distributions, NodeDistributions, Scope};
-use super::{build, DirectedTree, GroupLog};
+use super::{build, DirectedTree};
+use crate::analysis::read_groups;
 use crate::column_mapping::ColumnMapping;
-use crate::groups::storage::read_group;
-
-/// The Groups a command was asked for, read from their files, in the order asked.
-fn read_groups(
-    app: &tauri::AppHandle,
-    project_id: &str,
-    groups: &[String],
-) -> Result<Vec<GroupLog>, String> {
-    if groups.is_empty() {
-        return Err("A comparison needs at least one group.".to_string());
-    }
-    if groups.len() > 2 {
-        return Err(format!(
-            "Comparing {} groups is not supported yet; pick two.",
-            groups.len()
-        ));
-    }
-    groups
-        .iter()
-        .map(|id| {
-            Ok(GroupLog {
-                id: id.clone(),
-                df: read_group(app, project_id, id)?,
-            })
-        })
-        .collect()
-}
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to

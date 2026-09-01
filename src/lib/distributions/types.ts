@@ -2,7 +2,7 @@
  * What the Distributions view decides: the Scope it counts under, the encoding a
  * duration is read in, and the shapes the grid draws.
  */
-import type { Test } from "$lib/tree/invokers/types";
+import type { Test } from "$lib/analysis/types";
 
 export type Scope = "atStep" | "wholeCase";
 

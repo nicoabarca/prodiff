@@ -1,4 +1,5 @@
-import type { AttributeBlock, TreeNode } from "$lib/tree/invokers/types";
+import type { AttributeBlock } from "$lib/analysis/types";
+import type { TreeNode } from "$lib/tree/invokers/types";
 import type { EffectBand, Standing } from "$lib/tree/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 

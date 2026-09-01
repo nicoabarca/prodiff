@@ -8,7 +8,7 @@ use std::collections::HashMap;
 
 /// Linear-interpolated quantile over a sorted slice, the convention numpy and
 /// every box plot in the app use.
-pub(super) fn quantile(sorted: &[f64], q: f64) -> f64 {
+pub fn quantile(sorted: &[f64], q: f64) -> f64 {
     if sorted.is_empty() {
         return f64::NAN;
     }
@@ -31,7 +31,7 @@ const FLAT_WHISKERS: (f64, f64) = (0.025, 0.975);
 ///
 /// When the IQR is zero the fences collapse onto the value itself and every
 /// other case counts as an outlier, so the whiskers fall back to percentiles.
-pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
+pub fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
     let (Some(&first), Some(&last)) = (sorted.first(), sorted.last()) else {
         return (f64::NAN, f64::NAN, 0, 0);
     };
@@ -57,7 +57,7 @@ pub(super) fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
     )
 }
 
-pub(super) fn numeric_summary(values: &[f64]) -> Summary {
+pub fn numeric_summary(values: &[f64]) -> Summary {
     let mut sorted = values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let n = sorted.len();
@@ -201,7 +201,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
 ///
 /// Takes a collection so the shape admits N Groups, and refuses anything but
 /// two: the tests below are two-sample tests. See `docs/statistics.md`.
-pub(super) fn compare(ids: &[String], groups: &[&Acc], numeric: bool) -> Option<Test> {
+pub fn compare(ids: &[String], groups: &[&Acc], numeric: bool) -> Option<Test> {
     let [a, b] = groups else {
         return None;
     };
@@ -214,7 +214,7 @@ pub(super) fn compare(ids: &[String], groups: &[&Acc], numeric: bool) -> Option<
 
 /// Largest p-value that survives Benjamini-Hochberg at `alpha`. Every test at or
 /// below it is significant. Returns a value below zero when none do.
-pub(super) fn benjamini_hochberg(p_values: &[f64], alpha: f64) -> f64 {
+pub fn benjamini_hochberg(p_values: &[f64], alpha: f64) -> f64 {
     let mut sorted = p_values.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let m = sorted.len() as f64;

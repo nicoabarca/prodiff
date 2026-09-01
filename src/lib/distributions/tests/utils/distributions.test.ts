@@ -9,11 +9,10 @@ import {
   shareAt
 } from "$lib/distributions/utils/distributions";
 import type {
-  AttributeBlock,
   ResponseDirectedTree,
-  Test,
   TreeNode
 } from "$lib/tree/invokers/types";
+import type { AttributeBlock, Test } from "$lib/analysis/types";
 import { TRANSITION_TIME } from "$lib/tree/utils/settings";
 import { stepContext } from "$lib/tree/utils/tree";
 
