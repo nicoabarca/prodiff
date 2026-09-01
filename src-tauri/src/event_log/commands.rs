@@ -18,14 +18,13 @@ fn target_dtype(column_type: ColumnType) -> DataType {
 }
 
 /// The Column Mapping's declared type is what every later query assumes the
-/// column physically is, so the Event Log is written in those types rather than
-/// in whatever the CSV reader inferred from its first rows. Without this the two
-/// silently disagree whenever the user overrides a suggested type — a numeric
-/// resource id declared as text stays an i64 in the file, and every filter on it
-/// fails at query time.
+/// column physically is, so the Event Log is written in those types, not in
+/// whatever the CSV reader inferred. Without this the two silently disagree
+/// whenever the user overrides a suggested type: a numeric resource id declared
+/// as text stays an i64 in the file, and every filter on it fails at query time.
 ///
 /// The cast is strict: a column that cannot be read as its declared type fails
-/// the import naming itself, rather than nulling the offending rows.
+/// the import, naming itself.
 fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<DataFrame, String> {
     for mapping in columns {
         // A column named in the mapping but missing from the file is the
@@ -34,10 +33,8 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
             continue;
         };
         let target = target_dtype(mapping.column_type);
-
-        // Timestamps keep the precision and zone the CSV parse gave them —
-        // re-casting a Datetime to the canonical unit gains nothing and would
-        // drop a zone the analysis is happy to carry.
+        // Timestamps keep the precision and zone the CSV parse gave them.
+        // Re-casting a Datetime to the canonical unit would drop the zone.
         let already = column.dtype() == &target
             || matches!(
                 (column.dtype(), &target),
@@ -241,8 +238,8 @@ mod tests {
         (0..values.len()).map(|i| values.get(i)).collect()
     }
 
-    /// A resource id that happens to be all digits — the case the CSV reader
-    /// infers as an integer and the user re-declares as text.
+    /// A resource id that happens to be all digits: the CSV reader infers an
+    /// integer and the user re-declares it as text.
     fn numeric_resource() -> DataFrame {
         DataFrame::new(3, vec![Column::new("res".into(), [561i64, 561, 3_302])]).unwrap()
     }

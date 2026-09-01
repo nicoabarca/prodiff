@@ -1,36 +1,24 @@
 <script lang="ts">
-  /**
-   * The Distributions view — every attribute of one node, side by side, ranked
-   * by how much the two Groups differ on it.
-   *
-   * Its own route rather than a drawer under the tree: the tree and a wall of
-   * histograms both want the whole window, and the two answer different
-   * questions. The tree keeps its canvas; this keeps a step picker, which is the
-   * same canvas at rail width, so the grid always says which branch it is about.
-   *
-   * Reachable only from a selected node. There is nothing to distribute without
-   * one, and the tree is memory-only, so a cold arrival here — a reload, a typed
-   * URL — goes back to the tree to build one.
-   */
+  /** Every attribute of one node, side by side, ranked by how much the Groups differ. */
   import { goto } from "$app/navigation";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import Canvas from "$lib/components/projects/tree/canvas.svelte";
-  import DistributionChart from "$lib/components/projects/tree/distribution-chart.svelte";
+  import Canvas from "$lib/tree/components/canvas.svelte";
+  import DistributionChart from "$lib/distributions/components/distribution-chart.svelte";
   import {
-    gridAttributes,
     PLOT_TOGGLE,
+    SCOPES,
     SCOPE_HINT,
     SCOPE_LABEL,
-    SCOPES,
     type Scope,
     type Sort
-  } from "$lib/distributions";
-  import { formatNumber } from "$lib/format";
-  import { currentProject } from "$lib/state/projects.svelte";
+  } from "$lib/distributions/types";
+  import { gridAttributes } from "$lib/distributions/utils/distributions";
+  import { colorVar, formatNumber } from "$lib/format";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
     addExtra,
     charts,
@@ -40,17 +28,18 @@
     loadDistributions,
     loaded,
     toggleExpanded
-  } from "$lib/state/distributions.svelte";
+  } from "$lib/distributions/state/distributions.svelte";
   import {
     build,
     built,
-    groupSlices,
+    comparedGroups,
     isStale,
     selected,
     settings,
     view
-  } from "$lib/state/tree.svelte";
-  import { attributeOptions, nodeDepth, stepContext } from "$lib/tree";
+  } from "$lib/tree/state/tree.svelte";
+  import { attributeOptions } from "$lib/tree/utils/settings";
+  import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import Plus from "@lucide/svelte/icons/plus";
@@ -63,30 +52,29 @@
     tree && selected.id !== null ? (tree.nodes.find((n) => n.id === selected.id) ?? null) : null
   );
 
-  // The view exists to describe a node. Without one there is nothing to draw and
-  // no way to pick one here — the picker renders the built tree — so the tree,
-  // where both are chosen, is the only sensible place to be.
   $effect(() => {
     if (project && (!built.tree || selected.id === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
     }
   });
 
-  /** The trace down to this step and everything that follows it — no siblings. */
+  /** The trace down to this step and everything that follows it. */
   const context = $derived(tree && node ? stepContext(tree, node.id) : null);
 
   const depth = $derived(node && tree ? nodeDepth(tree, node.id) : 0);
-  const compare = $derived(tree?.groupB !== null);
+  const compare = $derived((tree?.groups.length ?? 0) > 1);
   const stale = $derived(isStale());
 
-  const groups = $derived(groupSlices());
-  const nameA = $derived(groups[0]?.name ?? "Group A");
-  const nameB = $derived(groups[1]?.name ?? "Group B");
+  const groups = $derived(comparedGroups());
+
+  /** The Groups as the charts need them: id to read the payload, name and colour to draw. */
+  const chartGroups = $derived(
+    groups.map((group) => ({ id: group.id, name: group.name, color: group.color }))
+  );
 
   /**
    * What is fetched: every card the node could show, dismissals included and in
-   * a fixed order. Hiding a card and re-sorting the grid are both arrangements
-   * of numbers already in hand, so neither costs a round trip.
+   * a fixed order, so hiding and re-sorting never cost a round trip.
    */
   const requested = $derived(node ? gridAttributes(node, charts.extra, [], "name") : []);
   /** What is drawn, in the order the user asked for. */
@@ -96,7 +84,7 @@
 
   const byName = $derived(new Map(loaded.data?.attributes ?? []));
 
-  /** Attributes the build never tested here — the only ones worth offering. */
+  /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
     const open = new Set(requested.map((card) => card.name));
@@ -111,27 +99,27 @@
   /** Where the ranked cards end and the ones nothing was measured on begin. */
   const firstUntested = $derived(grid.findIndex((card) => card.test === null));
 
-  /** Each Group's case count in its own colour — the one its marks are drawn in. */
+  /** Each Group's case count in its own colour. */
   const groupCounts = $derived.by(() => {
     const data = loaded.data;
     if (!data) return [];
-    const rows = [{ name: nameA, cases: data.casesA, text: "text-slice-1", swatch: "bg-slice-1" }];
-    if (compare) {
-      rows.push({ name: nameB, cases: data.casesB, text: "text-slice-2", swatch: "bg-slice-2" });
-    }
-    return rows;
+    return data.groups.map((totals) => {
+      const group = chartGroups.find((candidate) => candidate.id === totals.id);
+      return {
+        name: group?.name ?? totals.id,
+        cases: totals.cases,
+        color: colorVar(group?.color ?? "group-original")
+      };
+    });
   });
 
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
-  // A dismissal hides a card at the node being read; the next node's tested
-  // attributes are part of what it has to say, so the list does not follow.
   $effect(() => {
     void selected.id;
     untrack(clearDismissed);
   });
 
-  // The numbers describe one node of one tree; both change here.
   $effect(() => {
     void [project?.id, built.key];
     untrack(forgetDistributions);
@@ -164,11 +152,6 @@
 
 {#if project && tree && node}
   <div class="flex min-h-0 flex-1">
-    <!-- The step picker is the canvas itself, not a drawing of it: clicking a
-         node here already selects it, and nothing can drift out of sync. It is
-         narrowed to this step's own trace and what follows it — the cases the
-         cards count are exactly the ones on those paths, so a sibling branch
-         here would be an activity none of the numbers describe. -->
     <aside class="border-border bg-card flex w-68 shrink-0 flex-col border-r">
       <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-2">
         <Button variant="ghost" size="sm" href="/app/projects/{project.id}/tree">
@@ -189,37 +172,32 @@
       <div
         class="border-border flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2"
       >
-        <!-- The step names itself and nothing more: the trace that led here is
-             drawn in the picker on the left, where it can be walked rather than
-             only read. -->
         <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
         {#if loaded.data && !stale}
-          <!-- How much of each Group is behind every card on the grid, in that
-               Group's own colour — the same one its bars, boxes and curves are
-               drawn in. The name carries it too, so the colour is never the
-               only thing saying which Group a number belongs to. -->
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <!-- Whole class names, never `text-{token}`: Tailwind finds classes
-                 by scanning the source, so an interpolated one is never built. -->
-            {#each groupCounts as { name, cases, text, swatch } (name)}
-              <span class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold {text}">
-                <span class="size-2.5 shrink-0 {swatch}" aria-hidden="true"></span>
+            <!-- Colours come from the Group's own palette token as inline
+                 styles: the user picks them, so no class name can be known
+                 ahead of time for Tailwind to build. -->
+            {#each groupCounts as { name, cases, color } (name)}
+              <span
+                class="inline-flex min-w-0 items-center gap-1.5 text-sm font-semibold"
+                style="color:{color}"
+              >
+                <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"
+                ></span>
                 <span class="truncate">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>
               </span>
             {/each}
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {formatNumber(loaded.data.eventsA + loaded.data.eventsB)} events counted
+              {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.events, 0))} events
+              counted
             </span>
           </div>
         {/if}
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
-          <!-- "Count events from", not "Showing". The toggle picks which of a
-               case's events are counted, never which cases; under "Showing",
-               "At this step" read as a filter on the case set, which it is not.
-               Stated again in words below and as a badge on each card. -->
           <div class="flex items-center gap-2">
             <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
               Count events from
@@ -291,25 +269,18 @@
         </div>
       </div>
 
-      <!-- Said at full size because the two readings are easy to confuse, and
-           because what they have in common is the part that gets missed: the
-           case set is identical either way, only the events differ. So the
-           count is repeated here, after the sentence, rather than left to the
-           header to imply. -->
       <p class="border-border bg-secondary/50 shrink-0 border-b px-4 py-2 text-sm">
         <span class="text-primary font-semibold">{SCOPE_LABEL[charts.scope]}:</span>
         <span class="text-muted-foreground">
           {SCOPE_HINT[charts.scope]}.
           {#if loaded.data && !stale}
-            Same {formatNumber(loaded.data.casesA + loaded.data.casesB)} cases either way.
+            Same {formatNumber(loaded.data.groups.reduce((sum, group) => sum + group.cases, 0))} cases
+            either way.
           {/if}
         </span>
       </p>
 
       {#if stale}
-        <!-- The node is named to the backend by the Variant keys of the tree on
-             screen, so answering under edited chains would describe a case set
-             matching neither the drawing nor the filters. -->
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
           <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
           <p class="max-w-md text-xs">
@@ -342,14 +313,9 @@
           </p>
         </div>
       {:else}
-        <!-- Three to a row whatever the window: the cards are read against each
-             other, and a count that changes with the viewport moves a card to a
-             different place on every resize. -->
         <div class="grid min-h-0 flex-1 auto-rows-min grid-cols-3 gap-3 overflow-y-auto p-3">
           {#each grid as card, index (card.name)}
             {#if index === firstUntested}
-              <!-- An unbadged card among ranked ones otherwise reads as "no
-                   difference found" when it means "never looked". -->
               <div class="col-span-full flex items-baseline gap-2 pt-1">
                 <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
                   Untested
@@ -366,8 +332,7 @@
                 {distribution}
                 test={card.test}
                 {compare}
-                {nameA}
-                {nameB}
+                groups={chartGroups}
                 scope={charts.scope}
                 encoding={charts.encoding}
                 onEncoding={(next) => (charts.encoding = next)}

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { projects, projectsLoaded } from "$lib/state/projects.svelte";
-  import type { Project } from "$lib/types";
-  import ProjectCard from "$lib/components/projects/card.svelte";
-  import NewProjectCard from "$lib/components/projects/new-project-card.svelte";
+  import { projects, projectsLoaded } from "$lib/event-log/state/projects.svelte";
+  import type { Project } from "$lib/event-log/types";
+  import ProjectCard from "$lib/event-log/components/card.svelte";
+  import NewProjectCard from "$lib/event-log/components/new-project-card.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";

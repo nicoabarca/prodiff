@@ -1,0 +1,88 @@
+<script lang="ts">
+  import * as Card from "$lib/components/ui/card/index.js";
+  import * as Table from "$lib/components/ui/table/index.js";
+  import { Skeleton } from "$lib/components/ui/skeleton/index.js";
+  import { colorTint, colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
+  import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
+  import type { Group } from "$lib/groups/types";
+
+  let { groups, stats }: { groups: Group[]; stats: Record<string, ResponseEventLogStats> } =
+    $props();
+
+  interface Metric {
+    label: string;
+    unit?: string;
+    value: (s: ResponseEventLogStats) => string;
+  }
+
+  const METRICS: Metric[] = [
+    { label: "Cases", value: (s) => formatNumber(s.cases) },
+    { label: "Events", value: (s) => formatNumber(s.events) },
+    { label: "Activities", unit: "distinct", value: (s) => formatNumber(s.activities) },
+    { label: "Variants", value: (s) => formatNumber(s.variants) },
+    { label: "Avg. events / case", value: (s) => formatDecimal(s.avgEventsPerCase) },
+    { label: "Median case duration", value: (s) => formatDuration(s.medianCaseDurationMs) },
+    { label: "Avg. case duration", value: (s) => formatDuration(s.avgCaseDurationMs) },
+    { label: "Start activities", unit: "distinct", value: (s) => formatNumber(s.startActivities) },
+    { label: "End activities", unit: "distinct", value: (s) => formatNumber(s.endActivities) }
+  ];
+</script>
+
+<Card.Root class="gap-0 py-0">
+  <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b px-4 py-3">
+    <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Metrics</span>
+    <span class="text-muted-foreground text-xs">The event log against every group.</span>
+  </div>
+  <Table.Root>
+    <Table.Header>
+      <Table.Row class="hover:bg-transparent">
+        <Table.Head class="bg-sidebar sticky left-0 z-10 w-44 px-4 py-2.5"></Table.Head>
+        {#each groups as group (group.id)}
+          <Table.Head class="bg-sidebar h-auto min-w-28 border-l px-4 py-2.5">
+            <span class="flex items-center gap-1.5">
+              <span
+                class="size-2.5 shrink-0"
+                style="background:{colorVar(group.color)}"
+                aria-hidden="true"
+              ></span>
+              <span class="truncate font-bold" style="color:{colorVar(group.color)}">
+                {group.name}
+              </span>
+            </span>
+            {#if stats[group.id]}
+              <span class="text-muted-foreground mt-0.5 block font-mono text-[0.6875rem]">
+                {formatNumber(stats[group.id].cases)} cases
+              </span>
+            {:else}
+              <Skeleton class="mt-1 h-3 w-16" />
+            {/if}
+          </Table.Head>
+        {/each}
+      </Table.Row>
+    </Table.Header>
+    <Table.Body>
+      {#each METRICS as metric (metric.label)}
+        <Table.Row class="hover:bg-transparent">
+          <Table.Cell class="bg-card sticky left-0 z-10 px-4 py-2">
+            {metric.label}
+            {#if metric.unit}
+              <span class="text-muted-foreground ml-1.5 text-[0.625rem]">{metric.unit}</span>
+            {/if}
+          </Table.Cell>
+          {#each groups as group (group.id)}
+            <Table.Cell
+              class="border-l px-4 py-2 font-mono text-[0.8125rem]"
+              style="background:{colorTint(group.color)}"
+            >
+              {#if stats[group.id]}
+                {metric.value(stats[group.id])}
+              {:else}
+                <Skeleton class="h-4 w-12" />
+              {/if}
+            </Table.Cell>
+          {/each}
+        </Table.Row>
+      {/each}
+    </Table.Body>
+  </Table.Root>
+</Card.Root>

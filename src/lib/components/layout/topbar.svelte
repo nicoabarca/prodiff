@@ -3,7 +3,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import type { Snippet } from "svelte";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
 
   type ProjectView = "tree" | "distributions" | "statistics" | "data" | "filters";
 

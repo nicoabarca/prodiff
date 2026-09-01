@@ -1,30 +1,29 @@
 <script lang="ts">
-  import { currentProject } from "$lib/state/projects.svelte";
-  import { chainKey, computeStats, populations, type Population } from "$lib/state/slices.svelte";
-  import ComparisonCharts from "$lib/components/projects/comparison-charts.svelte";
-  import MetricsTable from "$lib/components/projects/metrics-table.svelte";
-  import EventDataTable from "$lib/components/projects/event-data-table.svelte";
-  import EventLogSettings from "$lib/components/projects/event-log-settings.svelte";
-  import type { EventLogStats } from "$lib/types";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
+  import { allGroups, computeStats, filtersKey } from "$lib/groups/state/groups.svelte";
+  import type { Group } from "$lib/groups/types";
+  import ComparisonCharts from "$lib/statistics/components/comparison-charts.svelte";
+  import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
+  import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
+  import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
+  import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 
   const project = $derived(currentProject());
-  const pops = $derived(populations());
+  const shown = $derived(project ? allGroups(project.id) : []);
 
-  let stats = $state<Record<string, EventLogStats>>({});
+  let stats = $state<Record<string, ResponseEventLogStats>>({});
   let error = $state<string | null>(null);
 
-  /**
-   * Identifies the set of chains on screen. Recomputing is keyed on this rather
-   * than on the populations array, which is rebuilt on every slice mutation —
-   * including the cache write that `computeStats` itself performs.
-   */
-  const wantedKey = $derived(pops.map((p) => `${p.id}:${chainKey(p.chain)}`).join("|"));
+  /** Identifies the Groups on screen. */
+  const wantedKey = $derived(
+    shown.map((group) => `${group.id}:${filtersKey(group.filters)}`).join("|")
+  );
 
   let lastKey = "";
   $effect(() => {
     const key = wantedKey;
     const currentProjectValue = project;
-    const wanted: Population[] = pops;
+    const wanted: Group[] = shown;
     if (!currentProjectValue || key === lastKey) return;
     lastKey = key;
 
@@ -35,8 +34,7 @@
       })
       .catch((cause) => {
         error = String(cause);
-        // A failed run must not be treated as done, or editing a filter back to
-        // a previously-failing chain would show nothing and never retry.
+        // A failed run must not be marked done, or it would never retry.
         lastKey = "";
       });
   });
@@ -44,16 +42,14 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5">
-    <!-- Capped and centred: the tables are read column by column, and a grid
-         stretched to a wide window puts the figures too far apart to compare. -->
     <div class="mx-auto flex w-full max-w-5xl flex-col gap-5">
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}
       <EventLogSettings {project} />
-      <ComparisonCharts populations={pops} {stats} />
-      <MetricsTable populations={pops} {stats} />
-      <EventDataTable {project} populations={pops} />
+      <ComparisonCharts groups={shown} {stats} />
+      <MetricsTable groups={shown} {stats} />
+      <EventDataTable {project} groups={shown} />
     </div>
   </main>
 {/if}

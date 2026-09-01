@@ -1,5 +1,3 @@
-/* Hallmark · scope: app-shell redesign (not a marketing page — macrostructure/genre
- * catalog skipped) · theme: warm off-white paper + indigo accent · radius: 0 (square) */
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn-svelte/tailwind.css";
@@ -66,24 +64,37 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  /* Slice accents. Complementary hues so two populations are never confused
-     when charted side by side; capped at three, matching the slice limit.
-     Steps are validated for colour-vision separation against this surface —
-     slice-2 vs slice-3 is the binding pair, so don't retune either by eye. */
-  --slice-1: oklch(0.55 0.196 258);
+  /* Group accents: d3-scale-chromatic's schemePaired, in its own order. Same
+       values in both themes. */
+  --group-1: #a6cee3;
 
-  --slice-2: oklch(0.67 0.16 55);
+  --group-2: #1f78b4;
 
-  --slice-3: oklch(0.47 0.13 152);
+  --group-3: #b2df8a;
 
-  /* Base is context rather than an identity, so it stays deliberately grey. */
-  --slice-base: oklch(0.45 0.007 85);
+  --group-4: #33a02c;
 
-  /* Effect magnitude — a sequential ramp, one hue, rising in weight from a
-     negligible difference to a large one. Deliberately not the slice accents:
-     this answers "how big", not "whose", so it must never be mistaken for a
-     Group. The foreground flips at step 3, where the fill goes dark enough
-     that dark text stops carrying. */
+  --group-5: #fb9a99;
+
+  --group-6: #e31a1c;
+
+  --group-7: #fdbf6f;
+
+  --group-8: #ff7f00;
+
+  --group-9: #cab2d6;
+
+  --group-10: #6a3d9a;
+
+  --group-11: #ffff99;
+
+  --group-12: #b15928;
+
+  /* The Original stays grey. */
+  --group-original: oklch(0.45 0.007 85);
+
+  /* Effect magnitude: a sequential ramp, one hue. The foreground flips at step
+       3, where dark text stops carrying. */
   --effect-1: oklch(0.95 0.035 25);
   --effect-1-foreground: oklch(0.42 0.16 25);
 
@@ -162,19 +173,8 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  --slice-1: oklch(0.68 0.16 258);
+  --group-original: oklch(0.708 0 0);
 
-  --slice-2: oklch(0.76 0.15 60);
-
-  /* Lighter than its light-mode step: separation from slice-2 has to be
-     re-earned against the dark surface, not inherited. */
-  --slice-3: oklch(0.75 0.12 155);
-
-  --slice-base: oklch(0.708 0 0);
-
-  /* The ramp runs the other way against a dark surface: weight is gained by
-     getting brighter, not darker, so the foreground flips at the same step
-     but to dark text. Re-stepped rather than inverted from the light values. */
   --effect-1: oklch(0.28 0.05 25);
   --effect-1-foreground: oklch(0.85 0.07 25);
 
@@ -235,13 +235,31 @@
 
   --color-chart-1: var(--chart-1);
 
-  --color-slice-1: var(--slice-1);
+  --color-group-1: var(--group-1);
 
-  --color-slice-2: var(--slice-2);
+  --color-group-2: var(--group-2);
 
-  --color-slice-3: var(--slice-3);
+  --color-group-3: var(--group-3);
 
-  --color-slice-base: var(--slice-base);
+  --color-group-4: var(--group-4);
+
+  --color-group-5: var(--group-5);
+
+  --color-group-6: var(--group-6);
+
+  --color-group-7: var(--group-7);
+
+  --color-group-8: var(--group-8);
+
+  --color-group-9: var(--group-9);
+
+  --color-group-10: var(--group-10);
+
+  --color-group-11: var(--group-11);
+
+  --color-group-12: var(--group-12);
+
+  --color-group-original: var(--group-original);
 
   --color-ring: var(--ring);
 

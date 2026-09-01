@@ -59,8 +59,8 @@ mod tests {
     }
 
     /// A log whose activities are numeric codes. The declared type is honoured
-    /// at ingest, so the column really is an i64 here — the endpoint filter
-    /// still has to match the picker's "10" against it.
+    /// at ingest, so the column is an i64 here and the endpoint filter still has
+    /// to match the picker's "10" against it.
     #[test]
     fn endpoint_filter_reads_a_numeric_activity_column_as_text() {
         let ts = Column::new("ts".into(), [0i64, 1_000, 2_000, 3_000, 4_000])
@@ -91,6 +91,7 @@ mod tests {
                 activities: vec!["10".to_string()],
             }],
             &numeric_activity,
+            &crate::filters::ExcludedCases::new(),
         )
         .unwrap()
         .collect()

@@ -2,7 +2,7 @@
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import type { Project } from "$lib/types";
+  import type { Project } from "$lib/event-log/types";
   import Network from "@lucide/svelte/icons/network";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";

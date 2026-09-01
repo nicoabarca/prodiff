@@ -1,8 +1,8 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
-import type { ColumnMapping } from "$lib/column-mapping";
-import type { Filter } from "$lib/filters";
-import type { EventLogStats, SliceKind } from "$lib/types";
-import type { TreeSettings } from "$lib/tree";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
+import type { Filter } from "$lib/filters/kind/filter";
+import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
+import type { TreeSettings } from "$lib/tree/types";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -10,7 +10,7 @@ export const projects = sqliteTable("projects", {
   fileName: text("file_name").notNull(),
   originalPath: text("original_path").notNull(),
   eventLogPath: text("event_log_path").notNull(),
-  columns: text("columns", { mode: "json" }).$type<ColumnMapping[]>().notNull(),
+  columns: text("columns", { mode: "json" }).$type<RequestColumnMapping[]>().notNull(),
   hiddenColumns: text("hidden_columns", { mode: "json" }).$type<string[]>().notNull(),
   events: integer("events").notNull(),
   cases: integer("cases").notNull(),
@@ -22,33 +22,35 @@ export const projects = sqliteTable("projects", {
 });
 
 /**
- * Slices belong to a project and are deleted with it (see `removeProject`).
- * `stats` and `stats_key` are a cache of the last computed figures, so
- * reopening a project doesn't re-run every chain.
+ * Groups belong to a project and are deleted with it (see `removeProject`). The
+ * row is written before the Parquet it names, so a file without a row is
+ * unreachable. A null `stats` means the Group has no Parquet yet.
  */
-export const slices = sqliteTable("slices", {
+export const groups = sqliteTable("groups", {
   id: text("id").primaryKey(),
   projectId: text("project_id").notNull(),
-  kind: text("kind").$type<SliceKind>().notNull(),
   name: text("name").notNull(),
   color: text("color").notNull(),
   position: integer("position").notNull(),
   filters: text("filters", { mode: "json" }).$type<Filter[]>().notNull(),
-  stats: text("stats", { mode: "json" }).$type<EventLogStats | null>(),
-  statsKey: text("stats_key")
+  stats: text("stats", { mode: "json" }).$type<ResponseEventLogStats | null>(),
+  createdAt: text("created_at").notNull(),
+  editedAt: text("edited_at").notNull()
 });
 
 /**
- * What the Comparison Directed Tree is built from — the attributes to test and
- * the Variants to include. Its own table rather than columns on
- * `projects`: every table is created idempotently at startup, so a new table
- * needs no migration where a new column would.
- *
- * `selected_variants` is persisted because hand-picking a set of Variants is
- * real work, and the chains it is meaningful against persist too.
- *
- * The tree itself is not cached here. It is megabytes of JSON, cheap to
- * rebuild, and lives in memory for as long as the app is open.
+ * Which Groups the tree compares, per project. The ids are ordered and hold one
+ * or two entries; `original` is the whole Event Log.
+ */
+export const comparisons = sqliteTable("comparisons", {
+  projectId: text("project_id").primaryKey(),
+  groupIds: text("group_ids", { mode: "json" }).$type<string[]>().notNull()
+});
+
+/**
+ * What the Comparison Directed Tree is built from: the attributes to test and
+ * the Variants to include. The tree itself is never cached; it lives in memory
+ * while the app is open.
  */
 export const treeSettings = sqliteTable("tree_settings", {
   projectId: text("project_id").primaryKey(),

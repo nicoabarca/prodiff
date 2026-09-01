@@ -1,7 +1,6 @@
-//! The Column Mapping — the user-confirmed correspondence between an uploaded
+//! The Column Mapping: the user-confirmed correspondence between an uploaded
 //! file's raw columns and the fields process mining requires. It crosses the
-//! seam from the frontend intact, as one value, rather than as loose per-role
-//! column names.
+//! seam from the frontend intact, as one value.
 
 mod format;
 
@@ -30,8 +29,8 @@ impl ColumnRole {
 }
 
 /// Mirrors `ColumnType` in `src/lib/column-mapping.ts`. Only the split between
-/// numeric and everything else matters here — it picks which Significance Test
-/// an attribute gets.
+/// numeric and everything else matters here: it picks which Significance Test an
+/// attribute gets.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnType {
@@ -73,8 +72,6 @@ pub enum ColumnGranularity {
 pub struct ColumnMapping {
     pub name: String,
     pub role: ColumnRole,
-    /// Older payloads and the filter tests omit these; both default rather
-    /// than failing the whole mapping.
     #[serde(rename = "type", default)]
     pub column_type: ColumnType,
     #[serde(default)]
@@ -94,9 +91,8 @@ pub fn find_role(mapping: &[ColumnMapping], role: ColumnRole) -> Option<&str> {
         .map(|c| c.name.as_str())
 }
 
-/// Looks up a role that the event log cannot be summarized without. The
-/// frontend validates this before submitting, so a failure here means the
-/// payload was malformed rather than the user mis-mapping something.
+/// Looks up a role that the event log cannot be summarized without. The frontend
+/// validates this before submitting, so a failure here means a malformed payload.
 pub fn require_role(mapping: &[ColumnMapping], role: ColumnRole) -> Result<&str, String> {
     find_role(mapping, role)
         .ok_or_else(|| format!("Column mapping is missing a {} column.", role.label()))

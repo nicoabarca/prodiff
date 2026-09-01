@@ -1,26 +1,30 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
-  import { createProject } from "$lib/projects/create";
-  import { fetchEventLogPreview } from "$lib/projects/preview";
+  import { createProject } from "$lib/event-log/utils/create";
+  import { fetchEventLogPreview } from "$lib/event-log/invokers/preview-event-log";
   import {
     requiredRoles,
     emptyAssignments,
     requiredFieldSettings,
     type AssignableRole
-  } from "$lib/projects/roles";
+  } from "$lib/event-log/utils/roles";
   import {
     inferExtraFieldType,
     extraFieldTypeToColumnType,
     type ExtraFieldType
-  } from "$lib/projects/field-settings";
-  import type { ColumnGranularity, ColumnMapping, ColumnType } from "$lib/column-mapping";
-  import { inferFormat, type FormatInference } from "$lib/timestamp-format";
-  import WizardSteps from "$lib/components/projects/wizard-steps.svelte";
-  import UploadStep from "$lib/components/projects/stepper/upload-step.svelte";
-  import RequiredFieldsStep from "$lib/components/projects/stepper/required-fields-step.svelte";
-  import OtherFieldsStep from "$lib/components/projects/stepper/other-fields-step.svelte";
-  import FieldSettingsStep from "$lib/components/projects/stepper/field-settings-step.svelte";
-  import ReviewStep from "$lib/components/projects/stepper/review-step.svelte";
+  } from "$lib/event-log/utils/field-settings";
+  import type {
+    ColumnGranularity,
+    RequestColumnMapping,
+    ColumnType
+  } from "$lib/event-log/invokers/types";
+  import { inferFormat, type FormatInference } from "$lib/event-log/utils/timestamp-format";
+  import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
+  import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
+  import RequiredFieldsStep from "$lib/event-log/components/stepper/required-fields-step.svelte";
+  import OtherFieldsStep from "$lib/event-log/components/stepper/other-fields-step.svelte";
+  import FieldSettingsStep from "$lib/event-log/components/stepper/field-settings-step.svelte";
+  import ReviewStep from "$lib/event-log/components/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
@@ -128,7 +132,7 @@
     return type === "date" || type === "datetime";
   }
 
-  const columnMapping = $derived.by((): ColumnMapping[] =>
+  const columnMapping = $derived.by((): RequestColumnMapping[] =>
     columns.map(({ name, dtype }) => {
       const role = roleByColumn[name];
       if (role) {
