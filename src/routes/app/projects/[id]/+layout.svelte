@@ -17,9 +17,11 @@
       ? "filters"
       : page.url.pathname.endsWith("/tree")
         ? "tree"
-        : page.url.pathname.endsWith("/distributions")
-          ? "distributions"
-          : "statistics"
+        : page.url.pathname.endsWith("/dfg")
+          ? "dfg"
+          : page.url.pathname.endsWith("/distributions")
+            ? "distributions"
+            : "statistics"
   );
 
   $effect(() => {
