@@ -33,38 +33,6 @@
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="w-80 space-y-4" align="end">
-    <div class="space-y-2">
-      <p class="text-xs font-medium">Simplification</p>
-      <p class="text-muted-foreground text-[0.6875rem]">
-        Every node keeps its best way in and its best way out, so the graph stays in one piece at
-        any setting.
-      </p>
-    </div>
-
-    <div class="space-y-1.5">
-      <div class="flex items-baseline justify-between">
-        <Label class="text-xs">Paths</Label>
-        <span class="text-muted-foreground font-mono text-[0.625rem]">
-          {view.edgeCutoff.toFixed(2)}
-        </span>
-      </div>
-      <Slider type="single" bind:value={view.edgeCutoff} min={0} max={1} step={0.05} />
-    </div>
-
-    <div class="space-y-1.5">
-      <div class="flex items-baseline justify-between">
-        <Label class="text-xs">Activities</Label>
-        <span class="text-muted-foreground font-mono text-[0.625rem]">
-          {view.nodeCutoff.toFixed(2)}
-        </span>
-      </div>
-      <Slider type="single" bind:value={view.nodeCutoff} min={0} max={1} step={0.05} />
-      <p class="text-muted-foreground text-[0.625rem]">
-        A removed activity is replaced by dashed edges carrying no figures: that pair never happened
-        directly.
-      </p>
-    </div>
-
     <div class="space-y-1.5">
       <div class="flex items-baseline justify-between">
         <Label class="text-xs">Frequency over closeness</Label>
@@ -73,6 +41,10 @@
         </span>
       </div>
       <Slider type="single" bind:value={view.utilityRatio} min={0} max={1} step={0.05} />
+      <p class="text-muted-foreground text-[0.625rem]">
+        What makes a path worth keeping when the Paths slider ranks them: how often it is taken, or
+        how little waiting it involves.
+      </p>
     </div>
 
     <Separator />

@@ -1,9 +1,17 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
+  import {
+    SvelteFlow,
+    Background,
+    Controls,
+    MarkerType,
+    type Edge,
+    type Node
+  } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
   import RoutedEdge from "$lib/dfg/components/edge.svelte";
+  import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
   import { busiestEdge, edgeWait, edgeWidth, faceCounts, findings } from "$lib/dfg/utils/face";
@@ -77,6 +85,7 @@
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
+        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
         data: {
           path: placed.paths.get(key) ?? "",
           width: edgeWidth(edge.edge, busiest, view.measure),
@@ -88,6 +97,11 @@
 
     return { nodes, edges };
   });
+
+  // Start and End are always drawn and never cut, so they are not part of what
+  // the Activities slider reports.
+  const activitiesShown = $derived(simplified.nodes.filter((n) => n.kind === "activity").length);
+  const activitiesTotal = $derived(graph.nodes.filter((n) => n.kind === "activity").length);
 
   // Svelte Flow owns these arrays while the user pans, so they are local state
   // re-seeded from the layout.
@@ -121,4 +135,11 @@
     <Background />
     <Controls showLock={false} />
   </SvelteFlow>
+
+  <SimplificationControls
+    {activitiesShown}
+    {activitiesTotal}
+    pathsShown={simplified.edges.length}
+    pathsTotal={graph.edges.length}
+  />
 </div>

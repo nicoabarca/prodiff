@@ -40,12 +40,9 @@
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      {#if built.graph}
+      {#if built.graph && built.graph.overlapCases > 0}
         <p class="text-muted-foreground text-xs">
-          {built.graph.nodes.length - 2} activities · {built.graph.edges.length} paths
-          {#if built.graph.overlapCases > 0}
-            · {built.graph.overlapCases} cases in both groups
-          {/if}
+          {built.graph.overlapCases} cases in both groups
         </p>
       {/if}
       {#if built.graph?.skippedCaseLevel.length}
@@ -76,7 +73,7 @@
         <div class="relative flex min-h-0 flex-1">
           <Canvas graph={built.graph} {stale} />
           {#if selected.id !== null}
-            <div class="absolute top-3 right-3 z-10">
+            <div class="absolute top-4 left-4 z-10">
               <Button
                 variant="outline"
                 size="sm"
