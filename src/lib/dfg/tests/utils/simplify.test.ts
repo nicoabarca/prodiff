@@ -154,10 +154,7 @@ describe("the node cutoff", () => {
   });
 
   it("does not invent a self-loop when removing the node between a pair", () => {
-    const there_and_back = graph(
-      [node(2, 1), node(3, 0.1)],
-      [edge(2, 3), edge(3, 2)]
-    );
+    const there_and_back = graph([node(2, 1), node(3, 0.1)], [edge(2, 3), edge(3, 2)]);
     const { edges } = simplify(there_and_back, view({ edgeCutoff: 0, nodeCutoff: 0.5 }));
     expect(edges).toEqual([]);
   });

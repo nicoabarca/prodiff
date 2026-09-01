@@ -7,6 +7,7 @@
   import FolderKanban from "@lucide/svelte/icons/folder-kanban";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+  import Waypoints from "@lucide/svelte/icons/waypoints";
 
   let { activeProject }: { activeProject: Project | null } = $props();
 
@@ -29,6 +30,11 @@
       href: activeProject ? `/app/projects/${activeProject.id}/tree` : null,
       label: "Comparison Directed Rooted Tree",
       icon: Network
+    },
+    {
+      href: activeProject ? `/app/projects/${activeProject.id}/dfg` : null,
+      label: "Directly-Follows Graph",
+      icon: Waypoints
     }
   ]);
 </script>
