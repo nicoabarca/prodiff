@@ -29,15 +29,8 @@
     loaded,
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
-  import {
-    build,
-    built,
-    comparedGroups,
-    isStale,
-    selected,
-    settings,
-    view
-  } from "$lib/tree/state/tree.svelte";
+  import { build, built, isStale, selected, settings, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { attributeOptions } from "$lib/analysis/attributes";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";

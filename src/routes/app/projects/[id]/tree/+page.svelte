@@ -3,19 +3,8 @@
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
-  import {
-    build,
-    built,
-    comparison,
-    forgetOtherProject,
-    comparedGroups,
-    isStale,
-    loadComparison,
-    loadSettings,
-    selected,
-    settings,
-    variants
-  } from "$lib/tree/state/tree.svelte";
+  import { build, built, forgetOtherProject, isStale, loadSettings, selected, settings, variants } from "$lib/tree/state/tree.svelte";
+  import { comparison, comparedGroups, loadComparison } from "$lib/groups/state/comparison.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
   import CompareDialog from "$lib/tree/components/compare-dialog.svelte";

@@ -8,17 +8,8 @@
   import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
   import { totalCases, variantPath, visibleNodes } from "$lib/tree/utils/tree";
-  import {
-    comparedGroups,
-    shownVariant,
-    loadVariants,
-    selectedVariants,
-    setSelectedVariants,
-    settings,
-    toggleVariant,
-    variants,
-    view
-  } from "$lib/tree/state/tree.svelte";
+  import { shownVariant, loadVariants, selectedVariants, setSelectedVariants, settings, toggleVariant, variants, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { Project } from "$lib/event-log/types";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
