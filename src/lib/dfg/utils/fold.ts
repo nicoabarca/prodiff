@@ -1,8 +1,6 @@
 /**
- * The variants folded into a graph. Given the activities on screen, every case
- * contributes the pairs its own trace holds once the hidden activities are
- * dropped from it, which is why an edge that appears at a lower detail still
- * carries a count the log measured rather than a stand-in.
+ * The variants folded into a graph: every case contributes the pairs its own
+ * trace holds, in the order it holds them, so every edge here happened.
  *
  * `cases` counts a case once however many times it ran the pair; `events`
  * counts every occurrence.
@@ -36,8 +34,7 @@ function add(into: Record<string, Counts>, group: string, cases: number, events:
   found.events += events;
 }
 
-/** `kept` names the activities to fold over. `null` keeps every one of them. */
-export function fold(variants: Variant[], kept: Set<number> | null): Folded {
+export function fold(variants: Variant[]): Folded {
   const nodes = new Map<number, Record<string, Counts>>();
   const edges = new Map<string, FoldedEdge>();
 
@@ -58,11 +55,7 @@ export function fold(variants: Variant[], kept: Set<number> | null): Folded {
   };
 
   for (const variant of variants) {
-    const trace = kept
-      ? variant.activities.filter((activity) => kept.has(activity))
-      : variant.activities;
-    // A case whose every activity is hidden reaches neither Start nor End: it
-    // has nothing left to draw.
+    const trace = variant.activities;
     if (trace.length === 0) continue;
 
     const nodeHits = new Map<number, number>();

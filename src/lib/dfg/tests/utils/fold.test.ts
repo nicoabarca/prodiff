@@ -17,7 +17,7 @@ const edge = (folded: ReturnType<typeof fold>, source: number, target: number) =
 
 describe("fold", () => {
   it("runs a trace from Start to End", () => {
-    const folded = fold([variant([A, B], { a: 1 })], null);
+    const folded = fold([variant([A, B], { a: 1 })]);
 
     expect(folded.edges.map((e) => edgeId(e.source, e.target))).toEqual([
       edgeId(START_ID, A),
@@ -30,29 +30,23 @@ describe("fold", () => {
   });
 
   it("counts a case once however many times it ran the pair", () => {
-    const folded = fold([variant([A, B, A, B], { a: 3 })], null);
+    const folded = fold([variant([A, B, A, B], { a: 3 })]);
 
     expect(folded.nodes.get(A)?.a).toEqual({ cases: 3, events: 6 });
     expect(edge(folded, A, B)?.counts.a).toEqual({ cases: 3, events: 6 });
     expect(edge(folded, B, A)?.counts.a).toEqual({ cases: 3, events: 3 });
   });
 
-  it("re-links through a hidden activity with the count the log holds", () => {
-    const variants = [variant([A, B, C], { a: 5 }), variant([A, C], { a: 2 })];
+  it("only ever draws a pair a case actually ran", () => {
+    const folded = fold([variant([A, B, C], { a: 5 }), variant([A, C], { a: 2 })]);
 
-    const whole = fold(variants, null);
-    expect(edge(whole, A, C)?.counts.a.cases).toBe(2);
-
-    const without = fold(variants, new Set([A, C]));
-    // The five cases that went through B now read as A to C directly, on top of
-    // the two that always did.
-    expect(edge(without, A, C)?.counts.a.cases).toBe(7);
-    expect(edge(without, A, B)).toBeUndefined();
-    expect(without.nodes.has(B)).toBe(false);
+    expect(edge(folded, A, C)?.counts.a.cases).toBe(2);
+    expect(edge(folded, A, B)?.counts.a.cases).toBe(5);
+    expect(edge(folded, B, C)?.counts.a.cases).toBe(5);
   });
 
   it("keys every Group separately", () => {
-    const folded = fold([variant([A, B], { a: 2, b: 5 })], null);
+    const folded = fold([variant([A, B], { a: 2, b: 5 })]);
 
     expect(edge(folded, A, B)?.counts).toEqual({
       a: { cases: 2, events: 2 },
@@ -60,15 +54,17 @@ describe("fold", () => {
     });
   });
 
-  it("drops a case whose every activity is hidden", () => {
-    const folded = fold([variant([A], { a: 4 }), variant([B], { a: 1 })], new Set([A]));
+  it("counts a one-activity trace on both boundaries", () => {
+    const folded = fold([variant([A], { a: 4 })]);
 
     expect(folded.nodes.get(START_ID)?.a.cases).toBe(4);
-    expect(folded.nodes.has(B)).toBe(false);
+    expect(folded.nodes.get(END_ID)?.a.cases).toBe(4);
+    expect(edge(folded, START_ID, A)?.counts.a.cases).toBe(4);
+    expect(edge(folded, A, END_ID)?.counts.a.cases).toBe(4);
   });
 
   it("keeps a self-loop as its own edge", () => {
-    const folded = fold([variant([A, A], { a: 1 })], null);
+    const folded = fold([variant([A, A], { a: 1 })]);
 
     expect(edge(folded, A, A)?.counts.a).toEqual({ cases: 1, events: 1 });
     expect(folded.nodes.get(A)?.a.events).toBe(2);

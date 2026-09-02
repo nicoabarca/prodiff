@@ -140,5 +140,5 @@
     <Controls showLock={false} />
   </SvelteFlow>
 
-  <SimplificationControls activities={simplified.activities} paths={simplified.paths} />
+  <SimplificationControls {simplified} />
 </div>

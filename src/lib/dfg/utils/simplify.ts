@@ -2,14 +2,19 @@
  * What the two sliders leave on screen, run once over the union of the Groups
  * so both sides see one graph.
  *
- * Activities first: the least travelled ones are dropped and the variants are
- * folded again without them, so the paths that appear in their place carry real
- * counts. Then the paths, ranked inside each Group rather than across them, so
- * a Group with fewer cases is not drowned by a larger one. Start and End edges
- * are structure and are never cut, and every activity keeps its busiest way in
- * and its busiest way out, which is what stops the graph coming apart.
+ * The first slider chooses behaviour: the trace shapes are taken in order of
+ * how many cases ran them until the chosen share of the log is covered, and the
+ * graph is the directly-follows graph of exactly those cases. Every edge drawn
+ * therefore happened, in that order, in a case being counted, and no activity
+ * is ever an ending the log does not give it. A shape enters whole, which is
+ * why raising the slider adds a run of activities at once rather than one.
+ *
+ * The second slider then thins the paths, ranked inside each Group rather than
+ * across them, so a Group with fewer cases is not drowned by a larger one. Start
+ * and End edges are never cut, and every activity keeps its busiest way in and
+ * its busiest way out, which is what stops the graph coming apart.
  */
-import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
 import { fold, unionCount, type FoldedEdge } from "$lib/dfg/utils/fold";
 
@@ -23,35 +28,23 @@ export interface SimplifiedNode {
 export interface Simplified {
   nodes: SimplifiedNode[];
   edges: FoldedEdge[];
+  /** `cases` of `totalCases` is the share of the log the drawing accounts for. */
+  variants: { shown: number; total: number; cases: number; totalCases: number };
   activities: { shown: number; total: number };
   paths: { shown: number; total: number };
 }
 
 const isBoundary = (edge: FoldedEdge) => edge.source === START_ID || edge.target === END_ID;
 
-/** How many of `total` a slider at `share` keeps. Never none, never a fraction. */
-function keepCount(total: number, share: number): number {
-  if (total === 0) return 0;
-  return Math.min(total, Math.max(1, Math.ceil(share * total)));
-}
+const variantCases = (variant: Variant): number =>
+  Object.values(variant.cases).reduce((total, cases) => total + cases, 0);
 
 export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
-  const measure = view.measure;
+  const ids = graph.groups.map((group) => group.id);
+  const { chosen, cases, totalCases } = chooseVariants(graph.variants, view.coverage);
 
-  const ranked = [...graph.nodes].sort(
-    (a, b) =>
-      unionCount(b.counts, measure) - unionCount(a.counts, measure) ||
-      a.label.localeCompare(b.label)
-  );
-  const kept = new Set(ranked.slice(0, keepCount(ranked.length, view.activities)).map((n) => n.id));
-
-  const folded = fold(graph.variants, kept);
-  const edges = cutPaths(
-    folded.edges,
-    graph.groups.map((group) => group.id),
-    view.paths,
-    measure
-  );
+  const folded = fold(chosen);
+  const edges = cutPaths(folded.edges, ids, view.paths, view.measure);
 
   const labels = new Map(graph.nodes.map((node) => [node.id, node.label]));
   const nodes: SimplifiedNode[] = [...folded.nodes.entries()]
@@ -66,9 +59,38 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
   return {
     nodes,
     edges,
-    activities: { shown: kept.size, total: graph.nodes.length },
+    variants: { shown: chosen.length, total: graph.variants.length, cases, totalCases },
+    activities: {
+      shown: nodes.filter((node) => node.kind === "activity").length,
+      total: graph.nodes.length
+    },
     paths: { shown: edges.length, total: folded.edges.length }
   };
+}
+
+/**
+ * The most travelled shapes, taken whole until they account for `coverage` of
+ * the cases. Never none: at the bottom of the slider the graph is the single
+ * route the log takes most often.
+ */
+function chooseVariants(
+  variants: Variant[],
+  coverage: number
+): { chosen: Variant[]; cases: number; totalCases: number } {
+  const ordered = [...variants].sort(
+    (a, b) => variantCases(b) - variantCases(a) || a.activities.length - b.activities.length
+  );
+  const totalCases = ordered.reduce((total, variant) => total + variantCases(variant), 0);
+  const wanted = coverage * totalCases;
+
+  const chosen: Variant[] = [];
+  let cases = 0;
+  for (const variant of ordered) {
+    if (chosen.length > 0 && cases >= wanted) break;
+    chosen.push(variant);
+    cases += variantCases(variant);
+  }
+  return { chosen, cases, totalCases };
 }
 
 /**
@@ -83,7 +105,8 @@ function cutPaths(
 ): FoldedEdge[] {
   const inner = edges.filter((edge) => !isBoundary(edge));
   const preserved = new Set<FoldedEdge>(edges.filter(isBoundary));
-  const wanted = keepCount(inner.length, share);
+  const wanted =
+    inner.length === 0 ? 0 : Math.min(inner.length, Math.max(1, Math.ceil(share * inner.length)));
 
   for (const group of groups) {
     const ofGroup = inner

@@ -7,12 +7,14 @@ const A = 2;
 const B = 3;
 const C = 4;
 const D = 5;
+const E = 6;
 
 const label = new Map([
   [A, "A"],
   [B, "B"],
   [C, "C"],
-  [D, "D"]
+  [D, "D"],
+  [E, "E"]
 ]);
 
 /**
@@ -67,54 +69,91 @@ const pairs = (of: { source: number; target: number }[]) =>
   of.map(({ source, target }) => `${source}->${target}`);
 
 describe("simplify", () => {
-  it("draws everything at full detail", () => {
+  it("draws the whole log at full coverage", () => {
     const graph = graphOf([
       [[A, B], { a: 3 }],
       [[A, C], { a: 1 }]
     ]);
 
-    const simplified = simplify(graph, view({ activities: 1, paths: 1 }));
+    const simplified = simplify(graph, view({ coverage: 1, paths: 1 }));
 
+    expect(simplified.variants).toMatchObject({ shown: 2, total: 2, cases: 4, totalCases: 4 });
     expect(simplified.activities).toEqual({ shown: 3, total: 3 });
-    expect(simplified.paths.shown).toBe(simplified.paths.total);
     expect(pairs(simplified.edges)).toContain(`${A}->${C}`);
   });
 
-  it("drops the least travelled activity first", () => {
+  it("draws the single most travelled shape at the bottom of the slider", () => {
     const graph = graphOf([
       [[A, B], { a: 10 }],
       [[A, C], { a: 1 }]
     ]);
 
-    const simplified = simplify(graph, view({ activities: 0.5 }));
+    const simplified = simplify(graph, view({ coverage: 0 }));
 
-    const drawn = simplified.nodes.map((node) => node.label);
-    expect(drawn).toContain("A");
-    expect(drawn).toContain("B");
-    expect(drawn).not.toContain("C");
-    expect(simplified.activities).toEqual({ shown: 2, total: 3 });
+    expect(simplified.variants.shown).toBe(1);
+    expect(pairs(simplified.edges)).toEqual([`${START_ID}->${A}`, `${A}->${B}`, `${B}->${END_ID}`]);
   });
 
-  it("re-links the cases of a dropped activity rather than losing them", () => {
+  it("takes a shape whole, so a run of activities arrives at once", () => {
     const graph = graphOf([
-      [[A, B, C], { a: 9 }],
-      [[A, C], { a: 1 }]
+      [[A, B], { a: 60 }],
+      [[A, C, D, E], { a: 40 }]
     ]);
 
-    const simplified = simplify(graph, view({ activities: 0.5, paths: 1 }));
+    expect(simplify(graph, view({ coverage: 0.5 })).activities.shown).toBe(2);
 
-    // B is the middle of every busy trace, so A and C outrank it and it goes.
-    const edge = simplified.edges.find((one) => one.source === A && one.target === C);
-    expect(edge?.counts.a.cases).toBe(10);
+    const more = simplify(graph, view({ coverage: 0.7 }));
+    expect(more.activities.shown).toBe(5);
+    expect(more.variants.shown).toBe(2);
   });
 
-  it("never cuts the edges into Start or out of End", () => {
+  it("never invents a pair the log never ran", () => {
+    // A is followed by C only through B, so A to C is not something this log
+    // does, whatever the sliders say.
+    const graph = graphOf([
+      [[A, B, C], { a: 90 }],
+      [[A, D], { a: 10 }]
+    ]);
+
+    for (const coverage of [0, 0.5, 1]) {
+      const simplified = simplify(graph, view({ coverage, paths: 1 }));
+      expect(pairs(simplified.edges)).not.toContain(`${A}->${C}`);
+    }
+  });
+
+  it("never ends on an activity no case ends on", () => {
+    const graph = graphOf([
+      [[A, B, C], { a: 90 }],
+      [[A, B, D], { a: 10 }]
+    ]);
+
+    for (const coverage of [0, 0.5, 1]) {
+      const simplified = simplify(graph, view({ coverage, paths: 1 }));
+      for (const edge of simplified.edges.filter((one) => one.target === END_ID)) {
+        expect([C, D]).toContain(edge.source);
+      }
+    }
+  });
+
+  it("reports the coverage it bought rather than the one it was asked for", () => {
+    const graph = graphOf([
+      [[A, B], { a: 70 }],
+      [[A, C], { a: 30 }]
+    ]);
+
+    const simplified = simplify(graph, view({ coverage: 0.5 }));
+
+    // One shape covers 70 of the 100 cases, which is already past the half.
+    expect(simplified.variants).toMatchObject({ shown: 1, cases: 70, totalCases: 100 });
+  });
+
+  it("never cuts the edges out of Start or into End", () => {
     const graph = graphOf([
       [[A, B], { a: 10 }],
-      [[C, D], { a: 1 }]
+      [[C, D], { a: 9 }]
     ]);
 
-    const simplified = simplify(graph, view({ paths: 0 }));
+    const simplified = simplify(graph, view({ coverage: 1, paths: 0 }));
 
     for (const activity of [A, C]) {
       expect(pairs(simplified.edges)).toContain(`${START_ID}->${activity}`);
@@ -127,10 +166,10 @@ describe("simplify", () => {
   it("leaves every activity a way in and a way out at the lowest detail", () => {
     const graph = graphOf([
       [[A, B, D], { a: 20 }],
-      [[A, C, D], { a: 1 }]
+      [[A, C, D], { a: 15 }]
     ]);
 
-    const simplified = simplify(graph, view({ paths: 0 }));
+    const simplified = simplify(graph, view({ coverage: 1, paths: 0 }));
 
     for (const node of simplified.nodes) {
       if (node.kind !== "activity") continue;
@@ -147,21 +186,8 @@ describe("simplify", () => {
       [[A, D], { b: 5 }]
     ]);
 
-    const simplified = simplify(graph, view({ paths: 0.34, measure: "cases" }));
+    const simplified = simplify(graph, view({ coverage: 1, paths: 0.34, measure: "cases" }));
 
     expect(pairs(simplified.edges)).toContain(`${A}->${D}`);
-  });
-
-  it("counts the paths it kept against the paths that were there to keep", () => {
-    const graph = graphOf([
-      [[A, B], { a: 5 }],
-      [[A, C], { a: 4 }],
-      [[A, D], { a: 3 }]
-    ]);
-
-    const simplified = simplify(graph, view({ paths: 0.5 }));
-
-    expect(simplified.paths.shown).toBeLessThanOrEqual(simplified.paths.total);
-    expect(simplified.paths.total).toBeGreaterThan(0);
   });
 });

@@ -13,18 +13,19 @@ export type Direction = "TB" | "LR";
 
 export interface DfgView {
   /**
-   * Both in `[0, 1]`, both a share of what the log has: 1 draws every activity
-   * and every path, 0 the single most travelled of each.
+   * The share of the log's cases the drawing accounts for. 1 draws every trace
+   * shape, 0 the single one most cases ran.
    */
-  activities: number;
+  coverage: number;
+  /** A share of the paths the chosen shapes hold. 1 draws all of them. */
   paths: number;
   measure: Measure;
   direction: Direction;
 }
 
 export const defaultDfgView: DfgView = {
-  activities: 1,
-  paths: 0.5,
+  coverage: 0.8,
+  paths: 1,
   measure: "cases",
   direction: "TB"
 };
