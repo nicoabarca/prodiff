@@ -10,7 +10,8 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
