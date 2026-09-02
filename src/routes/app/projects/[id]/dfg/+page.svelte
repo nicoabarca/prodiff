@@ -5,7 +5,8 @@
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { selected } from "$lib/dfg/state/view.svelte";
+  import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { simplify } from "$lib/dfg/utils/simplify";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
@@ -17,6 +18,9 @@
   const project = $derived(currentProject());
   const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
+  // One simplification for the canvas and the panel: they are two readings of
+  // the same picture, and running it twice would let them disagree.
+  const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
 
   let comparing = $state(false);
   let panelOpen = $state(false);
@@ -68,10 +72,10 @@
 
     <CompareDialog {project} bind:open={comparing} />
 
-    {#if built.graph}
+    {#if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
         <div class="relative flex min-h-0 flex-1">
-          <Canvas graph={built.graph} {stale} />
+          <Canvas graph={built.graph} {simplified} {stale} />
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">
               <Button
@@ -89,7 +93,7 @@
         </div>
         {#if panelOpen}
           <div class="border-border bg-background w-80 shrink-0 border-l">
-            <DetailPanel graph={built.graph} />
+            <DetailPanel graph={built.graph} {simplified} />
           </div>
         {/if}
       </div>

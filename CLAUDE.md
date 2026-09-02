@@ -33,7 +33,7 @@ src/lib/
 ├── groups/            Group records, Filter Lists, palette, impact cache
 ├── statistics/        comparison charts, metrics table, event data table
 ├── tree/              directed tree, variants, canvas, node detail
-├── dfg/               directly-follows graph, Fuzzy simplification, layout
+├── dfg/               directly-follows graph, frequency simplification, layout
 └── distributions/     per-node attribute distributions
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/

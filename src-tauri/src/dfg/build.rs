@@ -21,14 +21,12 @@ const COMPLETE: &str = "__dfg_complete";
 const ARRIVAL: &str = "__dfg_arrival";
 const DURATION: &str = "__dfg_duration";
 const PREVIOUS: &str = "__dfg_previous";
-const NEXT: &str = "__dfg_next";
 const PREVIOUS_COMPLETE: &str = "__dfg_previous_complete";
 const DELTA: &str = "__dfg_delta";
 const EVENTS: &str = "__dfg_events";
 const CASES: &str = "__dfg_cases";
 const VALUE: &str = "__dfg_value";
-const WAIT_TOTAL: &str = "__dfg_wait_total";
-const WAIT_N: &str = "__dfg_wait_n";
+const SEQUENCE: &str = "__dfg_sequence";
 const GROUPS_PER_CASE: &str = "__dfg_groups_per_case";
 
 /// One event-level attribute as the pass reads it: the name it answers to and
@@ -39,14 +37,6 @@ pub(super) struct EventAttr {
     column: String,
 }
 
-/// Where an edge starts or ends. Start and End are the two synthetic nodes.
-#[derive(PartialEq, Eq, Hash, Clone, Debug)]
-pub(super) enum Endpoint {
-    Start,
-    End,
-    Activity(String),
-}
-
 #[derive(Default)]
 pub(super) struct NodeAgg {
     pub counts: HashMap<String, Counts>,
@@ -54,25 +44,26 @@ pub(super) struct NodeAgg {
     pub attributes: HashMap<String, HashMap<String, Acc>>,
 }
 
-#[derive(Default)]
-pub(super) struct EdgeAgg {
-    pub counts: HashMap<String, Counts>,
-    /// Waiting times in milliseconds, by Group id. Filled only when the view
-    /// asked for them, and never on a Start or End edge.
-    pub transition: HashMap<String, Acc>,
-    /// The same waits over every Group at once, kept whether or not the view
-    /// asked: the correlation the frontend simplifies by is computed from them.
-    pub wait_total: f64,
-    pub wait_n: i64,
+/// One trace shape: the activities in the order they occurred, and how many
+/// cases of each Group ran it. Every count the graph draws is folded from
+/// these, so hiding an activity re-links through it with figures the log
+/// actually holds.
+pub(super) struct VariantAgg {
+    pub activities: Vec<String>,
+    pub cases: HashMap<String, i64>,
 }
+
+/// Waits in milliseconds by (source, target) then Group id.
+pub(super) type Transitions = HashMap<(String, String), HashMap<String, Acc>>;
 
 pub(super) struct Aggregates {
     pub nodes: HashMap<String, NodeAgg>,
-    pub edges: HashMap<(Endpoint, Endpoint), EdgeAgg>,
+    pub variants: Vec<VariantAgg>,
+    /// Filled only when the view asked for the Transition Time.
+    pub transitions: Transitions,
     pub case_counts: HashMap<String, i64>,
     pub overlap_cases: i64,
     pub attributes: Vec<EventAttr>,
-    pub wants_transition: bool,
     pub skipped_case_level: Vec<String>,
 }
 
@@ -201,11 +192,6 @@ pub(super) fn aggregate(
                 .over(window())
                 .map_err(|e| e.to_string())?
                 .alias(PREVIOUS),
-            col(ACT)
-                .shift(lit(-1))
-                .over(window())
-                .map_err(|e| e.to_string())?
-                .alias(NEXT),
             col(COMPLETE)
                 .shift(lit(1))
                 .over(window())
@@ -219,22 +205,22 @@ pub(super) fn aggregate(
         );
 
     let mut nodes: HashMap<String, NodeAgg> = HashMap::new();
-    let mut edges: HashMap<(Endpoint, Endpoint), EdgeAgg> = HashMap::new();
-
     node_counts(&lf, &attributes, &mut nodes)?;
     for attr in attributes.iter().filter(|a| !a.numeric) {
         categorical(&lf, attr, &mut nodes)?;
     }
-    inner_edges(&lf, wants_transition, &mut edges)?;
-    boundary_edges(&lf, &mut edges)?;
 
     Ok(Aggregates {
         nodes,
-        edges,
+        variants: variants(&lf)?,
+        transitions: if wants_transition {
+            transitions(&lf)?
+        } else {
+            HashMap::new()
+        },
         case_counts: case_counts(&lf)?,
         overlap_cases: overlap(&lf)?,
         attributes,
-        wants_transition,
         skipped_case_level,
     })
 }
@@ -326,98 +312,67 @@ fn categorical(
     Ok(())
 }
 
-/// Every directly-follows pair inside a case. A null previous activity marks
-/// the first event of its case, which has no pair to contribute.
-fn inner_edges(
-    lf: &LazyFrame,
-    wants_transition: bool,
-    edges: &mut HashMap<(Endpoint, Endpoint), EdgeAgg>,
-) -> Result<(), String> {
+/// One row per case, its activities in trace order, folded into the distinct
+/// shapes and counted per Group.
+fn variants(lf: &LazyFrame) -> Result<Vec<VariantAgg>, String> {
+    let df = lf
+        .clone()
+        .group_by([col(GROUP), col(CASE)])
+        .agg([col(ACT).alias(SEQUENCE)])
+        .collect()
+        .map_err(|e| e.to_string())?;
+
+    let groups = strings(&df, GROUP)?;
+    let sequences = string_lists(&df, SEQUENCE)?;
+
+    let mut folded: HashMap<Vec<String>, HashMap<String, i64>> = HashMap::new();
+    for (row, activities) in sequences.into_iter().enumerate() {
+        *folded
+            .entry(activities)
+            .or_default()
+            .entry(groups[row].clone())
+            .or_insert(0) += 1;
+    }
+
+    let mut variants: Vec<VariantAgg> = folded
+        .into_iter()
+        .map(|(activities, cases)| VariantAgg { activities, cases })
+        .collect();
+    // Ordered so the same log always ships the same payload: the widest shapes
+    // first, then alphabetically.
+    variants.sort_by(|a, b| {
+        let total = |v: &VariantAgg| -> i64 { v.cases.values().sum() };
+        total(b)
+            .cmp(&total(a))
+            .then_with(|| a.activities.cmp(&b.activities))
+    });
+    Ok(variants)
+}
+
+/// The wait each directly-follows pair spans, in milliseconds. A null previous
+/// activity marks the first event of its case, which has no pair to contribute.
+fn transitions(lf: &LazyFrame) -> Result<Transitions, String> {
     let df = lf
         .clone()
         .filter(col(PREVIOUS).is_not_null())
         .group_by([col(GROUP), col(PREVIOUS), col(ACT)])
-        .agg([
-            len().cast(DataType::Int64).alias(EVENTS),
-            col(CASE).n_unique().cast(DataType::Int64).alias(CASES),
-            col(DELTA).sum().cast(DataType::Float64).alias(WAIT_TOTAL),
-            col(DELTA).count().cast(DataType::Int64).alias(WAIT_N),
-            col(DELTA).drop_nulls().alias(DELTA),
-        ])
+        .agg([col(DELTA).drop_nulls().alias(DELTA)])
         .collect()
         .map_err(|e| e.to_string())?;
 
     let groups = strings(&df, GROUP)?;
     let sources = strings(&df, PREVIOUS)?;
     let targets = strings(&df, ACT)?;
-    let events = ints(&df, EVENTS)?;
-    let cases = ints(&df, CASES)?;
-    let wait_total = floats(&df, WAIT_TOTAL)?;
-    let wait_n = ints(&df, WAIT_N)?;
     let deltas = float_lists(&df, DELTA)?;
 
+    let mut transitions: Transitions = HashMap::new();
     for (row, delta) in deltas.into_iter().enumerate() {
-        let key = (
-            Endpoint::Activity(sources[row].clone()),
-            Endpoint::Activity(targets[row].clone()),
-        );
-        let edge = edges.entry(key).or_default();
-        edge.counts.insert(
-            groups[row].clone(),
-            Counts {
-                cases: cases[row],
-                events: events[row],
-            },
-        );
-        edge.wait_total += wait_total[row];
-        edge.wait_n += wait_n[row];
-        if wants_transition {
-            edge.transition.insert(groups[row].clone(), Acc::Num(delta));
-        }
+        transitions
+            .entry((sources[row].clone(), targets[row].clone()))
+            .or_default()
+            .insert(groups[row].clone(), Acc::Num(delta));
     }
-    Ok(())
-}
-
-/// The Start and End edges. A case's first event has no previous activity and
-/// its last has no next one, which is what marks the two boundaries. They span
-/// no wait, so they carry no transition time.
-fn boundary_edges(
-    lf: &LazyFrame,
-    edges: &mut HashMap<(Endpoint, Endpoint), EdgeAgg>,
-) -> Result<(), String> {
-    for (boundary, marker) in [(Endpoint::Start, PREVIOUS), (Endpoint::End, NEXT)] {
-        let df = lf
-            .clone()
-            .filter(col(marker).is_null())
-            .group_by([col(GROUP), col(ACT)])
-            .agg([
-                len().cast(DataType::Int64).alias(EVENTS),
-                col(CASE).n_unique().cast(DataType::Int64).alias(CASES),
-            ])
-            .collect()
-            .map_err(|e| e.to_string())?;
-
-        let groups = strings(&df, GROUP)?;
-        let labels = strings(&df, ACT)?;
-        let events = ints(&df, EVENTS)?;
-        let cases = ints(&df, CASES)?;
-
-        for row in 0..df.height() {
-            let activity = Endpoint::Activity(labels[row].clone());
-            let key = match boundary {
-                Endpoint::Start => (Endpoint::Start, activity),
-                _ => (activity, Endpoint::End),
-            };
-            edges.entry(key).or_default().counts.insert(
-                groups[row].clone(),
-                Counts {
-                    cases: cases[row],
-                    events: events[row],
-                },
-            );
-        }
-    }
-    Ok(())
+    Ok(transitions)
 }
 
 fn case_counts(lf: &LazyFrame) -> Result<HashMap<String, i64>, String> {
@@ -473,15 +428,22 @@ fn ints(df: &DataFrame, name: &str) -> Result<Vec<i64>, String> {
         .collect())
 }
 
-fn floats(df: &DataFrame, name: &str) -> Result<Vec<f64>, String> {
-    Ok(df
-        .column(name)
-        .map_err(|e| e.to_string())?
-        .f64()
-        .map_err(|e| e.to_string())?
-        .iter()
-        .map(|v| v.unwrap_or_default())
-        .collect())
+fn string_lists(df: &DataFrame, name: &str) -> Result<Vec<Vec<String>>, String> {
+    let column = df.column(name).map_err(|e| e.to_string())?;
+    let lists = column.list().map_err(|e| e.to_string())?;
+    (0..lists.len())
+        .map(|row| {
+            let Some(series) = lists.get_as_series(row) else {
+                return Ok(Vec::new());
+            };
+            Ok(series
+                .str()
+                .map_err(|e| e.to_string())?
+                .iter()
+                .map(|value| value.unwrap_or_default().to_string())
+                .collect())
+        })
+        .collect()
 }
 
 fn float_lists(df: &DataFrame, name: &str) -> Result<Vec<Vec<f64>>, String> {

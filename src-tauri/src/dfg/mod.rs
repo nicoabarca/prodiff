@@ -1,24 +1,21 @@
-//! The Directly-Follows Graph: every node and every edge the log has, with the
-//! figures both Groups measure on them and the Fuzzy Miner metrics that rank
-//! them. Shipped whole and unpruned.
+//! The Directly-Follows Graph, shipped as the log's distinct trace shapes plus
+//! what each activity measures. Nothing is pruned, ranked or laid out here.
 //!
-//! Rust decides nothing about the drawing. It does not resolve conflicting
-//! pairs, does not apply a cutoff, does not compute a coordinate, and never
-//! learns a Group's name or colour. The frontend simplifies and lays out, so
-//! moving a slider never comes back here.
+//! The frontend folds the variants into nodes and edges for whatever set of
+//! activities is on screen, so hiding an activity re-links through it with
+//! counts the log actually holds rather than with a stand-in. Moving a slider
+//! never comes back here, and Rust never learns a Group's name or colour.
 
-pub mod commands;
 mod build;
-mod metrics;
+pub mod commands;
 
 use crate::analysis::{stats, Acc, AttributeBlock, GroupLog, ALPHA, MIN_GROUP_CASES};
 use crate::column_mapping::{find_role, ColumnMapping, ColumnRole};
-use build::Endpoint;
 use std::collections::HashMap;
 
-/// The ids Start and End answer to. Activities take the ids above them.
-const START_ID: usize = 0;
-const END_ID: usize = 1;
+/// Start and End are the frontend's, folded from the variants. Activities take
+/// the ids above them, so the two synthetic nodes can never collide.
+const FIRST_ACTIVITY_ID: usize = 2;
 
 #[derive(serde::Serialize, Debug, Clone, Copy, Default)]
 #[serde(rename_all = "camelCase")]
@@ -29,37 +26,34 @@ pub struct Counts {
     pub events: i64,
 }
 
-#[derive(serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-pub enum NodeKind {
-    Start,
-    End,
-    Activity,
-}
-
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DfgNode {
     pub id: usize,
     pub label: String,
-    pub kind: NodeKind,
-    /// Unary significance, over the union of the Groups. Feeds the node cutoff.
-    pub significance: f64,
+    /// Over the whole log, whatever the view is showing. The Activities slider
+    /// ranks by these.
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, AttributeBlock>,
 }
 
+/// One trace shape and how many cases of each Group ran it.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct DfgEdge {
+pub struct Variant {
+    /// Node ids, in the order they occurred.
+    pub activities: Vec<usize>,
+    pub cases: HashMap<String, i64>,
+}
+
+/// The wait one directly-follows pair spans. Only pairs the log holds have one,
+/// and only when the view asked for the Transition Time.
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Transition {
     pub source: usize,
     pub target: usize,
-    /// Binary significance and correlation. Together they feed the edge cutoff.
-    pub significance: f64,
-    pub correlation: f64,
-    pub counts: HashMap<String, Counts>,
-    /// The wait between the two activities. `None` on Start and End edges.
-    pub transition_time: Option<AttributeBlock>,
+    pub wait: AttributeBlock,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -73,7 +67,8 @@ pub struct GroupBlock {
 #[serde(rename_all = "camelCase")]
 pub struct Dfg {
     pub nodes: Vec<DfgNode>,
-    pub edges: Vec<DfgEdge>,
+    pub variants: Vec<Variant>,
+    pub transitions: Vec<Transition>,
     /// Ordered: carries both the order and the identity of the Groups compared.
     pub groups: Vec<GroupBlock>,
     pub comparing: bool,
@@ -100,18 +95,18 @@ pub fn build(
     let node_id: HashMap<&str, usize> = labels
         .iter()
         .enumerate()
-        .map(|(i, label)| (label.as_str(), i + END_ID + 1))
+        .map(|(i, label)| (label.as_str(), i + FIRST_ACTIVITY_ID))
         .collect();
 
     let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates);
     correct(&mut nodes, &aggregates);
-    let mut edges = graph_edges(&ids, &node_id, &aggregates)?;
-    correct_edges(&mut edges);
-    nodes.splice(0..0, boundary_nodes(&edges));
+    let mut transitions = transitions(&ids, &node_id, &aggregates);
+    correct_transitions(&mut transitions);
 
     Ok(Dfg {
         nodes,
-        edges,
+        variants: variants(&node_id, &aggregates)?,
+        transitions,
         groups: ids
             .iter()
             .map(|id| GroupBlock {
@@ -132,30 +127,20 @@ pub fn build(
 }
 
 /// One node per activity, in label order so the same log always numbers them
-/// the same way. Significance is normalized over the activities alone: Start
-/// and End carry one event per case each and would flatten everything else.
+/// the same way.
 fn activity_nodes(
     ids: &[String],
     labels: &[&String],
     node_id: &HashMap<&str, usize>,
     aggregates: &build::Aggregates,
 ) -> Vec<DfgNode> {
-    let events: Vec<i64> = labels
-        .iter()
-        .map(|label| union_events(&aggregates.nodes[*label].counts))
-        .collect();
-    let significance = metrics::significance(&events);
-
     labels
         .iter()
-        .zip(significance)
-        .map(|(label, significance)| {
+        .map(|label| {
             let node = &aggregates.nodes[*label];
             DfgNode {
                 id: node_id[label.as_str()],
                 label: (*label).clone(),
-                kind: NodeKind::Activity,
-                significance,
                 counts: node.counts.clone(),
                 attributes: aggregates
                     .attributes
@@ -170,105 +155,51 @@ fn activity_nodes(
         .collect()
 }
 
-/// The two synthetic nodes, counted from the edges that name them. They are
-/// never cut, so their significance is not a measurement.
-fn boundary_nodes(edges: &[DfgEdge]) -> Vec<DfgNode> {
-    let sum = |pick: fn(&DfgEdge) -> bool| {
-        let mut counts: HashMap<String, Counts> = HashMap::new();
-        for edge in edges.iter().filter(|edge| pick(edge)) {
-            for (id, count) in &edge.counts {
-                let total = counts.entry(id.clone()).or_default();
-                total.cases += count.cases;
-                total.events += count.events;
-            }
-        }
-        counts
-    };
-    // A case enters through exactly one Start edge and leaves through exactly
-    // one End edge, so summing them double-counts nothing.
-    vec![
-        DfgNode {
-            id: START_ID,
-            label: "Start".to_string(),
-            kind: NodeKind::Start,
-            significance: 1.0,
-            counts: sum(|edge| edge.source == START_ID),
-            attributes: HashMap::new(),
-        },
-        DfgNode {
-            id: END_ID,
-            label: "End".to_string(),
-            kind: NodeKind::End,
-            significance: 1.0,
-            counts: sum(|edge| edge.target == END_ID),
-            attributes: HashMap::new(),
-        },
-    ]
+/// The trace shapes with their activities resolved to node ids.
+fn variants(
+    node_id: &HashMap<&str, usize>,
+    aggregates: &build::Aggregates,
+) -> Result<Vec<Variant>, String> {
+    aggregates
+        .variants
+        .iter()
+        .map(|variant| {
+            let activities = variant
+                .activities
+                .iter()
+                .map(|label| {
+                    node_id.get(label.as_str()).copied().ok_or_else(|| {
+                        format!("A variant names an activity no node was built for: {label}")
+                    })
+                })
+                .collect::<Result<Vec<usize>, String>>()?;
+            Ok(Variant {
+                activities,
+                cases: variant.cases.clone(),
+            })
+        })
+        .collect()
 }
 
-/// One edge per directly-follows pair, in `(source, target)` id order.
-///
-/// Significance and correlation are normalized over the inner edges only. A
-/// Start or End edge is structure rather than behaviour: it scores 1.0 on both,
-/// which is what keeps the cutoff from ever detaching the graph from its ends.
-fn graph_edges(
+/// One entry per pair the log holds, in `(source, target)` id order.
+fn transitions(
     ids: &[String],
     node_id: &HashMap<&str, usize>,
     aggregates: &build::Aggregates,
-) -> Result<Vec<DfgEdge>, String> {
-    let id_of = |endpoint: &Endpoint| -> Result<usize, String> {
-        match endpoint {
-            Endpoint::Start => Ok(START_ID),
-            Endpoint::End => Ok(END_ID),
-            Endpoint::Activity(label) => node_id
-                .get(label.as_str())
-                .copied()
-                .ok_or_else(|| format!("Edge names an activity no node was built for: {label}")),
-        }
-    };
-
-    let mut keys: Vec<&(Endpoint, Endpoint)> = aggregates.edges.keys().collect();
-    let mut resolved = Vec::with_capacity(keys.len());
-    for key in keys.drain(..) {
-        resolved.push((id_of(&key.0)?, id_of(&key.1)?, key));
-    }
-    resolved.sort_by_key(|(source, target, _)| (*source, *target));
-
-    let inner = |(source, target): (usize, usize)| source != START_ID && target != END_ID;
-    let events: Vec<i64> = resolved
+) -> Vec<Transition> {
+    let mut transitions: Vec<Transition> = aggregates
+        .transitions
         .iter()
-        .filter(|(source, target, _)| inner((*source, *target)))
-        .map(|(_, _, key)| union_events(&aggregates.edges[*key].counts))
-        .collect();
-    let significance = metrics::significance(&events);
-    let waits: Vec<Option<f64>> = resolved
-        .iter()
-        .filter(|(source, target, _)| inner((*source, *target)))
-        .map(|(_, _, key)| mean_wait(&aggregates.edges[*key]))
-        .collect();
-    let correlation = metrics::proximity(&waits);
-
-    let mut measured = significance.into_iter().zip(correlation);
-    Ok(resolved
-        .into_iter()
-        .map(|(source, target, key)| {
-            let edge = &aggregates.edges[key];
-            let (significance, correlation) = if inner((source, target)) {
-                measured.next().unwrap_or((0.0, 1.0))
-            } else {
-                (1.0, 1.0)
-            };
-            DfgEdge {
-                source,
-                target,
-                significance,
-                correlation,
-                counts: edge.counts.clone(),
-                transition_time: (aggregates.wants_transition && inner((source, target)))
-                    .then(|| block(ids, &edge.transition, true)),
-            }
+        .filter_map(|((source, target), accs)| {
+            Some(Transition {
+                source: node_id.get(source.as_str()).copied()?,
+                target: node_id.get(target.as_str()).copied()?,
+                wait: block(ids, accs, true),
+            })
         })
-        .collect())
+        .collect();
+    transitions.sort_by_key(|transition| (transition.source, transition.target));
+    transitions
 }
 
 /// One Group's values summarized, and the two compared when there are two.
@@ -313,31 +244,18 @@ fn correct(nodes: &mut [DfgNode], aggregates: &build::Aggregates) {
     }
 }
 
-/// The transition times are their own family: one quantity across every edge.
-fn correct_edges(edges: &mut [DfgEdge]) {
-    let family: Vec<f64> = edges
+/// The transition times are their own family: one quantity across every pair.
+fn correct_transitions(transitions: &mut [Transition]) {
+    let family: Vec<f64> = transitions
         .iter()
-        .filter_map(|edge| Some(edge.transition_time.as_ref()?.test.as_ref()?.p_value))
+        .filter_map(|transition| Some(transition.wait.test.as_ref()?.p_value))
         .collect();
     let cutoff = stats::benjamini_hochberg(&family, ALPHA);
-    for edge in edges.iter_mut() {
-        if let Some(test) = edge
-            .transition_time
-            .as_mut()
-            .and_then(|block| block.test.as_mut())
-        {
+    for transition in transitions.iter_mut() {
+        if let Some(test) = transition.wait.test.as_mut() {
             test.significant = test.p_value <= cutoff;
         }
     }
-}
-
-fn union_events(counts: &HashMap<String, Counts>) -> i64 {
-    counts.values().map(|count| count.events).sum()
-}
-
-/// The mean wait over both Groups at once, which is what the correlation ranks.
-fn mean_wait(edge: &build::EdgeAgg) -> Option<f64> {
-    (edge.wait_n > 0).then(|| edge.wait_total / edge.wait_n as f64)
 }
 
 #[cfg(test)]
@@ -445,12 +363,27 @@ mod tests {
             .unwrap_or_else(|| panic!("no node labelled {label}"))
     }
 
-    fn edge<'a>(dfg: &'a Dfg, from: &str, to: &str) -> &'a DfgEdge {
+    fn transition<'a>(dfg: &'a Dfg, from: &str, to: &str) -> &'a Transition {
         let (source, target) = (node(dfg, from).id, node(dfg, to).id);
-        dfg.edges
+        dfg.transitions
             .iter()
-            .find(|edge| edge.source == source && edge.target == target)
-            .unwrap_or_else(|| panic!("no edge {from} to {to}"))
+            .find(|transition| transition.source == source && transition.target == target)
+            .unwrap_or_else(|| panic!("no transition {from} to {to}"))
+    }
+
+    /// A variant as its labels, which reads better in an assertion than ids do.
+    fn shape(dfg: &Dfg, variant: &Variant) -> Vec<String> {
+        variant
+            .activities
+            .iter()
+            .map(|id| {
+                dfg.nodes
+                    .iter()
+                    .find(|node| node.id == *id)
+                    .map(|node| node.label.clone())
+                    .unwrap_or_else(|| panic!("a variant names the unknown id {id}"))
+            })
+            .collect()
     }
 
     fn n_of(summary: &Summary) -> usize {
@@ -460,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn a_trace_runs_from_start_to_end() {
+    fn a_case_arrives_as_its_trace_in_order() {
         let dfg = dfg_with(
             &log(&[("1", &[("A", 0, 10), ("B", 1, 20), ("C", 2, 30)])]),
             None,
@@ -468,12 +401,47 @@ mod tests {
             false,
         );
 
-        assert_eq!(dfg.nodes.len(), 5);
-        assert_eq!(dfg.nodes[0].kind, NodeKind::Start);
-        assert_eq!(dfg.nodes[1].kind, NodeKind::End);
-        assert_eq!(dfg.edges.len(), 4);
-        assert_eq!(edge(&dfg, "Start", "A").counts["a"].cases, 1);
-        assert_eq!(edge(&dfg, "C", "End").counts["a"].cases, 1);
+        assert_eq!(dfg.nodes.len(), 3);
+        assert_eq!(dfg.variants.len(), 1);
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B", "C"]);
+        assert_eq!(dfg.variants[0].cases["a"], 1);
+    }
+
+    #[test]
+    fn cases_running_the_same_trace_fold_into_one_variant() {
+        let dfg = dfg_with(
+            &log(&[
+                ("1", &[("A", 0, 10), ("B", 1, 20)]),
+                ("2", &[("A", 0, 10), ("B", 1, 20)]),
+                ("3", &[("A", 0, 10)]),
+            ]),
+            None,
+            &[],
+            false,
+        );
+
+        assert_eq!(dfg.variants.len(), 2);
+        // The most travelled shape first: two cases ran it against the other's
+        // one.
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B"]);
+        assert_eq!(dfg.variants[0].cases["a"], 2);
+        assert_eq!(shape(&dfg, &dfg.variants[1]), ["A"]);
+        assert_eq!(dfg.variants[1].cases["a"], 1);
+    }
+
+    #[test]
+    fn one_trace_shared_by_both_groups_is_counted_by_id() {
+        let a = log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]);
+        let b = log(&[("2", &[("A", 0, 90)]), ("3", &[("A", 0, 90), ("B", 1, 90)])]);
+        let dfg = dfg_with(&a, Some(&b), &[], false);
+
+        let shared = dfg
+            .variants
+            .iter()
+            .find(|variant| shape(&dfg, variant) == ["A", "B"])
+            .unwrap();
+        assert_eq!(shared.cases["a"], 1);
+        assert_eq!(shared.cases["b"], 1);
     }
 
     #[test]
@@ -487,7 +455,7 @@ mod tests {
 
         assert_eq!(node(&dfg, "A").counts["a"].cases, 1);
         assert_eq!(node(&dfg, "A").counts["a"].events, 2);
-        assert_eq!(edge(&dfg, "B", "A").counts["a"].events, 1);
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B", "A"]);
     }
 
     #[test]
@@ -495,62 +463,17 @@ mod tests {
         let dfg = dfg_with(
             &log(&[("1", &[("A", 0, 10), ("A", 1, 20)])]),
             None,
-            &[],
+            &[TRANSITION_TIME],
             false,
         );
 
-        let loop_edge = edge(&dfg, "A", "A");
-        assert_eq!(loop_edge.source, loop_edge.target);
-        assert_eq!(loop_edge.counts["a"].events, 1);
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "A"]);
+        let self_loop = transition(&dfg, "A", "A");
+        assert_eq!(self_loop.source, self_loop.target);
     }
 
     #[test]
-    fn the_busiest_activity_anchors_significance() {
-        let dfg = dfg_with(
-            &log(&[("1", &[("A", 0, 10), ("B", 1, 20), ("A", 2, 30)])]),
-            None,
-            &[],
-            false,
-        );
-
-        assert_eq!(node(&dfg, "A").significance, 1.0);
-        assert_eq!(node(&dfg, "B").significance, 0.5);
-    }
-
-    #[test]
-    fn start_and_end_are_never_what_a_cutoff_drops() {
-        let dfg = dfg_with(
-            &log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]),
-            None,
-            &[],
-            false,
-        );
-
-        assert_eq!(node(&dfg, "Start").significance, 1.0);
-        assert_eq!(node(&dfg, "End").significance, 1.0);
-        assert_eq!(edge(&dfg, "Start", "A").significance, 1.0);
-        assert_eq!(edge(&dfg, "Start", "A").correlation, 1.0);
-        assert_eq!(edge(&dfg, "B", "End").correlation, 1.0);
-    }
-
-    #[test]
-    fn the_shorter_wait_correlates_more() {
-        let dfg = dfg_with(
-            &log(&[
-                ("1", &[("A", 0, 10), ("B", 1, 20)]),
-                ("2", &[("C", 0, 10), ("D", 1_000, 20)]),
-            ]),
-            None,
-            &[],
-            false,
-        );
-
-        assert_eq!(edge(&dfg, "A", "B").correlation, 1.0);
-        assert_eq!(edge(&dfg, "C", "D").correlation, 0.0);
-    }
-
-    #[test]
-    fn only_the_inner_edges_span_a_wait() {
+    fn a_pair_carries_the_wait_between_its_ends() {
         let dfg = dfg_with(
             &log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]),
             None,
@@ -558,10 +481,21 @@ mod tests {
             false,
         );
 
-        assert!(edge(&dfg, "Start", "A").transition_time.is_none());
-        assert!(edge(&dfg, "B", "End").transition_time.is_none());
-        let wait = edge(&dfg, "A", "B").transition_time.as_ref().unwrap();
+        assert_eq!(dfg.transitions.len(), 1);
+        let wait = &transition(&dfg, "A", "B").wait;
         assert_eq!(n_of(&wait.summaries["a"]), 1);
+    }
+
+    #[test]
+    fn an_unasked_transition_time_is_never_measured() {
+        let dfg = dfg_with(
+            &log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]),
+            None,
+            &[],
+            false,
+        );
+
+        assert!(dfg.transitions.is_empty());
     }
 
     #[test]
@@ -611,12 +545,7 @@ mod tests {
         assert!(!dfg.comparing);
         assert_eq!(dfg.groups.len(), 1);
         assert!(node(&dfg, "A").attributes["cost"].test.is_none());
-        assert!(edge(&dfg, "A", "B")
-            .transition_time
-            .as_ref()
-            .unwrap()
-            .test
-            .is_none());
+        assert!(transition(&dfg, "A", "B").wait.test.is_none());
     }
 
     #[test]

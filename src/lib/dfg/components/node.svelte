@@ -7,9 +7,9 @@
 
   const vertical = $derived(data.direction === "TB");
   const boundary = $derived(data.kind !== "activity");
-  // Significance shades the box rather than resizing it: the box is a fixed
-  // size so the layout can be cached across every change of face.
-  const tint = $derived(6 + Math.round(data.significance * 14));
+  // The share shades the box rather than resizing it: the box is a fixed size
+  // so the layout can be cached across every change of face.
+  const tint = $derived(6 + Math.round(data.share * 14));
   const fill = $derived(`color-mix(in oklab, var(--foreground) ${tint}%, var(--card))`);
 </script>
 
@@ -21,14 +21,29 @@
 />
 
 {#if boundary}
-  <div
-    class="flex h-full w-full items-center justify-center rounded-full border text-[0.6875rem] font-semibold tracking-wide uppercase {data.kind ===
-    'start'
-      ? 'border-emerald-500/50 text-emerald-600 dark:text-emerald-400'
-      : 'border-rose-500/50 text-rose-600 dark:text-rose-400'}"
-  >
-    {data.label}
-  </div>
+  <Tooltip.Root>
+    <Tooltip.Trigger
+      class="flex h-full w-full items-center justify-center rounded-full {data.kind === 'start'
+        ? 'bg-emerald-500'
+        : 'bg-rose-500'}"
+    >
+      {#if data.kind === "start"}
+        <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
+          <polygon points="3,2 3,12 12,7" fill="white" />
+        </svg>
+      {:else}
+        <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+          <rect x="0" y="0" width="12" height="12" rx="1" fill="white" />
+        </svg>
+      {/if}
+    </Tooltip.Trigger>
+    <Tooltip.Content>
+      {data.label}
+      {#if data.counts.some((count) => count !== null)}
+        · {data.counts.filter((count) => count !== null).join(" · ")}
+      {/if}
+    </Tooltip.Content>
+  </Tooltip.Root>
 {:else}
   <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
        resolves to nothing here. -->

@@ -1,40 +1,30 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
-import type { NodeKind } from "$lib/dfg/invokers/types";
 
-/**
- * Both edges of a conflicting pair survive above this: `A→B` and `B→A` are then
- * a real length-two loop rather than one direction plus its noise.
- */
-export const PRESERVE_THRESHOLD = 0.6;
+/** The two synthetic nodes. Activities are numbered above them by Rust. */
+export const START_ID = 0;
+export const END_ID = 1;
 
-/**
- * One direction wins outright when it beats the other by more than this. Below
- * it the two are concurrent and neither is drawn.
- */
-export const RATIO_THRESHOLD = 0.7;
+export type NodeKind = "start" | "end" | "activity";
 
-/** Which figure a node or an edge prints on its face. */
+/** Which figure a node or an edge prints on its face, and ranks by. */
 export type Measure = "cases" | "events";
 
 export type Direction = "TB" | "LR";
 
 export interface DfgView {
   /**
-   * How much of an edge's usefulness is its significance rather than its
-   * correlation. 1 weighs frequency alone, 0 closeness alone.
+   * Both in `[0, 1]`, both a share of what the log has: 1 draws every activity
+   * and every path, 0 the single most travelled of each.
    */
-  utilityRatio: number;
-  /** Both in `[0, 1]`, both local: what a node keeps, not a global top-N. */
-  edgeCutoff: number;
-  nodeCutoff: number;
+  activities: number;
+  paths: number;
   measure: Measure;
   direction: Direction;
 }
 
 export const defaultDfgView: DfgView = {
-  utilityRatio: 0.5,
-  edgeCutoff: 0.2,
-  nodeCutoff: 0,
+  activities: 1,
+  paths: 0.5,
   measure: "cases",
   direction: "TB"
 };
@@ -60,8 +50,8 @@ export interface DfgNodeData {
   groups: FaceGroup[];
   counts: (string | null)[];
   findings: number;
-  /** Shades the box. The busiest activity is the darkest. */
-  significance: number;
+  /** Shades the box, against the busiest activity drawn. */
+  share: number;
   selected: boolean;
   direction: Direction;
   [key: string]: unknown;
@@ -72,7 +62,7 @@ export interface DfgEdgeData {
   path: string;
   width: number;
   label: string | null;
-  /** A stand-in for a removed node: that pair never happened directly. */
-  reconnected: boolean;
+  /** Start and End edges are structure rather than behaviour, and drawn dashed. */
+  boundary: boolean;
   [key: string]: unknown;
 }

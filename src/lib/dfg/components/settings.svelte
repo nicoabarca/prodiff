@@ -4,7 +4,6 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
-  import { Slider } from "$lib/components/ui/slider/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { attributeOptions } from "$lib/analysis/attributes";
   import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
@@ -33,22 +32,6 @@
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="w-80 space-y-4" align="end">
-    <div class="space-y-1.5">
-      <div class="flex items-baseline justify-between">
-        <Label class="text-xs">Frequency over closeness</Label>
-        <span class="text-muted-foreground font-mono text-[0.625rem]">
-          {view.utilityRatio.toFixed(2)}
-        </span>
-      </div>
-      <Slider type="single" bind:value={view.utilityRatio} min={0} max={1} step={0.05} />
-      <p class="text-muted-foreground text-[0.625rem]">
-        What makes a path worth keeping when the Paths slider ranks them: how often it is taken, or
-        how little waiting it involves.
-      </p>
-    </div>
-
-    <Separator />
-
     <div class="space-y-1.5">
       <Label class="text-xs">Faces show</Label>
       <ToggleGroup.Root

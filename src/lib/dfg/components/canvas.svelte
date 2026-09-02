@@ -14,18 +14,28 @@
   import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
-  import { busiestEdge, edgeWait, edgeWidth, faceCounts, findings } from "$lib/dfg/utils/face";
-  import type { FaceGroup } from "$lib/dfg/types";
-  import { NODE_HEIGHT, NODE_WIDTH, edgeKey, layout, type Placement } from "$lib/dfg/utils/layout";
-  import { simplify } from "$lib/dfg/utils/simplify";
+  import {
+    busiest,
+    edgeWait,
+    edgeWidth,
+    faceCounts,
+    findings,
+    nodeShare,
+    transitionsById
+  } from "$lib/dfg/utils/face";
+  import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
+  import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
+  import type { Simplified } from "$lib/dfg/utils/simplify";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
 
-  let { graph, stale }: { graph: ResponseDfg; stale: boolean } = $props();
+  let { graph, simplified, stale }: { graph: ResponseDfg; simplified: Simplified; stale: boolean } =
+    $props();
 
   const nodeTypes = { activity: ActivityNode };
   const edgeTypes = { routed: RoutedEdge };
 
-  const simplified = $derived(simplify(graph, view));
+  const waits = $derived(transitionsById(graph));
+  const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
 
   // The canvas paints Groups in the names and colours the user chose, so the
   // payload can stay ids-only and a rename never leaves a stale label behind.
@@ -46,8 +56,8 @@
   let pending = 0;
   $effect(() => {
     const request = ++pending;
-    const wanted = { graph: simplified, direction: view.direction };
-    layout(wanted.graph, wanted.direction).then((laid) => {
+    const wanted = { graph: simplified, direction: view.direction, measure: view.measure };
+    layout(wanted.graph, wanted.direction, wanted.measure).then((laid) => {
       if (request === pending) placement = laid;
     });
   });
@@ -56,28 +66,31 @@
     const placed = placement;
     if (!placed) return { nodes: [], edges: [] };
 
+    const busiestNode = busiest(
+      simplified.nodes.filter((node) => node.kind === "activity"),
+      view.measure
+    );
     const nodes: Node[] = simplified.nodes
       .filter((node) => placed.nodes.has(node.id))
       .map((node) => ({
         id: String(node.id),
         type: "activity",
         position: placed.nodes.get(node.id) ?? { x: 0, y: 0 },
-        width: NODE_WIDTH,
-        height: NODE_HEIGHT,
+        ...nodeSize(node.id),
         draggable: false,
         data: {
           label: node.label,
           kind: node.kind,
           groups,
           counts: faceCounts(node.counts, groups, view.measure),
-          findings: findings(node),
-          significance: node.significance,
+          findings: findings(measured.get(node.id)),
+          share: nodeShare(node.counts, busiestNode, view.measure),
           selected: selected.id === node.id,
           direction: view.direction
         }
       }));
 
-    const busiest = busiestEdge(simplified.edges, view.measure);
+    const busiestEdge = busiest(simplified.edges, view.measure);
     const edges: Edge[] = simplified.edges.map((edge) => {
       const key = edgeKey(edge.source, edge.target);
       return {
@@ -88,20 +101,15 @@
         markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
         data: {
           path: placed.paths.get(key) ?? "",
-          width: edgeWidth(edge.edge, busiest, view.measure),
-          label: edgeWait(edge.edge, groups),
-          reconnected: edge.edge === null
+          width: edgeWidth(edge.counts, busiestEdge, view.measure),
+          label: edgeWait(waits.get(key), groups),
+          boundary: edge.source === START_ID || edge.target === END_ID
         }
       };
     });
 
     return { nodes, edges };
   });
-
-  // Start and End are always drawn and never cut, so they are not part of what
-  // the Activities slider reports.
-  const activitiesShown = $derived(simplified.nodes.filter((n) => n.kind === "activity").length);
-  const activitiesTotal = $derived(graph.nodes.filter((n) => n.kind === "activity").length);
 
   // Svelte Flow owns these arrays while the user pans, so they are local state
   // re-seeded from the layout.
@@ -136,10 +144,5 @@
     <Controls showLock={false} />
   </SvelteFlow>
 
-  <SimplificationControls
-    {activitiesShown}
-    {activitiesTotal}
-    pathsShown={simplified.edges.length}
-    pathsTotal={graph.edges.length}
-  />
+  <SimplificationControls activities={simplified.activities} paths={simplified.paths} />
 </div>

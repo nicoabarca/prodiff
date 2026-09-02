@@ -5,26 +5,32 @@
   import type { Summary } from "$lib/analysis/types";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected } from "$lib/dfg/state/view.svelte";
+  import type { Simplified } from "$lib/dfg/utils/simplify";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { formatDuration, formatNumber } from "$lib/format";
 
-  let { graph }: { graph: ResponseDfg } = $props();
+  let { graph, simplified }: { graph: ResponseDfg; simplified: Simplified } = $props();
 
-  const node = $derived(graph.nodes.find((candidate) => candidate.id === selected.id) ?? null);
+  const node = $derived(simplified.nodes.find((candidate) => candidate.id === selected.id) ?? null);
+  const measured = $derived(graph.nodes.find((candidate) => candidate.id === selected.id) ?? null);
   const groups = $derived(comparedGroups());
 
   /** Findings first: an attribute that came back significant is the reason to look. */
   const blocks = $derived(
-    node
-      ? Object.entries(node.attributes).sort(
+    measured
+      ? Object.entries(measured.attributes).sort(
           ([, a], [, b]) =>
             Number(b.test?.significant ?? false) - Number(a.test?.significant ?? false)
         )
       : []
   );
 
-  const edgesInto = $derived(node ? graph.edges.filter((edge) => edge.target === node.id) : []);
-  const edgesOutOf = $derived(node ? graph.edges.filter((edge) => edge.source === node.id) : []);
+  const edgesInto = $derived(
+    node ? simplified.edges.filter((edge) => edge.target === node.id) : []
+  );
+  const edgesOutOf = $derived(
+    node ? simplified.edges.filter((edge) => edge.source === node.id) : []
+  );
 
   function centre(summary: Summary | undefined, attribute: string): string {
     if (!summary) return "—";
@@ -43,8 +49,8 @@
     <div class="space-y-1">
       <h2 class="text-sm font-semibold">{node.label}</h2>
       <p class="text-muted-foreground text-xs">
-        {node.kind === "activity" ? "Activity" : node.kind === "start" ? "Start" : "End"} · significance
-        {node.significance.toFixed(2)} · {edgesInto.length} in, {edgesOutOf.length} out
+        {node.kind === "activity" ? "Activity" : node.kind === "start" ? "Start" : "End"} · {edgesInto.length}
+        in, {edgesOutOf.length} out
       </p>
     </div>
 

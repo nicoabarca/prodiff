@@ -1,29 +1,59 @@
 import { describe, expect, it } from "vitest";
-import type { DfgEdge, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
-import { defaultDfgView, type DfgView } from "$lib/dfg/types";
+import type { Counts, DfgNode, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
+import { END_ID, START_ID, defaultDfgView, type DfgView } from "$lib/dfg/types";
 import { simplify } from "$lib/dfg/utils/simplify";
 
-function node(id: number, significance = 1, label = `n${id}`): DfgNode {
-  return {
+const A = 2;
+const B = 3;
+const C = 4;
+const D = 5;
+
+const label = new Map([
+  [A, "A"],
+  [B, "B"],
+  [C, "C"],
+  [D, "D"]
+]);
+
+/**
+ * A graph as Rust would ship it. Node counts are summed from the variants, the
+ * way the real payload has them.
+ */
+function graphOf(variants: [number[], Record<string, number>][]): ResponseDfg {
+  const built: Variant[] = variants.map(([activities, cases]) => ({ activities, cases }));
+  const counts = new Map<number, Record<string, Counts>>();
+  for (const variant of built) {
+    for (const [group, cases] of Object.entries(variant.cases)) {
+      for (const activity of new Set(variant.activities)) {
+        const at = counts.get(activity) ?? {};
+        const times = variant.activities.filter((one) => one === activity).length;
+        const found = at[group] ?? { cases: 0, events: 0 };
+        at[group] = { cases: found.cases + cases, events: found.events + cases * times };
+        counts.set(activity, at);
+      }
+    }
+  }
+
+  const nodes: DfgNode[] = [...counts.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([id, counts]) => ({
+      id,
+      label: label.get(id) ?? String(id),
+      counts,
+      attributes: {}
+    }));
+
+  const groups = [...new Set(built.flatMap((variant) => Object.keys(variant.cases)))].map((id) => ({
     id,
-    label,
-    kind: id === 0 ? "start" : id === 1 ? "end" : "activity",
-    significance,
-    counts: {},
-    attributes: {}
-  };
-}
+    caseCount: 0
+  }));
 
-function edge(source: number, target: number, significance = 1, correlation = 1): DfgEdge {
-  return { source, target, significance, correlation, counts: {}, transitionTime: null };
-}
-
-function graph(nodes: DfgNode[], edges: DfgEdge[]): ResponseDfg {
   return {
     nodes,
-    edges,
-    groups: [{ id: "a", caseCount: 1 }],
-    comparing: false,
+    variants: built,
+    transitions: [],
+    groups,
+    comparing: groups.length > 1,
     overlapCases: 0,
     transitionTimeBasis: "completeOnly",
     hasActivityDuration: false,
@@ -33,129 +63,105 @@ function graph(nodes: DfgNode[], edges: DfgEdge[]): ResponseDfg {
 
 const view = (over: Partial<DfgView> = {}): DfgView => ({ ...defaultDfgView, ...over });
 
-const pairs = (edges: { source: number; target: number }[]) =>
-  edges.map((e) => `${e.source}->${e.target}`).sort();
+const pairs = (of: { source: number; target: number }[]) =>
+  of.map(({ source, target }) => `${source}->${target}`);
 
-describe("conflicting pairs", () => {
-  /** Start → 2 ⇄ 3 → End, the two directions evenly matched. */
-  const conflicted = graph(
-    [node(0), node(1), node(2), node(3)],
-    [edge(0, 2), edge(2, 3), edge(3, 2), edge(3, 1)]
-  );
+describe("simplify", () => {
+  it("draws everything at full detail", () => {
+    const graph = graphOf([
+      [[A, B], { a: 3 }],
+      [[A, C], { a: 1 }]
+    ]);
 
-  it("drops both directions when neither is the exception", () => {
-    const { edges } = simplify(conflicted, view({ edgeCutoff: 0 }));
-    expect(pairs(edges)).toEqual(["0->2", "3->1"]);
+    const simplified = simplify(graph, view({ activities: 1, paths: 1 }));
+
+    expect(simplified.activities).toEqual({ shown: 3, total: 3 });
+    expect(simplified.paths.shown).toBe(simplified.paths.total);
+    expect(pairs(simplified.edges)).toContain(`${A}->${C}`);
   });
 
-  it("leaves a self-loop alone", () => {
-    const looped = graph([node(0), node(1), node(2)], [edge(0, 2), edge(2, 2), edge(2, 1)]);
-    const { edges } = simplify(looped, view({ edgeCutoff: 0 }));
-    expect(pairs(edges)).toContain("2->2");
+  it("drops the least travelled activity first", () => {
+    const graph = graphOf([
+      [[A, B], { a: 10 }],
+      [[A, C], { a: 1 }]
+    ]);
+
+    const simplified = simplify(graph, view({ activities: 0.5 }));
+
+    const drawn = simplified.nodes.map((node) => node.label);
+    expect(drawn).toContain("A");
+    expect(drawn).toContain("B");
+    expect(drawn).not.toContain("C");
+    expect(simplified.activities).toEqual({ shown: 2, total: 3 });
   });
 
-  it("keeps both when each direction dominates its own ends", () => {
-    // 2 ⇄ 3 and nothing else: every edge is its source's only way out and its
-    // target's only way in, so both sides score 1.
-    const loop = graph([node(2), node(3)], [edge(2, 3), edge(3, 2)]);
-    const { edges } = simplify(loop, view({ edgeCutoff: 0 }));
-    expect(pairs(edges)).toEqual(["2->3", "3->2"]);
-  });
-});
+  it("re-links the cases of a dropped activity rather than losing them", () => {
+    const graph = graphOf([
+      [[A, B, C], { a: 9 }],
+      [[A, C], { a: 1 }]
+    ]);
 
-describe("the edge cutoff", () => {
-  /** 2 forks into 3 and 4, and neither has another way in. */
-  const forked = graph(
-    [node(0), node(1), node(2), node(3), node(4)],
-    [edge(0, 2), edge(2, 3, 1.0, 1.0), edge(2, 4, 0.1, 0.1), edge(3, 1), edge(4, 1)]
-  );
+    const simplified = simplify(graph, view({ activities: 0.5, paths: 1 }));
 
-  /**
-   * A diamond, so no edge is anyone's only way in or only way out and the
-   * ranking is free to drop one. The frequent edges are 2->4 and 3->5; the
-   * close ones are 3->4 and 2->5.
-   */
-  const diamond = graph(
-    [node(2), node(3), node(4), node(5)],
-    [edge(2, 4, 1.0, 0.0), edge(3, 4, 0.1, 1.0), edge(2, 5, 0.1, 1.0), edge(3, 5, 1.0, 0.0)]
-  );
-
-  it("keeps every edge at a cutoff of zero", () => {
-    expect(simplify(forked, view({ edgeCutoff: 0 })).edges).toHaveLength(5);
-    expect(simplify(diamond, view({ edgeCutoff: 0 })).edges).toHaveLength(4);
+    // B is the middle of every busy trace, so A and C outrank it and it goes.
+    const edge = simplified.edges.find((one) => one.source === A && one.target === C);
+    expect(edge?.counts.a.cases).toBe(10);
   });
 
-  it("drops an edge only once both of its ends rank it last", () => {
-    const { edges } = simplify(diamond, view({ edgeCutoff: 0.5, utilityRatio: 1 }));
-    expect(pairs(edges)).toEqual(["2->4", "3->5"]);
+  it("never cuts the edges into Start or out of End", () => {
+    const graph = graphOf([
+      [[A, B], { a: 10 }],
+      [[C, D], { a: 1 }]
+    ]);
+
+    const simplified = simplify(graph, view({ paths: 0 }));
+
+    for (const activity of [A, C]) {
+      expect(pairs(simplified.edges)).toContain(`${START_ID}->${activity}`);
+    }
+    for (const activity of [B, D]) {
+      expect(pairs(simplified.edges)).toContain(`${activity}->${END_ID}`);
+    }
   });
 
-  it("keeps an edge the source gave up on when the target still needs it", () => {
-    // 2 ranks its weak branch last and drops it, but 4 has no other way in and
-    // normalizes its one edge to 1. That is why the graph never comes apart.
-    const { edges } = simplify(forked, view({ edgeCutoff: 1, utilityRatio: 1 }));
-    expect(pairs(edges)).toContain("2->4");
-    expect(pairs(edges)).toContain("4->1");
+  it("leaves every activity a way in and a way out at the lowest detail", () => {
+    const graph = graphOf([
+      [[A, B, D], { a: 20 }],
+      [[A, C, D], { a: 1 }]
+    ]);
+
+    const simplified = simplify(graph, view({ paths: 0 }));
+
+    for (const node of simplified.nodes) {
+      if (node.kind !== "activity") continue;
+      expect(simplified.edges.some((edge) => edge.target === node.id)).toBe(true);
+      expect(simplified.edges.some((edge) => edge.source === node.id)).toBe(true);
+    }
   });
 
-  it("keeps the frequent edges at a ratio of one", () => {
-    const { edges } = simplify(diamond, view({ edgeCutoff: 1, utilityRatio: 1 }));
-    expect(pairs(edges)).toEqual(["2->4", "3->5"]);
+  it("ranks paths inside each Group so the smaller one is not drowned", () => {
+    // Group b is a hundredth the size of a, and takes a route a never takes.
+    const graph = graphOf([
+      [[A, B], { a: 500 }],
+      [[A, C], { a: 400 }],
+      [[A, D], { b: 5 }]
+    ]);
+
+    const simplified = simplify(graph, view({ paths: 0.34, measure: "cases" }));
+
+    expect(pairs(simplified.edges)).toContain(`${A}->${D}`);
   });
 
-  it("keeps the close ones instead at a ratio of zero", () => {
-    const { edges } = simplify(diamond, view({ edgeCutoff: 1, utilityRatio: 0 }));
-    expect(pairs(edges)).toEqual(["2->5", "3->4"]);
-  });
-});
+  it("counts the paths it kept against the paths that were there to keep", () => {
+    const graph = graphOf([
+      [[A, B], { a: 5 }],
+      [[A, C], { a: 4 }],
+      [[A, D], { a: 3 }]
+    ]);
 
-describe("the node cutoff", () => {
-  /** Start → 2 → 3 → 4 → End, with 3 the least significant. */
-  const chain = graph(
-    [node(0), node(1), node(2, 1), node(3, 0.1), node(4, 1)],
-    [edge(0, 2), edge(2, 3), edge(3, 4), edge(4, 1)]
-  );
+    const simplified = simplify(graph, view({ paths: 0.5 }));
 
-  it("removes nothing at a cutoff of zero", () => {
-    const { nodes } = simplify(chain, view({ edgeCutoff: 0 }));
-    expect(nodes).toHaveLength(5);
-  });
-
-  it("reconnects the flow around what it removes", () => {
-    const { nodes, edges } = simplify(chain, view({ edgeCutoff: 0, nodeCutoff: 0.5 }));
-    expect(nodes.map((n) => n.id)).toEqual([0, 1, 2, 4]);
-    expect(pairs(edges)).toEqual(["0->2", "2->4", "4->1"]);
-  });
-
-  it("gives a reconnection no figures, because that pair never happened", () => {
-    const { edges } = simplify(chain, view({ edgeCutoff: 0, nodeCutoff: 0.5 }));
-    const stand_in = edges.find((e) => e.source === 2 && e.target === 4);
-    expect(stand_in?.edge).toBeNull();
-    expect(edges.find((e) => e.source === 0)?.edge).not.toBeNull();
-  });
-
-  it("never removes Start or End, whatever the cutoff", () => {
-    const faint = graph(
-      [node(0), node(1), node(2, 0.5), node(3, 0.5)],
-      [edge(0, 2), edge(2, 3), edge(3, 1)]
-    );
-    const { nodes } = simplify(faint, view({ edgeCutoff: 0, nodeCutoff: 1 }));
-    expect(nodes.map((n) => n.kind)).toEqual(["start", "end"]);
-  });
-
-  it("carries the flow across a run of removed nodes", () => {
-    const run = graph(
-      [node(2, 1), node(3, 0.1), node(4, 0.1), node(5, 1)],
-      [edge(2, 3), edge(3, 4), edge(4, 5)]
-    );
-    const { nodes, edges } = simplify(run, view({ edgeCutoff: 0, nodeCutoff: 0.5 }));
-    expect(nodes.map((n) => n.id)).toEqual([2, 5]);
-    expect(pairs(edges)).toEqual(["2->5"]);
-  });
-
-  it("does not invent a self-loop when removing the node between a pair", () => {
-    const there_and_back = graph([node(2, 1), node(3, 0.1)], [edge(2, 3), edge(3, 2)]);
-    const { edges } = simplify(there_and_back, view({ edgeCutoff: 0, nodeCutoff: 0.5 }));
-    expect(edges).toEqual([]);
+    expect(simplified.paths.shown).toBeLessThanOrEqual(simplified.paths.total);
+    expect(simplified.paths.total).toBeGreaterThan(0);
   });
 });

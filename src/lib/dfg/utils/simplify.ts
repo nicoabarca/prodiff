@@ -1,179 +1,109 @@
 /**
- * The Fuzzy Miner simplification, run once over the union of the Groups so both
- * sides see one graph.
+ * What the two sliders leave on screen, run once over the union of the Groups
+ * so both sides see one graph.
  *
- * Three stages in this order: conflicting pairs, then the edge cutoff, then the
- * node cutoff. The second is what keeps the graph in one piece, and it is not a
- * top-N: each node ranks its own edges, so every node keeps its best way in and
- * its best way out no matter how high the cutoff goes.
+ * Activities first: the least travelled ones are dropped and the variants are
+ * folded again without them, so the paths that appear in their place carry real
+ * counts. Then the paths, ranked inside each Group rather than across them, so
+ * a Group with fewer cases is not drowned by a larger one. Start and End edges
+ * are structure and are never cut, and every activity keeps its busiest way in
+ * and its busiest way out, which is what stops the graph coming apart.
  */
-import type { DfgEdge, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
-import { PRESERVE_THRESHOLD, RATIO_THRESHOLD, type DfgView } from "$lib/dfg/types";
+import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
+import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
+import { fold, unionCount, type FoldedEdge } from "$lib/dfg/utils/fold";
 
-export interface SimplifiedEdge {
-  source: number;
-  target: number;
-  /**
-   * The edge Rust measured, or `null` when this one stands in for a removed
-   * node: that pair never occurred directly in the log, so it has no figures.
-   */
-  edge: DfgEdge | null;
+export interface SimplifiedNode {
+  id: number;
+  label: string;
+  kind: NodeKind;
+  counts: Record<string, Counts>;
 }
 
 export interface Simplified {
-  nodes: DfgNode[];
-  edges: SimplifiedEdge[];
+  nodes: SimplifiedNode[];
+  edges: FoldedEdge[];
+  activities: { shown: number; total: number };
+  paths: { shown: number; total: number };
 }
 
-const pairKey = (source: number, target: number) => `${source}->${target}`;
+const isBoundary = (edge: FoldedEdge) => edge.source === START_ID || edge.target === END_ID;
+
+/** How many of `total` a slider at `share` keeps. Never none, never a fraction. */
+function keepCount(total: number, share: number): number {
+  if (total === 0) return 0;
+  return Math.min(total, Math.max(1, Math.ceil(share * total)));
+}
 
 export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
-  const resolved = resolveConflicts(graph.edges);
-  const cut = applyEdgeCutoff(resolved, view.utilityRatio, view.edgeCutoff);
-  return applyNodeCutoff(graph.nodes, cut, view.nodeCutoff);
-}
+  const measure = view.measure;
 
-/**
- * Relative significance: half of how much of its source's outgoing weight an
- * edge carries, half of how much of its target's incoming weight.
- */
-function relativeSignificance(edges: DfgEdge[]): Map<string, number> {
-  const outgoing = new Map<number, number>();
-  const incoming = new Map<number, number>();
-  for (const edge of edges) {
-    outgoing.set(edge.source, (outgoing.get(edge.source) ?? 0) + edge.significance);
-    incoming.set(edge.target, (incoming.get(edge.target) ?? 0) + edge.significance);
-  }
-  const share = (value: number, total: number | undefined) =>
-    total && total > 0 ? value / total : 0;
-
-  return new Map(
-    edges.map((edge) => [
-      pairKey(edge.source, edge.target),
-      0.5 * share(edge.significance, outgoing.get(edge.source)) +
-        0.5 * share(edge.significance, incoming.get(edge.target))
-    ])
+  const ranked = [...graph.nodes].sort(
+    (a, b) =>
+      unionCount(b.counts, measure) - unionCount(a.counts, measure) ||
+      a.label.localeCompare(b.label)
   );
-}
+  const kept = new Set(ranked.slice(0, keepCount(ranked.length, view.activities)).map((n) => n.id));
 
-/**
- * Stage one. A pair with an edge each way is either a real length-two loop, one
- * direction plus its noise, or two activities that simply happen in either
- * order. Only the first is drawn as written.
- */
-function resolveConflicts(edges: DfgEdge[]): DfgEdge[] {
-  const relative = relativeSignificance(edges);
-  const present = new Set(edges.map((edge) => pairKey(edge.source, edge.target)));
-  const dropped = new Set<string>();
-
-  for (const edge of edges) {
-    // A self-loop has no opposite to conflict with, and each pair is judged
-    // once, from its lower-numbered end.
-    if (edge.source >= edge.target) continue;
-    const forwardKey = pairKey(edge.source, edge.target);
-    const backKey = pairKey(edge.target, edge.source);
-    if (!present.has(backKey)) continue;
-
-    const forward = relative.get(forwardKey) ?? 0;
-    const back = relative.get(backKey) ?? 0;
-    if (forward > PRESERVE_THRESHOLD && back > PRESERVE_THRESHOLD) continue;
-    if (Math.abs(forward - back) > RATIO_THRESHOLD) {
-      dropped.add(forward >= back ? backKey : forwardKey);
-      continue;
-    }
-    dropped.add(forwardKey);
-    dropped.add(backKey);
-  }
-
-  return edges.filter((edge) => !dropped.has(pairKey(edge.source, edge.target)));
-}
-
-/**
- * Stage two. Every node normalizes the utility of its own incoming edges to
- * `[0, 1]` and keeps the ones at or above the cutoff, then does the same with
- * its outgoing ones. An edge survives if either end kept it.
- */
-function applyEdgeCutoff(edges: DfgEdge[], ratio: number, cutoff: number): DfgEdge[] {
-  const utility = new Map<DfgEdge, number>(
-    edges.map((edge) => [edge, ratio * edge.significance + (1 - ratio) * edge.correlation])
+  const folded = fold(graph.variants, kept);
+  const edges = cutPaths(
+    folded.edges,
+    graph.groups.map((group) => group.id),
+    view.paths,
+    measure
   );
-  const preserved = new Set<DfgEdge>();
 
-  const rank = (endpoint: (edge: DfgEdge) => number) => {
-    const byNode = new Map<number, DfgEdge[]>();
-    for (const edge of edges) {
-      const node = endpoint(edge);
-      const found = byNode.get(node);
-      if (found) found.push(edge);
-      else byNode.set(node, [edge]);
-    }
-    for (const group of byNode.values()) {
-      const values = group.map((edge) => utility.get(edge) ?? 0);
-      const low = values.reduce((a, b) => Math.min(a, b));
-      const high = values.reduce((a, b) => Math.max(a, b));
-      const span = high - low;
-      group.forEach((edge, i) => {
-        // One edge, or a tie, normalizes to 1. That is the guarantee: a node
-        // never loses its best edge, so the graph never comes apart.
-        const normalized = span > 0 ? (values[i] - low) / span : 1;
-        if (normalized >= cutoff) preserved.add(edge);
-      });
-    }
+  const labels = new Map(graph.nodes.map((node) => [node.id, node.label]));
+  const nodes: SimplifiedNode[] = [...folded.nodes.entries()]
+    .map(([id, counts]) => ({
+      id,
+      label: id === START_ID ? "Start" : id === END_ID ? "End" : (labels.get(id) ?? String(id)),
+      kind: (id === START_ID ? "start" : id === END_ID ? "end" : "activity") as NodeKind,
+      counts
+    }))
+    .sort((a, b) => a.id - b.id);
+
+  return {
+    nodes,
+    edges,
+    activities: { shown: kept.size, total: graph.nodes.length },
+    paths: { shown: edges.length, total: folded.edges.length }
   };
-  rank((edge) => edge.target);
-  rank((edge) => edge.source);
+}
+
+/**
+ * Top-N inside each Group, then the union of those, then the guarantee. Ranking
+ * across the Groups instead would let the larger one decide the whole picture.
+ */
+function cutPaths(
+  edges: FoldedEdge[],
+  groups: string[],
+  share: number,
+  measure: Measure
+): FoldedEdge[] {
+  const inner = edges.filter((edge) => !isBoundary(edge));
+  const preserved = new Set<FoldedEdge>(edges.filter(isBoundary));
+  const wanted = keepCount(inner.length, share);
+
+  for (const group of groups) {
+    const ofGroup = inner
+      .filter((edge) => (edge.counts[group]?.[measure] ?? 0) > 0)
+      .sort((a, b) => (b.counts[group]?.[measure] ?? 0) - (a.counts[group]?.[measure] ?? 0));
+    for (const edge of ofGroup.slice(0, wanted)) preserved.add(edge);
+  }
+
+  const best = (of: FoldedEdge[]) =>
+    of.reduce<FoldedEdge | null>(
+      (top, edge) =>
+        !top || unionCount(edge.counts, measure) > unionCount(top.counts, measure) ? edge : top,
+      null
+    );
+  for (const node of new Set(inner.flatMap((edge) => [edge.source, edge.target]))) {
+    const incoming = best(inner.filter((edge) => edge.target === node));
+    const outgoing = best(inner.filter((edge) => edge.source === node));
+    if (incoming) preserved.add(incoming);
+    if (outgoing) preserved.add(outgoing);
+  }
 
   return edges.filter((edge) => preserved.has(edge));
-}
-
-/**
- * Stage three. A node under the cutoff is removed and each of its predecessors
- * wired to each of its successors, so the flow through it survives its label.
- * Start and End are structure, not behaviour, and are never removed.
- */
-function applyNodeCutoff(nodes: DfgNode[], edges: DfgEdge[], cutoff: number): Simplified {
-  let surviving: SimplifiedEdge[] = edges.map((edge) => ({
-    source: edge.source,
-    target: edge.target,
-    edge
-  }));
-
-  const removable = nodes
-    .filter((node) => node.kind === "activity" && node.significance < cutoff)
-    .sort((a, b) => a.significance - b.significance);
-  const removed = new Set<number>();
-
-  for (const node of removable) {
-    removed.add(node.id);
-    const ends = (from: (edge: SimplifiedEdge) => number, to: (edge: SimplifiedEdge) => number) => [
-      ...new Set(
-        surviving.filter((edge) => to(edge) === node.id && from(edge) !== node.id).map(from)
-      )
-    ];
-    const predecessors = ends(
-      (edge) => edge.source,
-      (edge) => edge.target
-    );
-    const successors = ends(
-      (edge) => edge.target,
-      (edge) => edge.source
-    );
-
-    surviving = surviving.filter((edge) => edge.source !== node.id && edge.target !== node.id);
-    const present = new Set(surviving.map((edge) => pairKey(edge.source, edge.target)));
-    for (const source of predecessors) {
-      for (const target of successors) {
-        // Wiring a predecessor back to itself would invent a self-loop the log
-        // never had.
-        if (source === target) continue;
-        const key = pairKey(source, target);
-        if (present.has(key)) continue;
-        present.add(key);
-        surviving.push({ source, target, edge: null });
-      }
-    }
-  }
-
-  surviving.sort((a, b) => a.source - b.source || a.target - b.target);
-  return { nodes: nodes.filter((node) => !removed.has(node.id)), edges: surviving };
 }

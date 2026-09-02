@@ -18,5 +18,5 @@
   labelY={(sourceY + targetY) / 2}
   labelStyle="font-size:0.625rem;font-family:ui-monospace,monospace;fill:var(--muted-foreground)"
   style="stroke-width:{edge.width.toFixed(2)};stroke:var(--muted-foreground)"
-  class={edge.reconnected ? "opacity-50 [stroke-dasharray:4_4]" : undefined}
+  class={edge.boundary ? "opacity-60 [stroke-dasharray:4_4]" : undefined}
 />
