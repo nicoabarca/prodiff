@@ -1,7 +1,7 @@
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
 import type { EffectBand, Standing } from "$lib/tree/types";
-import { TRANSITION_TIME } from "$lib/tree/utils/settings";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 
 /** True when any attribute at this node came out significant. */
 export function hasSignificant(node: TreeNode): boolean {

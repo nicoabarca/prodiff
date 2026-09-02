@@ -13,7 +13,7 @@ import type {
   TreeNode
 } from "$lib/tree/invokers/types";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
-import { TRANSITION_TIME } from "$lib/tree/utils/settings";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import { stepContext } from "$lib/tree/utils/tree";
 
 /** Named `testResult` because `test` is Vitest's. */

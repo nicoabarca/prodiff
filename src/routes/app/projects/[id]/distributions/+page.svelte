@@ -38,7 +38,7 @@
     settings,
     view
   } from "$lib/tree/state/tree.svelte";
-  import { attributeOptions } from "$lib/tree/utils/settings";
+  import { attributeOptions } from "$lib/analysis/attributes";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";

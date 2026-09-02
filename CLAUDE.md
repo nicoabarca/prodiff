@@ -27,7 +27,7 @@ src/lib/
 ├── hooks/             shadcn
 ├── format.ts          global: 21 importers, no domain knowledge
 ├── utils.ts           shadcn `cn()`
-├── analysis/          Summary, Test, AttributeBlock: the figures every view ships
+├── analysis/          Summary, Test, AttributeBlock, the attribute vocabulary
 ├── event-log/         Project record, column mapping, upload wizard
 ├── filters/           filter vocabulary (one module per kind) + editor
 ├── groups/            Group records, Filter Lists, palette, impact cache
