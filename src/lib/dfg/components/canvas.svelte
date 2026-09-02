@@ -20,7 +20,7 @@
     edgeWidth,
     faceCounts,
     findings,
-    nodeShare,
+    membership,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
@@ -66,10 +66,6 @@
     const placed = placement;
     if (!placed) return { nodes: [], edges: [] };
 
-    const busiestNode = busiest(
-      simplified.nodes.filter((node) => node.kind === "activity"),
-      view.measure
-    );
     const nodes: Node[] = simplified.nodes
       .filter((node) => placed.nodes.has(node.id))
       .map((node) => ({
@@ -84,7 +80,7 @@
           groups,
           counts: faceCounts(node.counts, groups, view.measure),
           findings: findings(measured.get(node.id)),
-          share: nodeShare(node.counts, busiestNode, view.measure),
+          membership: membership(node.counts, groups),
           selected: selected.id === node.id,
           direction: view.direction
         }

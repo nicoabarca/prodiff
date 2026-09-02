@@ -7,10 +7,14 @@
 
   const vertical = $derived(data.direction === "TB");
   const boundary = $derived(data.kind !== "activity");
-  // The share shades the box rather than resizing it: the box is a fixed size
-  // so the layout can be cached across every change of face.
-  const tint = $derived(6 + Math.round(data.share * 14));
-  const fill = $derived(`color-mix(in oklab, var(--foreground) ${tint}%, var(--card))`);
+  // An activity only one Group reaches reads in that Group's accent, a shared
+  // one in the Original's grey. The same rule the tree draws by.
+  const accent = $derived(
+    data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
+  );
+  const accentVar = $derived(`--${accent}`);
+  const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
+  const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
 </script>
 
 <Handle
@@ -48,14 +52,19 @@
   <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
        resolves to nothing here. -->
   <div
-    class="border-border relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center {data.selected
+    class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center {data.selected
       ? 'ring-ring ring-2'
       : ''}"
-    style="background:{fill}"
+    style="background:{fill};border-color:{border}"
   >
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">
-        <span class="line-clamp-2 text-[0.6875rem] leading-tight font-medium">{data.label}</span>
+        <span
+          class="line-clamp-2 text-[0.6875rem] leading-tight font-medium"
+          style="color:var({accentVar})"
+        >
+          {data.label}
+        </span>
       </Tooltip.Trigger>
       <Tooltip.Content>{data.label}</Tooltip.Content>
     </Tooltip.Root>

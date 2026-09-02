@@ -34,14 +34,14 @@ export function edgeWidth(
   return 0.5 + (unionCount(counts, measure) / busiest) * 5;
 }
 
-/** How dark a box is drawn, against the busiest activity on screen. */
-export function nodeShare(
-  counts: Record<string, Counts>,
-  busiest: number,
-  measure: Measure
-): number {
-  if (busiest <= 0) return 0;
-  return Math.min(1, unionCount(counts, measure) / busiest);
+/**
+ * The Group a node belongs to, which is the one that colours it: the single
+ * Group whose cases reach it, or `null` where more than one does and the node
+ * is shared.
+ */
+export function membership(counts: Record<string, Counts>, groups: FaceGroup[]): string | null {
+  const reached = groups.filter((group) => (counts[group.id]?.cases ?? 0) > 0);
+  return reached.length === 1 ? reached[0].id : null;
 }
 
 /**

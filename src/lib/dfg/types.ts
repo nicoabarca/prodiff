@@ -50,8 +50,8 @@ export interface DfgNodeData {
   groups: FaceGroup[];
   counts: (string | null)[];
   findings: number;
-  /** Shades the box, against the busiest activity drawn. */
-  share: number;
+  /** The Group that alone reaches here, or `null` where more than one does. */
+  membership: string | null;
   selected: boolean;
   direction: Direction;
   [key: string]: unknown;
