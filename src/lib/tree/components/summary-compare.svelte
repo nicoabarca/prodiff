@@ -10,7 +10,7 @@
   import { outlierNote } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
   import { comparedGroups } from "$lib/tree/state/tree.svelte";
-  import type { Summary } from "$lib/tree/invokers/types";
+  import type { Summary } from "$lib/analysis/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
 

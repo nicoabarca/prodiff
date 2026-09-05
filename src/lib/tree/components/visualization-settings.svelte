@@ -13,7 +13,7 @@
   import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
-  import { TRANSITION_TIME } from "$lib/tree/utils/settings";
+  import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { formatNumber } from "$lib/format";
   import Eye from "@lucide/svelte/icons/eye";

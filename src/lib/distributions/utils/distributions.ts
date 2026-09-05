@@ -12,7 +12,7 @@ import {
   type Sort
 } from "$lib/distributions/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
-import { isDurationAttribute, TRANSITION_TIME } from "$lib/tree/utils/settings";
+import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
 
 /**
  * The bars for a categorical Distribution. Everything past the cutoff folds into

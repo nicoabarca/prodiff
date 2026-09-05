@@ -3,11 +3,9 @@
 //! A node is named by the Variant keys of the leaves in its subtree plus its
 //! depth, so nothing here re-derives node identity by joining activity labels.
 
-use super::stats::{quantile, tukey};
-use super::{
-    read_group, variant_key, Acc, AttrSpec, GroupLog, GroupRows, Source, ACTIVITY_DURATION,
-    TRANSITION_TIME,
-};
+use super::{read_group, variant_key, AttrSpec, GroupRows, Source};
+use crate::analysis::stats::{quantile, tukey};
+use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
 use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
 use std::collections::{HashMap, HashSet};
 

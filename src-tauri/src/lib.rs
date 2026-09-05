@@ -1,3 +1,4 @@
+mod analysis;
 mod column_mapping;
 mod event_log;
 mod filters;

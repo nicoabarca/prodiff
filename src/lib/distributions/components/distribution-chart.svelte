@@ -28,8 +28,8 @@
   } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
-  import type { Test } from "$lib/tree/invokers/types";
-  import { isDurationAttribute } from "$lib/tree/utils/settings";
+  import type { Test } from "$lib/analysis/types";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import X from "@lucide/svelte/icons/x";

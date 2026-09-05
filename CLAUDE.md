@@ -27,6 +27,7 @@ src/lib/
 ├── hooks/             shadcn
 ├── format.ts          global: 21 importers, no domain knowledge
 ├── utils.ts           shadcn `cn()`
+├── analysis/          Summary, Test, AttributeBlock, the attribute vocabulary
 ├── event-log/         Project record, column mapping, upload wizard
 ├── filters/           filter vocabulary (one module per kind) + editor
 ├── groups/            Group records, Filter Lists, palette, impact cache
@@ -37,7 +38,7 @@ src/lib/
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up.
+Dependencies run one way — `statistics | tree | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
 **Where new code goes:**
 

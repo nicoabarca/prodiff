@@ -7,7 +7,7 @@ import type { Edge, Node } from "@xyflow/svelte";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
-import { isDurationAttribute } from "$lib/tree/utils/settings";
+import { isDurationAttribute } from "$lib/analysis/attributes";
 import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
 import { formatDuration, formatNumber } from "$lib/format";
 
