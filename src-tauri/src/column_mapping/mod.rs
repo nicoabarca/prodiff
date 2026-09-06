@@ -76,10 +76,6 @@ pub struct ColumnMapping {
     pub column_type: ColumnType,
     #[serde(default)]
     pub granularity: ColumnGranularity,
-    /// The pattern the user confirmed for a temporal column, in their own
-    /// vocabulary (`DD/MM/YYYY`), translated to a Polars format string at the
-    /// point of use. `None` for every non-temporal column, and for projects
-    /// created before the format was asked for.
     #[serde(rename = "timestampFormat", default)]
     pub timestamp_format: Option<String>,
 }

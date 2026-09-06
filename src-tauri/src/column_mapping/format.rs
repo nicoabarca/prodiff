@@ -1,22 +1,8 @@
-//! Translation of a declared timestamp format into a Polars format string.
-//!
-//! The Column Mapping carries the pattern in the user's vocabulary
-//! (`DD/MM/YYYY HH:mm`) rather than in Polars' (`%d/%m/%Y %H:%M`), because that
-//! is the string the user confirmed and the string an import error has to quote
-//! back at them. Translation happens here, at the point of use, so the stored
-//! mapping never holds a backend detail.
-//!
-//! The token table mirrors `FORMAT_TOKENS` in `src/lib/timestamp-format.ts`,
-//! which the frontend needs for its own parser. Both are static and small; each
-//! side is tested against the same catalog patterns.
+//! User-facing timestamp pattern translation for Polars.
 
-/// Longest token first — matching is greedy, so `YYYY` has to be tried before
-/// `YY`, or the pattern splits into two `YY` and quietly means a different year.
+// Longest first because matching is greedy.
 const TOKENS: &[(&str, &str)] = &[
     ("YYYY", "%Y"),
-    // `%6f` and `%3f` are six and three fractional digits carrying no separator
-    // of their own. chrono's `%.3f` swallows a leading dot, which would double
-    // the one the pattern already spells out in `ss.SSS`.
     ("SSSSSS", "%6f"),
     ("SSS", "%3f"),
     ("YY", "%y"),
@@ -34,9 +20,6 @@ const TOKENS: &[(&str, &str)] = &[
     ("Z", "%z"),
 ];
 
-/// Rewrites a user-facing pattern as a Polars/chrono format string. Anything
-/// that is not a token is a literal and passes through untouched; a literal `%`
-/// is written `%%` in the pattern and escapes to `%%` for chrono.
 pub fn to_polars_format(pattern: &str) -> String {
     let bytes = pattern.as_bytes();
     let mut out = String::with_capacity(pattern.len() + 4);
@@ -57,8 +40,7 @@ pub fn to_polars_format(pattern: &str) -> String {
                 i += token.len();
             }
             None => {
-                // Step by character, not by byte: a literal can be multi-byte
-                // and slicing mid-character would panic.
+                // Step by character because literals can be multi-byte.
                 let ch = pattern[i..].chars().next().expect("index is on a boundary");
                 if ch == '%' {
                     out.push_str("%%");
@@ -76,9 +58,6 @@ pub fn to_polars_format(pattern: &str) -> String {
 mod tests {
     use super::*;
 
-    /// The catalog is what the format select offers, so every entry in it has
-    /// to survive translation — a pattern the user can pick but Polars cannot
-    /// read would fail at import with nothing having warned them.
     #[test]
     fn every_catalog_pattern_translates() {
         let cases = [
@@ -130,4 +109,3 @@ mod tests {
         assert_eq!(to_polars_format("%"), "%%");
     }
 }
-

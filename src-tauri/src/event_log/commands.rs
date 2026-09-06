@@ -44,13 +44,6 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
             continue;
         }
 
-        // Temporal columns never go through `strict_cast`: it converts between
-        // types, it does not read text, and since the reader stopped parsing
-        // dates the column is always text here. The declared format is what the
-        // user confirmed against real values, so it decides what the column
-        // means; without one, Polars is left to infer, which is the old
-        // behavior and only reachable from a mapping made before the format was
-        // asked for.
         if matches!(target, DataType::Date | DataType::Datetime(..)) {
             let parsed = parse_temporal(
                 column.as_materialized_series(),
@@ -72,13 +65,6 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
     Ok(df)
 }
 
-/// Applies a declared format to a temporal column.
-///
-/// Parsing is lenient first and checked afterwards, rather than strict up front,
-/// so the failure can name the value that broke: Polars' own strict error
-/// reports its own wording and its own subset of the offenders, and the user
-/// needs the row they have to go fix. The pattern is quoted back in the
-/// vocabulary they picked it in, never as the Polars directive it became.
 fn parse_temporal(
     series: &Series,
     mapping: &ColumnMapping,
@@ -90,8 +76,6 @@ fn parse_temporal(
             mapping.name
         )
     })?;
-    // `None` lets Polars infer, which is what a mapping without a declared
-    // format falls back to.
     let format = pattern.map(to_polars_format);
     let strings = text.str().map_err(|e| e.to_string())?;
     let described = match pattern {
@@ -127,8 +111,6 @@ fn parse_temporal(
             .into_series(),
     };
 
-    // Lenient parsing nulls what it cannot read. A null where the file held a
-    // value is a mismatch, not missing data, and it fails the import.
     if parsed.null_count() > series.null_count() {
         for i in 0..strings.len() {
             let Some(raw) = strings.get(i) else { continue };
@@ -244,9 +226,6 @@ mod tests {
         DataFrame::new(3, vec![Column::new("res".into(), [561i64, 561, 3_302])]).unwrap()
     }
 
-    /// The whole point of asking the user for a format: the same text is a
-    /// different instant depending on which reading is declared, and nothing in
-    /// the file says which one is right.
     #[test]
     fn the_declared_format_decides_what_a_timestamp_means() {
         let day_first = cast_to_declared(
@@ -271,8 +250,6 @@ mod tests {
         );
     }
 
-    /// The second half of the same case: a format that is wrong for the data
-    /// has to fail loudly rather than null the rows it cannot read.
     #[test]
     fn a_value_the_declared_format_cannot_read_fails_the_import() {
         let error = cast_to_declared(
@@ -293,8 +270,6 @@ mod tests {
         );
     }
 
-    /// An empty cell is missing data. Polars nulls it either way, and failing
-    /// the import over it would make a sparse optional column unimportable.
     #[test]
     fn blank_values_are_missing_data_rather_than_a_format_mismatch() {
         let df = cast_to_declared(
@@ -307,8 +282,6 @@ mod tests {
         assert_eq!(df.column("ts").unwrap().null_count(), 1);
     }
 
-    /// Projects created before the format was asked for carry none, and still
-    /// have to import: they fall back to whatever Polars makes of the text.
     #[test]
     fn a_column_without_a_declared_format_still_casts() {
         let df = cast_to_declared(

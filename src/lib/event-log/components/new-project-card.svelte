@@ -6,10 +6,6 @@
 </script>
 
 <li>
-  <!--
-    Dashed, unfilled and without the stat grid the real cards carry, so the one
-    tile that is an action rather than a project reads as one at a glance.
-  -->
   <button
     type="button"
     {onclick}
@@ -19,7 +15,7 @@
     <Card
       class="border-border hover:border-primary hover:shadow-primary/25 text-muted-foreground hover:text-primary flex h-full min-h-64 items-center justify-center gap-2 border border-dashed bg-transparent shadow-none ring-0 transition-all hover:shadow-lg"
     >
-      <Plus class="h-4 w-4 shrink-0" aria-hidden="true" />
+      <Plus class="size-4 shrink-0" aria-hidden="true" />
       <span class="font-heading text-sm font-semibold tracking-tight">New project</span>
     </Card>
   </button>

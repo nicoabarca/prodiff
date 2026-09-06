@@ -19,10 +19,6 @@ export type ColumnType = (typeof COLUMN_TYPES)[number];
 export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
 export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
 
-// `timestampFormat` is the pattern the user confirmed for a temporal column, in
-// the vocabulary they were shown (`DD/MM/YYYY HH:mm`, not the Polars
-// `%d/%m/%Y %H:%M`); Rust translates it at the seam. Null means no format was
-// declared, and Polars is left to infer.
 export interface RequestColumnMapping {
   name: string;
   role: ColumnRole;
@@ -31,45 +27,23 @@ export interface RequestColumnMapping {
   timestampFormat: string | null;
 }
 
-/**
- * What `preview_event_log` returns: the head of the file, typed. `nullCount`
- * and `totalRows` cover the whole file, while `rows` is only its head, so a
- * column can show no gap in the preview and still report missing values.
- */
 export interface ResponseEventLogPreview {
-  columns: { name: string; dtype: ColumnType; nullCount: number }[];
+  columns: { name: string; dtype: ColumnType }[];
   rows: string[][];
-  totalRows: number;
 }
 
-/** How many of a column's values one pattern reads. */
 export interface PatternCoverage {
   pattern: string;
-  matched: number;
   failed: number;
 }
 
-/** A value the reported pattern could not read, and where it sits in the file. */
-export interface DeviantValue {
-  value: string;
-  row: number;
-}
-
-/**
- * What `analyze_timestamp_columns` returns for one column, over every row of
- * the file. `nulls` are missing cells, which count against no pattern;
- * `fullCoverage` holds every pattern that read all the rest, so more than one
- * entry means the column is ambiguous and `best` is a guess. `best` is the
- * pattern reading the most values, which is not always one reading them all.
- */
 export interface ResponseTimestampColumnReport {
   column: string;
   rows: number;
-  nulls: number;
-  fullCoverage: string[];
+  missing: number;
   best: string | null;
   coverage: PatternCoverage[];
-  deviants: DeviantValue[];
+  deviants: string[];
 }
 
 /**

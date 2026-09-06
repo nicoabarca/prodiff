@@ -23,10 +23,6 @@ export const GRANULARITY_DESCRIPTIONS: Record<ColumnGranularity, string> = {
   case_and_event: "The value is tracked at both the case and event level."
 };
 
-// The preview never reports a temporal dtype — the CSV reader parses no dates,
-// so a timestamp column arrives as text and lands on "String" here. Declaring
-// it Datetime is the user's call, and it's the declaration that gives the
-// column a timestamp format to parse with.
 export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {
   switch (dtype) {
     case "integer":

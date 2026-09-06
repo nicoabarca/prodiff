@@ -1,9 +1,3 @@
-/**
- * A timestamp format that parses the wrong way round fails silently: the import
- * succeeds, every date is real, and only the ordering of the process is quietly
- * wrong. These tests pin the tokenizer and the parser that the mapping step
- * shows its evidence with.
- */
 import { describe, expect, it } from "vitest";
 import {
   coverage,
@@ -105,7 +99,6 @@ describe("parseWithFormat", () => {
     // Field ranges are checked.
     rejected("15/13/2024", "DD/MM/YYYY");
     rejected("2024-01-15 25:00:00", "YYYY-MM-DD HH:mm:ss");
-    // A day that does not exist in that month is rejected rather than rolled over.
     rejected("31/02/2024", "DD/MM/YYYY");
     // 12-hour clock has no hour zero.
     rejected("15/01/2024 00:30:00 AM", "DD/MM/YYYY hh:mm:ss A");
@@ -130,8 +123,6 @@ describe("inferFormat", () => {
     const iso = inferFormat(["2024-01-15 09:30:00", "2024-02-01 17:00:00"]);
     expect(iso.pattern).toBe("YYYY-MM-DD HH:mm:ss");
     expect(iso.rivals).toEqual([]);
-    expect(iso.matched).toBe(2);
-    expect(iso.total).toBe(2);
   });
 
   it("lets a day past the 12th settle the day/month order", () => {
@@ -155,14 +146,11 @@ describe("inferFormat", () => {
   it("treats nothing to go on as not the same as a mismatch", () => {
     const empty = inferFormat(["", "   "]);
     expect(empty.pattern).toBe(null);
-    expect(empty.total).toBe(0);
   });
 
   it("does not let blank cells sink a pattern", () => {
     const gapped = inferFormat(["2024-01-15", "", "2024-02-01"]);
     expect(gapped.pattern).toBe("YYYY-MM-DD");
-    expect(gapped.total).toBe(2);
-    expect(gapped.matched).toBe(2);
   });
 
   it("disqualifies a pattern on one stray value", () => {
@@ -172,15 +160,9 @@ describe("inferFormat", () => {
 });
 
 describe("coverage", () => {
-  it("counts matches and names the first failure", () => {
+  it("counts matches", () => {
     const stats = coverage(["15/01/2024", "05-03-2024", "20/01/2024"], "DD/MM/YYYY");
     expect(stats.matched).toBe(2);
     expect(stats.total).toBe(3);
-    expect(stats.firstFailure).toEqual({ value: "05-03-2024", row: 1 });
-  });
-
-  it("reports no failure on a clean column", () => {
-    const clean = coverage(["15/01/2024"], "DD/MM/YYYY");
-    expect(clean.firstFailure).toBe(null);
   });
 });

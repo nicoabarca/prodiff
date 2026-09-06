@@ -4,6 +4,7 @@
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
+  import { cn } from "$lib/utils";
   import type { Project } from "$lib/event-log/types";
   import Network from "@lucide/svelte/icons/network";
   import PanelLeft from "@lucide/svelte/icons/panel-left";
@@ -40,13 +41,16 @@
 {#snippet brand(hoverable: boolean)}
   <div class="flex items-center gap-2">
     <div
-      class="bg-sidebar-primary text-sidebar-primary-foreground group/logo flex h-7 w-7 shrink-0 items-center justify-center {hoverable
-        ? 'hover:text-sidebar-foreground cursor-pointer hover:bg-transparent'
-        : 'cursor-default'}"
+      class={cn(
+        "bg-sidebar-primary text-sidebar-primary-foreground group/logo flex size-7 shrink-0 items-center justify-center",
+        hoverable
+          ? "hover:text-sidebar-foreground cursor-pointer hover:bg-transparent"
+          : "cursor-default"
+      )}
     >
-      <Network class="h-4 w-4 {hoverable ? 'group-hover/logo:hidden' : ''}" aria-hidden="true" />
+      <Network class={cn("size-4", hoverable && "group-hover/logo:hidden")} aria-hidden="true" />
       {#if hoverable}
-        <PanelLeft class="hidden h-4 w-4 group-hover/logo:block" aria-hidden="true" />
+        <PanelLeft class="hidden size-4 group-hover/logo:block" aria-hidden="true" />
       {/if}
     </div>
     <span

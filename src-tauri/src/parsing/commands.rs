@@ -5,9 +5,6 @@ use super::{analyze, column_to_strings, dtype_label, read_csv, TimestampColumnRe
 pub struct ColumnPreview {
     name: String,
     dtype: String,
-    /// Missing cells over the whole file, not over the previewed rows. An empty
-    /// cell is null; a whitespace-only cell is not.
-    null_count: usize,
 }
 
 #[derive(serde::Serialize)]
@@ -15,17 +12,12 @@ pub struct ColumnPreview {
 pub struct EventLogPreview {
     columns: Vec<ColumnPreview>,
     rows: Vec<Vec<String>>,
-    /// Rows in the file, which is the denominator every `nullCount` is over.
-    total_rows: usize,
 }
 
 #[tauri::command]
 pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
     let preview_rows = 300;
-    // The whole file is read so the null counts and the inferred dtypes cover
-    // every row; only the head is sent back as rows.
-    let df = read_csv(&path, None).map_err(|e| e.to_string())?;
-    let total_rows = df.height();
+    let df = read_csv(&path, Some(preview_rows)).map_err(|e| e.to_string())?;
 
     let columns: Vec<ColumnPreview> = df
         .get_column_names()
@@ -35,7 +27,6 @@ pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
             ColumnPreview {
                 name: name.to_string(),
                 dtype: dtype_label(column.dtype()).to_string(),
-                null_count: column.null_count(),
             }
         })
         .collect();
@@ -49,16 +40,9 @@ pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
         }
     }
 
-    Ok(EventLogPreview {
-        columns,
-        rows,
-        total_rows,
-    })
+    Ok(EventLogPreview { columns, rows })
 }
 
-/// Full-file inspection of the columns the user is treating as timestamps. The
-/// catalog comes from the frontend, in the user's own vocabulary, and comes
-/// back attached to each count.
 #[tauri::command]
 pub fn analyze_timestamp_columns(
     path: String,

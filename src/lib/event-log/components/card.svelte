@@ -19,7 +19,7 @@
   const timespan = $derived(
     project.timespanStart && project.timespanEnd
       ? `${formatMonthYear(project.timespanStart)} – ${formatMonthYear(project.timespanEnd)}`
-      : "—"
+      : "Not available"
   );
   const createdAt = $derived(project.createdAt.slice(0, 10));
 
@@ -54,10 +54,10 @@
       <Card.Header>
         <Card.Title class="font-heading flex items-start justify-between text-base">
           {project.name}
-          <ArrowRight class="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
+          <ArrowRight class="text-muted-foreground size-4 shrink-0" aria-hidden="true" />
         </Card.Title>
         <Card.Description class="flex items-center gap-1.5">
-          <FileText class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <FileText class="size-3.5 shrink-0" aria-hidden="true" />
           <span class="truncate">{project.fileName}</span>
         </Card.Description>
       </Card.Header>
@@ -97,11 +97,11 @@
         class="border-border text-muted-foreground flex flex-col items-start gap-1.5 border-t pt-3 text-[0.6875rem]"
       >
         <span class="flex items-center gap-1.5">
-          <CalendarRange class="h-3 w-3 shrink-0" aria-hidden="true" />
+          <CalendarRange class="size-3 shrink-0" aria-hidden="true" />
           {timespan}
         </span>
         <span class="flex items-center gap-1.5">
-          <Clock class="h-3 w-3 shrink-0" aria-hidden="true" />
+          <Clock class="size-3 shrink-0" aria-hidden="true" />
           Added {createdAt}
         </span>
       </Card.Footer>
@@ -117,9 +117,9 @@
             variant="outline"
             size="icon"
             aria-label={`Delete ${project.name}`}
-            class="border-border bg-background text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive h-7 w-7"
+            class="border-border bg-background text-muted-foreground hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive size-7"
           >
-            <Trash2 class="h-3.5 w-3.5" aria-hidden="true" />
+            <Trash2 aria-hidden="true" />
           </Button>
         {/snippet}
       </AlertDialog.Trigger>
