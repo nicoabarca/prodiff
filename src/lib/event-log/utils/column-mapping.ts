@@ -8,6 +8,8 @@ import {
   type ColumnType
 } from "$lib/event-log/invokers/types";
 
+const TEMPORAL_TYPES: ColumnType[] = ["date", "datetime"];
+
 /**
  * Frontend-side validation of the column mapping payload before it is sent to
  * Rust or written to sqlite. The only validation boundary.
@@ -30,7 +32,7 @@ export function validateColumnMapping(
     if (typeof entry !== "object" || entry === null) {
       throw new Error("Each column mapping entry must be an object.");
     }
-    const { name, role, type, granularity } = entry as Record<string, unknown>;
+    const { name, role, type, granularity, timestampFormat } = entry as Record<string, unknown>;
 
     if (typeof name !== "string" || !expectedColumnNames.includes(name)) {
       throw new Error(`Column mapping references an unknown column: ${String(name)}`);
@@ -51,6 +53,17 @@ export function validateColumnMapping(
       !COLUMN_GRANULARITIES.includes(granularity as ColumnGranularity)
     ) {
       throw new Error(`Column "${name}" has an invalid granularity: ${String(granularity)}`);
+    }
+
+    if (timestampFormat !== null && timestampFormat !== undefined) {
+      if (typeof timestampFormat !== "string" || timestampFormat.length === 0) {
+        throw new Error(`Column "${name}" has an invalid timestamp format.`);
+      }
+      if (!TEMPORAL_TYPES.includes(type as ColumnType)) {
+        throw new Error(
+          `Column "${name}" carries a timestamp format but is declared ${String(type)}.`
+        );
+      }
     }
 
     if (role === "case_id") caseIdCount++;

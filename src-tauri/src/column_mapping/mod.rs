@@ -2,6 +2,10 @@
 //! file's raw columns and the fields process mining requires. It crosses the
 //! seam from the frontend intact, as one value.
 
+mod format;
+
+pub use format::to_polars_format;
+
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnRole {
@@ -72,6 +76,8 @@ pub struct ColumnMapping {
     pub column_type: ColumnType,
     #[serde(default)]
     pub granularity: ColumnGranularity,
+    #[serde(rename = "timestampFormat", default)]
+    pub timestamp_format: Option<String>,
 }
 
 pub fn find_role(mapping: &[ColumnMapping], role: ColumnRole) -> Option<&str> {

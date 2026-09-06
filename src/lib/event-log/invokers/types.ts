@@ -24,12 +24,26 @@ export interface RequestColumnMapping {
   role: ColumnRole;
   type: ColumnType;
   granularity: ColumnGranularity;
+  timestampFormat: string | null;
 }
 
-/** What `preview_event_log` returns: the head of the file, typed. */
 export interface ResponseEventLogPreview {
   columns: { name: string; dtype: ColumnType }[];
   rows: string[][];
+}
+
+export interface PatternCoverage {
+  pattern: string;
+  failed: number;
+}
+
+export interface ResponseTimestampColumnReport {
+  column: string;
+  rows: number;
+  missing: number;
+  best: string | null;
+  coverage: PatternCoverage[];
+  deviants: string[];
 }
 
 /**

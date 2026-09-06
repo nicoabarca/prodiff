@@ -10,8 +10,13 @@
     inferExtraFieldType,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
+  import type { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
+  import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
+  import * as Alert from "$lib/components/ui/alert/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
+  import { cn } from "$lib/utils";
   import Info from "@lucide/svelte/icons/info";
 
   let {
@@ -20,7 +25,8 @@
     roleByColumn,
     visibleColumns,
     columnGranularity = $bindable(),
-    columnType = $bindable()
+    columnType = $bindable(),
+    timestampFormats
   }: {
     columns: { name: string; dtype: ColumnType }[];
     rows: string[][];
@@ -28,6 +34,7 @@
     visibleColumns: Set<string>;
     columnGranularity: Record<string, ColumnGranularity>;
     columnType: Record<string, ExtraFieldType>;
+    timestampFormats: TimestampFormats;
   } = $props();
 
   const fieldRows = $derived(
@@ -36,7 +43,6 @@
       .filter((c) => !roleByColumn[c.name] && visibleColumns.has(c.name))
   );
 
-  /** The case id and activity always lead the preview, whatever was kept. */
   const contextRows = $derived(
     (["case_id", "activity_name"] as AssignableRole[]).flatMap((role) => {
       const index = columns.findIndex((c) => roleByColumn[c.name] === role);
@@ -70,13 +76,24 @@
   function isCustomized(name: string, dtype: ColumnType): boolean {
     return granularityFor(name) !== "event" || typeFor(name, dtype) !== inferExtraFieldType(dtype);
   }
+
+  const temporalFields = $derived(
+    fieldRows.filter(({ name, dtype }) => typeFor(name, dtype) === "datetime")
+  );
+
+  const sharedFormat = $derived.by(() => {
+    if (temporalFields.length < 2) return null;
+    const patterns = temporalFields.map(({ name }) => timestampFormats.patterns[name] ?? "");
+    if (patterns.some((p) => p === "")) return null;
+    return patterns.every((p) => p === patterns[0]) ? null : patterns[0];
+  });
 </script>
 
-<div class="border-primary bg-primary/5 mb-5 flex shrink-0 gap-3 border-l-4 px-4 py-3">
-  <Info class="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
+<Alert.Root class="mb-5 shrink-0">
+  <Info aria-hidden="true" />
   <div class="text-sm">
-    <p class="text-foreground mb-1 font-semibold tracking-wide">Granularity</p>
-    <dl class="space-y-0.5">
+    <Alert.Title>Granularity</Alert.Title>
+    <dl class="flex flex-col gap-0.5">
       {#each GRANULARITY_OPTIONS as option}
         <div class="flex gap-1.5">
           <dt class="text-foreground shrink-0 font-medium">{GRANULARITY_LABELS[option]}:</dt>
@@ -85,7 +102,7 @@
       {/each}
     </dl>
   </div>
-</div>
+</Alert.Root>
 
 {#if fieldRows.length === 0}
   <div class="border-border bg-card min-w-0 border">
@@ -114,6 +131,26 @@
           >{fieldRows.length} field{fieldRows.length === 1 ? "" : "s"}</span
         >
       </div>
+      {#if sharedFormat}
+        <div
+          class="border-border flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2"
+        >
+          <span class="text-muted-foreground text-xs">
+            {temporalFields.length} timestamp columns, with different formats.
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={() =>
+              timestampFormats.applyTo(
+                temporalFields.map(({ name }) => name),
+                sharedFormat
+              )}
+          >
+            Use {sharedFormat} for all
+          </Button>
+        </div>
+      {/if}
       <div class="min-h-0 flex-1 overflow-y-auto">
         <Table.Root>
           <Table.Header>
@@ -127,12 +164,18 @@
             {#each fieldRows as { name, dtype }}
               {@const customized = isCustomized(name, dtype)}
               <Table.Row
-                class={`hover:bg-primary/5 ${customized ? "border-l-primary border-l-2" : "border-l-2 border-l-transparent"}`}
+                class={cn(
+                  "hover:bg-primary/5 border-l-2",
+                  customized ? "border-l-primary" : "border-l-transparent"
+                )}
               >
                 <Table.Cell class="font-mono text-xs">
                   <span class="flex items-center gap-2">
                     <span
-                      class={`h-1.5 w-1.5 shrink-0 rounded-full ${customized ? "bg-primary" : "bg-border"}`}
+                      class={cn(
+                        "size-1.5 shrink-0 rounded-full",
+                        customized ? "bg-primary" : "bg-border"
+                      )}
                       aria-hidden="true"
                     ></span>
                     {name}
@@ -146,35 +189,47 @@
                   >
                     <Select.Trigger
                       size="sm"
-                      class={`w-36 ${granularityFor(name) !== "event" ? "border-primary text-primary" : ""}`}
+                      class={cn("w-36", granularityFor(name) !== "event" && "border-primary")}
                     >
                       {GRANULARITY_LABELS[granularityFor(name)]}
                     </Select.Trigger>
                     <Select.Content>
-                      {#each GRANULARITY_OPTIONS as option}
-                        <Select.Item value={option} label={GRANULARITY_LABELS[option]} />
-                      {/each}
+                      <Select.Group>
+                        {#each GRANULARITY_OPTIONS as option}
+                          <Select.Item value={option} label={GRANULARITY_LABELS[option]} />
+                        {/each}
+                      </Select.Group>
                     </Select.Content>
                   </Select.Root>
                 </Table.Cell>
                 <Table.Cell>
-                  <Select.Root
-                    type="single"
-                    value={typeFor(name, dtype)}
-                    onValueChange={(value) => setType(name, value)}
-                  >
-                    <Select.Trigger
-                      size="sm"
-                      class={`w-28 ${typeFor(name, dtype) !== inferExtraFieldType(dtype) ? "border-primary text-primary" : ""}`}
+                  <div class="flex w-44 flex-col gap-1">
+                    <Select.Root
+                      type="single"
+                      value={typeFor(name, dtype)}
+                      onValueChange={(value) => setType(name, value)}
                     >
-                      {EXTRA_FIELD_TYPE_LABELS[typeFor(name, dtype)]}
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each EXTRA_FIELD_TYPES as option}
-                        <Select.Item value={option} label={EXTRA_FIELD_TYPE_LABELS[option]} />
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
+                      <Select.Trigger
+                        size="sm"
+                        class={cn(
+                          "w-full",
+                          typeFor(name, dtype) !== inferExtraFieldType(dtype) && "border-primary"
+                        )}
+                      >
+                        {EXTRA_FIELD_TYPE_LABELS[typeFor(name, dtype)]}
+                      </Select.Trigger>
+                      <Select.Content>
+                        <Select.Group>
+                          {#each EXTRA_FIELD_TYPES as option}
+                            <Select.Item value={option} label={EXTRA_FIELD_TYPE_LABELS[option]} />
+                          {/each}
+                        </Select.Group>
+                      </Select.Content>
+                    </Select.Root>
+                    {#if typeFor(name, dtype) === "datetime"}
+                      <TimestampFormatField column={name} formats={timestampFormats} />
+                    {/if}
+                  </div>
                 </Table.Cell>
               </Table.Row>
             {/each}

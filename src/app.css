@@ -311,3 +311,25 @@
 
   --radius-4xl: calc(var(--radius) * 2.6);
 }
+
+/*
+ * WebKit hides overlay scrollbars until something scrolls, which puts the
+ * table's horizontal bar out of reach until the user finds it. Styling the
+ * scrollbar opts the element out of overlay mode, so the bar is always drawn.
+ */
+.persistent-scrollbars::-webkit-scrollbar {
+  width: 0.625rem;
+  height: 0.625rem;
+}
+
+.persistent-scrollbars::-webkit-scrollbar-track {
+  background: var(--muted);
+}
+
+.persistent-scrollbars::-webkit-scrollbar-thumb {
+  background: var(--border);
+}
+
+.persistent-scrollbars::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}
