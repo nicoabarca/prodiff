@@ -11,6 +11,7 @@
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import type { FormatInference } from "$lib/event-log/utils/timestamp-format";
+  import type { FormatCheck } from "$lib/event-log/types";
   import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
@@ -25,9 +26,11 @@
     columnGranularity = $bindable(),
     columnType = $bindable(),
     formatInference,
+    checkingColumns,
     columnValues,
     columnTimestampFormat = $bindable(),
-    formatWarningAcknowledged = $bindable()
+    formatChecks,
+    onFormatChosen
   }: {
     columns: { name: string; dtype: ColumnType }[];
     rows: string[][];
@@ -36,9 +39,11 @@
     columnGranularity: Record<string, ColumnGranularity>;
     columnType: Record<string, ExtraFieldType>;
     formatInference: Record<string, FormatInference>;
+    checkingColumns: string[];
     columnValues: (name: string) => string[];
     columnTimestampFormat: Record<string, string>;
-    formatWarningAcknowledged: Record<string, boolean>;
+    formatChecks: Record<string, FormatCheck>;
+    onFormatChosen: (column: string, pattern: string) => void;
   } = $props();
 
   const fieldRows = $derived(
@@ -84,10 +89,7 @@
 
   function setFormat(col: string, value: string) {
     columnTimestampFormat = { ...columnTimestampFormat, [col]: value };
-  }
-
-  function acknowledge(col: string) {
-    formatWarningAcknowledged = { ...formatWarningAcknowledged, [col]: true };
+    onFormatChosen(col, value);
   }
 
   // A log can carry several columns of time, and each keeps its own pattern —
@@ -238,12 +240,13 @@
                     -->
                     {#if typeFor(name, dtype) === "datetime"}
                       <TimestampFormatField
+                        column={name}
                         values={columnValues(name)}
                         inference={formatInference[name]}
                         pattern={columnTimestampFormat[name] ?? ""}
-                        acknowledged={formatWarningAcknowledged[name] ?? false}
+                        check={formatChecks[name]}
+                        checking={checkingColumns.includes(name)}
                         onPatternChange={(value) => setFormat(name, value)}
-                        onAcknowledge={() => acknowledge(name)}
                       />
                     {/if}
                   </div>

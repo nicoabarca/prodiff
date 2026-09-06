@@ -4,6 +4,7 @@ import Tag from "@lucide/svelte/icons/tag";
 import Mail from "@lucide/svelte/icons/mail";
 import Timer from "@lucide/svelte/icons/timer";
 import ClockCheck from "@lucide/svelte/icons/clock-check";
+import Asterisk from "@lucide/svelte/icons/asterisk";
 
 // Roles assignable in the "Required fields" step. Unassigned columns fall
 // through to "other", which has no picker.
@@ -53,4 +54,25 @@ export const requiredFieldSettings: Record<
   activity_name: { granularity: "event", type: "string" },
   complete_timestamp: { granularity: "event", type: "datetime" },
   start_timestamp: { granularity: "event", type: "datetime" }
+};
+
+/**
+ * What a column click can be aimed at: one of the roles, or `other`, the
+ * catch-all for extra columns kept in the analysis without a role of their own.
+ */
+export type ColumnPick = AssignableRole | "other";
+
+export const pickOrder: ColumnPick[] = [...roleOrder, "other"];
+
+export const pickMeta: Record<
+  ColumnPick,
+  { icon: LucideIcon; label: string; hint: string; optional?: boolean }
+> = {
+  ...roleMeta,
+  other: {
+    icon: Asterisk,
+    label: "Other fields",
+    hint: "Extra columns to keep in the analysis",
+    optional: true
+  }
 };

@@ -16,6 +16,21 @@ export function checkFromReport(
   };
 }
 
+/** Rows the pattern read: everything that was neither empty nor unreadable. */
+export function matchedRows(check: FormatCheck): number {
+  return Math.max(check.rows - check.nulls - check.failed, 0);
+}
+
+/**
+ * Whether a temporal column still has no pattern worth importing with: none
+ * picked, or one the file gives nothing to. A pattern awaiting its first check
+ * counts as resolved, since the sample is what seeded it.
+ */
+export function patternUnresolved(pattern: string, check: FormatCheck | undefined): boolean {
+  if (pattern.trim() === "") return true;
+  return check !== undefined && matchedRows(check) === 0;
+}
+
 export function formatCheckMessage(column: string, check: FormatCheck): string {
   const rows = check.failed === 1 ? "row" : "rows";
   return `${check.failed.toLocaleString()} ${rows} in ${column} do not match ${check.pattern}`;

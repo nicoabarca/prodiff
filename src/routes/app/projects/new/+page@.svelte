@@ -6,7 +6,8 @@
     requiredRoles,
     emptyAssignments,
     requiredFieldSettings,
-    type AssignableRole
+    type AssignableRole,
+    type ColumnPick
   } from "$lib/event-log/utils/roles";
   import {
     inferExtraFieldType,
@@ -18,19 +19,23 @@
     RequestColumnMapping,
     ColumnType
   } from "$lib/event-log/invokers/types";
-  import { inferFormat, type FormatInference } from "$lib/event-log/utils/timestamp-format";
+  import {
+    inferFormat,
+    FORMAT_CATALOG,
+    type FormatInference
+  } from "$lib/event-log/utils/timestamp-format";
   import { analyzeTimestampColumns } from "$lib/event-log/invokers/analyze-timestamp-columns";
   import {
     checkFromReport,
     formatCheckDetail,
-    formatCheckMessage
+    formatCheckMessage,
+    patternUnresolved
   } from "$lib/event-log/utils/format-check";
   import type { FormatCheck } from "$lib/event-log/types";
   import { toast } from "svelte-sonner";
   import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
   import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
-  import RequiredFieldsStep from "$lib/event-log/components/stepper/required-fields-step.svelte";
-  import OtherFieldsStep from "$lib/event-log/components/stepper/other-fields-step.svelte";
+  import MapColumnsStep from "$lib/event-log/components/stepper/map-columns-step.svelte";
   import FieldSettingsStep from "$lib/event-log/components/stepper/field-settings-step.svelte";
   import ReviewStep from "$lib/event-log/components/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -41,7 +46,7 @@
   // toast leaves; the same warning stays reachable on the field's icon.
   const FORMAT_TOAST_DURATION = 12000;
 
-  let step = $state<1 | 2 | 3 | 4 | 5>(1);
+  let step = $state<1 | 2 | 3 | 4>(1);
 
   let filePath = $state<string | null>(null);
   let fileName = $state<string | null>(null);
@@ -50,7 +55,7 @@
   let loadError = $state<string | null>(null);
 
   let assignments = $state<Record<AssignableRole, string | null>>(emptyAssignments());
-  let activeRole = $state<AssignableRole | null>("case_id");
+  let activeRole = $state<ColumnPick | null>("case_id");
   let hoveredCol = $state<number | null>(null);
   let visibleColumns = $state<Set<string>>(new Set());
   let columnGranularity = $state<Record<string, ColumnGranularity>>({});
@@ -61,9 +66,6 @@
   // column Datetime the answer has to already be there.
   let formatInference = $state<Record<string, FormatInference>>({});
   let columnTimestampFormat = $state<Record<string, string>>({});
-  // Purely a record of which ambiguity warnings the user has waved off. Never
-  // persisted — it says nothing about the log, only about what they have read.
-  let formatWarningAcknowledged = $state<Record<string, boolean>>({});
   // What the full-file pass made of each temporal column, keyed by column. The
   // preview's fifty rows can only guess a format; these counts cover every row.
   let formatChecks = $state<Record<string, FormatCheck>>({});
@@ -71,6 +73,15 @@
   // decides whether a check is worth running and must not retrigger the effect
   // that writes it.
   let checkedFormat: Record<string, string> = {};
+  // Columns whose counts are out of date, from the moment the format changes
+  // until the file has been read again. The step cannot be left while it holds
+  // anything: the mapping would carry a format nobody has checked.
+  let checkingColumns = $state<string[]>([]);
+  // The last pattern the user set by hand. Logs usually spell every timestamp
+  // the same way, so it fills in for every temporal column they have not set
+  // themselves, and the columns they have keep what they were given.
+  let lastTimestampFormat = $state<string | null>(null);
+  let chosenFormats = $state<Set<string>>(new Set());
 
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
@@ -118,9 +129,11 @@
     });
     formatInference = inferences;
     columnTimestampFormat = formats;
-    formatWarningAcknowledged = {};
     formatChecks = {};
     checkedFormat = {};
+    checkingColumns = [];
+    lastTimestampFormat = null;
+    chosenFormats = new Set();
   }
 
   function columnValues(name: string): string[] {
@@ -141,9 +154,11 @@
     columnType = {};
     formatInference = {};
     columnTimestampFormat = {};
-    formatWarningAcknowledged = {};
     formatChecks = {};
     checkedFormat = {};
+    checkingColumns = [];
+    lastTimestampFormat = null;
+    chosenFormats = new Set();
     step = 1;
   }
 
@@ -180,46 +195,85 @@
     })
   );
 
-  // Every column the mapping declares temporal, paired with the format in
-  // force. A change here is what sends the file back to Rust to be counted.
+  function rememberFormat(column: string, pattern: string) {
+    lastTimestampFormat = pattern;
+    chosenFormats = new Set(chosenFormats).add(column);
+  }
+
+  // A pattern the user set by hand carries over to every other timestamp column
+  // they have not set themselves, replacing whatever inference guessed there.
+  $effect(() => {
+    const carried = lastTimestampFormat;
+    if (!carried) return;
+    const next = { ...columnTimestampFormat };
+    let changed = false;
+    for (const column of columnMapping) {
+      if (!temporal(column.type) || chosenFormats.has(column.name)) continue;
+      if (next[column.name] === carried) continue;
+      next[column.name] = carried;
+      changed = true;
+    }
+    if (changed) columnTimestampFormat = next;
+  });
+
+  // Every column the mapping declares temporal, paired with the format in force,
+  // which is null while the preview's rows told inference nothing. A change here
+  // is what sends the file back to Rust to be counted, and a null pattern asks
+  // Rust which of the catalog reads the column best.
   const declaredFormats = $derived(
     columnMapping
-      .filter((c) => c.timestampFormat)
-      .map((c) => ({ column: c.name, pattern: c.timestampFormat as string }))
+      .filter((c) => temporal(c.type))
+      .map((c) => ({ column: c.name, pattern: c.timestampFormat }))
   );
 
   $effect(() => {
     const path = filePath;
-    const pending = declaredFormats.filter((f) => checkedFormat[f.column] !== f.pattern);
+    const pending = declaredFormats.filter((f) => checkedFormat[f.column] !== (f.pattern ?? ""));
     if (!path || pending.length === 0) return;
+    checkingColumns = pending.map((p) => p.column);
     // A custom pattern changes on every keystroke; the file is read once the
     // typing settles.
     const timer = setTimeout(() => void runFormatChecks(path, pending), 400);
     return () => clearTimeout(timer);
   });
 
-  async function runFormatChecks(path: string, pending: { column: string; pattern: string }[]) {
-    for (const { column, pattern } of pending) checkedFormat[column] = pattern;
+  async function runFormatChecks(
+    path: string,
+    pending: { column: string; pattern: string | null }[]
+  ) {
+    for (const { column, pattern } of pending) checkedFormat[column] = pattern ?? "";
+    // A column with no pattern yet is measured against the whole catalog, so the
+    // reply can name the one that reads it best.
+    const asked = pending.some((p) => !p.pattern)
+      ? FORMAT_CATALOG
+      : [...new Set(pending.map((p) => p.pattern as string))];
     let reports;
     try {
       reports = await analyzeTimestampColumns(
         path,
         pending.map((p) => p.column),
-        [...new Set(pending.map((p) => p.pattern))]
+        asked
       );
     } catch (err) {
       for (const { column } of pending) delete checkedFormat[column];
+      checkingColumns = [];
       toast.error("Couldn't check the timestamp format", {
         description: String(err),
         duration: FORMAT_TOAST_DURATION
       });
       return;
     }
+    checkingColumns = [];
     if (filePath !== path) return; // a newer upload started before this one resolved
     const next = { ...formatChecks };
+    const adopted: Record<string, string> = {};
     for (const report of reports) {
-      const pattern = pending.find((p) => p.column === report.column)?.pattern;
-      if (!pattern) continue;
+      const asking = pending.find((p) => p.column === report.column);
+      if (!asking) continue;
+      const pattern = asking.pattern ?? report.best;
+      if (!pattern) continue; // nothing in the catalog reads this column
+      if (!asking.pattern) adopted[report.column] = pattern;
+      checkedFormat[report.column] = pattern;
       const check = checkFromReport(report, pattern);
       next[report.column] = check;
       if (check.failed > 0) {
@@ -230,14 +284,27 @@
       }
     }
     formatChecks = next;
+    if (Object.keys(adopted).length > 0) {
+      columnTimestampFormat = { ...columnTimestampFormat, ...adopted };
+    }
   }
+
+  // A temporal column with no pattern that reads it would import as all nulls,
+  // so the wizard does not move past it.
+  const unresolvedFormats = $derived(
+    declaredFormats
+      .filter(({ column, pattern }) => patternUnresolved(pattern ?? "", formatChecks[column]))
+      .map(({ column }) => column)
+  );
+
+  const formatsSettled = $derived(checkingColumns.length === 0 && unresolvedFormats.length === 0);
 
   const hiddenColumnNames = $derived(
     columns.filter((c) => !roleByColumn[c.name] && !visibleColumns.has(c.name)).map((c) => c.name)
   );
 
   async function confirm() {
-    if (!filePath || !fileName) return;
+    if (!filePath || !fileName || !formatsSettled) return;
     submitting = true;
     submitError = null;
     try {
@@ -259,7 +326,12 @@
       <UploadStep onAccepted={acceptUpload} />
     </div>
   {:else if step === 2}
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <!--
+      The step itself does not scroll: the cards are fixed and the table below
+      owns the remaining height, which is what keeps its bottom scrollbar on
+      screen.
+    -->
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       {#if loadError}
         <p
           class="border-destructive/40 bg-destructive/10 text-destructive border px-4 py-3 text-sm"
@@ -272,18 +344,20 @@
           <p class="text-sm">Reading <span class="font-mono">{fileName}</span>…</p>
         </div>
       {:else}
-        <RequiredFieldsStep
+        <MapColumnsStep
           {columns}
           {rows}
           bind:assignments
           bind:activeRole
           bind:hoveredCol
+          bind:visibleColumns
           {roleByColumn}
           {formatInference}
           {formatChecks}
+          {checkingColumns}
           {columnValues}
           bind:columnTimestampFormat
-          bind:formatWarningAcknowledged
+          onFormatChosen={rememberFormat}
         />
       {/if}
     </div>
@@ -310,20 +384,11 @@
           </AlertDialog.Content>
         </AlertDialog.Root>
       </div>
-      <Button size="lg" disabled={!allMapped} onclick={() => (step = 3)}>Next</Button>
+      <Button size="lg" disabled={!allMapped || !formatsSettled} onclick={() => (step = 3)}
+        >Next</Button
+      >
     </div>
   {:else if step === 3}
-    <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Other fields</h1>
-
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
-      <OtherFieldsStep {columns} {rows} {roleByColumn} bind:visibleColumns bind:hoveredCol />
-    </div>
-
-    <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={() => (step = 2)}>Back</Button>
-      <Button size="lg" onclick={() => (step = 4)}>Next</Button>
-    </div>
-  {:else if step === 4}
     <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Field settings</h1>
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -335,17 +400,19 @@
         bind:columnGranularity
         bind:columnType
         {formatInference}
+        {formatChecks}
+        {checkingColumns}
         {columnValues}
         bind:columnTimestampFormat
-        bind:formatWarningAcknowledged
+        onFormatChosen={rememberFormat}
       />
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={() => (step = 3)}>Back</Button>
-      <Button size="lg" onclick={() => (step = 5)}>Next</Button>
+      <Button variant="outline" size="lg" onclick={() => (step = 2)}>Back</Button>
+      <Button size="lg" disabled={!formatsSettled} onclick={() => (step = 4)}>Next</Button>
     </div>
-  {:else if step === 5}
+  {:else if step === 4}
     <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Review</h1>
 
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -366,8 +433,8 @@
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={() => (step = 4)}>Back</Button>
-      <Button size="lg" disabled={submitting} onclick={confirm}>
+      <Button variant="outline" size="lg" onclick={() => (step = 3)}>Back</Button>
+      <Button size="lg" disabled={submitting || !formatsSettled} onclick={confirm}>
         {#if submitting}
           <LoaderCircle data-icon="inline-start" class="animate-spin" />
           Creating…

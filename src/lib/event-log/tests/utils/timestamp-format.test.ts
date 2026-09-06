@@ -89,11 +89,17 @@ describe("parseWithFormat", () => {
     expect(parsed("15/01/24", "DD/MM/YY")).toBe("2024-01-15 00:00:00");
   });
 
+  it("reads an unpadded month or day, the way the import does", () => {
+    expect(parsed("2024-1-15", "YYYY-MM-DD")).toBe("2024-01-15 00:00:00");
+    expect(parsed("29/2/2016 01:16", "DD/MM/YYYY HH:mm")).toBe("2016-02-29 01:16:00");
+    expect(parsed("1/2/2016 4:40", "DD/MM/YYYY HH:mm")).toBe("2016-02-01 04:40:00");
+  });
+
   it("rejects what it cannot read exactly", () => {
     // The whole value has to be consumed: a trailing time is not a bare date.
     rejected("2024-01-15 09:30:00", "YYYY-MM-DD");
-    // Fixed-width tokens do not accept a short field.
-    rejected("2024-1-15", "YYYY-MM-DD");
+    // A field still reads at most the digits its token declares.
+    rejected("2024-011-15", "YYYY-MM-DD");
     // Literals have to match exactly.
     rejected("15-01-2024", "DD/MM/YYYY");
     // Field ranges are checked.

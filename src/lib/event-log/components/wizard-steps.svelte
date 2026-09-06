@@ -1,12 +1,11 @@
 <script lang="ts">
-  let { active }: { active: 1 | 2 | 3 | 4 | 5 } = $props();
+  let { active }: { active: 1 | 2 | 3 | 4 } = $props();
 
   const steps = [
     { n: 1, label: "Upload Event Log" },
-    { n: 2, label: "Required fields" },
-    { n: 3, label: "Other fields" },
-    { n: 4, label: "Field settings" },
-    { n: 5, label: "Review" }
+    { n: 2, label: "Map columns" },
+    { n: 3, label: "Field settings" },
+    { n: 4, label: "Review" }
   ] as const;
 </script>
 

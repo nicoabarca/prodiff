@@ -21,7 +21,7 @@ pub struct EventLogPreview {
 
 #[tauri::command]
 pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
-    let preview_rows = 50;
+    let preview_rows = 300;
     // The whole file is read so the null counts and the inferred dtypes cover
     // every row; only the head is sent back as rows.
     let df = read_csv(&path, None).map_err(|e| e.to_string())?;

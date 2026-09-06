@@ -124,12 +124,22 @@ export const FORMAT_CATALOG: string[] = [
 
 const DIGITS = /[0-9]/;
 
-function readDigits(value: string, at: number, width: number | null): [string, number] | null {
+/**
+ * Reads up to `width` digits, and at least `min`. Calendar and clock fields
+ * accept an unpadded value the way chrono does, so `29/2/2016` reads as
+ * `DD/MM/YYYY`; a fraction is the exception, where the digit count is the
+ * scale and a short read would mean a different number.
+ */
+function readDigits(
+  value: string,
+  at: number,
+  width: number | null,
+  min: number
+): [string, number] | null {
   let end = at;
   const limit = width === null ? value.length : Math.min(at + width, value.length);
   while (end < limit && DIGITS.test(value[end])) end += 1;
-  if (end === at) return null;
-  if (width !== null && end - at !== width) return null;
+  if (end - at < min) return null;
   return [value.slice(at, end), end];
 }
 
@@ -138,9 +148,9 @@ export type ParseResult = { ok: true; date: Date; iso: string } | { ok: false };
 
 /**
  * Applies a pattern to one value. Strict in the same way the import is: the
- * whole value has to be consumed, field widths have to match, and the numbers
- * have to describe a real instant — `31/02/2024` parses digit-wise and is still
- * rejected, because Rust will reject it too.
+ * whole value has to be consumed, a field reads at most the digits its token
+ * declares, and the numbers have to describe a real instant — `31/02/2024`
+ * parses digit-wise and is still rejected, because Rust will reject it too.
  */
 export function parseWithFormat(value: string, pattern: string): ParseResult {
   const pieces = tokenize(pattern);
@@ -176,7 +186,10 @@ export function parseWithFormat(value: string, pattern: string): ParseResult {
       continue;
     }
 
-    const read = readDigits(value, at, width);
+    // A fraction carries its scale in its digit count; every other field may
+    // arrive unpadded.
+    const exact = field === "milli" || field === "micro";
+    const read = readDigits(value, at, width, exact && width !== null ? width : 1);
     if (!read) return { ok: false };
     parts[field] = read[0];
     at = read[1];

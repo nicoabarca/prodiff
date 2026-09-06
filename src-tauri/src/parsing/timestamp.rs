@@ -1,7 +1,7 @@
 //! Full-column timestamp inspection for the mapping step.
 //!
-//! The preview ships fifty rows, which is enough to guess a format and never
-//! enough to trust one: a log that switches format at row 600_000, or carries a
+//! The preview ships a few hundred rows, which is enough to guess a format and
+//! never enough to trust one: a log that switches format at row 600_000, or carries a
 //! handful of unparseable cells, looks clean in a preview. This reads every row
 //! and reports what each candidate pattern makes of the column.
 //!
