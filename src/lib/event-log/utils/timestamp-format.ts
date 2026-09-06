@@ -24,6 +24,7 @@ interface Token {
     | "minute"
     | "second"
     | "milli"
+    | "micro"
     | "era"
     | "offset";
   /** Fixed width, or null when the token accepts a variable number of digits. */
@@ -49,6 +50,7 @@ export const FORMAT_TOKENS: Record<string, Token> = {
   mm: { field: "minute", width: 2 },
   ss: { field: "second", width: 2 },
   SSS: { field: "milli", width: 3 },
+  SSSSSS: { field: "micro", width: 6 },
   A: { field: "era", width: 0 },
   Z: { field: "offset", width: 0 }
 };
@@ -102,6 +104,10 @@ export const FORMAT_CATALOG: string[] = [
   "YYYY-MM-DDTHH:mm:ss",
   "YYYY-MM-DD HH:mm:ss.SSS",
   "YYYY-MM-DDTHH:mm:ss.SSS",
+  "YYYY-MM-DD HH:mm:ss.SSSSSS",
+  "YYYY-MM-DD HH:mm:ss.SSSSSSZ",
+  "YYYY-MM-DDTHH:mm:ss.SSSSSS",
+  "YYYY-MM-DDTHH:mm:ss.SSSSSSZ",
   "YYYY-MM-DDTHH:mm:ssZ",
   "YYYY-MM-DD",
   "DD/MM/YYYY HH:mm:ss",
@@ -183,7 +189,8 @@ export function parseWithFormat(value: string, pattern: string): ParseResult {
   const day = parts.day === undefined ? 1 : Number(parts.day);
   const minute = parts.minute === undefined ? 0 : Number(parts.minute);
   const second = parts.second === undefined ? 0 : Number(parts.second);
-  const milli = parts.milli === undefined ? 0 : Number(parts.milli);
+  const fraction = parts.milli ?? parts.micro?.slice(0, 3);
+  const milli = fraction === undefined ? 0 : Number(fraction);
   const hour = resolveHour(parts);
   if (hour === null) return { ok: false };
 
@@ -201,7 +208,7 @@ export function parseWithFormat(value: string, pattern: string): ParseResult {
   // the import writes, which is the whole failure this step exists to prevent.
   const date = new Date(local.getTime() - offsetMinutes(parts.offset) * 60_000);
 
-  return { ok: true, date, iso: formatIso(date, parts.milli !== undefined) };
+  return { ok: true, date, iso: formatIso(date, fraction !== undefined) };
 }
 
 /** Minutes east of UTC carried by a `Z` token; absent or literal `Z` is zero. */

@@ -31,10 +31,45 @@ export interface RequestColumnMapping {
   timestampFormat: string | null;
 }
 
-/** What `preview_event_log` returns: the head of the file, typed. */
+/**
+ * What `preview_event_log` returns: the head of the file, typed. `nullCount`
+ * and `totalRows` cover the whole file, while `rows` is only its head, so a
+ * column can show no gap in the preview and still report missing values.
+ */
 export interface ResponseEventLogPreview {
-  columns: { name: string; dtype: ColumnType }[];
+  columns: { name: string; dtype: ColumnType; nullCount: number }[];
   rows: string[][];
+  totalRows: number;
+}
+
+/** How many of a column's values one pattern reads. */
+export interface PatternCoverage {
+  pattern: string;
+  matched: number;
+  failed: number;
+}
+
+/** A value the reported pattern could not read, and where it sits in the file. */
+export interface DeviantValue {
+  value: string;
+  row: number;
+}
+
+/**
+ * What `analyze_timestamp_columns` returns for one column, over every row of
+ * the file. `nulls` are missing cells, which count against no pattern;
+ * `fullCoverage` holds every pattern that read all the rest, so more than one
+ * entry means the column is ambiguous and `best` is a guess. `best` is the
+ * pattern reading the most values, which is not always one reading them all.
+ */
+export interface ResponseTimestampColumnReport {
+  column: string;
+  rows: number;
+  nulls: number;
+  fullCoverage: string[];
+  best: string | null;
+  coverage: PatternCoverage[];
+  deviants: DeviantValue[];
 }
 
 /**

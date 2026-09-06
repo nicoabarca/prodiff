@@ -19,6 +19,14 @@
     ColumnType
   } from "$lib/event-log/invokers/types";
   import { inferFormat, type FormatInference } from "$lib/event-log/utils/timestamp-format";
+  import { analyzeTimestampColumns } from "$lib/event-log/invokers/analyze-timestamp-columns";
+  import {
+    checkFromReport,
+    formatCheckDetail,
+    formatCheckMessage
+  } from "$lib/event-log/utils/format-check";
+  import type { FormatCheck } from "$lib/event-log/types";
+  import { toast } from "svelte-sonner";
   import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
   import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
   import RequiredFieldsStep from "$lib/event-log/components/stepper/required-fields-step.svelte";
@@ -26,7 +34,12 @@
   import FieldSettingsStep from "$lib/event-log/components/stepper/field-settings-step.svelte";
   import ReviewStep from "$lib/event-log/components/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
+  import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
+
+  // Milliseconds. Long enough to read a count and a sample value before the
+  // toast leaves; the same warning stays reachable on the field's icon.
+  const FORMAT_TOAST_DURATION = 12000;
 
   let step = $state<1 | 2 | 3 | 4 | 5>(1);
 
@@ -51,6 +64,13 @@
   // Purely a record of which ambiguity warnings the user has waved off. Never
   // persisted — it says nothing about the log, only about what they have read.
   let formatWarningAcknowledged = $state<Record<string, boolean>>({});
+  // What the full-file pass made of each temporal column, keyed by column. The
+  // preview's fifty rows can only guess a format; these counts cover every row.
+  let formatChecks = $state<Record<string, FormatCheck>>({});
+  // The pattern each column was last counted against. A memo, not state: it
+  // decides whether a check is worth running and must not retrigger the effect
+  // that writes it.
+  let checkedFormat: Record<string, string> = {};
 
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
@@ -99,6 +119,8 @@
     formatInference = inferences;
     columnTimestampFormat = formats;
     formatWarningAcknowledged = {};
+    formatChecks = {};
+    checkedFormat = {};
   }
 
   function columnValues(name: string): string[] {
@@ -120,12 +142,9 @@
     formatInference = {};
     columnTimestampFormat = {};
     formatWarningAcknowledged = {};
+    formatChecks = {};
+    checkedFormat = {};
     step = 1;
-  }
-
-  function resetMapping() {
-    assignments = emptyAssignments();
-    activeRole = "case_id";
   }
 
   function temporal(type: ColumnType): boolean {
@@ -161,6 +180,58 @@
     })
   );
 
+  // Every column the mapping declares temporal, paired with the format in
+  // force. A change here is what sends the file back to Rust to be counted.
+  const declaredFormats = $derived(
+    columnMapping
+      .filter((c) => c.timestampFormat)
+      .map((c) => ({ column: c.name, pattern: c.timestampFormat as string }))
+  );
+
+  $effect(() => {
+    const path = filePath;
+    const pending = declaredFormats.filter((f) => checkedFormat[f.column] !== f.pattern);
+    if (!path || pending.length === 0) return;
+    // A custom pattern changes on every keystroke; the file is read once the
+    // typing settles.
+    const timer = setTimeout(() => void runFormatChecks(path, pending), 400);
+    return () => clearTimeout(timer);
+  });
+
+  async function runFormatChecks(path: string, pending: { column: string; pattern: string }[]) {
+    for (const { column, pattern } of pending) checkedFormat[column] = pattern;
+    let reports;
+    try {
+      reports = await analyzeTimestampColumns(
+        path,
+        pending.map((p) => p.column),
+        [...new Set(pending.map((p) => p.pattern))]
+      );
+    } catch (err) {
+      for (const { column } of pending) delete checkedFormat[column];
+      toast.error("Couldn't check the timestamp format", {
+        description: String(err),
+        duration: FORMAT_TOAST_DURATION
+      });
+      return;
+    }
+    if (filePath !== path) return; // a newer upload started before this one resolved
+    const next = { ...formatChecks };
+    for (const report of reports) {
+      const pattern = pending.find((p) => p.column === report.column)?.pattern;
+      if (!pattern) continue;
+      const check = checkFromReport(report, pattern);
+      next[report.column] = check;
+      if (check.failed > 0) {
+        toast.warning(formatCheckMessage(report.column, check), {
+          description: formatCheckDetail(check, { total: true }),
+          duration: FORMAT_TOAST_DURATION
+        });
+      }
+    }
+    formatChecks = next;
+  }
+
   const hiddenColumnNames = $derived(
     columns.filter((c) => !roleByColumn[c.name] && !visibleColumns.has(c.name)).map((c) => c.name)
   );
@@ -188,11 +259,6 @@
       <UploadStep onAccepted={acceptUpload} />
     </div>
   {:else if step === 2}
-    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <h1 class="font-heading text-xl font-bold tracking-tight">Map columns</h1>
-      <Button variant="outline" size="lg" onclick={resetMapping}>Reset</Button>
-    </div>
-
     <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {#if loadError}
         <p
@@ -207,7 +273,6 @@
         </div>
       {:else}
         <RequiredFieldsStep
-          fileName={fileName ?? "event_log.csv"}
           {columns}
           {rows}
           bind:assignments
@@ -215,6 +280,7 @@
           bind:hoveredCol
           {roleByColumn}
           {formatInference}
+          {formatChecks}
           {columnValues}
           bind:columnTimestampFormat
           bind:formatWarningAcknowledged
@@ -223,7 +289,27 @@
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={backToUpload}>Back</Button>
+      <div class="flex items-center gap-3">
+        <AlertDialog.Root>
+          <AlertDialog.Trigger>
+            {#snippet child({ props })}
+              <Button {...props} variant="outline" size="lg">Cancel</Button>
+            {/snippet}
+          </AlertDialog.Trigger>
+          <AlertDialog.Content>
+            <AlertDialog.Header>
+              <AlertDialog.Title>Choose another file?</AlertDialog.Title>
+              <AlertDialog.Description>
+                The columns you mapped and the timestamp formats you picked are discarded.
+              </AlertDialog.Description>
+            </AlertDialog.Header>
+            <AlertDialog.Footer>
+              <AlertDialog.Cancel>Stay here</AlertDialog.Cancel>
+              <AlertDialog.Action onclick={backToUpload}>Discard mapping</AlertDialog.Action>
+            </AlertDialog.Footer>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
+      </div>
       <Button size="lg" disabled={!allMapped} onclick={() => (step = 3)}>Next</Button>
     </div>
   {:else if step === 3}

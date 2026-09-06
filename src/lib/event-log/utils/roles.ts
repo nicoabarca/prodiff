@@ -1,4 +1,9 @@
 import type { ColumnGranularity, ColumnRole, ColumnType } from "$lib/event-log/invokers/types";
+import type { LucideIcon } from "@lucide/svelte";
+import Tag from "@lucide/svelte/icons/tag";
+import Mail from "@lucide/svelte/icons/mail";
+import Timer from "@lucide/svelte/icons/timer";
+import ClockCheck from "@lucide/svelte/icons/clock-check";
 
 // Roles assignable in the "Required fields" step. Unassigned columns fall
 // through to "other", which has no picker.
@@ -7,24 +12,27 @@ export type AssignableRole = Extract<
   "case_id" | "activity_name" | "complete_timestamp" | "start_timestamp"
 >;
 
-// Required roles gate moving past step 2. start_timestamp is optional, so
-// it's excluded from that gate but still auto-activates after the others.
+// Required roles gate moving past step 2. start_timestamp is optional, so it
+// is excluded from that gate.
 export const requiredRoles: AssignableRole[] = ["case_id", "activity_name", "complete_timestamp"];
 export const roleOrder: AssignableRole[] = [...requiredRoles, "start_timestamp"];
 
+// Timer and ClockCheck are the pair that tells the two timestamps apart: a
+// stopwatch running for the one that opens the activity, a clock with a tick
+// for the one that closes it.
 export const roleMeta: Record<
   AssignableRole,
-  { step: number; label: string; hint: string; optional?: boolean }
+  { icon: LucideIcon; label: string; hint: string; optional?: boolean }
 > = {
-  case_id: { step: 1, label: "Case ID", hint: "Groups events into a single process instance" },
-  activity_name: { step: 2, label: "Activity", hint: "The step or action performed" },
+  case_id: { icon: Tag, label: "Case ID", hint: "Groups events into a single process instance" },
+  activity_name: { icon: Mail, label: "Activity", hint: "The step or action performed" },
   complete_timestamp: {
-    step: 3,
+    icon: ClockCheck,
     label: "Complete timestamp",
     hint: "When the activity finished"
   },
   start_timestamp: {
-    step: 4,
+    icon: Timer,
     label: "Start timestamp",
     hint: "When the activity started",
     optional: true

@@ -65,8 +65,15 @@
 <div class="flex flex-col gap-1">
   <div class="flex items-center gap-1.5">
     <Select.Root type="single" value={selectValue} onValueChange={choose}>
-      <Select.Trigger size="sm" class="w-full font-mono text-xs">
-        {selectValue === CUSTOM ? "Custom" : pattern}
+      <!--
+        The trigger is `whitespace-nowrap`, and the text is not a Select.Value,
+        so nothing clips it: a long pattern runs past the border unless it
+        truncates in a min-w-0 child of its own.
+      -->
+      <Select.Trigger size="sm" class="w-full min-w-0 font-mono text-xs">
+        <span class="min-w-0 flex-1 truncate text-left">
+          {selectValue === CUSTOM ? "Custom" : pattern}
+        </span>
       </Select.Trigger>
       <Select.Content>
         {#each FORMAT_CATALOG as option}

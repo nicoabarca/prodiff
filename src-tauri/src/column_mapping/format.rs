@@ -14,9 +14,10 @@
 /// `YY`, or the pattern splits into two `YY` and quietly means a different year.
 const TOKENS: &[(&str, &str)] = &[
     ("YYYY", "%Y"),
-    // `%3f` is three fractional digits with no separator of its own — chrono's
-    // `%.3f` swallows a leading dot, which would double the one the pattern
-    // already spells out in `ss.SSS`.
+    // `%6f` and `%3f` are six and three fractional digits carrying no separator
+    // of their own. chrono's `%.3f` swallows a leading dot, which would double
+    // the one the pattern already spells out in `ss.SSS`.
+    ("SSSSSS", "%6f"),
     ("SSS", "%3f"),
     ("YY", "%y"),
     ("MM", "%m"),
@@ -84,6 +85,9 @@ mod tests {
             ("YYYY-MM-DD HH:mm:ss", "%Y-%m-%d %H:%M:%S"),
             ("YYYY-MM-DDTHH:mm:ss", "%Y-%m-%dT%H:%M:%S"),
             ("YYYY-MM-DD HH:mm:ss.SSS", "%Y-%m-%d %H:%M:%S.%3f"),
+            ("YYYY-MM-DD HH:mm:ss.SSSSSS", "%Y-%m-%d %H:%M:%S.%6f"),
+            ("YYYY-MM-DD HH:mm:ss.SSSSSSZ", "%Y-%m-%d %H:%M:%S.%6f%z"),
+            ("YYYY-MM-DDTHH:mm:ss.SSSSSSZ", "%Y-%m-%dT%H:%M:%S.%6f%z"),
             ("YYYY-MM-DDTHH:mm:ssZ", "%Y-%m-%dT%H:%M:%S%z"),
             ("YYYY-MM-DD", "%Y-%m-%d"),
             ("DD/MM/YYYY HH:mm:ss", "%d/%m/%Y %H:%M:%S"),
@@ -107,6 +111,7 @@ mod tests {
         assert_eq!(to_polars_format("YYYY"), "%Y");
         assert_eq!(to_polars_format("YY"), "%y");
         assert_eq!(to_polars_format("SSS"), "%3f");
+        assert_eq!(to_polars_format("SSSSSS"), "%6f");
     }
 
     #[test]
@@ -125,3 +130,4 @@ mod tests {
         assert_eq!(to_polars_format("%"), "%%");
     }
 }
+

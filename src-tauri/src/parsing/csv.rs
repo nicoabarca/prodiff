@@ -30,7 +30,10 @@ fn detect_separator(path: &str) -> u8 {
 /// nothing left to apply. Every column therefore enters as text.
 pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFrame> {
     let mut options = CsvReadOptions::default()
-        .with_infer_schema_length(Some(500))
+        // None scans every row before settling the schema. A file whose later
+        // rows change shape (a numeric column that turns alphanumeric at row
+        // 10_000) is typed from the whole column, not from its first 500 rows.
+        .with_infer_schema_length(None)
         .with_parse_options(CsvParseOptions::default().with_separator(detect_separator(path)));
     if let Some(n) = n_rows {
         options = options.with_n_rows(Some(n));

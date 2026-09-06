@@ -63,6 +63,15 @@ describe("parseWithFormat", () => {
     );
   });
 
+  it("reads a microsecond fraction, truncating it to the millisecond shown back", () => {
+    expect(parsed("2024-01-15 09:30:00.304000", "YYYY-MM-DD HH:mm:ss.SSSSSS")).toBe(
+      "2024-01-15 09:30:00.304"
+    );
+    expect(parsed("2016-01-01 09:51:15.304000+00:00", "YYYY-MM-DD HH:mm:ss.SSSSSSZ")).toBe(
+      "2016-01-01 09:51:15.304"
+    );
+  });
+
   it("reads AM/PM, including the two hours that trip naive implementations", () => {
     expect(parsed("15/01/2024 01:30:00 PM", "DD/MM/YYYY hh:mm:ss A")).toBe("2024-01-15 13:30:00");
     expect(parsed("15/01/2024 12:30:00 AM", "DD/MM/YYYY hh:mm:ss A")).toBe("2024-01-15 00:30:00");

@@ -3,13 +3,15 @@
   import { roleOrder, roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import { columnHeaderClass, columnCellClass } from "$lib/event-log/utils/column-highlight";
   import type { FormatInference } from "$lib/event-log/utils/timestamp-format";
+  import type { FormatCheck } from "$lib/event-log/types";
+  import { formatCheckDetail, formatCheckMessage } from "$lib/event-log/utils/format-check";
   import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
-  import Check from "@lucide/svelte/icons/check";
-  import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import CircleOff from "@lucide/svelte/icons/circle-off";
+  import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   let {
-    fileName,
     columns,
     rows,
     assignments = $bindable(),
@@ -17,11 +19,11 @@
     hoveredCol = $bindable(),
     roleByColumn,
     formatInference,
+    formatChecks,
     columnValues,
     columnTimestampFormat = $bindable(),
     formatWarningAcknowledged = $bindable()
   }: {
-    fileName: string;
     columns: { name: string; dtype: ColumnType }[];
     rows: string[][];
     assignments: Record<AssignableRole, string | null>;
@@ -29,6 +31,7 @@
     hoveredCol: number | null;
     roleByColumn: Record<string, AssignableRole>;
     formatInference: Record<string, FormatInference>;
+    formatChecks: Record<string, FormatCheck>;
     columnValues: (name: string) => string[];
     columnTimestampFormat: Record<string, string>;
     formatWarningAcknowledged: Record<string, boolean>;
@@ -46,10 +49,16 @@
     formatWarningAcknowledged = { ...formatWarningAcknowledged, [col]: true };
   }
 
-  function firstUnassigned(next: Record<AssignableRole, string | null>): AssignableRole | null {
-    return roleOrder.find((r) => next[r] === null) ?? null;
+  // The armed card is the only thing saying which role the next column click
+  // fills.
+  function armRole(role: AssignableRole) {
+    activeRole = role;
   }
 
+  // Nothing happens in the table until a role is armed, and filling one leaves
+  // it armed: only a card click moves the highlight, so a second column click
+  // replaces the mapping the user just made. Clicking a column that already
+  // carries a role clears it and arms that role.
   function handleColumnClick(col: string) {
     const existing = roleByColumn[col];
     if (existing) {
@@ -58,9 +67,7 @@
       return;
     }
     if (!activeRole) return;
-    const next = { ...assignments, [activeRole]: col };
-    assignments = next;
-    activeRole = firstUnassigned(next);
+    assignments = { ...assignments, [activeRole]: col };
   }
 
   function setHoveredCol(i: number) {
@@ -72,75 +79,71 @@
   }
 </script>
 
-<div class="border-primary bg-primary/5 mb-5 flex shrink-0 items-center gap-3 border-l-4 px-4 py-3">
-  <MousePointerClick class="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
-  <p class="text-foreground text-base font-medium text-pretty">
-    Click the columns in <span class="font-mono">{fileName}</span> to assign the fields required.
-  </p>
-</div>
-
-<div
-  class={`mb-4 flex shrink-0 items-center gap-3 border px-4 py-3 text-sm ${
-    activeRole
-      ? roleMeta[activeRole].optional
-        ? "border-primary/60 bg-primary/60 text-primary-foreground"
-        : "border-primary bg-primary text-primary-foreground"
-      : "border-border bg-card text-card-foreground"
-  }`}
->
-  {#if activeRole}
-    <span
-      class="border-primary-foreground flex h-6 w-6 shrink-0 items-center justify-center border text-xs font-bold"
-    >
-      {roleMeta[activeRole].step}
-    </span>
-    <span class="text-pretty">
-      <span class="font-semibold tracking-wide"
-        >{roleMeta[activeRole].optional ? "(Optional) " : ""}Select the
-        <span class="font-bold">{roleMeta[activeRole].label.toUpperCase()}</span> column</span
-      >
-      {": "}
-      {roleMeta[activeRole].hint}
-    </span>
-  {:else}
-    <Check class="h-5 w-5 shrink-0" />
-    <span class="font-semibold tracking-wide uppercase"
-      >All required fields mapped. Review the highlights, then continue</span
-    >
-  {/if}
-</div>
-
-<div class="border-border bg-border mb-4 grid shrink-0 grid-cols-1 gap-px border sm:grid-cols-4">
+<div class="mb-4 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-4">
   {#each roleOrder as role}
     {@const col = assignments[role]}
     {@const showFormat = col !== null && TIMESTAMP_ROLES.includes(role)}
+    {@const check = col ? formatChecks[col] : undefined}
+    {@const mismatched = showFormat && check && check.failed > 0 ? check : null}
+    {@const Icon = roleMeta[role].icon}
     <div
-      class={`bg-card flex items-center gap-3 p-3 text-left ${activeRole === role ? "bg-accent" : ""}`}
+      class={`border-border bg-card flex items-center gap-3 border p-3 text-left shadow-sm transition-shadow hover:shadow-md ${
+        activeRole === role ? "bg-accent ring-primary ring-2 ring-inset" : ""
+      }`}
     >
-      <span
-        class={`flex h-7 w-7 shrink-0 items-center justify-center text-xs font-bold ${
-          col
-            ? "bg-primary text-primary-foreground border-transparent"
-            : "border-border text-muted-foreground border"
-        }`}
+      <!--
+        The card arms a role; the format control next to it is interactive in
+        its own right, so only the icon and the label are the button.
+      -->
+      <button
+        type="button"
+        onclick={() => armRole(role)}
+        aria-pressed={activeRole === role}
+        class="focus-visible:ring-ring flex min-w-0 flex-1 cursor-pointer items-center gap-3 text-left focus-visible:ring-2 focus-visible:outline-none"
       >
-        {roleMeta[role].step}
-      </span>
-      <span class="min-w-0">
         <span
-          class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
+          class={`flex h-7 w-7 shrink-0 items-center justify-center ${
+            col
+              ? "bg-primary text-primary-foreground border-transparent"
+              : "border-border text-muted-foreground border"
+          }`}
         >
-          {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
+          <Icon class="h-4 w-4" aria-hidden="true" />
         </span>
-        <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
-      </span>
+        <span class="min-w-0">
+          <span
+            class="text-muted-foreground block text-[0.625rem] font-semibold tracking-widest uppercase"
+          >
+            {roleMeta[role].label}{roleMeta[role].optional ? " (optional)" : ""}
+          </span>
+          <span class="text-card-foreground block truncate font-mono text-sm">{col ?? "—"}</span>
+        </span>
+      </button>
+      {#if mismatched && col}
+        <Tooltip.Provider>
+          <Tooltip.Root>
+            <Tooltip.Trigger
+              class="shrink-0 text-yellow-500"
+              aria-label={formatCheckMessage(col, mismatched)}
+            >
+              <TriangleAlert class="h-4 w-4" />
+            </Tooltip.Trigger>
+            <Tooltip.Content class="max-w-72 space-y-1">
+              <p class="font-medium">{formatCheckMessage(col, mismatched)}</p>
+              {#if formatCheckDetail(mismatched)}
+                <p class="opacity-80">{formatCheckDetail(mismatched)}</p>
+              {/if}
+            </Tooltip.Content>
+          </Tooltip.Root>
+        </Tooltip.Provider>
+      {/if}
       {#if showFormat && col}
         <!--
           The column name is short and truncates anyway, so the format sits in
           the space it leaves rather than stacking underneath and making the two
           timestamp cards twice the height of the other two.
         -->
-        <div class="ml-auto min-w-0 flex-1">
+        <div class="min-w-0 flex-1">
           <TimestampFormatField
             values={columnValues(col)}
             inference={formatInference[col]}
@@ -156,10 +159,7 @@
 </div>
 
 <div class="border-border bg-card flex min-h-0 min-w-0 flex-1 flex-col border">
-  <div class="border-border flex shrink-0 items-center justify-between border-b px-4 py-2">
-    <span class="text-muted-foreground text-xs font-semibold tracking-widest uppercase"
-      >Sample preview</span
-    >
+  <div class="border-border flex shrink-0 items-center justify-end border-b px-4 py-2">
     <span class="text-muted-foreground text-xs">First {rows.length} rows</span>
   </div>
   <div class="min-h-0 flex-1 overflow-y-auto">
@@ -180,21 +180,17 @@
                   hoveredCol === c
                 )}`}
               >
+                <!--
+                  Every header carries an icon in the same leading slot, so the
+                  column keeps its width whatever role it is given.
+                -->
                 {#if role}
-                  <span
-                    class="border-primary-foreground flex h-4 w-4 shrink-0 items-center justify-center border text-[0.625rem] font-bold"
-                  >
-                    {roleMeta[role].step}
-                  </span>
+                  {@const HeaderIcon = roleMeta[role].icon}
+                  <HeaderIcon class="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                {:else}
+                  <CircleOff class="h-3.5 w-3.5 shrink-0 opacity-40" aria-hidden="true" />
                 {/if}
-                <span class="flex flex-col">
-                  <span>{col}</span>
-                  {#if role}
-                    <span class="text-[0.625rem] font-semibold tracking-wide uppercase opacity-90">
-                      {roleMeta[role].label}
-                    </span>
-                  {/if}
-                </span>
+                <span>{col}</span>
               </button>
             </Table.Head>
           {/each}
