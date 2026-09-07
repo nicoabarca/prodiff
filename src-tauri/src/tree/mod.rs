@@ -201,7 +201,7 @@ fn plan_attributes(
 /// within a case, so `First` is its earliest event and `Last` its latest.
 fn resolved_row(bounds: (usize, usize), resolution: CaseResolution) -> usize {
     match resolution {
-        CaseResolution::RequireConstant | CaseResolution::First => bounds.0,
+        CaseResolution::Constant | CaseResolution::First => bounds.0,
         CaseResolution::Last => bounds.1 - 1,
     }
 }
@@ -761,7 +761,7 @@ mod tests {
         let bounds = (4, 9);
         assert_eq!(resolved_row(bounds, CaseResolution::First), 4);
         assert_eq!(resolved_row(bounds, CaseResolution::Last), 8);
-        assert_eq!(resolved_row(bounds, CaseResolution::RequireConstant), 4);
+        assert_eq!(resolved_row(bounds, CaseResolution::Constant), 4);
     }
 
     #[test]

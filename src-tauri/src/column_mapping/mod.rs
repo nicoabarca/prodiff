@@ -67,12 +67,12 @@ pub enum ColumnScope {
 }
 
 /// Which of a case's rows a case-scoped column is read from. The import refuses
-/// a `RequireConstant` column whose value moves within a case.
+/// a `Constant` column whose value moves within a case.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum CaseResolution {
     #[default]
-    RequireConstant,
+    Constant,
     First,
     Last,
 }

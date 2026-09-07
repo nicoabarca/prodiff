@@ -62,6 +62,12 @@
 
   const allMapped = $derived(requiredRoles.every((r) => assignments[r] !== null));
 
+  // With no extra columns kept there is nothing to configure, so the field
+  // settings step is walked past in both directions.
+  const hasExtraFields = $derived(
+    columns.some(({ name }) => !roleByColumn[name] && visibleColumns.has(name))
+  );
+
   function acceptUpload(path: string, name: string) {
     filePath = path;
     fileName = name;
@@ -124,7 +130,7 @@
           role: "other",
           type,
           scope: columnScope[name] ?? "event",
-          caseResolution: columnResolution[name] ?? "require_constant",
+          caseResolution: columnResolution[name] ?? "constant",
           timestampFormat: temporal(type) ? (timestampFormats.patterns[name] ?? null) : null
         };
       }
@@ -133,7 +139,7 @@
         role: "other",
         type: dtype,
         scope: "event",
-        caseResolution: "require_constant",
+        caseResolution: "constant",
         timestampFormat: null
       };
     })
@@ -147,7 +153,7 @@
           c.role === "other" &&
           visibleColumns.has(c.name) &&
           c.scope === "case" &&
-          c.caseResolution === "require_constant"
+          c.caseResolution === "constant"
       )
       .map((c) => c.name)
   );
@@ -196,7 +202,7 @@
 </script>
 
 <main class="mx-auto flex h-screen w-full flex-col overflow-hidden px-8 py-8">
-  <WizardSteps active={step} />
+  <WizardSteps active={step} completed={!hasExtraFields && step > 2 ? [3] : []} />
 
   {#if step === 1}
     <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center">
@@ -251,14 +257,16 @@
           </AlertDialog.Content>
         </AlertDialog.Root>
       </div>
-      <Button size="lg" disabled={!allMapped || !formatsSettled} onclick={() => (step = 3)}
-        >Next</Button
+      <Button
+        size="lg"
+        disabled={!allMapped || !formatsSettled}
+        onclick={() => (step = hasExtraFields ? 3 : 4)}>Next</Button
       >
     </div>
   {:else if step === 3}
-    <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Field settings</h1>
+    <h1 class="font-heading mb-4 text-xl font-bold tracking-tight">Field settings</h1>
 
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FieldSettingsStep
         {columns}
         {rows}
@@ -301,7 +309,9 @@
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={() => (step = 3)}>Back</Button>
+      <Button variant="outline" size="lg" onclick={() => (step = hasExtraFields ? 3 : 2)}>
+        Back
+      </Button>
       <Button
         size="lg"
         disabled={submitting || !formatsSettled || !caseColumns.settled}

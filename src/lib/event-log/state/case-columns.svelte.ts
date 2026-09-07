@@ -13,7 +13,7 @@ interface Options {
 }
 
 /**
- * Whether the columns declared case-scoped with `require_constant` hold up over
+ * Whether the columns declared case-scoped with `constant` hold up over
  * the whole file, which the 300-row preview cannot answer.
  */
 export class CaseColumnChecks {

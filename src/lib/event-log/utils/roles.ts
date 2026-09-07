@@ -55,10 +55,10 @@ export const requiredFieldSettings: Record<
   AssignableRole,
   { scope: ColumnScope; caseResolution: CaseResolution; type: ColumnType }
 > = {
-  case_id: { scope: "case", caseResolution: "require_constant", type: "string" },
-  activity_name: { scope: "event", caseResolution: "require_constant", type: "string" },
-  complete_timestamp: { scope: "event", caseResolution: "require_constant", type: "datetime" },
-  start_timestamp: { scope: "event", caseResolution: "require_constant", type: "datetime" }
+  case_id: { scope: "case", caseResolution: "constant", type: "string" },
+  activity_name: { scope: "event", caseResolution: "constant", type: "string" },
+  complete_timestamp: { scope: "event", caseResolution: "constant", type: "datetime" },
+  start_timestamp: { scope: "event", caseResolution: "constant", type: "datetime" }
 };
 
 /**

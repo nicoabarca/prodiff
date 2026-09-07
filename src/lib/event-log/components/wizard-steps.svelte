@@ -1,7 +1,8 @@
 <script lang="ts">
   import { cn } from "$lib/utils";
 
-  let { active }: { active: 1 | 2 | 3 | 4 } = $props();
+  // `completed` marks a step the wizard walked past without visiting.
+  let { active, completed = [] }: { active: 1 | 2 | 3 | 4; completed?: number[] } = $props();
 
   const steps = [
     { n: 1, label: "Upload Event Log" },
@@ -9,6 +10,10 @@
     { n: 3, label: "Field settings" },
     { n: 4, label: "Review" }
   ] as const;
+
+  function done(n: number): boolean {
+    return n < active || completed.includes(n);
+  }
 </script>
 
 <ol class="mb-6 flex items-center justify-center gap-3">
@@ -19,7 +24,7 @@
           "flex size-6 shrink-0 items-center justify-center border text-xs font-bold",
           step.n === active
             ? "border-primary bg-primary text-primary-foreground"
-            : step.n < active
+            : done(step.n)
               ? "border-border bg-accent text-accent-foreground"
               : "border-border text-muted-foreground"
         )}

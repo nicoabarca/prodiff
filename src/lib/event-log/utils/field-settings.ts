@@ -21,22 +21,18 @@ export const SCOPE_DESCRIPTIONS: Record<ColumnScope, string> = {
   case: "The value belongs to the whole case, such as the customer segment or the region."
 };
 
-export const SCOPE_GUIDANCE =
-  "If the value changes as the case progresses, keep it at event level.";
-
-export const CASE_RESOLUTION_OPTIONS: CaseResolution[] = ["require_constant", "first", "last"];
+export const CASE_RESOLUTION_OPTIONS: CaseResolution[] = ["constant", "first", "last"];
 
 export const CASE_RESOLUTION_LABELS: Record<CaseResolution, string> = {
-  require_constant: "Require constant",
+  constant: "Constant",
   first: "First event",
   last: "Last event"
 };
 
 export const CASE_RESOLUTION_DESCRIPTIONS: Record<CaseResolution, string> = {
-  require_constant:
-    "Every event of a case must carry the same value, and the import refuses a case that breaks it.",
-  first: "Read the value from the earliest event of each case.",
-  last: "Read the value from the latest event of each case."
+  constant: "Reads the one value each case holds across its events, ignoring empty ones.",
+  first: "Reads the value on the earliest event of each case.",
+  last: "Reads the value on the latest event of each case."
 };
 
 export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {

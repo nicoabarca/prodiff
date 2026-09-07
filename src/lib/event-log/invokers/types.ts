@@ -20,7 +20,7 @@ export const COLUMN_SCOPES = ["event", "case"] as const;
 export type ColumnScope = (typeof COLUMN_SCOPES)[number];
 
 // Which of a case's rows a case-scoped column is read from.
-export const CASE_RESOLUTIONS = ["require_constant", "first", "last"] as const;
+export const CASE_RESOLUTIONS = ["constant", "first", "last"] as const;
 export type CaseResolution = (typeof CASE_RESOLUTIONS)[number];
 
 export interface RequestColumnMapping {
