@@ -194,10 +194,10 @@ mod tests {
     fn frontend_mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"event"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"ts","role":"complete_timestamp","type":"datetime","granularity":"event"},
-              {"name":"cost","role":"other","type":"integer","granularity":"event"}
+              {"name":"case","role":"case_id","type":"string","scope":"event"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"cost","role":"other","type":"integer","scope":"event"}
             ]"#,
         )
         .expect("frontend column mapping payload should deserialize")
@@ -272,7 +272,7 @@ mod tests {
     #[test]
     fn rejects_a_mapping_with_no_case_id() {
         let mapping: Vec<ColumnMapping> = serde_json::from_str(
-            r#"[{"name":"act","role":"activity_name","type":"string","granularity":"event"}]"#,
+            r#"[{"name":"act","role":"activity_name","type":"string","scope":"event"}]"#,
         )
         .unwrap();
         let err = summarize(&sample_log(), &mapping).unwrap_err();
@@ -283,9 +283,9 @@ mod tests {
     fn rejects_a_non_timestamp_timestamp_column() {
         let mapping: Vec<ColumnMapping> = serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"event"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"cost","role":"complete_timestamp","type":"integer","granularity":"event"}
+              {"name":"case","role":"case_id","type":"string","scope":"event"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"cost","role":"complete_timestamp","type":"integer","scope":"event"}
             ]"#,
         )
         .unwrap();

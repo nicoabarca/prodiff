@@ -1,8 +1,10 @@
 import {
-  COLUMN_GRANULARITIES,
+  CASE_RESOLUTIONS,
   COLUMN_ROLES,
+  COLUMN_SCOPES,
   COLUMN_TYPES,
-  type ColumnGranularity,
+  type CaseResolution,
+  type ColumnScope,
   type RequestColumnMapping,
   type ColumnRole,
   type ColumnType
@@ -32,7 +34,10 @@ export function validateColumnMapping(
     if (typeof entry !== "object" || entry === null) {
       throw new Error("Each column mapping entry must be an object.");
     }
-    const { name, role, type, granularity, timestampFormat } = entry as Record<string, unknown>;
+    const { name, role, type, scope, caseResolution, timestampFormat } = entry as Record<
+      string,
+      unknown
+    >;
 
     if (typeof name !== "string" || !expectedColumnNames.includes(name)) {
       throw new Error(`Column mapping references an unknown column: ${String(name)}`);
@@ -48,11 +53,14 @@ export function validateColumnMapping(
     if (typeof type !== "string" || !COLUMN_TYPES.includes(type as ColumnType)) {
       throw new Error(`Column "${name}" has an invalid type: ${String(type)}`);
     }
+    if (typeof scope !== "string" || !COLUMN_SCOPES.includes(scope as ColumnScope)) {
+      throw new Error(`Column "${name}" has an invalid scope: ${String(scope)}`);
+    }
     if (
-      typeof granularity !== "string" ||
-      !COLUMN_GRANULARITIES.includes(granularity as ColumnGranularity)
+      typeof caseResolution !== "string" ||
+      !CASE_RESOLUTIONS.includes(caseResolution as CaseResolution)
     ) {
-      throw new Error(`Column "${name}" has an invalid granularity: ${String(granularity)}`);
+      throw new Error(`Column "${name}" has an invalid case resolution: ${String(caseResolution)}`);
     }
 
     if (timestampFormat !== null && timestampFormat !== undefined) {

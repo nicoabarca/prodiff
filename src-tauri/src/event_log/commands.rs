@@ -1,10 +1,12 @@
 use super::storage::{copy_original, create_project_dir, delete_project_dir, write_parquet};
 use crate::column_mapping::{
-    find_role, require_role, to_polars_format, ColumnMapping, ColumnRole, ColumnType,
+    find_role, require_role, to_polars_format, CaseResolution, ColumnMapping, ColumnRole,
+    ColumnScope, ColumnType,
 };
-use crate::parsing::read_csv;
+use crate::parsing::{column_to_strings, read_csv};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
+use std::collections::HashMap;
 
 fn target_dtype(column_type: ColumnType) -> DataType {
     match column_type {
@@ -17,24 +19,28 @@ fn target_dtype(column_type: ColumnType) -> DataType {
     }
 }
 
-/// The Column Mapping's declared type is what every later query assumes the
-/// column physically is, so the Event Log is written in those types, not in
-/// whatever the CSV reader inferred. Without this the two silently disagree
-/// whenever the user overrides a suggested type: a numeric resource id declared
-/// as text stays an i64 in the file, and every filter on it fails at query time.
-///
-/// The cast is strict: a column that cannot be read as its declared type fails
-/// the import, naming itself.
+fn constant_case_column_names(columns: &[ColumnMapping]) -> Vec<String> {
+    columns
+        .iter()
+        .filter(|column| {
+            column.role == ColumnRole::Other
+                && column.scope == ColumnScope::Case
+                && column.case_resolution == CaseResolution::Constant
+        })
+        .map(|column| column.name.clone())
+        .collect()
+}
+
+/// Writes every column in its declared type. The cast is strict: a column that
+/// cannot be read as its declared type fails the import, naming itself.
 fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<DataFrame, String> {
     for mapping in columns {
-        // A column named in the mapping but missing from the file is the
-        // frontend's error to catch; here it is simply nothing to cast.
+        // A column missing from the file is nothing to cast.
         let Ok(column) = df.column(&mapping.name) else {
             continue;
         };
         let target = target_dtype(mapping.column_type);
         // Timestamps keep the precision and zone the CSV parse gave them.
-        // Re-casting a Datetime to the canonical unit would drop the zone.
         let already = column.dtype() == &target
             || matches!(
                 (column.dtype(), &target),
@@ -157,10 +163,22 @@ pub fn create_event_log(
         &columns,
     )?;
 
-    // Rows can arrive out of order (multi-case CSVs are rarely pre-sorted);
-    // case/activity/variant counts and any later trace analysis all assume
-    // each case's events run in timestamp order, so enforce it once here.
+    // Every later count and trace analysis assumes each case's events run in
+    // timestamp order.
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let constant_case_columns = constant_case_column_names(&columns);
+    if let Some(violation) = case_column_violations(&df, case_col, &constant_case_columns)?
+        .into_iter()
+        .next()
+    {
+        return Err(format!(
+            "Case-scoped column \"{}\" is not constant: case \"{}\" contains both \"{}\" and \"{}\".",
+            violation.column,
+            violation.example_case,
+            violation.example_values[0],
+            violation.example_values[1],
+        ));
+    }
     let end_ts_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
     let mut sort_cols = vec![case_col, end_ts_col];
     if let Some(start_ts_col) = find_role(&columns, ColumnRole::StartTimestamp) {
@@ -181,6 +199,90 @@ pub fn create_event_log(
         original_path: original_path.to_string_lossy().into_owned(),
         event_log_path: event_log_path.to_string_lossy().into_owned(),
     })
+}
+
+/// One case-scoped column whose value is not constant within at least one case.
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CaseColumnViolation {
+    pub column: String,
+    pub cases: usize,
+    pub example_case: String,
+    pub example_values: Vec<String>,
+}
+
+struct CaseValue<'a> {
+    first: &'a str,
+    violates_constant: bool,
+}
+
+/// Counts the cases in which a column carries more than one distinct non-null
+/// value. Nulls never violate on their own, and cases need not be contiguous.
+fn case_column_violations(
+    df: &DataFrame,
+    case_column: &str,
+    columns: &[String],
+) -> Result<Vec<CaseColumnViolation>, String> {
+    let cases = column_to_strings(df, case_column)?;
+    let mut violations = Vec::new();
+
+    for column in columns {
+        let values = column_to_strings(df, column)?;
+        if values.len() != cases.len() {
+            return Err(format!("Column \"{column}\" has a different height."));
+        }
+        let mut seen: HashMap<&str, CaseValue<'_>> = HashMap::new();
+        let mut violation_count = 0;
+        let mut example = None;
+        for (case, value) in cases.iter().zip(&values) {
+            if value.is_empty() {
+                continue;
+            }
+            match seen.get_mut(case.as_str()) {
+                None => {
+                    seen.insert(
+                        case,
+                        CaseValue {
+                            first: value,
+                            violates_constant: false,
+                        },
+                    );
+                }
+                Some(state) => {
+                    if value != state.first && !state.violates_constant {
+                        state.violates_constant = true;
+                        violation_count += 1;
+                        if example.is_none() {
+                            example = Some((case.as_str(), state.first, value.as_str()));
+                        }
+                    }
+                }
+            }
+        }
+        if let Some((example_case, first_value, other_value)) = example {
+            violations.push(CaseColumnViolation {
+                column: column.clone(),
+                cases: violation_count,
+                example_case: example_case.to_string(),
+                example_values: vec![first_value.to_string(), other_value.to_string()],
+            });
+        }
+    }
+    Ok(violations)
+}
+
+/// Only the violating columns come back.
+#[tauri::command]
+pub fn check_case_columns(
+    source_path: String,
+    case_column: String,
+    columns: Vec<String>,
+) -> Result<Vec<CaseColumnViolation>, String> {
+    if columns.is_empty() {
+        return Ok(Vec::new());
+    }
+    let df = read_csv(&source_path, None).map_err(|e| e.to_string())?;
+    case_column_violations(&df, &case_column, &columns)
 }
 
 #[tauri::command]
@@ -220,10 +322,97 @@ mod tests {
         (0..values.len()).map(|i| values.get(i)).collect()
     }
 
-    /// A resource id that happens to be all digits: the CSV reader infers an
-    /// integer and the user re-declares it as text.
+    /// All-digit resource id: inferred as integer, re-declared as text.
     fn numeric_resource() -> DataFrame {
         DataFrame::new(3, vec![Column::new("res".into(), [561i64, 561, 3_302])]).unwrap()
+    }
+
+    fn case_frame(cases: &[&str], values: &[Option<&str>]) -> DataFrame {
+        DataFrame::new(
+            cases.len(),
+            vec![
+                Column::new("case".into(), cases.to_vec()),
+                Column::new("region".into(), values.to_vec()),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn violations(cases: &[&str], values: &[Option<&str>]) -> Vec<CaseColumnViolation> {
+        case_column_violations(&case_frame(cases, values), "case", &["region".to_string()]).unwrap()
+    }
+
+    #[test]
+    fn only_constant_case_attributes_need_validation() {
+        let mapping: Vec<ColumnMapping> = serde_json::from_str(
+            r#"[
+              {"name":"case","role":"case_id","scope":"case"},
+              {"name":"region","role":"other","scope":"case","caseResolution":"constant"},
+              {"name":"owner","role":"other","scope":"case","caseResolution":"first"},
+              {"name":"resource","role":"other","scope":"event","caseResolution":"constant"}
+            ]"#,
+        )
+        .unwrap();
+
+        assert_eq!(constant_case_column_names(&mapping), ["region"]);
+    }
+
+    #[test]
+    fn a_column_constant_within_every_case_has_no_violation() {
+        assert!(violations(
+            &["a", "a", "b"],
+            &[Some("North"), Some("North"), Some("South")]
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn nulls_do_not_break_constancy() {
+        assert!(violations(&["a", "a", "a"], &[Some("North"), None, Some("North")]).is_empty());
+    }
+
+    #[test]
+    fn a_case_with_no_value_at_all_is_constant() {
+        assert!(violations(&["a", "a"], &[None, None]).is_empty());
+    }
+
+    #[test]
+    fn a_column_that_moves_within_a_case_is_reported_with_a_count_and_an_example() {
+        let found = violations(
+            &["a", "a", "b", "b", "c"],
+            &[
+                Some("North"),
+                Some("South"),
+                Some("East"),
+                Some("West"),
+                Some("North"),
+            ],
+        );
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].column, "region");
+        assert_eq!(found[0].cases, 2, "case c is constant and does not count");
+        assert_eq!(found[0].example_case, "a");
+        assert_eq!(found[0].example_values, vec!["North", "South"]);
+    }
+
+    #[test]
+    fn a_case_split_across_the_file_is_still_one_case() {
+        let found = violations(
+            &["a", "b", "a"],
+            &[Some("North"), Some("East"), Some("South")],
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].cases, 1);
+    }
+
+    #[test]
+    fn checking_no_columns_reads_nothing() {
+        assert!(
+            check_case_columns("nowhere.csv".into(), "case".into(), Vec::new())
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

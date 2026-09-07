@@ -19,6 +19,7 @@ pub fn run() {
             parsing::commands::event_log_file_size,
             parsing::commands::analyze_timestamp_columns,
             event_log::commands::create_event_log,
+            event_log::commands::check_case_columns,
             event_log::commands::delete_project_files,
             groups::commands::apply_group,
             groups::commands::delete_group_file,

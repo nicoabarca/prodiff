@@ -18,7 +18,9 @@ use crate::analysis::{
     stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
     MIN_GROUP_CASES, TRANSITION_TIME,
 };
-use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
+use crate::column_mapping::{
+    find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
+};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -79,6 +81,7 @@ struct AttrSpec {
     name: String,
     numeric: bool,
     source: Source,
+    resolution: CaseResolution,
 }
 
 enum Source {
@@ -172,6 +175,7 @@ fn plan_attributes(
                     name: name.clone(),
                     numeric: true,
                     source: Source::Duration,
+                    resolution: CaseResolution::default(),
                 });
             }
             continue;
@@ -183,13 +187,23 @@ fn plan_attributes(
             name: name.clone(),
             numeric: matches!(column.column_type, ColumnType::Integer | ColumnType::Float),
             source: Source::Column(name.clone()),
+            resolution: column.case_resolution,
         };
-        match column.granularity {
-            ColumnGranularity::Case => case_level.push(spec),
-            _ => event.push(spec),
+        match column.scope {
+            ColumnScope::Case => case_level.push(spec),
+            ColumnScope::Event => event.push(spec),
         }
     }
     (event, case_level, wants_transition)
+}
+
+/// The row a case-scoped attribute is read from. Rows run in timestamp order
+/// within a case, so `First` is its earliest event and `Last` its latest.
+fn resolved_row(bounds: (usize, usize), resolution: CaseResolution) -> usize {
+    match resolution {
+        CaseResolution::Constant | CaseResolution::First => bounds.0,
+        CaseResolution::Last => bounds.1 - 1,
+    }
 }
 
 fn read_group(
@@ -639,7 +653,7 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
 }
 
 /// Case-level attributes aggregate per Group, not per node: one value per case,
-/// taken from its first event. Computed over the whole Group, before the
+/// from the row its resolution names. Computed over the whole Group, before the
 /// coverage cut, so it matches `case_count`.
 fn case_level_blocks(
     logs: &[GroupLog],
@@ -658,13 +672,17 @@ fn case_level_blocks(
                 if spec.numeric {
                     let values = column_floats(df, name)?;
                     if let Acc::Num(out) = &mut acc {
-                        out.extend(rows.bounds.iter().filter_map(|&(from, _)| values[from]));
+                        out.extend(
+                            rows.bounds
+                                .iter()
+                                .filter_map(|&b| values[resolved_row(b, spec.resolution)]),
+                        );
                     }
                 } else {
                     let values = column_strings(df, name)?;
                     if let Acc::Cat(out) = &mut acc {
-                        for &(from, _) in &rows.bounds {
-                            if let Some(value) = &values[from] {
+                        for &bounds in &rows.bounds {
+                            if let Some(value) = &values[resolved_row(bounds, spec.resolution)] {
                                 *out.entry(value.clone()).or_default() += 1;
                             }
                         }
@@ -704,7 +722,10 @@ fn case_level_blocks(
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
-                Some((spec.name.clone(), stats::compare(&ids, &[a, b], spec.numeric)?))
+                Some((
+                    spec.name.clone(),
+                    stats::compare(&ids, &[a, b], spec.numeric)?,
+                ))
             })
             .collect();
         // Case-level attributes are their own family: one test each, no nodes.
@@ -735,14 +756,27 @@ fn case_level_blocks(
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_resolution_policy_picks_which_end_of_the_case_is_read() {
+        let bounds = (4, 9);
+        assert_eq!(resolved_row(bounds, CaseResolution::First), 4);
+        assert_eq!(resolved_row(bounds, CaseResolution::Last), 8);
+        assert_eq!(resolved_row(bounds, CaseResolution::Constant), 4);
+    }
+
+    #[test]
+    fn a_single_event_case_resolves_to_its_one_row() {
+        assert_eq!(resolved_row((7, 8), CaseResolution::Last), 7);
+    }
+
     pub(super) fn mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"case"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"ts","role":"complete_timestamp","type":"datetime","granularity":"event"},
-              {"name":"cost","role":"other","type":"integer","granularity":"event"},
-              {"name":"who","role":"other","type":"string","granularity":"event"}
+              {"name":"case","role":"case_id","type":"string","scope":"case"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"cost","role":"other","type":"integer","scope":"event"},
+              {"name":"who","role":"other","type":"string","scope":"event"}
             ]"#,
         )
         .unwrap()

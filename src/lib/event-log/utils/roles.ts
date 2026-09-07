@@ -1,4 +1,9 @@
-import type { ColumnGranularity, ColumnRole, ColumnType } from "$lib/event-log/invokers/types";
+import type {
+  CaseResolution,
+  ColumnRole,
+  ColumnScope,
+  ColumnType
+} from "$lib/event-log/invokers/types";
 import type { LucideIcon } from "@lucide/svelte";
 import Tag from "@lucide/svelte/icons/tag";
 import Mail from "@lucide/svelte/icons/mail";
@@ -44,16 +49,16 @@ export function emptyAssignments(): Record<AssignableRole, string | null> {
   return { case_id: null, activity_name: null, complete_timestamp: null, start_timestamp: null };
 }
 
-// Granularity and data type for required/start-timestamp roles are fixed by
-// what the role means. The app sets them, not the user.
+// Scope, resolution and data type for required/start-timestamp roles are fixed
+// by what the role means. The app sets them, not the user.
 export const requiredFieldSettings: Record<
   AssignableRole,
-  { granularity: ColumnGranularity; type: ColumnType }
+  { scope: ColumnScope; caseResolution: CaseResolution; type: ColumnType }
 > = {
-  case_id: { granularity: "case", type: "string" },
-  activity_name: { granularity: "event", type: "string" },
-  complete_timestamp: { granularity: "event", type: "datetime" },
-  start_timestamp: { granularity: "event", type: "datetime" }
+  case_id: { scope: "case", caseResolution: "constant", type: "string" },
+  activity_name: { scope: "event", caseResolution: "constant", type: "string" },
+  complete_timestamp: { scope: "event", caseResolution: "constant", type: "datetime" },
+  start_timestamp: { scope: "event", caseResolution: "constant", type: "datetime" }
 };
 
 /**

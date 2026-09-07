@@ -12,14 +12,17 @@
   import {
     inferExtraFieldType,
     extraFieldTypeToColumnType,
+    resolutionForScope,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import type {
-    ColumnGranularity,
+    CaseResolution,
+    ColumnScope,
     RequestColumnMapping,
     ColumnType
   } from "$lib/event-log/invokers/types";
   import { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
+  import { CaseColumnChecks } from "$lib/event-log/state/case-columns.svelte";
   import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
   import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
   import MapColumnsStep from "$lib/event-log/components/stepper/map-columns-step.svelte";
@@ -41,9 +44,11 @@
   let activeRole = $state<ColumnPick | null>("case_id");
   let hoveredCol = $state<number | null>(null);
   let visibleColumns = $state<Set<string>>(new Set());
-  let columnGranularity = $state<Record<string, ColumnGranularity>>({});
+  let columnScope = $state<Record<string, ColumnScope>>({});
+  let columnResolution = $state<Record<string, CaseResolution>>({});
   let columnType = $state<Record<string, ExtraFieldType>>({});
   const timestampFormats = new TimestampFormats();
+  const caseColumns = new CaseColumnChecks();
 
   let submitting = $state(false);
   let submitError = $state<string | null>(null);
@@ -57,6 +62,12 @@
   });
 
   const allMapped = $derived(requiredRoles.every((r) => assignments[r] !== null));
+
+  // With no extra columns kept there is nothing to configure, so the field
+  // settings step is walked past in both directions.
+  const hasExtraFields = $derived(
+    columns.some(({ name }) => !roleByColumn[name] && visibleColumns.has(name))
+  );
 
   function acceptUpload(path: string, name: string) {
     filePath = path;
@@ -87,9 +98,11 @@
     assignments = emptyAssignments();
     activeRole = "case_id";
     visibleColumns = new Set();
-    columnGranularity = {};
+    columnScope = {};
+    columnResolution = {};
     columnType = {};
     timestampFormats.reset();
+    caseColumns.reset();
     step = 1;
   }
 
@@ -113,17 +126,43 @@
       }
       if (visibleColumns.has(name)) {
         const type = extraFieldTypeToColumnType(columnType[name] ?? inferExtraFieldType(dtype));
+        const scope = columnScope[name] ?? "event";
         return {
           name,
           role: "other",
           type,
-          granularity: columnGranularity[name] ?? "event",
+          scope,
+          caseResolution: resolutionForScope(scope, columnResolution[name] ?? "constant"),
           timestampFormat: temporal(type) ? (timestampFormats.patterns[name] ?? null) : null
         };
       }
-      return { name, role: "other", type: dtype, granularity: "event", timestampFormat: null };
+      return {
+        name,
+        role: "other",
+        type: dtype,
+        scope: "event",
+        caseResolution: "constant",
+        timestampFormat: null
+      };
     })
   );
+
+  // Only the columns the import is about to assert are constant.
+  const constantCaseColumns = $derived(
+    columnMapping
+      .filter(
+        (c) =>
+          c.role === "other" &&
+          visibleColumns.has(c.name) &&
+          c.scope === "case" &&
+          c.caseResolution === "constant"
+      )
+      .map((c) => c.name)
+  );
+
+  $effect(() => {
+    caseColumns.sync(filePath, assignments.case_id, constantCaseColumns);
+  });
 
   const declaredFormats = $derived(
     columnMapping
@@ -150,7 +189,7 @@
   );
 
   async function confirm() {
-    if (!filePath || !fileName || !formatsSettled) return;
+    if (!filePath || !fileName || !formatsSettled || !caseColumns.settled) return;
     submitting = true;
     submitError = null;
     try {
@@ -165,7 +204,7 @@
 </script>
 
 <main class="mx-auto flex h-screen w-full flex-col overflow-hidden px-8 py-8">
-  <WizardSteps active={step} />
+  <WizardSteps active={step} completed={!hasExtraFields && step > 2 ? [3] : []} />
 
   {#if step === 1}
     <div class="mx-auto flex w-full max-w-2xl flex-1 flex-col items-center justify-center">
@@ -222,28 +261,36 @@
           </AlertDialog.Content>
         </AlertDialog.Root>
       </div>
-      <Button size="lg" disabled={!allMapped || !formatsSettled} onclick={() => (step = 3)}
-        >Next</Button
+      <Button
+        size="lg"
+        disabled={!allMapped || !formatsSettled}
+        onclick={() => (step = hasExtraFields ? 3 : 4)}>Next</Button
       >
     </div>
   {:else if step === 3}
-    <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Field settings</h1>
+    <h1 class="font-heading mb-4 text-xl font-bold tracking-tight">Field settings</h1>
 
-    <div class="flex min-h-0 flex-1 flex-col overflow-y-auto">
+    <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
       <FieldSettingsStep
         {columns}
         {rows}
         {roleByColumn}
         {visibleColumns}
-        bind:columnGranularity
+        bind:columnScope
+        bind:columnResolution
         bind:columnType
         {timestampFormats}
+        {caseColumns}
       />
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
       <Button variant="outline" size="lg" onclick={() => (step = 2)}>Back</Button>
-      <Button size="lg" disabled={!formatsSettled} onclick={() => (step = 4)}>Next</Button>
+      <Button
+        size="lg"
+        disabled={!formatsSettled || !caseColumns.settled}
+        onclick={() => (step = 4)}>Next</Button
+      >
     </div>
   {:else if step === 4}
     <h1 class="font-heading mb-5 text-xl font-bold tracking-tight">Review</h1>
@@ -266,8 +313,14 @@
     </div>
 
     <div class="mt-5 flex items-center justify-between gap-3">
-      <Button variant="outline" size="lg" onclick={() => (step = 3)}>Back</Button>
-      <Button size="lg" disabled={submitting || !formatsSettled} onclick={confirm}>
+      <Button variant="outline" size="lg" onclick={() => (step = hasExtraFields ? 3 : 2)}>
+        Back
+      </Button>
+      <Button
+        size="lg"
+        disabled={submitting || !formatsSettled || !caseColumns.settled}
+        onclick={confirm}
+      >
         {#if submitting}
           <LoaderCircle data-icon="inline-start" class="animate-spin" />
           Creating…
