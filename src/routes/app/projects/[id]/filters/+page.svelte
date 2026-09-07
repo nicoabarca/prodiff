@@ -85,7 +85,12 @@
 
 {#if project}
   <main class="bg-sidebar min-h-0 flex-1 overflow-auto p-5 lg:overflow-hidden">
-    <div class="grid w-full grid-cols-1 items-start gap-5 lg:h-full lg:grid-cols-2">
+    <!-- lg:items-stretch is load-bearing: with items-start the columns' lg:h-full resolves
+         against their own content, so their overflow-auto never scrolls and the rows past the
+         viewport are clipped by the page's lg:overflow-hidden. -->
+    <div
+      class="grid w-full grid-cols-1 items-start gap-5 lg:h-full lg:grid-cols-2 lg:items-stretch"
+    >
       <div class="flex flex-col gap-5 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
         <div class="flex flex-wrap items-center gap-3">
           <div>
