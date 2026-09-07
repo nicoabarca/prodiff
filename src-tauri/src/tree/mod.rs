@@ -18,9 +18,7 @@ use crate::analysis::{
     stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
     MIN_GROUP_CASES, TRANSITION_TIME,
 };
-use crate::column_mapping::{
-    find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
-};
+use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -81,6 +79,11 @@ struct AttrSpec {
     name: String,
     numeric: bool,
     source: Source,
+}
+
+/// A case-scoped attribute: one spec plus the row its Group blocks read.
+struct CaseAttr {
+    spec: AttrSpec,
     resolution: CaseResolution,
 }
 
@@ -159,7 +162,7 @@ fn plan_attributes(
     requested: &[String],
     mapping: &[ColumnMapping],
     has_start: bool,
-) -> (Vec<AttrSpec>, Vec<AttrSpec>, bool) {
+) -> (Vec<AttrSpec>, Vec<CaseAttr>, bool) {
     let mut event = Vec::new();
     let mut case_level = Vec::new();
     let mut wants_transition = false;
@@ -175,7 +178,6 @@ fn plan_attributes(
                     name: name.clone(),
                     numeric: true,
                     source: Source::Duration,
-                    resolution: CaseResolution::default(),
                 });
             }
             continue;
@@ -185,12 +187,11 @@ fn plan_attributes(
         };
         let spec = AttrSpec {
             name: name.clone(),
-            numeric: matches!(column.column_type, ColumnType::Integer | ColumnType::Float),
+            numeric: column.column_type.is_numeric(),
             source: Source::Column(name.clone()),
-            resolution: column.case_resolution,
         };
         match column.scope {
-            ColumnScope::Case => case_level.push(spec),
+            ColumnScope::Case { resolution } => case_level.push(CaseAttr { spec, resolution }),
             ColumnScope::Event => event.push(spec),
         }
     }
@@ -658,31 +659,31 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
 fn case_level_blocks(
     logs: &[GroupLog],
     groups: &[Option<GroupRows>; 2],
-    case_attrs: &[AttrSpec],
+    case_attrs: &[CaseAttr],
 ) -> Result<(Vec<GroupBlock>, HashMap<String, Test>), String> {
     let ids = group_ids(logs);
     let per_group = |df: &DataFrame, rows: &GroupRows| -> Result<Vec<Acc>, String> {
         case_attrs
             .iter()
-            .map(|spec| {
-                let Source::Column(name) = &spec.source else {
-                    return Ok(Acc::new(spec.numeric));
+            .map(|attr| {
+                let Source::Column(name) = &attr.spec.source else {
+                    return Ok(Acc::new(attr.spec.numeric));
                 };
-                let mut acc = Acc::new(spec.numeric);
-                if spec.numeric {
+                let mut acc = Acc::new(attr.spec.numeric);
+                if attr.spec.numeric {
                     let values = column_floats(df, name)?;
                     if let Acc::Num(out) = &mut acc {
                         out.extend(
                             rows.bounds
                                 .iter()
-                                .filter_map(|&b| values[resolved_row(b, spec.resolution)]),
+                                .filter_map(|&b| values[resolved_row(b, attr.resolution)]),
                         );
                     }
                 } else {
                     let values = column_strings(df, name)?;
                     if let Acc::Cat(out) = &mut acc {
                         for &bounds in &rows.bounds {
-                            if let Some(value) = &values[resolved_row(bounds, spec.resolution)] {
+                            if let Some(value) = &values[resolved_row(bounds, attr.resolution)] {
                                 *out.entry(value.clone()).or_default() += 1;
                             }
                         }
@@ -708,7 +709,7 @@ fn case_level_blocks(
         case_level: case_attrs
             .iter()
             .zip(accs)
-            .filter_map(|(spec, acc)| Some((spec.name.clone(), acc.summary()?)))
+            .filter_map(|(attr, acc)| Some((attr.spec.name.clone(), acc.summary()?)))
             .collect(),
     };
 
@@ -717,14 +718,14 @@ fn case_level_blocks(
         let mut computed: Vec<(String, Test)> = case_attrs
             .iter()
             .enumerate()
-            .filter_map(|(i, spec)| {
+            .filter_map(|(i, attr)| {
                 let (a, b) = (&accs_a[i], &accs_b[i]);
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
                 Some((
-                    spec.name.clone(),
-                    stats::compare(&ids, &[a, b], spec.numeric)?,
+                    attr.spec.name.clone(),
+                    stats::compare(&ids, &[a, b], attr.spec.numeric)?,
                 ))
             })
             .collect();
@@ -772,7 +773,7 @@ mod tests {
     pub(super) fn mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","scope":"case"},
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
               {"name":"act","role":"activity_name","type":"string","scope":"event"},
               {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
               {"name":"cost","role":"other","type":"integer","scope":"event"},

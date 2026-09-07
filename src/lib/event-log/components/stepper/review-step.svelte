@@ -65,7 +65,8 @@
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each visibleMapping as { name, type, scope, caseResolution }}
+        {#each visibleMapping as column}
+          {@const { name, type } = column}
           {@const required = roleByColumn[name] !== undefined}
           <Table.Row class="hover:bg-primary/5">
             <Table.Cell class="font-mono text-xs">{name}</Table.Cell>
@@ -77,8 +78,8 @@
               </span>
             </Table.Cell>
             <Table.Cell class="text-xs">
-              {SCOPE_LABELS[scope]}{scope === "case"
-                ? ` · ${CASE_RESOLUTION_LABELS[caseResolution]}`
+              {SCOPE_LABELS[column.scope]}{column.scope === "case"
+                ? ` · ${CASE_RESOLUTION_LABELS[column.caseResolution]}`
                 : ""}
             </Table.Cell>
             <Table.Cell class="font-mono text-xs">{type}</Table.Cell>

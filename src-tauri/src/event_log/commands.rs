@@ -1,21 +1,21 @@
 use super::storage::{copy_original, create_project_dir, delete_project_dir, write_parquet};
 use crate::column_mapping::{
     find_role, require_role, to_polars_format, CaseResolution, ColumnMapping, ColumnRole,
-    ColumnScope, ColumnType,
+    ColumnType,
 };
 use crate::parsing::{column_to_strings, read_csv};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
 use std::collections::HashMap;
 
-fn target_dtype(column_type: ColumnType) -> DataType {
+fn target_dtype(column_type: &ColumnType) -> DataType {
     match column_type {
         ColumnType::String => DataType::String,
         ColumnType::Integer => DataType::Int64,
         ColumnType::Float => DataType::Float64,
         ColumnType::Boolean => DataType::Boolean,
-        ColumnType::Date => DataType::Date,
-        ColumnType::Datetime => DataType::Datetime(TimeUnit::Milliseconds, None),
+        ColumnType::Date { .. } => DataType::Date,
+        ColumnType::Datetime { .. } => DataType::Datetime(TimeUnit::Milliseconds, None),
     }
 }
 
@@ -24,8 +24,7 @@ fn constant_case_column_names(columns: &[ColumnMapping]) -> Vec<String> {
         .iter()
         .filter(|column| {
             column.role == ColumnRole::Other
-                && column.scope == ColumnScope::Case
-                && column.case_resolution == CaseResolution::Constant
+                && column.scope.resolution() == Some(CaseResolution::Constant)
         })
         .map(|column| column.name.clone())
         .collect()
@@ -39,7 +38,7 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
         let Ok(column) = df.column(&mapping.name) else {
             continue;
         };
-        let target = target_dtype(mapping.column_type);
+        let target = target_dtype(&mapping.column_type);
         // Timestamps keep the precision and zone the CSV parse gave them.
         let already = column.dtype() == &target
             || matches!(
@@ -54,7 +53,7 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
             let parsed = parse_temporal(
                 column.as_materialized_series(),
                 mapping,
-                mapping.timestamp_format.as_deref(),
+                mapping.column_type.format(),
             )?;
             df.with_column(parsed).map_err(|e| e.to_string())?;
             continue;
@@ -90,7 +89,7 @@ fn parse_temporal(
     };
 
     let parsed: Series = match mapping.column_type {
-        ColumnType::Date => strings
+        ColumnType::Date { .. } => strings
             .as_date(format.as_deref(), false)
             .map_err(|cause| {
                 format!(
@@ -296,14 +295,14 @@ mod tests {
 
     fn mapping(name: &str, column_type: &str) -> Vec<ColumnMapping> {
         serde_json::from_str(&format!(
-            r#"[{{"name":"{name}","role":"other","type":"{column_type}"}}]"#
+            r#"[{{"name":"{name}","role":"other","type":"{column_type}","scope":"event"}}]"#
         ))
         .expect("mapping payload should deserialize")
     }
 
     fn timed_mapping(name: &str, column_type: &str, format: &str) -> Vec<ColumnMapping> {
         serde_json::from_str(&format!(
-            r#"[{{"name":"{name}","role":"other","type":"{column_type}","timestampFormat":"{format}"}}]"#
+            r#"[{{"name":"{name}","role":"other","type":"{column_type}","scope":"event","timestampFormat":"{format}"}}]"#
         ))
         .expect("mapping payload should deserialize")
     }
@@ -346,10 +345,10 @@ mod tests {
     fn only_constant_case_attributes_need_validation() {
         let mapping: Vec<ColumnMapping> = serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","scope":"case"},
-              {"name":"region","role":"other","scope":"case","caseResolution":"constant"},
-              {"name":"owner","role":"other","scope":"case","caseResolution":"first"},
-              {"name":"resource","role":"other","scope":"event","caseResolution":"constant"}
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"region","role":"other","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"owner","role":"other","type":"string","scope":"case","caseResolution":"first"},
+              {"name":"resource","role":"other","type":"string","scope":"event"}
             ]"#,
         )
         .unwrap();

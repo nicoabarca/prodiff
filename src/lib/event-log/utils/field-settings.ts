@@ -1,4 +1,12 @@
-import type { CaseResolution, ColumnScope, ColumnType } from "$lib/event-log/invokers/types";
+import {
+  TEMPORAL_COLUMN_TYPES,
+  type CaseResolution,
+  type ColumnScope,
+  type ColumnScoping,
+  type ColumnType,
+  type ColumnTyping,
+  type TemporalColumnType
+} from "$lib/event-log/invokers/types";
 
 export const EXTRA_FIELD_TYPES = ["string", "datetime", "number"] as const;
 export type ExtraFieldType = (typeof EXTRA_FIELD_TYPES)[number];
@@ -35,8 +43,18 @@ export const CASE_RESOLUTION_DESCRIPTIONS: Record<CaseResolution, string> = {
   last: "Reads the value on the latest event of each case."
 };
 
-export function resolutionForScope(scope: ColumnScope, resolution: CaseResolution): CaseResolution {
-  return scope === "case" ? resolution : "constant";
+/** The scoping a picked scope and a picked resolution amount to. */
+export function scopingOf(scope: ColumnScope, resolution: CaseResolution): ColumnScoping {
+  return scope === "case" ? { scope, caseResolution: resolution } : { scope };
+}
+
+export function isTemporal(type: ColumnType): type is TemporalColumnType {
+  return TEMPORAL_COLUMN_TYPES.includes(type as TemporalColumnType);
+}
+
+/** The typing a picked type and a declared pattern amount to. */
+export function typingOf(type: ColumnType, pattern: string | null): ColumnTyping {
+  return isTemporal(type) ? { type, timestampFormat: pattern } : { type };
 }
 
 export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {
