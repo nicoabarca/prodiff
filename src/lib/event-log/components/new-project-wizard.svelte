@@ -215,7 +215,9 @@
             </AlertDialog.Header>
             <AlertDialog.Footer>
               <AlertDialog.Cancel>Stay here</AlertDialog.Cancel>
-              <AlertDialog.Action onclick={backToUpload}>Discard mapping</AlertDialog.Action>
+              <AlertDialog.Action variant="destructive" onclick={backToUpload}
+                >Discard mapping</AlertDialog.Action
+              >
             </AlertDialog.Footer>
           </AlertDialog.Content>
         </AlertDialog.Root>

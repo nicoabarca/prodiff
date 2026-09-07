@@ -83,14 +83,16 @@
           <Tooltip.Root>
             <Tooltip.Trigger
               class={cn(
-                "absolute -top-2 -right-2 rounded-full p-1",
-                unresolved ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
+                "border-border absolute -right-2 -bottom-2 flex size-5 items-center justify-center border",
+                unresolved
+                  ? "bg-yellow-300 text-yellow-900"
+                  : "bg-muted text-muted-foreground"
               )}
               aria-label={unresolved
                 ? `No timestamp pattern reads ${column}`
                 : formatCheckMessage(column, mismatched!)}
             >
-              <TriangleAlert />
+              <TriangleAlert class="size-4" />
             </Tooltip.Trigger>
             <Tooltip.Content class="flex max-w-72 flex-col gap-1">
               {#if unresolved}

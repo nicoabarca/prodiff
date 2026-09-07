@@ -44,6 +44,13 @@ pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
 }
 
 #[tauri::command]
+pub fn event_log_file_size(path: String) -> Result<u64, String> {
+    std::fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .map_err(|error| error.to_string())
+}
+
+#[tauri::command]
 pub fn analyze_timestamp_columns(
     path: String,
     columns: Vec<String>,
