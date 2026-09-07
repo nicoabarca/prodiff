@@ -9,11 +9,15 @@ import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 export const ACTIVITY_DURATION = "Activity Duration";
 export const TRANSITION_TIME = "Transition Time";
 
-/** What the user can ask the backend to test. Hidden columns are left out. */
+/**
+ * What the user can ask the backend to test. Hidden columns are left out. The
+ * columns are ordered by name; the derived attributes come after them.
+ */
 export function attributeOptions(columns: RequestColumnMapping[], hidden: string[] = []): string[] {
   const mapped = columns
     .filter((c) => c.role === "other" && !hidden.includes(c.name))
-    .map((c) => c.name);
+    .map((c) => c.name)
+    .sort((a, b) => a.localeCompare(b));
   const hasStart = columns.some((c) => c.role === "start_timestamp");
   return [...mapped, ...(hasStart ? [ACTIVITY_DURATION] : []), TRANSITION_TIME];
 }
