@@ -59,7 +59,6 @@
   const flow = $derived(
     toFlow(tree, visible, {
       groups: flowGroups,
-      direction: view.direction,
       secondary: view.secondary,
       focus: view.focus,
       edgeLabels: view.edgeLabels,

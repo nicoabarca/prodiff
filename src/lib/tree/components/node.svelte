@@ -16,12 +16,11 @@
   const accentVar = $derived(`--${accent}`);
   const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
   const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
-  const vertical = $derived(data.direction === "TB");
 </script>
 
 <Handle
   type="target"
-  position={vertical ? Position.Top : Position.Left}
+  position={Position.Top}
   style="opacity:0"
   isConnectable={false}
 />
@@ -84,9 +83,7 @@
   {#if data.hiddenBelow > 0 || data.hasChildren}
     <button
       type="button"
-      class="text-muted-foreground hover:text-foreground absolute -bottom-2 {vertical
-        ? 'left-1/2 -translate-x-1/2'
-        : '-right-2 bottom-1/2 translate-y-1/2'} bg-card border-border flex items-center gap-0.5 border px-1 text-[0.625rem]"
+      class="text-muted-foreground hover:text-foreground bg-card border-border absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 border px-1 text-[0.625rem]"
       onclick={(event) => {
         event.stopPropagation();
         data.onToggleCollapse();
@@ -104,7 +101,7 @@
 
 <Handle
   type="source"
-  position={vertical ? Position.Bottom : Position.Right}
+  position={Position.Bottom}
   style="opacity:0"
   isConnectable={false}
 />
