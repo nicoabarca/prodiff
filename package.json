@@ -13,7 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "dev:port": "bash -c 'tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"compare ($1)\\\",\\\"maximized\\\":true}]}}\"' _"
+    "dev:port": "bash -c 'branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null); tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"compare ($1)${branch:+ $branch}\\\",\\\"maximized\\\":true}]}}\"' _"
   },
   "license": "MIT",
   "dependencies": {
