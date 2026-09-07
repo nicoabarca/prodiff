@@ -31,24 +31,16 @@ fn constant_case_column_names(columns: &[ColumnMapping]) -> Vec<String> {
         .collect()
 }
 
-/// The Column Mapping's declared type is what every later query assumes the
-/// column physically is, so the Event Log is written in those types, not in
-/// whatever the CSV reader inferred. Without this the two silently disagree
-/// whenever the user overrides a suggested type: a numeric resource id declared
-/// as text stays an i64 in the file, and every filter on it fails at query time.
-///
-/// The cast is strict: a column that cannot be read as its declared type fails
-/// the import, naming itself.
+/// Writes every column in its declared type. The cast is strict: a column that
+/// cannot be read as its declared type fails the import, naming itself.
 fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<DataFrame, String> {
     for mapping in columns {
-        // A column named in the mapping but missing from the file is the
-        // frontend's error to catch; here it is simply nothing to cast.
+        // A column missing from the file is nothing to cast.
         let Ok(column) = df.column(&mapping.name) else {
             continue;
         };
         let target = target_dtype(mapping.column_type);
         // Timestamps keep the precision and zone the CSV parse gave them.
-        // Re-casting a Datetime to the canonical unit would drop the zone.
         let already = column.dtype() == &target
             || matches!(
                 (column.dtype(), &target),
@@ -171,9 +163,8 @@ pub fn create_event_log(
         &columns,
     )?;
 
-    // Rows can arrive out of order (multi-case CSVs are rarely pre-sorted);
-    // case/activity/variant counts and any later trace analysis all assume
-    // each case's events run in timestamp order, so enforce it once here.
+    // Every later count and trace analysis assumes each case's events run in
+    // timestamp order.
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let constant_case_columns = constant_case_column_names(&columns);
     if let Some(violation) = case_column_violations(&df, case_col, &constant_case_columns)?
@@ -226,8 +217,7 @@ struct CaseValue<'a> {
 }
 
 /// Counts the cases in which a column carries more than one distinct non-null
-/// value. Nulls never violate on their own, and the cases need not be
-/// contiguous: the frame is read as the CSV gives it.
+/// value. Nulls never violate on their own, and cases need not be contiguous.
 fn case_column_violations(
     df: &DataFrame,
     case_column: &str,
@@ -332,8 +322,7 @@ mod tests {
         (0..values.len()).map(|i| values.get(i)).collect()
     }
 
-    /// A resource id that happens to be all digits: the CSV reader infers an
-    /// integer and the user re-declares it as text.
+    /// All-digit resource id: inferred as integer, re-declared as text.
     fn numeric_resource() -> DataFrame {
         DataFrame::new(3, vec![Column::new("res".into(), [561i64, 561, 3_302])]).unwrap()
     }
