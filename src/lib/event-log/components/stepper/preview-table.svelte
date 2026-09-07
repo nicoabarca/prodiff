@@ -1,9 +1,5 @@
 <script lang="ts">
-  /**
-   * The sample rows of the uploaded file, as both wizard steps draw them: a
-   * sticky header, a sticky row-number column and zebra rows. What a header
-   * cell holds and how a column reacts to the pointer is the caller's.
-   */
+  /** Shared wizard preview table; callers provide column-specific presentation and interaction. */
   import type { Snippet } from "svelte";
   import { cn } from "$lib/utils";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -31,7 +27,6 @@
 
 <div class="border-border bg-card flex min-h-0 min-w-0 flex-1 flex-col border">
   <div class="persistent-scrollbars min-h-0 flex-1 overflow-x-scroll overflow-y-auto">
-    <!-- Table.Root owns a nested scroller, so this table uses the outer bounded scroller. -->
     <table class="w-max min-w-full caption-bottom border-separate border-spacing-0 text-xs">
       <Table.Header class="sticky top-0 z-10">
         <Table.Row class="hover:bg-transparent">

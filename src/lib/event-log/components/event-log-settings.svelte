@@ -23,6 +23,7 @@
     SCOPE_OPTIONS,
     extraFieldTypeToColumnType,
     inferExtraFieldType,
+    resolutionForScope,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
@@ -74,16 +75,16 @@
     columnName: string,
     changes: { scope?: ColumnScope; caseResolution?: CaseResolution; type?: ExtraFieldType }
   ) {
-    const columns = project.columns.map((column) =>
-      column.name === columnName
-        ? {
-            ...column,
-            scope: changes.scope ?? column.scope,
-            caseResolution: changes.caseResolution ?? column.caseResolution,
-            type: changes.type ? extraFieldTypeToColumnType(changes.type) : column.type
-          }
-        : column
-    );
+    const columns = project.columns.map((column) => {
+      if (column.name !== columnName) return column;
+      const scope = changes.scope ?? column.scope;
+      return {
+        ...column,
+        scope,
+        caseResolution: resolutionForScope(scope, changes.caseResolution ?? column.caseResolution),
+        type: changes.type ? extraFieldTypeToColumnType(changes.type) : column.type
+      };
+    });
     updateProject(project.id, { columns });
     invalidateTree();
   }

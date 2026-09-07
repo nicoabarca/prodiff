@@ -1,6 +1,7 @@
 use super::storage::{copy_original, create_project_dir, delete_project_dir, write_parquet};
 use crate::column_mapping::{
-    find_role, require_role, to_polars_format, ColumnMapping, ColumnRole, ColumnType,
+    find_role, require_role, to_polars_format, CaseResolution, ColumnMapping, ColumnRole,
+    ColumnScope, ColumnType,
 };
 use crate::parsing::{column_to_strings, read_csv};
 use crate::stats::{summarize, EventLogStats};
@@ -16,6 +17,18 @@ fn target_dtype(column_type: ColumnType) -> DataType {
         ColumnType::Date => DataType::Date,
         ColumnType::Datetime => DataType::Datetime(TimeUnit::Milliseconds, None),
     }
+}
+
+fn constant_case_column_names(columns: &[ColumnMapping]) -> Vec<String> {
+    columns
+        .iter()
+        .filter(|column| {
+            column.role == ColumnRole::Other
+                && column.scope == ColumnScope::Case
+                && column.case_resolution == CaseResolution::Constant
+        })
+        .map(|column| column.name.clone())
+        .collect()
 }
 
 /// The Column Mapping's declared type is what every later query assumes the
@@ -162,6 +175,19 @@ pub fn create_event_log(
     // case/activity/variant counts and any later trace analysis all assume
     // each case's events run in timestamp order, so enforce it once here.
     let case_col = require_role(&columns, ColumnRole::CaseId)?;
+    let constant_case_columns = constant_case_column_names(&columns);
+    if let Some(violation) = case_column_violations(&df, case_col, &constant_case_columns)?
+        .into_iter()
+        .next()
+    {
+        return Err(format!(
+            "Case-scoped column \"{}\" is not constant: case \"{}\" contains both \"{}\" and \"{}\".",
+            violation.column,
+            violation.example_case,
+            violation.example_values[0],
+            violation.example_values[1],
+        ));
+    }
     let end_ts_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
     let mut sort_cols = vec![case_col, end_ts_col];
     if let Some(start_ts_col) = find_role(&columns, ColumnRole::StartTimestamp) {
@@ -194,6 +220,11 @@ pub struct CaseColumnViolation {
     pub example_values: Vec<String>,
 }
 
+struct CaseValue<'a> {
+    first: &'a str,
+    violates_constant: bool,
+}
+
 /// Counts the cases in which a column carries more than one distinct non-null
 /// value. Nulls never violate on their own, and the cases need not be
 /// contiguous: the frame is read as the CSV gives it.
@@ -210,37 +241,40 @@ fn case_column_violations(
         if values.len() != cases.len() {
             return Err(format!("Column \"{column}\" has a different height."));
         }
-        // Per case: the first non-null value, and the first one that disagreed.
-        let mut seen: HashMap<&str, (&str, Option<&str>)> = HashMap::new();
-        let mut offenders: Vec<&str> = Vec::new();
+        let mut seen: HashMap<&str, CaseValue<'_>> = HashMap::new();
+        let mut violation_count = 0;
+        let mut example = None;
         for (case, value) in cases.iter().zip(&values) {
             if value.is_empty() {
                 continue;
             }
             match seen.get_mut(case.as_str()) {
                 None => {
-                    seen.insert(case, (value, None));
+                    seen.insert(
+                        case,
+                        CaseValue {
+                            first: value,
+                            violates_constant: false,
+                        },
+                    );
                 }
-                Some((first, other)) => {
-                    if value != first && other.is_none() {
-                        *other = Some(value);
-                        offenders.push(case);
+                Some(state) => {
+                    if value != state.first && !state.violates_constant {
+                        state.violates_constant = true;
+                        violation_count += 1;
+                        if example.is_none() {
+                            example = Some((case.as_str(), state.first, value.as_str()));
+                        }
                     }
                 }
             }
         }
-        if let Some(example) = offenders.first() {
-            let (first, other) = seen[example];
+        if let Some((example_case, first_value, other_value)) = example {
             violations.push(CaseColumnViolation {
                 column: column.clone(),
-                cases: offenders.len(),
-                example_case: (*example).to_string(),
-                example_values: vec![
-                    first.to_string(),
-                    other
-                        .expect("an offending case has a second value")
-                        .to_string(),
-                ],
+                cases: violation_count,
+                example_case: example_case.to_string(),
+                example_values: vec![first_value.to_string(), other_value.to_string()],
             });
         }
     }
@@ -317,6 +351,21 @@ mod tests {
 
     fn violations(cases: &[&str], values: &[Option<&str>]) -> Vec<CaseColumnViolation> {
         case_column_violations(&case_frame(cases, values), "case", &["region".to_string()]).unwrap()
+    }
+
+    #[test]
+    fn only_constant_case_attributes_need_validation() {
+        let mapping: Vec<ColumnMapping> = serde_json::from_str(
+            r#"[
+              {"name":"case","role":"case_id","scope":"case"},
+              {"name":"region","role":"other","scope":"case","caseResolution":"constant"},
+              {"name":"owner","role":"other","scope":"case","caseResolution":"first"},
+              {"name":"resource","role":"other","scope":"event","caseResolution":"constant"}
+            ]"#,
+        )
+        .unwrap();
+
+        assert_eq!(constant_case_column_names(&mapping), ["region"]);
     }
 
     #[test]

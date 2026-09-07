@@ -35,6 +35,10 @@ export const CASE_RESOLUTION_DESCRIPTIONS: Record<CaseResolution, string> = {
   last: "Reads the value on the latest event of each case."
 };
 
+export function resolutionForScope(scope: ColumnScope, resolution: CaseResolution): CaseResolution {
+  return scope === "case" ? resolution : "constant";
+}
+
 export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {
   switch (dtype) {
     case "integer":

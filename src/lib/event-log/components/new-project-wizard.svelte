@@ -12,6 +12,7 @@
   import {
     inferExtraFieldType,
     extraFieldTypeToColumnType,
+    resolutionForScope,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import type {
@@ -125,12 +126,13 @@
       }
       if (visibleColumns.has(name)) {
         const type = extraFieldTypeToColumnType(columnType[name] ?? inferExtraFieldType(dtype));
+        const scope = columnScope[name] ?? "event";
         return {
           name,
           role: "other",
           type,
-          scope: columnScope[name] ?? "event",
-          caseResolution: columnResolution[name] ?? "constant",
+          scope,
+          caseResolution: resolutionForScope(scope, columnResolution[name] ?? "constant"),
           timestampFormat: temporal(type) ? (timestampFormats.patterns[name] ?? null) : null
         };
       }
