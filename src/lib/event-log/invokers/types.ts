@@ -16,15 +16,28 @@ export type ColumnRole = (typeof COLUMN_ROLES)[number];
 export const COLUMN_TYPES = ["string", "integer", "float", "boolean", "date", "datetime"] as const;
 export type ColumnType = (typeof COLUMN_TYPES)[number];
 
-export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
-export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
+export const COLUMN_SCOPES = ["event", "case"] as const;
+export type ColumnScope = (typeof COLUMN_SCOPES)[number];
+
+// Which of a case's rows a case-scoped column is read from.
+export const CASE_RESOLUTIONS = ["require_constant", "first", "last"] as const;
+export type CaseResolution = (typeof CASE_RESOLUTIONS)[number];
 
 export interface RequestColumnMapping {
   name: string;
   role: ColumnRole;
   type: ColumnType;
-  granularity: ColumnGranularity;
+  scope: ColumnScope;
+  caseResolution: CaseResolution;
   timestampFormat: string | null;
+}
+
+/** A case-scoped column whose value is not constant within at least one case. */
+export interface ResponseCaseColumnViolation {
+  column: string;
+  cases: number;
+  exampleCase: string;
+  exampleValues: string[];
 }
 
 export interface ResponseEventLogPreview {

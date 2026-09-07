@@ -1,15 +1,20 @@
 <script lang="ts">
-  import type { ColumnGranularity, ColumnType } from "$lib/event-log/invokers/types";
+  import type { CaseResolution, ColumnScope, ColumnType } from "$lib/event-log/invokers/types";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import {
     EXTRA_FIELD_TYPES,
     EXTRA_FIELD_TYPE_LABELS,
-    GRANULARITY_OPTIONS,
-    GRANULARITY_LABELS,
-    GRANULARITY_DESCRIPTIONS,
+    SCOPE_OPTIONS,
+    SCOPE_LABELS,
+    SCOPE_DESCRIPTIONS,
+    SCOPE_GUIDANCE,
+    CASE_RESOLUTION_OPTIONS,
+    CASE_RESOLUTION_LABELS,
+    CASE_RESOLUTION_DESCRIPTIONS,
     inferExtraFieldType,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
+  import type { CaseColumnChecks } from "$lib/event-log/state/case-columns.svelte";
   import type { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
   import TimestampFormatField from "./timestamp-format-field.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -18,23 +23,28 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { cn } from "$lib/utils";
   import Info from "@lucide/svelte/icons/info";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   let {
     columns,
     rows,
     roleByColumn,
     visibleColumns,
-    columnGranularity = $bindable(),
+    columnScope = $bindable(),
+    columnResolution = $bindable(),
     columnType = $bindable(),
-    timestampFormats
+    timestampFormats,
+    caseColumns
   }: {
     columns: { name: string; dtype: ColumnType }[];
     rows: string[][];
     roleByColumn: Record<string, AssignableRole>;
     visibleColumns: Set<string>;
-    columnGranularity: Record<string, ColumnGranularity>;
+    columnScope: Record<string, ColumnScope>;
+    columnResolution: Record<string, CaseResolution>;
     columnType: Record<string, ExtraFieldType>;
     timestampFormats: TimestampFormats;
+    caseColumns: CaseColumnChecks;
   } = $props();
 
   const fieldRows = $derived(
@@ -57,16 +67,24 @@
 
   const previewRows = $derived(rows.map((row) => previewColumns.map(({ index }) => row[index])));
 
-  function granularityFor(col: string): ColumnGranularity {
-    return columnGranularity[col] ?? "event";
+  function scopeFor(col: string): ColumnScope {
+    return columnScope[col] ?? "event";
+  }
+
+  function resolutionFor(col: string): CaseResolution {
+    return columnResolution[col] ?? "require_constant";
   }
 
   function typeFor(col: string, dtype: ColumnType): ExtraFieldType {
     return columnType[col] ?? inferExtraFieldType(dtype);
   }
 
-  function setGranularity(col: string, value: string) {
-    columnGranularity = { ...columnGranularity, [col]: value as ColumnGranularity };
+  function setScope(col: string, value: string) {
+    columnScope = { ...columnScope, [col]: value as ColumnScope };
+  }
+
+  function setResolution(col: string, value: string) {
+    columnResolution = { ...columnResolution, [col]: value as CaseResolution };
   }
 
   function setType(col: string, value: string) {
@@ -74,7 +92,7 @@
   }
 
   function isCustomized(name: string, dtype: ColumnType): boolean {
-    return granularityFor(name) !== "event" || typeFor(name, dtype) !== inferExtraFieldType(dtype);
+    return scopeFor(name) !== "event" || typeFor(name, dtype) !== inferExtraFieldType(dtype);
   }
 
   const temporalFields = $derived(
@@ -92,14 +110,20 @@
 <Alert.Root class="mb-5 shrink-0">
   <Info aria-hidden="true" />
   <div class="text-sm">
-    <Alert.Title>Granularity</Alert.Title>
+    <Alert.Title>Scope</Alert.Title>
     <dl class="flex flex-col gap-0.5">
-      {#each GRANULARITY_OPTIONS as option}
+      {#each SCOPE_OPTIONS as option}
         <div class="flex gap-1.5">
-          <dt class="text-foreground shrink-0 font-medium">{GRANULARITY_LABELS[option]}:</dt>
-          <dd class="text-muted-foreground">{GRANULARITY_DESCRIPTIONS[option]}</dd>
+          <dt class="text-foreground shrink-0 font-medium">{SCOPE_LABELS[option]}:</dt>
+          <dd class="text-muted-foreground">{SCOPE_DESCRIPTIONS[option]}</dd>
         </div>
       {/each}
+      <div class="flex gap-1.5">
+        <dt class="text-foreground shrink-0 font-medium">Case resolution:</dt>
+        <dd class="text-muted-foreground">
+          Which event of the case a case-scoped column is read from. {SCOPE_GUIDANCE}
+        </dd>
+      </div>
     </dl>
   </div>
 </Alert.Root>
@@ -131,6 +155,18 @@
           >{fieldRows.length} field{fieldRows.length === 1 ? "" : "s"}</span
         >
       </div>
+      {#if caseColumns.checking || caseColumns.error}
+        <div class="border-border flex shrink-0 items-center gap-2 border-b px-4 py-2">
+          {#if caseColumns.checking}
+            <LoaderCircle class="text-muted-foreground size-3.5 animate-spin" aria-hidden="true" />
+            <span class="text-muted-foreground text-xs">Checking the case-scoped columns…</span>
+          {:else}
+            <span class="text-destructive text-xs">
+              Couldn't check the case-scoped columns: {caseColumns.error}
+            </span>
+          {/if}
+        </div>
+      {/if}
       {#if sharedFormat}
         <div
           class="border-border flex shrink-0 items-center justify-between gap-3 border-b px-4 py-2"
@@ -156,7 +192,7 @@
           <Table.Header>
             <Table.Row class="hover:bg-transparent">
               <Table.Head>Field name</Table.Head>
-              <Table.Head>Granularity</Table.Head>
+              <Table.Head>Scope</Table.Head>
               <Table.Head>Data type</Table.Head>
             </Table.Row>
           </Table.Header>
@@ -182,25 +218,62 @@
                   </span>
                 </Table.Cell>
                 <Table.Cell>
-                  <Select.Root
-                    type="single"
-                    value={granularityFor(name)}
-                    onValueChange={(value) => setGranularity(name, value)}
-                  >
-                    <Select.Trigger
-                      size="sm"
-                      class={cn("w-36", granularityFor(name) !== "event" && "border-primary")}
+                  {@const violation = caseColumns.violation(name)}
+                  <div class="flex w-40 flex-col gap-1">
+                    <Select.Root
+                      type="single"
+                      value={scopeFor(name)}
+                      onValueChange={(value) => setScope(name, value)}
                     >
-                      {GRANULARITY_LABELS[granularityFor(name)]}
-                    </Select.Trigger>
-                    <Select.Content>
-                      <Select.Group>
-                        {#each GRANULARITY_OPTIONS as option}
-                          <Select.Item value={option} label={GRANULARITY_LABELS[option]} />
-                        {/each}
-                      </Select.Group>
-                    </Select.Content>
-                  </Select.Root>
+                      <Select.Trigger
+                        size="sm"
+                        class={cn("w-full", scopeFor(name) !== "event" && "border-primary")}
+                      >
+                        {SCOPE_LABELS[scopeFor(name)]}
+                      </Select.Trigger>
+                      <Select.Content>
+                        <Select.Group>
+                          {#each SCOPE_OPTIONS as option}
+                            <Select.Item value={option} label={SCOPE_LABELS[option]} />
+                          {/each}
+                        </Select.Group>
+                      </Select.Content>
+                    </Select.Root>
+                    {#if scopeFor(name) === "case"}
+                      <Select.Root
+                        type="single"
+                        value={resolutionFor(name)}
+                        onValueChange={(value) => setResolution(name, value)}
+                      >
+                        <Select.Trigger
+                          size="sm"
+                          class={cn("w-full", violation && "border-destructive")}
+                        >
+                          {CASE_RESOLUTION_LABELS[resolutionFor(name)]}
+                        </Select.Trigger>
+                        <Select.Content>
+                          <Select.Group>
+                            {#each CASE_RESOLUTION_OPTIONS as option}
+                              <Select.Item value={option} label={CASE_RESOLUTION_LABELS[option]} />
+                            {/each}
+                          </Select.Group>
+                        </Select.Content>
+                      </Select.Root>
+                      <p class="text-muted-foreground text-xs">
+                        {CASE_RESOLUTION_DESCRIPTIONS[resolutionFor(name)]}
+                      </p>
+                      {#if violation}
+                        <p class="text-destructive text-xs">
+                          {violation.cases}
+                          {violation.cases === 1 ? "case carries" : "cases carry"} more than one value.
+                          Case <span class="font-mono">{violation.exampleCase}</span> holds
+                          <span class="font-mono">{violation.exampleValues[0]}</span>
+                          and <span class="font-mono">{violation.exampleValues[1]}</span>. Read the
+                          first or the last event instead, or move the column to event scope.
+                        </p>
+                      {/if}
+                    {/if}
+                  </div>
                 </Table.Cell>
                 <Table.Cell>
                   <div class="flex w-44 flex-col gap-1">

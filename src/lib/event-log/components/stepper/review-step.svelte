@@ -2,7 +2,7 @@
   import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
   import type { AssignableRole } from "$lib/event-log/utils/roles";
   import { roleMeta } from "$lib/event-log/utils/roles";
-  import { GRANULARITY_LABELS } from "$lib/event-log/utils/field-settings";
+  import { CASE_RESOLUTION_LABELS, SCOPE_LABELS } from "$lib/event-log/utils/field-settings";
   import * as Table from "$lib/components/ui/table/index.js";
   import FileCheck from "@lucide/svelte/icons/file-check";
   import Info from "@lucide/svelte/icons/info";
@@ -60,12 +60,12 @@
         <Table.Row class="hover:bg-transparent">
           <Table.Head>Field name</Table.Head>
           <Table.Head>Role</Table.Head>
-          <Table.Head>Granularity</Table.Head>
+          <Table.Head>Scope</Table.Head>
           <Table.Head>Data type</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each visibleMapping as { name, type, granularity }}
+        {#each visibleMapping as { name, type, scope, caseResolution }}
           {@const required = roleByColumn[name] !== undefined}
           <Table.Row class="hover:bg-primary/5">
             <Table.Cell class="font-mono text-xs">{name}</Table.Cell>
@@ -76,7 +76,11 @@
                 {roleLabel(name)}
               </span>
             </Table.Cell>
-            <Table.Cell class="text-xs">{GRANULARITY_LABELS[granularity]}</Table.Cell>
+            <Table.Cell class="text-xs">
+              {SCOPE_LABELS[scope]}{scope === "case"
+                ? ` · ${CASE_RESOLUTION_LABELS[caseResolution]}`
+                : ""}
+            </Table.Cell>
             <Table.Cell class="font-mono text-xs">{type}</Table.Cell>
           </Table.Row>
         {/each}

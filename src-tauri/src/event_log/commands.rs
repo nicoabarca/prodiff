@@ -2,9 +2,10 @@ use super::storage::{copy_original, create_project_dir, delete_project_dir, writ
 use crate::column_mapping::{
     find_role, require_role, to_polars_format, ColumnMapping, ColumnRole, ColumnType,
 };
-use crate::parsing::read_csv;
+use crate::parsing::{column_to_strings, read_csv};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
+use std::collections::HashMap;
 
 fn target_dtype(column_type: ColumnType) -> DataType {
     match column_type {
@@ -183,6 +184,83 @@ pub fn create_event_log(
     })
 }
 
+/// One case-scoped column whose value is not constant within at least one case.
+#[derive(serde::Serialize, Debug, Clone, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct CaseColumnViolation {
+    pub column: String,
+    pub cases: usize,
+    pub example_case: String,
+    pub example_values: Vec<String>,
+}
+
+/// Counts the cases in which a column carries more than one distinct non-null
+/// value. Nulls never violate on their own, and the cases need not be
+/// contiguous: the frame is read as the CSV gives it.
+fn case_column_violations(
+    df: &DataFrame,
+    case_column: &str,
+    columns: &[String],
+) -> Result<Vec<CaseColumnViolation>, String> {
+    let cases = column_to_strings(df, case_column)?;
+    let mut violations = Vec::new();
+
+    for column in columns {
+        let values = column_to_strings(df, column)?;
+        if values.len() != cases.len() {
+            return Err(format!("Column \"{column}\" has a different height."));
+        }
+        // Per case: the first non-null value, and the first one that disagreed.
+        let mut seen: HashMap<&str, (&str, Option<&str>)> = HashMap::new();
+        let mut offenders: Vec<&str> = Vec::new();
+        for (case, value) in cases.iter().zip(&values) {
+            if value.is_empty() {
+                continue;
+            }
+            match seen.get_mut(case.as_str()) {
+                None => {
+                    seen.insert(case, (value, None));
+                }
+                Some((first, other)) => {
+                    if value != first && other.is_none() {
+                        *other = Some(value);
+                        offenders.push(case);
+                    }
+                }
+            }
+        }
+        if let Some(example) = offenders.first() {
+            let (first, other) = seen[example];
+            violations.push(CaseColumnViolation {
+                column: column.clone(),
+                cases: offenders.len(),
+                example_case: (*example).to_string(),
+                example_values: vec![
+                    first.to_string(),
+                    other
+                        .expect("an offending case has a second value")
+                        .to_string(),
+                ],
+            });
+        }
+    }
+    Ok(violations)
+}
+
+/// Only the violating columns come back.
+#[tauri::command]
+pub fn check_case_columns(
+    source_path: String,
+    case_column: String,
+    columns: Vec<String>,
+) -> Result<Vec<CaseColumnViolation>, String> {
+    if columns.is_empty() {
+        return Ok(Vec::new());
+    }
+    let df = read_csv(&source_path, None).map_err(|e| e.to_string())?;
+    case_column_violations(&df, &case_column, &columns)
+}
+
 #[tauri::command]
 pub fn delete_project_files(app: tauri::AppHandle, project_id: String) -> Result<(), String> {
     delete_project_dir(&app, &project_id)
@@ -224,6 +302,79 @@ mod tests {
     /// integer and the user re-declares it as text.
     fn numeric_resource() -> DataFrame {
         DataFrame::new(3, vec![Column::new("res".into(), [561i64, 561, 3_302])]).unwrap()
+    }
+
+    fn case_frame(cases: &[&str], values: &[Option<&str>]) -> DataFrame {
+        DataFrame::new(
+            cases.len(),
+            vec![
+                Column::new("case".into(), cases.to_vec()),
+                Column::new("region".into(), values.to_vec()),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn violations(cases: &[&str], values: &[Option<&str>]) -> Vec<CaseColumnViolation> {
+        case_column_violations(&case_frame(cases, values), "case", &["region".to_string()]).unwrap()
+    }
+
+    #[test]
+    fn a_column_constant_within_every_case_has_no_violation() {
+        assert!(violations(
+            &["a", "a", "b"],
+            &[Some("North"), Some("North"), Some("South")]
+        )
+        .is_empty());
+    }
+
+    #[test]
+    fn nulls_do_not_break_constancy() {
+        assert!(violations(&["a", "a", "a"], &[Some("North"), None, Some("North")]).is_empty());
+    }
+
+    #[test]
+    fn a_case_with_no_value_at_all_is_constant() {
+        assert!(violations(&["a", "a"], &[None, None]).is_empty());
+    }
+
+    #[test]
+    fn a_column_that_moves_within_a_case_is_reported_with_a_count_and_an_example() {
+        let found = violations(
+            &["a", "a", "b", "b", "c"],
+            &[
+                Some("North"),
+                Some("South"),
+                Some("East"),
+                Some("West"),
+                Some("North"),
+            ],
+        );
+
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].column, "region");
+        assert_eq!(found[0].cases, 2, "case c is constant and does not count");
+        assert_eq!(found[0].example_case, "a");
+        assert_eq!(found[0].example_values, vec!["North", "South"]);
+    }
+
+    #[test]
+    fn a_case_split_across_the_file_is_still_one_case() {
+        let found = violations(
+            &["a", "b", "a"],
+            &[Some("North"), Some("East"), Some("South")],
+        );
+        assert_eq!(found.len(), 1);
+        assert_eq!(found[0].cases, 1);
+    }
+
+    #[test]
+    fn checking_no_columns_reads_nothing() {
+        assert!(
+            check_case_columns("nowhere.csv".into(), "case".into(), Vec::new())
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

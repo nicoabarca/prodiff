@@ -41,5 +41,5 @@ export function numericColumns(project: Project): RequestColumnMapping[] {
  * the whole case, so it can never produce a reference/follower pair.
  */
 export function eventLevelColumns(project: Project): RequestColumnMapping[] {
-  return categoricalColumns(project).filter((c) => c.granularity !== "case");
+  return categoricalColumns(project).filter((c) => c.scope !== "case");
 }

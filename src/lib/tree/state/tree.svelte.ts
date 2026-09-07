@@ -259,8 +259,8 @@ export function forgetOtherProject(projectId: string) {
 
 /**
  * Drops the tree outright. Called when the Column Mapping changes: type and
- * granularity decide which test ran and how it aggregated, so a tree built
- * under the old declarations cannot be reinterpreted.
+ * scope decide which test ran and how it aggregated, so a tree built under the
+ * old declarations cannot be reinterpreted.
  */
 export function invalidateTree() {
   clear();
