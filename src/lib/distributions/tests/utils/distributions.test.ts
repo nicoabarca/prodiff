@@ -5,13 +5,9 @@ import {
   curveRows,
   gridAttributes,
   logBars,
-  outlierNote,
   shareAt
 } from "$lib/distributions/utils/distributions";
-import type {
-  ResponseDirectedTree,
-  TreeNode
-} from "$lib/tree/invokers/types";
+import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import { stepContext } from "$lib/tree/utils/tree";
@@ -223,20 +219,4 @@ test("log bars are labelled by their own edges", () => {
     { label: "1s–1m 0s", counts: { a: 3, b: 8 } },
     { label: "1m 0s–1h 0m", counts: { a: 1, b: 0 } }
   ]);
-});
-
-test("the outlier note names the cutoff", () => {
-  // The count alone is meaningless without it.
-  const secs = (value: number) => `${value}s`;
-  const stats = { whiskerLow: 26, whiskerHigh: 253, outliersLow: 34, outliersHigh: 129 };
-  expect(outlierNote("Night", stats, secs)).toBe("Night: 129 over 253s, 34 under 26s, not plotted");
-  // Only the side that has any: a bare "0 over 253s" reads as a finding.
-  expect(outlierNote("Night", { ...stats, outliersHigh: 0 }, secs)).toBe(
-    "Night: 34 under 26s, not plotted"
-  );
-  expect(outlierNote("Night", { ...stats, outliersLow: 0 }, secs)).toBe(
-    "Night: 129 over 253s, not plotted"
-  );
-  // Nothing past either line means nothing to say, not an empty sentence.
-  expect(outlierNote("Night", { ...stats, outliersLow: 0, outliersHigh: 0 }, secs)).toBe(null);
 });

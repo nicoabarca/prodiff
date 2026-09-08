@@ -2,7 +2,6 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import {
     build,
     built,
@@ -143,29 +142,18 @@
             </Empty.Media>
             <Empty.Title>No tree built yet</Empty.Title>
             <Empty.Description>
-              {#if !groupsLoaded.projectId}
-                Loading slices…
-              {:else if !groups[0]}
-                Create a slice in the Filters view first. A slice defines a group.
-              {:else if !groups[1]}
-                Only one slice exists, so the tree will render without comparisons. Add a second
-                slice to compare two groups.
-              {:else}
-                Building runs a full scan of the log and one Significance Test per node and
-                attribute, so it only happens when you ask.
-              {/if}
+              Building runs a full scan of the log and one Significance Test per node and attribute,
+              so it only happens when you ask.
             </Empty.Description>
           </Empty.Header>
-          {#if groups[0]}
-            <Button disabled={built.building} onclick={() => build(project)}>
-              <Play data-icon="inline-start" />
-              {built.building ? "Building…" : "Build tree"}
-            </Button>
-          {:else}
-            <Button variant="outline" href="/app/projects/{project.id}/filters">
-              Go to Filters
-            </Button>
-          {/if}
+          <Button
+            disabled={built.building || !groups[0] || noVariants}
+            title={noVariants ? "Select at least one variant" : undefined}
+            onclick={() => build(project)}
+          >
+            <Play data-icon="inline-start" />
+            {built.building ? "Building…" : "Build tree"}
+          </Button>
         </Empty.Root>
       </div>
     {/if}
