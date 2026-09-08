@@ -23,7 +23,7 @@ export function activityColumn(project: Project): string {
 
 /**
  * Columns an attribute or endpoint filter can select on. Case ids and
- * timestamps are excluded: filtering by one case id is not a slice, and
+ * timestamps are excluded: filtering by one case id is not a Group, and
  * timestamps have their own filter kind.
  */
 export function categoricalColumns(project: Project): RequestColumnMapping[] {

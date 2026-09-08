@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
+import type {
+  ColumnType,
+  RequestColumnMapping,
+  TemporalColumnType
+} from "$lib/event-log/invokers/types";
 import type { Project } from "$lib/event-log/types";
-import {
-  categoricalColumns,
-  eventLevelColumns,
-  numericColumns
-} from "$lib/filters/utils/columns";
+import { categoricalColumns, eventLevelColumns, numericColumns } from "$lib/filters/utils/columns";
 
 function column(
   name: string,
-  type: RequestColumnMapping["type"],
+  type: Exclude<ColumnType, TemporalColumnType>,
   overrides: Partial<RequestColumnMapping> = {}
 ): RequestColumnMapping {
-  return { name, type, role: "other", granularity: "event", ...overrides };
+  return { name, type, role: "other", scope: "event", ...overrides } as RequestColumnMapping;
 }
 
 function project(columns: RequestColumnMapping[], hiddenColumns: string[] = []): Project {
@@ -40,7 +40,7 @@ describe("column lists", () => {
     column("Amount", "float"),
     column("beta", "string"),
     column("Alpha", "string"),
-    column("region", "string", { granularity: "case" }),
+    column("region", "string", { scope: "case", caseResolution: "constant" }),
     column("count", "integer")
   ];
 

@@ -21,7 +21,8 @@
   import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import GroupHeader from "$lib/tree/components/group-header.svelte";
-  import VariantPicker from "$lib/tree/components/variant-picker.svelte";
+  import VariantPanel from "$lib/tree/components/variant-panel.svelte";
+  import VariantSummary from "$lib/tree/components/variant-summary.svelte";
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
   import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -41,6 +42,7 @@
   );
 
   let comparing = $state(false);
+  let variantsOpen = $state(false);
   let buildSettingsOpen = $state(false);
 
   let panelOpen = $state(false);
@@ -59,7 +61,11 @@
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      <VariantPicker {project} tree={built.tree} />
+      <VariantSummary
+        tree={built.tree}
+        open={variantsOpen}
+        onToggle={() => (variantsOpen = !variantsOpen)}
+      />
       {#if stale && !built.building}
         <p class="text-destructive text-xs">
           Filters, variants or settings changed since this tree was built.
@@ -98,68 +104,76 @@
     <CompareDialog {project} bind:open={comparing} />
     <AttributePrompt {project} />
 
-    {#if built.tree}
-      <GroupHeader tree={built.tree} />
-      <div class="flex min-h-0 flex-1">
-        <div class="relative flex min-h-0 flex-1">
-          <Canvas tree={built.tree} {stale} />
-          <ViewLegend />
-          {#if selected.id !== null}
-            <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                class="bg-background/90 backdrop-blur"
-                href="/app/projects/{project.id}/distributions"
-              >
-                <ChartColumn data-icon="inline-start" />
-                Distributions
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                class="bg-background/90 backdrop-blur"
-                aria-pressed={panelOpen}
-                onclick={() => (panelOpen = !panelOpen)}
-              >
-                <PanelRight data-icon="inline-start" />
-                {panelOpen ? "Hide" : "Show"} differences panel
-              </Button>
+    <div class="flex min-h-0 flex-1">
+      {#if built.tree && variantsOpen}
+        <VariantPanel {project} tree={built.tree} onClose={() => (variantsOpen = false)} />
+      {/if}
+
+      <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {#if built.tree}
+          <GroupHeader tree={built.tree} />
+          <div class="flex min-h-0 flex-1">
+            <div class="relative flex min-h-0 min-w-0 flex-1">
+              <Canvas tree={built.tree} {stale} />
+              <ViewLegend />
+              {#if selected.id !== null}
+                <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="bg-background/90 backdrop-blur"
+                    href="/app/projects/{project.id}/distributions"
+                  >
+                    <ChartColumn data-icon="inline-start" />
+                    Distributions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="bg-background/90 backdrop-blur"
+                    aria-pressed={panelOpen}
+                    onclick={() => (panelOpen = !panelOpen)}
+                  >
+                    <PanelRight data-icon="inline-start" />
+                    {panelOpen ? "Hide" : "Show"} differences panel
+                  </Button>
+                </div>
+              {/if}
             </div>
-          {/if}
-        </div>
-        {#if panelOpen}
-          <DetailPanel
-            tree={built.tree}
-            nodeId={selected.id}
-            onClose={() => (selected.id = null)}
-            onOpenBuildSettings={() => (buildSettingsOpen = true)}
-          />
+            {#if panelOpen}
+              <DetailPanel
+                tree={built.tree}
+                nodeId={selected.id}
+                onClose={() => (selected.id = null)}
+                onOpenBuildSettings={() => (buildSettingsOpen = true)}
+              />
+            {/if}
+          </div>
+        {:else}
+          <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
+            <Empty.Root>
+              <Empty.Header>
+                <Empty.Media variant="icon">
+                  <Network />
+                </Empty.Media>
+                <Empty.Title>No tree built yet</Empty.Title>
+                <Empty.Description>
+                  Building runs a full scan of the log and one Significance Test per node and
+                  attribute, so it only happens when you ask.
+                </Empty.Description>
+              </Empty.Header>
+              <Button
+                disabled={built.building || !groups[0] || noVariants}
+                title={noVariants ? "Select at least one variant" : undefined}
+                onclick={() => build(project)}
+              >
+                <Play data-icon="inline-start" />
+                {built.building ? "Building…" : "Build tree"}
+              </Button>
+            </Empty.Root>
+          </div>
         {/if}
       </div>
-    {:else}
-      <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
-        <Empty.Root>
-          <Empty.Header>
-            <Empty.Media variant="icon">
-              <Network />
-            </Empty.Media>
-            <Empty.Title>No tree built yet</Empty.Title>
-            <Empty.Description>
-              Building runs a full scan of the log and one Significance Test per node and attribute,
-              so it only happens when you ask.
-            </Empty.Description>
-          </Empty.Header>
-          <Button
-            disabled={built.building || !groups[0] || noVariants}
-            title={noVariants ? "Select at least one variant" : undefined}
-            onclick={() => build(project)}
-          >
-            <Play data-icon="inline-start" />
-            {built.building ? "Building…" : "Build tree"}
-          </Button>
-        </Empty.Root>
-      </div>
-    {/if}
+    </div>
   </div>
 {/if}
