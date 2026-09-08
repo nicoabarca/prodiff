@@ -5,7 +5,7 @@
 import dagre from "@dagrejs/dagre";
 import type { Edge, Node } from "@xyflow/svelte";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
-import type { Direction, EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
+import type { EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { isDurationAttribute } from "$lib/analysis/attributes";
 import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
@@ -37,7 +37,6 @@ export interface TreeNodeData {
   highlighted: boolean;
   hiddenBelow: number;
   hasChildren: boolean;
-  direction: Direction;
   onToggleCollapse: () => void;
   [key: string]: unknown;
 }
@@ -84,7 +83,6 @@ function dimmed(node: TreeNode, focus: GroupFocus, ids: string[]): boolean {
 
 export interface FlowOptions {
   groups: FlowGroup[];
-  direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
   edgeLabels: boolean;
@@ -119,7 +117,7 @@ export function toFlow(
 ): { nodes: Node[]; edges: Edge[] } {
   const graph = new dagre.graphlib.Graph();
   graph.setDefaultEdgeLabel(() => ({}));
-  graph.setGraph({ rankdir: options.direction, ranksep: 60, nodesep: 24 });
+  graph.setGraph({ rankdir: "TB", ranksep: 60, nodesep: 24 });
 
   const shown = tree.nodes.filter((node) => visible.ids.has(node.id));
   const kids = children(tree);
@@ -139,7 +137,6 @@ export function toFlow(
     return counted ? Object.values(counted).reduce((sum, cases) => sum + cases, 0) : 0;
   };
   const busiest = Math.max(1, ...shown.map(nodeCases));
-  const vertical = options.direction === "TB";
 
   const nodes: Node[] = shown.map((node) => {
     const placed = graph.node(String(node.id));
@@ -168,7 +165,6 @@ export function toFlow(
         highlighted: false,
         hiddenBelow: visible.hiddenBelow.get(node.id) ?? 0,
         hasChildren: (kids.get(node.id) ?? []).some((id) => visible.ids.has(id)),
-        direction: options.direction,
         onToggleCollapse: () => options.onToggleCollapse(node.id)
       } satisfies TreeNodeData
     };
@@ -180,7 +176,7 @@ export function toFlow(
       id: `${node.parent}-${node.id}`,
       source: String(node.parent),
       target: String(node.id),
-      type: vertical ? "smoothstep" : "bezier",
+      type: "smoothstep",
       label: options.edgeLabels ? edgeLabel(node, options.groups) : undefined,
       labelStyle:
         "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap",

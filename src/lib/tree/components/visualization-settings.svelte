@@ -9,10 +9,9 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
-  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
+  import type { GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { formatNumber } from "$lib/format";
@@ -66,21 +65,6 @@
   </Popover.Trigger>
   <Popover.Content class="w-80">
     <div class="flex flex-col gap-4">
-      <div class="flex items-center justify-between">
-        <Label class="text-xs">Layout direction</Label>
-        <ToggleGroup.Root
-          type="single"
-          size="sm"
-          value={view.direction}
-          onValueChange={(value) => {
-            if (value) view.direction = value as Direction;
-          }}
-        >
-          <ToggleGroup.Item value="TB" aria-label="Top to bottom">TB</ToggleGroup.Item>
-          <ToggleGroup.Item value="LR" aria-label="Left to right">LR</ToggleGroup.Item>
-        </ToggleGroup.Root>
-      </div>
-
       <div class="flex flex-col gap-1.5">
         <Label class="text-xs">Node shows</Label>
         <Select.Root
