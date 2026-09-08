@@ -90,10 +90,15 @@
     );
   }
 
+  /** Each filter carries the ink it is drawn in while it is the one showing. */
   const filters = $derived([
-    { id: "all", label: "All" },
-    { id: "shared", label: "Shared" },
-    ...columns.map((group) => ({ id: group.id, label: `Only ${group.name}` }))
+    { id: "all", label: "All", ink: "var(--foreground)" },
+    { id: "shared", label: "Shared", ink: "var(--muted-foreground)" },
+    ...columns.map((group) => ({
+      id: group.id,
+      label: `Only ${group.name}`,
+      ink: accents[group.id]
+    }))
   ]);
 
   const counts = $derived(
@@ -184,11 +189,6 @@
   <div class="bg-card flex min-w-0 flex-1 flex-col border-r shadow-lg">
     <div class="flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
       <span class="text-[0.8125rem] font-semibold">Variants</span>
-      <span
-        class="bg-secondary text-secondary-foreground flex h-5 items-center px-2 text-[0.6875rem] font-medium tabular-nums"
-      >
-        {formatNumber(staged.size)} staged
-      </span>
       {#if dirty}
         <span class="text-foreground text-[0.6875rem] font-semibold tabular-nums">
           {formatNumber(applied)} → {formatNumber(staged.size)} variants
@@ -206,8 +206,9 @@
               aria-pressed={shown === filter.id}
               class="-ml-px flex h-6 max-w-32 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem] first:ml-0 {shown ===
               filter.id
-                ? 'text-foreground relative z-10 border-indigo-500'
+                ? 'relative z-10'
                 : 'border-border text-muted-foreground hover:text-foreground'}"
+              style={shown === filter.id ? `border-color:${filter.ink};color:${filter.ink}` : ""}
               onclick={() => (shown = filter.id)}
             >
               <span class="truncate">{filter.label}</span>
