@@ -12,8 +12,8 @@ import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
- * What is charted, beyond the node's own tested attributes. `extra` outlives a
- * node change; `dismissed` does not.
+ * What is charted, beyond the node's own tested attributes. `extra` and
+ * `dismissed` both outlive a node change and are dropped on a new build.
  */
 export const charts = $state<{
   scope: Scope;
@@ -22,7 +22,7 @@ export const charts = $state<{
   encoding: Encoding;
   /** Attributes the build never tested, added by hand. */
   extra: string[];
-  /** Cards hidden at the current node only. */
+  /** Cards hidden until the next build. */
   dismissed: string[];
   /** Cards showing every category, not just the top twelve. */
   expanded: string[];
@@ -55,16 +55,9 @@ export function addExtra(attribute: string) {
   if (!charts.extra.includes(attribute)) charts.extra.push(attribute);
 }
 
-/**
- * Closes a card. A hand-added attribute goes away for good; a tested one is
- * only hidden here and comes back at the next node.
- */
+/** Closes a card, whether the build tested the attribute or a hand added it. */
 export function dismiss(attribute: string) {
   charts.expanded = charts.expanded.filter((name) => name !== attribute);
-  if (charts.extra.includes(attribute)) {
-    charts.extra = charts.extra.filter((name) => name !== attribute);
-    return;
-  }
   if (!charts.dismissed.includes(attribute)) charts.dismissed.push(attribute);
 }
 

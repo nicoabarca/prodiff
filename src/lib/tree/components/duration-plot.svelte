@@ -1,28 +1,20 @@
 <script lang="ts">
   /**
-   * The two duration encodings that are not bars: the cumulative curve and the
-   * box plot.
+   * The two duration encodings that are not bars: the cumulative curve drawn
+   * here, and the box plot the shared component draws.
    *
-   * Both axes are symlog, not log: a duration of zero is ordinary here and
+   * The curve's axis is symlog, not log: a duration of zero is ordinary here and
    * `log(0)` does not exist. Symlog's `constant` is the ladder's first rung, not
    * its default of 1, which in milliseconds would spend half the axis under a
-   * second. Ticks come from the backend's ladder.
+   * second. Ticks are the backend ladder's rungs inside the plotted span.
    */
-  import { scaleBand, scaleSymlog } from "d3-scale";
-  import {
-    Axis,
-    BoxPlot,
-    Chart,
-    ChartClipPath,
-    Highlight,
-    Layer,
-    Spline,
-    Tooltip
-  } from "layerchart";
+  import { scaleSymlog } from "d3-scale";
+  import { Axis, Chart, ChartClipPath, Highlight, Layer, Spline, Tooltip } from "layerchart";
+  import BoxPlot from "$lib/analysis/components/box-plot.svelte";
   import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
   import type { CurveRow } from "$lib/distributions/types";
-  import { curveRows, outlierNote } from "$lib/distributions/utils/distributions";
-  import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import { curveRows } from "$lib/distributions/utils/distributions";
+  import { colorVar, formatDuration } from "$lib/format";
 
   let {
     shape,
@@ -54,16 +46,38 @@
   /** A curve needs two distinct durations: with one the scale has a zero-width domain. */
   const oneValue = $derived(rows.length < 2);
 
-  /** The widest value any Group reaches, so all are drawn to one scale. */
+  /** The narrowest and widest values plotted, so all Groups are drawn to one scale. */
+  const min = $derived(
+    plotted.length === 0 ? 0 : Math.min(...plotted.map((group) => ladders[group.id][0] ?? 0))
+  );
   const max = $derived(
-    Math.max(...drawn.map((group) => ladders[group.id].at(-1) ?? 0), shape.logEdges.at(-1) ?? 0)
+    plotted.length === 0 ? 0 : Math.max(...plotted.map((group) => ladders[group.id].at(-1) ?? 0))
   );
 
   /** Where symlog stops being linear: the ladder's first rung. */
   const linearBelow = $derived(shape.logEdges.find((edge) => edge > 0) ?? max ?? 1);
 
-  /** Interior rungs of the ladder. 0 and the data's own end are the axis. */
-  const ticks = $derived(shape.logEdges.filter((edge) => edge > 0 && edge < max));
+  /**
+   * Rungs strictly inside a span, at most one per label: every rung under half a
+   * second formats to "0s", and a repeated label reads as a misplaced axis end.
+   * Zero earns its own rung when the span straddles it, which is where the
+   * overlapping activities sit. A narrow span can contain none, where the scale
+   * ticks itself.
+   */
+  function rungs(low: number, high: number): number[] | undefined {
+    const seen = new Set<string>();
+    const candidates = low < 0 && high > 0 ? [0, ...shape.logEdges] : shape.logEdges;
+    const inside = candidates.filter((edge) => {
+      if (!(edge > low && edge < high)) return false;
+      const label = formatDuration(edge);
+      if (seen.has(label)) return false;
+      seen.add(label);
+      return true;
+    });
+    return inside.length >= 2 ? inside : undefined;
+  }
+
+  const ticks = $derived(rungs(min, max));
 
   const boxes = $derived(
     drawn
@@ -74,23 +88,6 @@
       }))
       .filter((box) => box.stats !== null)
       .map(({ group, color, stats }) => ({ group, color, ...(stats as BoxStats) }))
-  );
-
-  /** The box plot's axis spans the whiskers. */
-  const boxLow = $derived(Math.min(...boxes.map((box) => box.whiskerLow)));
-  const boxHigh = $derived(Math.max(...boxes.map((box) => box.whiskerHigh)));
-
-  /** Whiskers collapsed onto a single value: no box to draw. */
-  const flat = $derived(boxes.length === 0 || !(boxHigh > boxLow));
-
-  /** Rungs strictly inside the span. A narrow span can contain none. */
-  const boxTicks = $derived.by(() => {
-    const inside = shape.logEdges.filter((edge) => edge > boxLow && edge < boxHigh);
-    return inside.length >= 2 ? inside : undefined;
-  });
-
-  const outliers = $derived(
-    boxes.map((box) => outlierNote(box.group, box, formatDuration)).filter((note) => note !== null)
   );
 
   const percent = (share: number) => `${Math.round(share * 100)}%`;
@@ -122,7 +119,7 @@
         x="value"
         y={(row: CurveRow) => row.shares[drawn[0]?.id] ?? null}
         xScale={scaleSymlog().constant(linearBelow)}
-        xDomain={[0, max]}
+        xDomain={[min, max]}
         yDomain={[0, 1]}
         tooltipContext={{ mode: "bisect-x" }}
         padding={{ left: 40, bottom: 34, right: 12, top: 8 }}
@@ -181,78 +178,12 @@
 {:else if boxes.length === 0}
   <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
 {:else}
-  {#if flat}
-    {@render noSpread(boxes[0].median)}
-  {:else}
-    <div class="h-64 px-3 py-2">
-      <Chart
-        data={boxes}
-        x="group"
-        xScale={scaleBand().padding(0.35)}
-        y="median"
-        yScale={scaleSymlog().constant(linearBelow)}
-        yDomain={[boxLow, boxHigh]}
-        yNice
-        tooltipContext={{ mode: "band" }}
-        padding={{ left: 52, bottom: 24, right: 12, top: 8 }}
-      >
-        <Layer>
-          <Axis placement="left" grid rule ticks={boxTicks} format={formatDuration} />
-          <Axis placement="bottom" rule />
-          <!-- Bounded like the curve: an unclipped SVG layer paints a stray coordinate
-               across the whole page. -->
-          <ChartClipPath>
-            {#each boxes as box (box.group)}
-              <!-- `min`/`max` are the whisker ends by this component's definition: the
-                   extremes excluding outliers. The outliers are counts, not points. -->
-              <BoxPlot
-                data={box}
-                min="whiskerLow"
-                q1="q1"
-                median="median"
-                q3="q3"
-                max="whiskerHigh"
-                fill={box.color}
-                fillOpacity={0.18}
-                stroke={box.color}
-                strokeWidth={1.5}
-              />
-            {/each}
-            <Highlight area />
-          </ChartClipPath>
-        </Layer>
-        <!-- The numbers the box encodes. Kept small and `contained`: the grid this
-             card sits in scrolls, so anything pushed outside the card is clipped. -->
-        <Tooltip.Root contained="container" props={{ root: { class: "w-40" } }}>
-          {#snippet children({ data: box })}
-            <div class="bg-popover text-popover-foreground border-border border p-2 shadow-md">
-              <p class="mb-1 text-[0.6875rem] font-semibold">{box.group}</p>
-              <dl class="grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[0.625rem]">
-                {#each [["Max", box.max], ["Q3", box.q3], ["Median", box.median], ["Q1", box.q1], ["Min", box.min], ["IQR", box.q3 - box.q1]] as [label, value] (label)}
-                  <dt class="text-muted-foreground">{label}</dt>
-                  <dd class="text-right">{formatDuration(value as number)}</dd>
-                {/each}
-              </dl>
-              {#if box.outliersHigh > 0}
-                <p class="text-muted-foreground mt-1 text-[0.625rem]">
-                  {formatNumber(box.outliersHigh)} took longer than
-                  {formatDuration(box.whiskerHigh)}, past the line and not drawn.
-                </p>
-              {/if}
-            </div>
-          {/snippet}
-        </Tooltip.Root>
-      </Chart>
-    </div>
-  {/if}
+  <BoxPlot {boxes} ladder={shape.logEdges} constant={linearBelow} format={formatDuration} />
   <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
     {#each boxes as box (box.group)}
       <span class="bg-secondary px-2 py-1">
         {box.group} IQR: {formatDuration(box.q1)}–{formatDuration(box.q3)}
       </span>
-    {/each}
-    {#each outliers as note (note)}
-      <span class="text-muted-foreground px-2 py-1">{note}</span>
     {/each}
   </div>
 {/if}

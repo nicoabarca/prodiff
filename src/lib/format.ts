@@ -18,11 +18,15 @@ const DURATION_UNITS = [
   ["s", 1]
 ] as const;
 
-/** A duration in milliseconds as its two largest non-zero units ("8d 4h"). */
+/**
+ * A duration in milliseconds as its two largest non-zero units ("8d 4h"). A
+ * duration can be negative: two activities of one case overlap when the second
+ * starts before the first completes.
+ */
 export function formatDuration(millis: number | null): string {
   if (millis === null) return "—";
 
-  let remaining = Math.round(millis / 1000);
+  let remaining = Math.round(Math.abs(millis) / 1000);
   const parts: string[] = [];
   for (const [label, size] of DURATION_UNITS) {
     const value = Math.floor(remaining / size);
@@ -30,19 +34,21 @@ export function formatDuration(millis: number | null): string {
     if (value > 0 || parts.length > 0) parts.push(`${value}${label}`);
     if (parts.length === 2) break;
   }
-  return parts.length > 0 ? parts.join(" ") : "0s";
+  if (parts.length === 0) return "0s";
+  return `${millis < 0 ? "-" : ""}${parts.join(" ")}`;
 }
 
 /** Every non-zero unit of a duration ("1d 2h 30m 15s"). */
 export function formatDurationParts(millis: number): string {
-  let remaining = Math.round(millis / 1000);
+  let remaining = Math.round(Math.abs(millis) / 1000);
   const parts: string[] = [];
   for (const [label, size] of DURATION_UNITS) {
     const value = Math.floor(remaining / size);
     remaining -= value * size;
     if (value > 0 || parts.length > 0) parts.push(`${value}${label}`);
   }
-  return parts.length > 0 ? parts.join(" ") : "0s";
+  if (parts.length === 0) return "0s";
+  return `${millis < 0 ? "-" : ""}${parts.join(" ")}`;
 }
 
 /** A day as the log writes it. Read in UTC: event timestamps carry no zone. */
