@@ -176,7 +176,7 @@
             </Card.Title>
             <Card.Description>
               {#if creating}
-                A group is the cases its filters carve out, so this first filter creates it.
+                Add a filter to create the group.
               {:else if editingGroup}
                 In <span class="text-foreground font-medium">{editingGroup.name}</span>. Filters
                 apply in order, each to the previous one's result.
