@@ -333,3 +333,25 @@
 .persistent-scrollbars::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
 }
+
+/*
+ * Same opt-out of WebKit overlay mode, at the width a short inline strip can
+ * carry without the bar crowding the content it scrolls.
+ */
+.thin-scrollbars::-webkit-scrollbar {
+  width: 0.375rem;
+  height: 0.375rem;
+}
+
+.thin-scrollbars::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.thin-scrollbars::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 0.1875rem;
+}
+
+.thin-scrollbars::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-foreground);
+}

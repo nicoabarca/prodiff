@@ -1,11 +1,12 @@
 <script lang="ts">
   /**
-   * One Variant: its trace, and what each Group brings to it. The row is itself
-   * the checkbox, so anywhere on it stages the Variant; hovering lights its path
-   * on the canvas.
+   * One Variant, on two lines: its full trace above, what each Group brings to it
+   * below. The box stages it and the eye lights its path on the canvas.
    */
   import { formatNumber } from "$lib/format";
   import Check from "@lucide/svelte/icons/check";
+  import Eye from "@lucide/svelte/icons/eye";
+  import Network from "@lucide/svelte/icons/network";
   import type { ResponseVariantRow } from "$lib/tree/invokers/types";
   import { variantEvents } from "$lib/tree/utils/variants";
   import type { Group } from "$lib/groups/types";
@@ -17,9 +18,10 @@
     accents,
     totals,
     staged,
+    highlighted,
     onTree,
     onToggle,
-    onHover
+    onHighlight
   }: {
     row: ResponseVariantRow;
     number: number;
@@ -27,71 +29,110 @@
     accents: Record<string, string>;
     totals: Record<string, number>;
     staged: boolean;
+    highlighted: boolean;
     onTree: boolean;
     onToggle: () => void;
-    onHover: (key: string | null) => void;
+    onHighlight: () => void;
   } = $props();
 
+  /** The notch each chevron cuts into the chip behind it. */
+  const NOTCH = "0.5rem";
+
+  /** A flat left edge opens the trace; every chip after it is notched. */
+  function chevron(step: number): string {
+    const tail = step === 0 ? "" : `, ${NOTCH} 50%`;
+    return `polygon(0 0, calc(100% - ${NOTCH}) 0, 100% 50%, calc(100% - ${NOTCH}) 100%, 0 100%${tail})`;
+  }
+
   function share(cases: number, total: number): string {
-    return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "—";
+    return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "";
   }
 </script>
 
-<button
-  type="button"
-  role="checkbox"
-  aria-checked={staged}
-  aria-label="Stage variant {number}"
-  class="hover:bg-accent/50 flex h-16 w-full cursor-pointer items-center gap-2 rounded px-1 text-left text-xs"
-  onclick={onToggle}
-  onmouseenter={() => onHover(row.key)}
-  onmouseleave={() => onHover(null)}
->
-  <span
-    class="flex size-4 shrink-0 items-center justify-center border {staged
-      ? 'bg-primary text-primary-foreground border-primary'
-      : 'border-input'}"
-  >
-    {#if staged}
-      <Check class="size-3.5" />
-    {/if}
-  </span>
+<div class="hover:bg-accent/50 px-3 text-xs">
+  <div class="flex h-[5.5rem] items-start gap-2 py-2.5">
+    <button
+      type="button"
+      role="checkbox"
+      aria-checked={staged}
+      aria-label="Stage variant {number}"
+      class="mt-0.5 flex size-4 shrink-0 cursor-pointer items-center justify-center border {staged
+        ? 'bg-primary text-primary-foreground border-primary'
+        : 'border-input'}"
+      onclick={onToggle}
+    >
+      {#if staged}
+        <Check class="size-3" strokeWidth={3} />
+      {/if}
+    </button>
 
-  <div class="flex min-w-0 flex-1 flex-col gap-1">
-    <div class="flex items-center gap-1.5">
-      <span
-        class="size-1.5 shrink-0 rounded-full"
-        style={onTree ? `background:${accents[columns[0].id]}` : ""}
-        title={onTree ? "On the tree" : "Not in this build"}
-      ></span>
-      <span class="shrink-0 tabular-nums">Variant {number}</span>
-    </div>
-    <div class="flex gap-1 overflow-x-auto overscroll-x-contain pb-0.5">
-      {#each row.activities as activity, step (step)}
-        <span
-          class="bg-muted/60 max-w-32 shrink-0 truncate rounded px-1.5 py-0.5 text-[0.625rem]"
-          title={activity}
-        >
-          {activity}
-        </span>
-      {/each}
-    </div>
-  </div>
-
-  {#each columns as group (group.id)}
-    {@const cases = row.cases[group.id] ?? 0}
-    <span class="flex w-28 shrink-0 flex-col items-end tabular-nums">
-      {#if cases > 0}
-        <span style="color:{accents[group.id]}">{formatNumber(cases)}</span>
-        <span class="text-[0.625rem] opacity-70" style="color:{accents[group.id]}">
-          {share(cases, totals[group.id])}
-        </span>
-        <span class="text-muted-foreground text-[0.625rem]">
-          {formatNumber(variantEvents(row, group.id))} events
-        </span>
-      {:else}
-        <span class="text-muted-foreground">—</span>
+    <span
+      class="mt-0.5 flex size-3.5 shrink-0 items-center justify-center"
+      title={onTree ? "On the tree" : "Not in this build"}
+    >
+      {#if onTree}
+        <Network class="text-foreground size-3.5" />
       {/if}
     </span>
-  {/each}
-</button>
+
+    <span class="text-muted-foreground mt-0.5 w-8 shrink-0 font-mono text-[0.6875rem] tabular-nums">
+      {number}
+    </span>
+
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <span
+        class="thin-scrollbars flex h-10 w-full min-w-0 items-center overflow-x-auto overflow-y-hidden overscroll-x-contain py-1"
+        title={row.activities.join(" → ")}
+      >
+        {#each row.activities as activity, step (step)}
+          <span
+            class="bg-muted-foreground/45 -mr-1 max-w-32 shrink-0 p-px"
+            style="clip-path:{chevron(step)}"
+          >
+            <span
+              class="bg-secondary text-secondary-foreground block truncate py-1 pr-4 text-[0.6875rem] leading-tight {step ===
+              0
+                ? 'pl-2.5'
+                : 'pl-4'}"
+              style="clip-path:{chevron(step)}"
+            >
+              {activity}
+            </span>
+          </span>
+        {/each}
+      </span>
+
+      <span class="flex items-center gap-2">
+        {#if onTree}
+          <button
+            type="button"
+            aria-pressed={highlighted}
+            aria-label="Light the path of variant {number} on the tree"
+            class="flex size-5 shrink-0 cursor-pointer items-center justify-center border {highlighted
+              ? 'border-indigo-500 text-indigo-500'
+              : 'border-border text-muted-foreground hover:text-foreground'}"
+            onclick={onHighlight}
+          >
+            <Eye class="size-3.5" />
+          </button>
+        {/if}
+
+        <span class="ml-auto"></span>
+        {#each columns as group (group.id)}
+          {@const cases = row.cases[group.id] ?? 0}
+          {@const ink = cases > 0 ? accents[group.id] : "var(--muted-foreground)"}
+          <span
+            class="flex shrink-0 gap-2 text-right font-mono text-[0.6875rem] tabular-nums"
+            style="color:{ink}"
+          >
+            <span class="w-14">{cases > 0 ? formatNumber(cases) : "—"}</span>
+            <span class="w-12 opacity-85">{cases > 0 ? share(cases, totals[group.id]) : ""}</span>
+            <span class="text-muted-foreground w-14">
+              {cases > 0 ? formatNumber(variantEvents(row, group.id)) : "—"}
+            </span>
+          </span>
+        {/each}
+      </span>
+    </div>
+  </div>
+</div>

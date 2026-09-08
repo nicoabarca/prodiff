@@ -14,8 +14,7 @@ import {
   defaultTreeView
 } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
-import { sameSelection } from "$lib/tree/utils/variant-filter";
-import { variantsCovering } from "$lib/tree/utils/variants";
+import { sameSelection, variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
 import type { Group } from "$lib/groups/types";
@@ -150,7 +149,7 @@ export async function applyStaged(project: Project) {
 /** The node whose aggregates the detail panel is showing. */
 export const selected = $state<{ id: number | null }>({ id: null });
 
-/** The Variant the canvas lights up, for as long as its row is hovered. */
+/** The Variant the canvas lights up: the row that turned it on turns it off. */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**

@@ -10,7 +10,7 @@
     view
   } from "$lib/tree/state/tree.svelte";
   import { totalCases, visibleNodes } from "$lib/tree/utils/tree";
-  import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import ChevronDown from "@lucide/svelte/icons/chevron-down";
 
   let {
     tree,
@@ -52,7 +52,7 @@
         </span>
       </span>
       <span class="text-muted-foreground text-[0.625rem]">
-        {formatNumber(onScreen.casesShown)} of {formatNumber(onScreen.total)} cases on screen
+        {formatNumber(onScreen.casesShown)} of {formatNumber(onScreen.total)} cases
       </span>
     {:else if selected > 0}
       <span class="text-base leading-none font-semibold tabular-nums">
@@ -70,7 +70,7 @@
   {#if dirty}
     <span class="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[0.625rem]">edited</span>
   {/if}
-  <ChevronRight
+  <ChevronDown
     class="text-muted-foreground size-4 shrink-0 transition-transform {open ? 'rotate-180' : ''}"
   />
 </button>

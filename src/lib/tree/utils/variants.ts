@@ -30,3 +30,12 @@ export function variantsCovering(rows: ResponseVariantRow[], coverage: number): 
 export function variantEvents(row: ResponseVariantRow, groupId: string): number {
   return (row.cases[groupId] ?? 0) * row.activities.length;
 }
+
+/** Whether two selections name the same Variants. Order carries no meaning. */
+export function sameSelection(a: Iterable<string>, b: Iterable<string>): boolean {
+  const left = new Set(a);
+  const right = new Set(b);
+  if (left.size !== right.size) return false;
+  for (const key of left) if (!right.has(key)) return false;
+  return true;
+}
