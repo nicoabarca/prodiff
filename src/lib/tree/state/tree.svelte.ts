@@ -175,7 +175,11 @@ export async function loadSettings(projectId: string) {
   const row = rows[0];
   settings.projectId = projectId;
   settings.value = row
-    ? { attributes: row.attributes, selectedVariants: row.selectedVariants }
+    ? {
+        attributes: row.attributes,
+        selectedVariants: row.selectedVariants,
+        attributesChosen: row.attributesChosen
+      }
     : { ...defaultTreeSettings };
 }
 
@@ -185,7 +189,8 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
   const row = {
     projectId,
     attributes: value.attributes,
-    selectedVariants: value.selectedVariants
+    selectedVariants: value.selectedVariants,
+    attributesChosen: value.attributesChosen
   };
   await db().insert(settingsTable).values(row).onConflictDoUpdate({
     target: settingsTable.projectId,

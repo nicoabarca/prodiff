@@ -1,6 +1,7 @@
 <script lang="ts">
   import "../app.css";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   let { children } = $props();
 </script>
 
@@ -10,4 +11,6 @@
 -->
 <Toaster position="top-right" theme="light" richColors closeButton />
 
-{@render children()}
+<Tooltip.Provider>
+  {@render children()}
+</Tooltip.Provider>
