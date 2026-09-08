@@ -257,7 +257,8 @@ def ensure_schema(connection: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS tree_settings (
           project_id text PRIMARY KEY NOT NULL,
           attributes text NOT NULL,
-          selected_variants text NOT NULL
+          selected_variants text NOT NULL,
+          attributes_chosen integer NOT NULL DEFAULT 0
         );
         """
     )

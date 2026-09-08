@@ -9,6 +9,7 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { GroupFocus, Secondary } from "$lib/tree/types";
@@ -51,7 +52,12 @@
   );
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
+  const hasAttributes = $derived(attributes.length > 0);
   const visible = $derived(visibleNodes(tree, view, selectedVariants()));
+
+  $effect(() => {
+    if (!hasAttributes) view.significantOnly = false;
+  });
 </script>
 
 <Popover.Root>
@@ -118,18 +124,28 @@
         </span>
       </label>
 
-      <label class="flex items-start gap-2 text-xs">
-        <Checkbox
-          checked={view.significantOnly}
-          onCheckedChange={(checked) => (view.significantOnly = checked === true)}
-        />
-        <span>
-          Only variants with a significant finding
-          <span class="text-muted-foreground block text-[0.625rem]">
-            Whole paths are kept or dropped, never truncated.
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          <span class="block">
+            <label class="flex items-start gap-2 text-xs">
+              <Checkbox
+                checked={view.significantOnly}
+                disabled={!hasAttributes}
+                onCheckedChange={(checked) => (view.significantOnly = checked === true)}
+              />
+              <span>
+                Only variants with a significant finding
+                <span class="text-muted-foreground block text-[0.625rem]">
+                  Whole paths are kept or dropped, never truncated.
+                </span>
+              </span>
+            </label>
           </span>
-        </span>
-      </label>
+        </Tooltip.Trigger>
+        {#if !hasAttributes}
+          <Tooltip.Content>Build with at least one attribute to use this filter.</Tooltip.Content>
+        {/if}
+      </Tooltip.Root>
 
       <div class="text-muted-foreground border-border border-t pt-2 text-[0.625rem]">
         {formatNumber(visible.variantsShown)} variants shown

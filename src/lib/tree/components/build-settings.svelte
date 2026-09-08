@@ -9,7 +9,7 @@
   import type { Project } from "$lib/event-log/types";
   import Settings2 from "@lucide/svelte/icons/settings-2";
 
-  let { project }: { project: Project } = $props();
+  let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
   const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
 
@@ -21,7 +21,7 @@
   }
 </script>
 
-<Popover.Root>
+<Popover.Root bind:open>
   <Popover.Trigger>
     {#snippet child({ props })}
       <Button {...props} variant="outline" size="sm">

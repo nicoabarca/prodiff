@@ -7,9 +7,14 @@
 export interface TreeSettings {
   attributes: string[];
   selectedVariants: string[];
+  attributesChosen: boolean;
 }
 
-export const defaultTreeSettings: TreeSettings = { attributes: [], selectedVariants: [] };
+export const defaultTreeSettings: TreeSettings = {
+  attributes: [],
+  selectedVariants: [],
+  attributesChosen: false
+};
 
 /** What a cold build and a freshly seeded picker both open on. */
 export const DEFAULT_COVERAGE = 0.8;

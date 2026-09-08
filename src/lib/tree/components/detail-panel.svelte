@@ -21,8 +21,14 @@
   let {
     tree,
     nodeId,
-    onClose
-  }: { tree: ResponseDirectedTree; nodeId: number | null; onClose: () => void } = $props();
+    onClose,
+    onOpenBuildSettings
+  }: {
+    tree: ResponseDirectedTree;
+    nodeId: number | null;
+    onClose: () => void;
+    onOpenBuildSettings: () => void;
+  } = $props();
 
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
@@ -204,10 +210,14 @@
           </div>
         {/if}
 
-        {#if !compare}
-          <p class="text-muted-foreground border-border border-b px-4 py-3 text-xs">
-            One group. These are its distributions, with nothing to compare them against.
-          </p>
+        {#if flat.length === 0}
+          <div class="text-muted-foreground flex flex-col items-start gap-3 px-4 py-3.5 text-xs">
+            <p>No attributes selected. Choose attributes to test differences in the tree.</p>
+            <Button variant="outline" size="sm" onclick={onOpenBuildSettings}>
+              Open Build settings
+            </Button>
+          </div>
+        {:else if !compare}
           {#each flat as [name, block] (name)}
             {@render attribute(name, block)}
           {/each}
@@ -236,12 +246,6 @@
               </details>
             {/if}
           {/each}
-        {/if}
-
-        {#if flat.length === 0}
-          <p class="text-muted-foreground px-4 py-3.5 text-xs">
-            No attributes selected. Pick some in Build settings and rebuild.
-          </p>
         {/if}
       </div>
     </ScrollArea.Root>
