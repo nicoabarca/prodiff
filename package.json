@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "dev:port": "bash scripts/dev-port.sh"
+    "dev:port": "bash scripts/dev-port.sh",
+    "seed": "python3 scripts/seed-project.py"
   },
   "license": "MIT",
   "dependencies": {
