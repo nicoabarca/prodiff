@@ -22,3 +22,11 @@ export function variantsCovering(rows: ResponseVariantRow[], coverage: number): 
   }
   return keys;
 }
+
+/**
+ * Events one Group contributes to a Variant: every case there walks the same
+ * trace, so it is the trace length times the cases.
+ */
+export function variantEvents(row: ResponseVariantRow, groupId: string): number {
+  return (row.cases[groupId] ?? 0) * row.activities.length;
+}

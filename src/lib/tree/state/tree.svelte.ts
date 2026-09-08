@@ -14,6 +14,7 @@ import {
   defaultTreeView
 } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
+import { sameSelection } from "$lib/tree/utils/variant-filter";
 import { variantsCovering } from "$lib/tree/utils/variants";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
@@ -44,7 +45,7 @@ export const settings = $state<{ projectId: string | null; value: TreeSettings }
 export const view = $state<TreeView>({ ...defaultTreeView, collapsed: new Set() });
 
 /**
- * Every Variant of the current chains, for the picker. Cached by chain key,
+ * Every Variant of the current chains, for the panel. Cached by chain key,
  * fetched on first use. One slot.
  */
 export const variants = $state<{
@@ -52,7 +53,7 @@ export const variants = $state<{
   rows: ResponseVariantRow[];
   loading: boolean;
   error: string | null;
-  /** Selected Variants gone since the last load, for the picker to report. */
+  /** Selected Variants gone since the last load, for the panel to report. */
   dropped: number;
 }>({ key: null, rows: [], loading: false, error: null, dropped: 0 });
 
@@ -89,6 +90,9 @@ export async function loadVariants(project: Project, force = false) {
     if (next.length !== previous.length || next.some((k, i) => k !== previous[i])) {
       await saveSettings(project.id, { ...settings.value, selectedVariants: next });
     }
+    // A pending edit is pruned the same way, so a Variant that no longer exists
+    // leaves the rest of the edit standing.
+    if (staged.keys !== null) staged.keys = staged.keys.filter((k) => available.has(k));
   } catch (cause) {
     variants.error = String(cause);
   } finally {
@@ -96,24 +100,57 @@ export async function loadVariants(project: Project, force = false) {
   }
 }
 
-/** Checks or unchecks one Variant. Marks the tree stale; the build honours it. */
-export function toggleVariant(project: Project, variantKey: string) {
-  const next = selectedVariants();
-  if (!next.delete(variantKey)) next.add(variantKey);
-  saveSettings(project.id, { ...settings.value, selectedVariants: [...next] });
-}
-
 export function setSelectedVariants(project: Project, keys: Iterable<string>) {
   saveSettings(project.id, { ...settings.value, selectedVariants: [...keys] });
+}
+
+/**
+ * The Variant selection being edited, which nothing outside the panel reads:
+ * `null` means no edit is pending and the applied selection stands. Only Apply
+ * writes it through to `settings`, so staging alone never marks the tree stale.
+ */
+export const staged = $state<{ keys: string[] | null }>({ keys: null });
+
+export function stagedVariants(): Set<string> {
+  return staged.keys === null ? selectedVariants() : new Set(staged.keys);
+}
+
+/** Whether the staged selection differs from the one the settings hold. */
+export function isStagedDirty(): boolean {
+  return staged.keys !== null && !sameSelection(staged.keys, settings.value.selectedVariants);
+}
+
+export function setStaged(keys: Iterable<string>) {
+  staged.keys = [...new Set(keys)];
+}
+
+/** Stages or unstages one Variant, opening an edit if none was pending. */
+export function toggleStaged(variantKey: string) {
+  const next = stagedVariants();
+  if (!next.delete(variantKey)) next.add(variantKey);
+  setStaged(next);
+}
+
+/** Drops the pending edit; the applied selection stands again. */
+export function resetStaged() {
+  staged.keys = null;
+}
+
+/**
+ * Commits the staged selection. The tree goes stale from here; rebuilding is
+ * still the user's move.
+ */
+export async function applyStaged(project: Project) {
+  if (staged.keys === null) return;
+  const keys = staged.keys;
+  staged.keys = null;
+  await saveSettings(project.id, { ...settings.value, selectedVariants: keys });
 }
 
 /** The node whose aggregates the detail panel is showing. */
 export const selected = $state<{ id: number | null }>({ id: null });
 
-/**
- * The Variant the canvas lights up. Outlives the picker, so the lit path can
- * be read with the panel closed.
- */
+/** The Variant the canvas lights up, for as long as its row is hovered. */
 export const shownVariant = $state<{ key: string | null }>({ key: null });
 
 /**
@@ -250,6 +287,8 @@ function clear() {
   variants.rows = [];
   variants.error = null;
   variants.dropped = 0;
+  staged.keys = null;
+  shownVariant.key = null;
 }
 
 /** Drops a tree belonging to another project when the route changes. */
