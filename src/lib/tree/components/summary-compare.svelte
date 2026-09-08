@@ -1,10 +1,4 @@
 <script lang="ts">
-  /**
-   * One attribute compared across the Groups, drawn as the difference:
-   * categorical attributes as the share gap in percentage points, numeric ones
-   * as box plots on a shared axis spanning every value. Nothing is recomputed
-   * here; the backend's summary already is a box plot.
-   */
   import { BarChart, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
@@ -36,8 +30,6 @@
   /** How many categories fit before the rest go behind the disclosure. */
   const TOP = 6;
 
-  // The label gutter and the value gutter are fixed, so the zero rule sits at a
-  // position the layout can compute: halfway between them.
   const PAD_LEFT = 84;
   const PAD_RIGHT = 60;
 
@@ -59,23 +51,15 @@
 
   const isNumeric = $derived(drawn.some((group) => numeric[group.id] !== null));
 
-  const boxes = $derived(
+  const boxGroups = $derived(
     drawn
-      .map((group) => {
-        const summary = numeric[group.id];
-        return summary && { group: group.name, color: accent[group.id], ...summary };
-      })
-      .filter((row) => row !== null && row !== undefined)
+      .filter((group) => numeric[group.id] !== null)
+      .map((group) => ({ ...group, color: accent[group.id] }))
   );
-
-  /** Groups whose cases all share one value, drawn as a dot. */
-  const constant = $derived(boxes.filter((row) => row.min === row.max));
-
-  /**
-   * Nothing varies anywhere: every tick would format to the same value. The
-   * sentence below carries it.
-   */
-  const allConstant = $derived(boxes.length > 0 && constant.length === boxes.length);
+  const constant = $derived(
+    boxGroups.filter((group) => numeric[group.id]?.whiskerLow === numeric[group.id]?.whiskerHigh)
+  );
+  const allConstant = $derived(boxGroups.length > 0 && constant.length === boxGroups.length);
 
   /** The headline the numeric block leads with, in the user's own group names. */
   const delta = $derived.by(() => {
@@ -163,7 +147,7 @@
   const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
 </script>
 
-{#if isNumeric && boxes.length > 0}
+{#if isNumeric && boxGroups.length > 0}
   <div class="flex flex-col gap-2">
     {#if delta}
       <p class="text-[0.6875rem]">
@@ -181,14 +165,21 @@
 
     {#if !allConstant}
       <div class="flex items-stretch">
-        <BoxPlot {boxes} {format} orientation="horizontal" contain="window" />
+        <BoxPlot
+          boxes={numeric}
+          groups={boxGroups}
+          {format}
+          formatCount={formatNumber}
+          orientation="horizontal"
+          contain="window"
+        />
 
         <div class="flex shrink-0 flex-col pb-5">
-          {#each boxes as row (row.group)}
+          {#each boxGroups as group (group.id)}
             <span
               class="text-muted-foreground flex h-7 w-20 items-center justify-end font-mono text-[0.625rem]"
             >
-              {format(row.median)}
+              {format(numeric[group.id]?.median ?? 0)}
             </span>
           {/each}
         </div>
@@ -197,7 +188,9 @@
 
     {#if constant.length > 0}
       <p class="text-muted-foreground text-[0.625rem]">
-        {constant.map((row) => `${row.group} constant at ${format(row.median)}`).join(" · ")}
+        {constant
+          .map((group) => `${group.name} constant at ${format(numeric[group.id]?.median ?? 0)}`)
+          .join(" · ")}
       </p>
     {/if}
   </div>

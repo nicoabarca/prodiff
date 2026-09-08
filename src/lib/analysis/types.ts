@@ -28,15 +28,16 @@ export type Summary =
     }
   | { type: "categorical"; n: number; counts: Record<string, number> };
 
-/** One Group's box, ready to draw: the five numbers, who they belong to and in what colour. */
-export interface BoxRow {
-  group: string;
-  color: string;
+export interface BoxStats {
   min: number;
   q1: number;
   median: number;
   q3: number;
   max: number;
+  whiskerLow: number;
+  whiskerHigh: number;
+  outliersLow: number;
+  outliersHigh: number;
   n?: number;
 }
 

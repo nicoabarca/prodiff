@@ -65,6 +65,12 @@ export function clearDismissed() {
   charts.dismissed = [];
 }
 
+export function resetDistributions() {
+  charts.extra = [];
+  clearDismissed();
+  forgetDistributions();
+}
+
 /**
  * What identifies the numbers on screen. Keyed on the Variant list, not the node
  * id: that list is what the backend is asked about, so view-level pruning

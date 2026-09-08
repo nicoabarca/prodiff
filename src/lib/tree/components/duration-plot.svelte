@@ -1,20 +1,12 @@
 <script lang="ts">
-  /**
-   * The two duration encodings that are not bars: the cumulative curve drawn
-   * here, and the box plot the shared component draws.
-   *
-   * The curve's axis is symlog, not log: a duration of zero is ordinary here and
-   * `log(0)` does not exist. Symlog's `constant` is the ladder's first rung, not
-   * its default of 1, which in milliseconds would spend half the axis under a
-   * second. Ticks are the backend ladder's rungs inside the plotted span.
-   */
   import { scaleSymlog } from "d3-scale";
   import { Axis, Chart, ChartClipPath, Highlight, Layer, Spline, Tooltip } from "layerchart";
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
-  import type { BoxStats, DurationShape } from "$lib/distributions/invokers/types";
+  import { interiorTicks } from "$lib/analysis/utils/axis";
+  import type { DurationShape } from "$lib/distributions/invokers/types";
   import type { CurveRow } from "$lib/distributions/types";
   import { curveRows } from "$lib/distributions/utils/distributions";
-  import { colorVar, formatDuration } from "$lib/format";
+  import { colorVar, formatDuration, formatNumber } from "$lib/format";
 
   let {
     shape,
@@ -57,37 +49,11 @@
   /** Where symlog stops being linear: the ladder's first rung. */
   const linearBelow = $derived(shape.logEdges.find((edge) => edge > 0) ?? max ?? 1);
 
-  /**
-   * Rungs strictly inside a span, at most one per label: every rung under half a
-   * second formats to "0s", and a repeated label reads as a misplaced axis end.
-   * Zero earns its own rung when the span straddles it, which is where the
-   * overlapping activities sit. A narrow span can contain none, where the scale
-   * ticks itself.
-   */
-  function rungs(low: number, high: number): number[] | undefined {
-    const seen = new Set<string>();
-    const candidates = low < 0 && high > 0 ? [0, ...shape.logEdges] : shape.logEdges;
-    const inside = candidates.filter((edge) => {
-      if (!(edge > low && edge < high)) return false;
-      const label = formatDuration(edge);
-      if (seen.has(label)) return false;
-      seen.add(label);
-      return true;
-    });
-    return inside.length >= 2 ? inside : undefined;
-  }
-
-  const ticks = $derived(rungs(min, max));
-
-  const boxes = $derived(
+  const ticks = $derived(interiorTicks(min, max, shape.logEdges, formatDuration));
+  const boxGroups = $derived(
     drawn
-      .map((group) => ({
-        group: group.name,
-        color: accent[group.id],
-        stats: shape.boxStats[group.id] ?? null
-      }))
-      .filter((box) => box.stats !== null)
-      .map(({ group, color, stats }) => ({ group, color, ...(stats as BoxStats) }))
+      .filter((group) => shape.boxStats[group.id] !== undefined)
+      .map((group) => ({ ...group, color: accent[group.id] }))
   );
 
   const percent = (share: number) => `${Math.round(share * 100)}%`;
@@ -175,14 +141,23 @@
       {/each}
     </div>
   {/if}
-{:else if boxes.length === 0}
+{:else if boxGroups.length === 0}
   <p class="text-muted-foreground p-3 text-center text-xs">Nothing to plot here.</p>
 {:else}
-  <BoxPlot {boxes} ladder={shape.logEdges} constant={linearBelow} format={formatDuration} />
+  <BoxPlot
+    boxes={shape.boxStats}
+    groups={boxGroups}
+    ladder={shape.logEdges}
+    constant={linearBelow}
+    format={formatDuration}
+    formatCount={formatNumber}
+  />
   <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
-    {#each boxes as box (box.group)}
+    {#each boxGroups as group (group.id)}
       <span class="bg-secondary px-2 py-1">
-        {box.group} IQR: {formatDuration(box.q1)}–{formatDuration(box.q3)}
+        {group.name} IQR: {formatDuration(shape.boxStats[group.id].q1)}–{formatDuration(
+          shape.boxStats[group.id].q3
+        )}
       </span>
     {/each}
   </div>

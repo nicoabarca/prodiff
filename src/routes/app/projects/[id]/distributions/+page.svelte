@@ -24,9 +24,9 @@
     charts,
     clearDismissed,
     dismiss,
-    forgetDistributions,
     loadDistributions,
     loaded,
+    resetDistributions,
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
   import {
@@ -120,10 +120,7 @@
 
   $effect(() => {
     void [project?.id, built.key];
-    untrack(() => {
-      forgetDistributions();
-      clearDismissed();
-    });
+    untrack(resetDistributions);
   });
 
   // Every input listed explicitly and the call untracked: `loadDistributions`

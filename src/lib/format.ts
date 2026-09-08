@@ -18,34 +18,25 @@ const DURATION_UNITS = [
   ["s", 1]
 ] as const;
 
-/**
- * A duration in milliseconds as its two largest non-zero units ("8d 4h"). A
- * duration can be negative: two activities of one case overlap when the second
- * starts before the first completes.
- */
+/** A duration in milliseconds as its two largest non-zero units. */
 export function formatDuration(millis: number | null): string {
   if (millis === null) return "—";
-
-  let remaining = Math.round(Math.abs(millis) / 1000);
-  const parts: string[] = [];
-  for (const [label, size] of DURATION_UNITS) {
-    const value = Math.floor(remaining / size);
-    remaining -= value * size;
-    if (value > 0 || parts.length > 0) parts.push(`${value}${label}`);
-    if (parts.length === 2) break;
-  }
-  if (parts.length === 0) return "0s";
-  return `${millis < 0 ? "-" : ""}${parts.join(" ")}`;
+  return durationParts(millis, 2);
 }
 
 /** Every non-zero unit of a duration ("1d 2h 30m 15s"). */
 export function formatDurationParts(millis: number): string {
+  return durationParts(millis, DURATION_UNITS.length);
+}
+
+function durationParts(millis: number, limit: number): string {
   let remaining = Math.round(Math.abs(millis) / 1000);
   const parts: string[] = [];
   for (const [label, size] of DURATION_UNITS) {
     const value = Math.floor(remaining / size);
     remaining -= value * size;
     if (value > 0 || parts.length > 0) parts.push(`${value}${label}`);
+    if (parts.length === limit) break;
   }
   if (parts.length === 0) return "0s";
   return `${millis < 0 ? "-" : ""}${parts.join(" ")}`;

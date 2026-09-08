@@ -76,11 +76,6 @@
       : bars(distribution, attribute, expanded, ids)
   );
 
-  /**
-   * Each Group's count lifted onto the row under its own id. Grouped bars place
-   * themselves by the series key read off the row, so a count reachable only
-   * through an accessor puts every Group in one band.
-   */
   const rows = $derived(
     data.map((bar) => ({
       ...bar,
