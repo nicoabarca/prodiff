@@ -91,7 +91,9 @@
     <div
       class="grid w-full grid-cols-1 items-start gap-5 lg:h-full lg:grid-cols-2 lg:items-stretch"
     >
-      <div class="flex flex-col gap-5 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
+      <!-- *:shrink-0 is load-bearing: flex children shrink by default, so without it a long
+           list of groups squashes each card instead of scrolling the column. -->
+      <div class="flex flex-col gap-5 *:shrink-0 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
         <div class="flex flex-wrap items-center gap-3">
           <div>
             <h1 class="text-sm font-semibold">Filters</h1>
