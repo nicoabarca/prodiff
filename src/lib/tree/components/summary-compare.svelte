@@ -164,26 +164,14 @@
     {/if}
 
     {#if !allConstant}
-      <div class="flex items-stretch">
-        <BoxPlot
-          boxes={numeric}
-          groups={boxGroups}
-          {format}
-          formatCount={formatNumber}
-          orientation="horizontal"
-          contain="window"
-        />
-
-        <div class="flex shrink-0 flex-col pb-5">
-          {#each boxGroups as group (group.id)}
-            <span
-              class="text-muted-foreground flex h-7 w-20 items-center justify-end font-mono text-[0.625rem]"
-            >
-              {format(numeric[group.id]?.median ?? 0)}
-            </span>
-          {/each}
-        </div>
-      </div>
+      <BoxPlot
+        boxes={numeric}
+        groups={boxGroups}
+        {format}
+        formatCount={formatNumber}
+        orientation="horizontal"
+        contain="window"
+      />
     {/if}
 
     {#if constant.length > 0}

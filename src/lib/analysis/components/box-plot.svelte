@@ -40,12 +40,23 @@
     return widest > 0 ? widest : Math.max((high - low) / 8, Number.MIN_VALUE);
   });
   const scale = $derived(scaleSymlog().constant(linearBelow));
+  const position = $derived(scale.copy().domain([low, high]).range([0, 1]));
+  // A label lies along a horizontal axis and stacks up a vertical one, so it
+  // needs the room its own text takes in that direction.
+  const clearance = $derived(horizontal ? 0.16 : 0.07);
   const ticks = $derived.by(() =>
     interiorTicks(
       low,
       high,
-      ladder.length > 0 ? ladder : scale.copy().domain([low, high]).ticks(4),
-      format
+      ladder.length > 0
+        ? ladder
+        : scale
+            .copy()
+            .domain([low, high])
+            .ticks(horizontal ? 3 : 4),
+      format,
+      position,
+      clearance
     )
   );
   const band = $derived(scaleBand().padding(0.35));
@@ -62,6 +73,8 @@
       .filter((note): note is string => note !== null)
   );
   const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
+  /** The band axis is keyed on Group id, so it reads the name back to label a tick. */
+  const bandLabel = (id: string) => truncate(rows.find((row) => row.id === id)?.name ?? id);
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
 </script>
@@ -71,7 +84,7 @@
     All values are <span class="ml-1 font-semibold">{format(rows[0]?.median ?? 0)}</span>.
   </p>
 {:else}
-  <div class={horizontal ? "min-w-0 flex-1" : ""}>
+  <div class={horizontal ? "w-full min-w-0" : ""}>
     <div
       class={horizontal ? "h-[calc(1.75rem*var(--rows)+1.25rem)] w-full" : "h-64 w-full px-3 py-2"}
       style="--rows:{rows.length}"
@@ -97,18 +110,13 @@
                 placement="left"
                 rule
                 grid={false}
-                format={truncate}
+                format={bandLabel}
                 tickLabelProps={{ svgProps: { x: -8 } }}
               />
               <Axis placement="bottom" grid rule {ticks} {format} />
             {:else}
               <Axis placement="left" grid rule {ticks} {format} />
-              <Axis
-                placement="bottom"
-                rule
-                format={(id: string) =>
-                  truncate(groups.find((group) => group.id === id)?.name ?? id)}
-              />
+              <Axis placement="bottom" rule format={bandLabel} />
             {/if}
             <ChartClipPath>
               {#each rows as box (box.id)}
