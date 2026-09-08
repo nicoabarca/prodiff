@@ -167,7 +167,7 @@
       }}
       variant="outline"
       spacing={1}
-      class="grid w-full grid-cols-4"
+      class="grid w-full grid-cols-5"
     >
       {#each kinds as option (option.kind)}
         <ToggleGroup.Item

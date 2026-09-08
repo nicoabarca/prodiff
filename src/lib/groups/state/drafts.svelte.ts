@@ -61,8 +61,3 @@ export function moveInDraft(group: Group, from: number, to: number) {
 export function discardDraft(group: Group) {
   delete drafts[group.id];
 }
-
-/** Copies one Group's list onto another as a draft. */
-export function copyDraftFrom(source: Group, target: Group) {
-  setDraft(target, [...source.filters]);
-}
