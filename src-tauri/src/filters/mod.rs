@@ -99,9 +99,9 @@ pub(crate) mod tests {
         pub(crate) fn mapping() -> Vec<ColumnMapping> {
             serde_json::from_str(
                 r#"[
-                  {"name":"case","role":"case_id"},
-                  {"name":"act","role":"activity_name"},
-                  {"name":"ts","role":"complete_timestamp"}
+                  {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+                  {"name":"act","role":"activity_name","type":"string","scope":"event"},
+                  {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"}
                 ]"#,
             )
             .unwrap()

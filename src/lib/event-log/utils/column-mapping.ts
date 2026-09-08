@@ -9,8 +9,7 @@ import {
   type ColumnRole,
   type ColumnType
 } from "$lib/event-log/invokers/types";
-
-const TEMPORAL_TYPES: ColumnType[] = ["date", "datetime"];
+import { isTemporal } from "$lib/event-log/utils/field-settings";
 
 /**
  * Frontend-side validation of the column mapping payload before it is sent to
@@ -56,22 +55,27 @@ export function validateColumnMapping(
     if (typeof scope !== "string" || !COLUMN_SCOPES.includes(scope as ColumnScope)) {
       throw new Error(`Column "${name}" has an invalid scope: ${String(scope)}`);
     }
-    if (
-      typeof caseResolution !== "string" ||
-      !CASE_RESOLUTIONS.includes(caseResolution as CaseResolution)
-    ) {
-      throw new Error(`Column "${name}" has an invalid case resolution: ${String(caseResolution)}`);
-    }
-
-    if (timestampFormat !== null && timestampFormat !== undefined) {
-      if (typeof timestampFormat !== "string" || timestampFormat.length === 0) {
-        throw new Error(`Column "${name}" has an invalid timestamp format.`);
-      }
-      if (!TEMPORAL_TYPES.includes(type as ColumnType)) {
+    if (scope === "case") {
+      if (
+        typeof caseResolution !== "string" ||
+        !CASE_RESOLUTIONS.includes(caseResolution as CaseResolution)
+      ) {
         throw new Error(
-          `Column "${name}" carries a timestamp format but is declared ${String(type)}.`
+          `Column "${name}" has an invalid case resolution: ${String(caseResolution)}`
         );
       }
+    } else if (caseResolution !== undefined) {
+      throw new Error(`Column "${name}" is event-scoped and cannot carry a case resolution.`);
+    }
+
+    if (isTemporal(type as ColumnType)) {
+      if (timestampFormat !== null && (typeof timestampFormat !== "string" || !timestampFormat)) {
+        throw new Error(`Column "${name}" has an invalid timestamp format.`);
+      }
+    } else if (timestampFormat !== undefined) {
+      throw new Error(
+        `Column "${name}" is declared ${String(type)} and cannot carry a timestamp format.`
+      );
     }
 
     if (role === "case_id") caseIdCount++;

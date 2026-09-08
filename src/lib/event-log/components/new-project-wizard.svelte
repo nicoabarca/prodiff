@@ -12,7 +12,8 @@
   import {
     inferExtraFieldType,
     extraFieldTypeToColumnType,
-    resolutionForScope,
+    scopingOf,
+    typingOf,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import type {
@@ -106,44 +107,24 @@
     step = 1;
   }
 
-  function temporal(type: ColumnType): boolean {
-    return type === "date" || type === "datetime";
-  }
-
   const columnMapping = $derived.by((): RequestColumnMapping[] =>
     columns.map(({ name, dtype }) => {
       const role = roleByColumn[name];
+      const pattern = timestampFormats.patterns[name] ?? null;
       if (role) {
-        const settings = requiredFieldSettings[role];
-        return {
-          name,
-          role,
-          ...settings,
-          timestampFormat: temporal(settings.type)
-            ? (timestampFormats.patterns[name] ?? null)
-            : null
-        };
+        const { scoping, type } = requiredFieldSettings[role];
+        return { name, role, ...scoping, ...typingOf(type, pattern) };
       }
       if (visibleColumns.has(name)) {
         const type = extraFieldTypeToColumnType(columnType[name] ?? inferExtraFieldType(dtype));
-        const scope = columnScope[name] ?? "event";
         return {
           name,
           role: "other",
-          type,
-          scope,
-          caseResolution: resolutionForScope(scope, columnResolution[name] ?? "constant"),
-          timestampFormat: temporal(type) ? (timestampFormats.patterns[name] ?? null) : null
+          ...scopingOf(columnScope[name] ?? "event", columnResolution[name] ?? "constant"),
+          ...typingOf(type, pattern)
         };
       }
-      return {
-        name,
-        role: "other",
-        type: dtype,
-        scope: "event",
-        caseResolution: "constant",
-        timestampFormat: null
-      };
+      return { name, role: "other", scope: "event", ...typingOf(dtype, null) };
     })
   );
 
@@ -165,9 +146,11 @@
   });
 
   const declaredFormats = $derived(
-    columnMapping
-      .filter((c) => temporal(c.type))
-      .map((c) => ({ column: c.name, pattern: c.timestampFormat }))
+    columnMapping.flatMap((c) =>
+      c.type === "date" || c.type === "datetime"
+        ? [{ column: c.name, pattern: c.timestampFormat }]
+        : []
+    )
   );
 
   $effect(() => {

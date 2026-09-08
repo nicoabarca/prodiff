@@ -23,14 +23,28 @@ export type ColumnScope = (typeof COLUMN_SCOPES)[number];
 export const CASE_RESOLUTIONS = ["constant", "first", "last"] as const;
 export type CaseResolution = (typeof CASE_RESOLUTIONS)[number];
 
-export interface RequestColumnMapping {
+/**
+ * Scope and, under `case`, the row the column is read from. An event-scoped
+ * column carries no resolution: there is no row to pick.
+ */
+export type ColumnScoping = { scope: "event" } | { scope: "case"; caseResolution: CaseResolution };
+
+export const TEMPORAL_COLUMN_TYPES = ["date", "datetime"] as const;
+export type TemporalColumnType = (typeof TEMPORAL_COLUMN_TYPES)[number];
+
+/**
+ * The declared type and, for the temporal types alone, the pattern the values
+ * are parsed with. `null` there means the reader infers it.
+ */
+export type ColumnTyping =
+  | { type: Exclude<ColumnType, TemporalColumnType> }
+  | { type: TemporalColumnType; timestampFormat: string | null };
+
+export type RequestColumnMapping = {
   name: string;
   role: ColumnRole;
-  type: ColumnType;
-  scope: ColumnScope;
-  caseResolution: CaseResolution;
-  timestampFormat: string | null;
-}
+} & ColumnScoping &
+  ColumnTyping;
 
 /** A case-scoped column whose value is not constant within at least one case. */
 export interface ResponseCaseColumnViolation {

@@ -23,13 +23,18 @@
     SCOPE_OPTIONS,
     extraFieldTypeToColumnType,
     inferExtraFieldType,
-    resolutionForScope,
+    scopingOf,
+    typingOf,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import { updateProject } from "$lib/event-log/state/projects.svelte";
   import { invalidateTree } from "$lib/tree/state/tree.svelte";
-  import type { CaseResolution, ColumnScope } from "$lib/event-log/invokers/types";
+  import type {
+    CaseResolution,
+    ColumnScope,
+    RequestColumnMapping
+  } from "$lib/event-log/invokers/types";
   import type { Project } from "$lib/event-log/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -75,14 +80,19 @@
     columnName: string,
     changes: { scope?: ColumnScope; caseResolution?: CaseResolution; type?: ExtraFieldType }
   ) {
-    const columns = project.columns.map((column) => {
+    const columns = project.columns.map((column): RequestColumnMapping => {
       if (column.name !== columnName) return column;
-      const scope = changes.scope ?? column.scope;
+      const { name, role, scope } = column;
+      const resolution =
+        changes.caseResolution ?? (column.scope === "case" ? column.caseResolution : "constant");
+      const pattern =
+        column.type === "date" || column.type === "datetime" ? column.timestampFormat : null;
+      const type = changes.type ? extraFieldTypeToColumnType(changes.type) : column.type;
       return {
-        ...column,
-        scope,
-        caseResolution: resolutionForScope(scope, changes.caseResolution ?? column.caseResolution),
-        type: changes.type ? extraFieldTypeToColumnType(changes.type) : column.type
+        name,
+        role,
+        ...scopingOf(changes.scope ?? scope, resolution),
+        ...typingOf(type, pattern)
       };
     });
     updateProject(project.id, { columns });
@@ -179,25 +189,23 @@
                   </Select.Root>
                 </Table.Cell>
                 <Table.Cell>
-                  <Select.Root
-                    type="single"
-                    value={column.caseResolution}
-                    onValueChange={(value) =>
-                      setColumn(column.name, { caseResolution: value as CaseResolution })}
-                  >
-                    <Select.Trigger
-                      size="sm"
-                      class="w-40"
-                      disabled={locked || column.scope !== "case"}
+                  {#if column.scope === "case"}
+                    <Select.Root
+                      type="single"
+                      value={column.caseResolution}
+                      onValueChange={(value) =>
+                        setColumn(column.name, { caseResolution: value as CaseResolution })}
                     >
-                      {CASE_RESOLUTION_LABELS[column.caseResolution]}
-                    </Select.Trigger>
-                    <Select.Content>
-                      {#each CASE_RESOLUTION_OPTIONS as option (option)}
-                        <Select.Item value={option} label={CASE_RESOLUTION_LABELS[option]} />
-                      {/each}
-                    </Select.Content>
-                  </Select.Root>
+                      <Select.Trigger size="sm" class="w-40" disabled={locked}>
+                        {CASE_RESOLUTION_LABELS[column.caseResolution]}
+                      </Select.Trigger>
+                      <Select.Content>
+                        {#each CASE_RESOLUTION_OPTIONS as option (option)}
+                          <Select.Item value={option} label={CASE_RESOLUTION_LABELS[option]} />
+                        {/each}
+                      </Select.Content>
+                    </Select.Root>
+                  {/if}
                 </Table.Cell>
                 <Table.Cell>
                   <Select.Root

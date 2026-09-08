@@ -6,9 +6,7 @@
 use super::{read_group, resolved_row, variant_key, AttrSpec, GroupRows, Source};
 use crate::analysis::stats::{quantile, tukey};
 use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
-use crate::column_mapping::{
-    find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
-};
+use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole};
 use std::collections::{HashMap, HashSet};
 
 /// How many categories ship at most. The frontend cuts to its own top-N and
@@ -139,8 +137,7 @@ pub struct NodeDistributions {
 struct Plan {
     name: String,
     numeric: bool,
-    per_case: bool,
-    resolution: CaseResolution,
+    case_resolution: Option<CaseResolution>,
     value_index: Option<usize>,
 }
 
@@ -159,8 +156,7 @@ fn plan(
             plans.push(Plan {
                 name: name.clone(),
                 numeric: true,
-                per_case: false,
-                resolution: CaseResolution::default(),
+                case_resolution: None,
                 value_index: None,
             });
             continue;
@@ -172,15 +168,13 @@ fn plan(
                 plans.push(Plan {
                     name: name.clone(),
                     numeric: true,
-                    per_case: false,
-                    resolution: CaseResolution::default(),
+                    case_resolution: None,
                     value_index: Some(specs.len()),
                 });
                 specs.push(AttrSpec {
                     name: name.clone(),
                     numeric: true,
                     source: Source::Duration,
-                    resolution: CaseResolution::default(),
                 });
             }
             continue;
@@ -188,19 +182,17 @@ fn plan(
         let Some(column) = mapping.iter().find(|c| &c.name == name) else {
             continue;
         };
-        let numeric = matches!(column.column_type, ColumnType::Integer | ColumnType::Float);
+        let numeric = column.column_type.is_numeric();
         plans.push(Plan {
             name: name.clone(),
             numeric,
-            per_case: column.scope == ColumnScope::Case,
-            resolution: column.case_resolution,
+            case_resolution: column.scope.resolution(),
             value_index: Some(specs.len()),
         });
         specs.push(AttrSpec {
             name: name.clone(),
             numeric,
             source: Source::Column(name.clone()),
-            resolution: column.case_resolution,
         });
     }
     (plans, specs)
@@ -246,11 +238,12 @@ fn accumulate(
 
         for (i, plan) in plans.iter().enumerate() {
             // A case-level column is read once, whatever the Scope asked for.
-            let read = if plan.per_case {
-                let row = resolved_row(bounds, plan.resolution);
-                row..row + 1
-            } else {
-                range.clone()
+            let read = match plan.case_resolution {
+                Some(resolution) => {
+                    let row = resolved_row(bounds, resolution);
+                    row..row + 1
+                }
+                None => range.clone(),
             };
             for row in read {
                 let Some(index) = plan.value_index else {
