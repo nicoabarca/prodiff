@@ -6,11 +6,11 @@
   import { applyGroup, createGroup, groups } from "$lib/groups/state/groups.svelte";
   import {
     addToDraft,
-    copyDraftFrom,
     discardDraft,
     draftOf,
     replaceInDraft
   } from "$lib/groups/state/drafts.svelte";
+  import { defaultColor } from "$lib/groups/colors";
   import { colorVar } from "$lib/format";
   import type { Filter } from "$lib/filters/kind/filter";
   import FilterEditor from "$lib/filters/components/filter-editor.svelte";
@@ -23,10 +23,15 @@
 
   const project = $derived(currentProject());
 
-  /** Which Group the editor is on, and which of its filters (null = new). */
-  let editing = $state<{ groupId: string; index: number | null } | null>(null);
+  /**
+   * Which Group the editor is on, and which of its filters (null = new). A null
+   * groupId is the group that does not exist yet: saving its filter creates it.
+   */
+  let editing = $state<{ groupId: string | null; index: number | null } | null>(null);
   let deleting = $state<Group | null>(null);
   let applyError = $state<string | null>(null);
+
+  const creating = $derived(editing !== null && editing.groupId === null);
 
   const editingGroup = $derived(groups.find((g) => g.id === editing?.groupId) ?? null);
   const editingDraft = $derived(editingGroup ? draftOf(editingGroup) : []);
@@ -53,10 +58,19 @@
     editing = { groupId: group.id, index };
   }
 
-  function saveFilter(filter: Filter) {
-    if (!editingGroup || !editing) return;
-    if (editing.index === null) addToDraft(editingGroup, filter);
-    else replaceInDraft(editingGroup, editing.index, filter);
+  function startGroup() {
+    editing = { groupId: null, index: null };
+  }
+
+  async function saveFilter(filter: Filter) {
+    if (!editing) return;
+    if (editing.groupId === null) {
+      if (!project) return;
+      await createGroup(project.id, [filter]);
+    } else if (editingGroup) {
+      if (editing.index === null) addToDraft(editingGroup, filter);
+      else replaceInDraft(editingGroup, editing.index, filter);
+    }
     editing = null;
   }
 
@@ -74,8 +88,7 @@
   /** Copying replaces the old shared Base chain: similar Groups are made, not inherited. */
   async function copy(group: Group) {
     if (!project) return;
-    const created = await createGroup(project.id, `${group.name} copy`);
-    copyDraftFrom(group, created);
+    await createGroup(project.id, [...draftOf(group)], `${group.name} copy`);
   }
 
   function afterDelete(group: Group) {
@@ -120,7 +133,7 @@
               </Empty.Description>
             </Empty.Header>
             <Empty.Content>
-              <Button onclick={() => createGroup(project.id)}>
+              <Button onclick={startGroup}>
                 <Plus data-icon="inline-start" />
                 New group
               </Button>
@@ -141,7 +154,7 @@
           {/each}
 
           <div class="flex flex-wrap items-center justify-end gap-3">
-            <Button variant="outline" size="sm" onclick={() => createGroup(project.id)}>
+            <Button variant="outline" size="sm" onclick={startGroup}>
               <Plus data-icon="inline-start" />
               New group
             </Button>
@@ -155,12 +168,16 @@
             <Card.Title>
               {editing === null
                 ? "Configure filter"
-                : editing.index === null
-                  ? "Add filter"
-                  : "Edit filter"}
+                : creating
+                  ? "New group"
+                  : editing.index === null
+                    ? "Add filter"
+                    : "Edit filter"}
             </Card.Title>
             <Card.Description>
-              {#if editingGroup}
+              {#if creating}
+                A group is the cases its filters carve out, so this first filter creates it.
+              {:else if editingGroup}
                 In <span class="text-foreground font-medium">{editingGroup.name}</span>. Filters
                 apply in order, each to the previous one's result.
               {:else}
@@ -169,13 +186,13 @@
             </Card.Description>
           </Card.Header>
           <Card.Content class="lg:min-h-0 lg:flex-1 lg:overflow-auto">
-            {#if editingGroup && editing}
+            {#if editing && (editingGroup || creating)}
               {#key `${editing.groupId}:${editing.index}`}
                 <FilterEditor
                   {project}
                   filter={editingFilter}
                   precedingChain={precedingFilters}
-                  color={colorVar(editingGroup.color)}
+                  color={colorVar(editingGroup ? editingGroup.color : defaultColor(groups.length))}
                   {excludable}
                   onsave={saveFilter}
                   oncancel={() => (editing = null)}

@@ -64,7 +64,16 @@ export async function loadGroups(projectId: string) {
   groupsLoaded.projectId = projectId;
 }
 
-export async function createGroup(projectId: string, name?: string): Promise<Group> {
+/**
+ * A Group carves cases out of the Event Log, so one with no filters is the
+ * Original under another name. The first filter is what brings it into being.
+ */
+export async function createGroup(
+  projectId: string,
+  filters: Filter[],
+  name?: string
+): Promise<Group> {
+  if (filters.length === 0) throw new Error("A group needs at least one filter.");
   const position = groups.length;
   const now = new Date().toISOString();
   const group: Group = {
@@ -73,7 +82,7 @@ export async function createGroup(projectId: string, name?: string): Promise<Gro
     name: name?.trim() || `Group ${position + 1}`,
     color: defaultColor(position),
     position,
-    filters: [],
+    filters,
     stats: null,
     createdAt: now,
     editedAt: now
@@ -96,6 +105,7 @@ async function patch(id: string, changes: Partial<Group>) {
 
 /** Writes a Group's Parquet and stores the figures that pass returned. */
 export async function applyGroup(project: Project, group: Group, filters: Filter[]) {
+  if (filters.length === 0) throw new Error("A group needs at least one filter.");
   const stats = await applyGroupFile(project, group.id, filters);
   await patch(group.id, { filters, stats });
 }

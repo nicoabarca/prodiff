@@ -72,26 +72,22 @@
 
 {#snippet details(group: Group)}
   <div class="flex flex-col gap-2">
-    {#if group.filters.length === 0}
-      <p class="text-muted-foreground text-xs">No filters, so this group is the whole event log.</p>
-    {:else}
-      <ol class="flex flex-col gap-2">
-        {#each group.filters as filter, index (index)}
-          {@const described = describeFilter(filter)}
-          <li class="flex items-start gap-2">
-            <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs">
-              {index + 1}
-            </span>
-            <div class="min-w-0">
-              <p class="text-xs font-medium">{described.title}</p>
-              <p class="text-muted-foreground truncate font-mono text-[0.6875rem]">
-                {described.detail}
-              </p>
-            </div>
-          </li>
-        {/each}
-      </ol>
-    {/if}
+    <ol class="flex flex-col gap-2">
+      {#each group.filters as filter, index (index)}
+        {@const described = describeFilter(filter)}
+        <li class="flex items-start gap-2">
+          <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs">
+            {index + 1}
+          </span>
+          <div class="min-w-0">
+            <p class="text-xs font-medium">{described.title}</p>
+            <p class="text-muted-foreground truncate font-mono text-[0.6875rem]">
+              {described.detail}
+            </p>
+          </div>
+        </li>
+      {/each}
+    </ol>
   </div>
 {/snippet}
 

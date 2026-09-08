@@ -11,6 +11,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import type { Project } from "$lib/event-log/types";
+  import type { Filter } from "$lib/filters/kind/filter";
   import {
     applyGroup,
     createGroup,
@@ -77,11 +78,16 @@
     building = true;
     error = null;
     try {
-      const difference = await createGroup(project.id, `${other.name} without ${baseline.name}`);
-      await applyGroup(project, difference, [
+      const filters: Filter[] = [
         ...other.filters,
         { kind: "case_not_in_group", groupId: baseline.id }
-      ]);
+      ];
+      const difference = await createGroup(
+        project.id,
+        filters,
+        `${other.name} without ${baseline.name}`
+      );
+      await applyGroup(project, difference, filters);
       await saveComparison(project.id, [baseline.id, difference.id]);
       open = false;
     } catch (cause) {
