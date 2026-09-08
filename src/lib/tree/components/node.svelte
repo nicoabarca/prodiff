@@ -18,12 +18,7 @@
   const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
 </script>
 
-<Handle
-  type="target"
-  position={Position.Top}
-  style="opacity:0"
-  isConnectable={false}
-/>
+<Handle type="target" position={Position.Top} style="opacity:0" isConnectable={false} />
 
 <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
      resolves to nothing here. -->
@@ -32,7 +27,9 @@
     ? 'opacity-25'
     : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
     ? 'ring-destructive/60 ring-2'
-    : ''} {data.highlighted ? 'ring-foreground ring-2 ring-offset-1' : ''}"
+    : ''} {data.highlighted
+    ? 'shadow-[0_0_1.25rem_0.125rem_rgba(99,102,241,0.55)] ring-2 ring-indigo-500 ring-offset-1'
+    : ''}"
   style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
 >
   <div class="flex w-full items-start justify-center gap-1">
@@ -99,9 +96,4 @@
   {/if}
 </div>
 
-<Handle
-  type="source"
-  position={Position.Bottom}
-  style="opacity:0"
-  isConnectable={false}
-/>
+<Handle type="source" position={Position.Bottom} style="opacity:0" isConnectable={false} />

@@ -76,7 +76,41 @@
   /** A Variant's number is its rank in the full list, so narrowing never renumbers. */
   const numbers = $derived(new Map(variants.rows.map((row, i) => [row.key, i + 1])));
 
-  const rows = $derived(variants.rows);
+  /** Which Variants the list shows: every one, the ones every Group holds cases
+      on, or the ones only one Group holds cases on, by its id. */
+  let shown = $state<string>("all");
+
+  const holds = (row: ResponseVariantRow, groupId: string) => (row.cases[groupId] ?? 0) > 0;
+
+  function matches(row: ResponseVariantRow, filter: string): boolean {
+    if (filter === "all") return true;
+    if (filter === "shared") return columns.every((group) => holds(row, group.id));
+    return (
+      holds(row, filter) && columns.every((group) => group.id === filter || !holds(row, group.id))
+    );
+  }
+
+  const filters = $derived([
+    { id: "all", label: "All" },
+    { id: "shared", label: "Shared" },
+    ...columns.map((group) => ({ id: group.id, label: `Only ${group.name}` }))
+  ]);
+
+  const counts = $derived(
+    Object.fromEntries(
+      filters.map((filter) => [
+        filter.id,
+        variants.rows.filter((row) => matches(row, filter.id)).length
+      ])
+    )
+  );
+
+  const rows = $derived(variants.rows.filter((row) => matches(row, shown)));
+
+  // A Group that leaves the comparison takes its filter with it.
+  $effect(() => {
+    if (!filters.some((filter) => filter.id === shown)) shown = "all";
+  });
 
   /** The share of all cases the staged Variants hold, in percent. */
   const stagedShare = $derived.by(() => {
@@ -160,8 +194,33 @@
           {formatNumber(applied)} → {formatNumber(staged.size)} variants
         </span>
       {/if}
+
+      {#if columns.length > 1}
+        <span class="text-muted-foreground ml-auto text-[0.625rem] tracking-wide uppercase">
+          Show
+        </span>
+        <div class="flex items-center">
+          {#each filters as filter (filter.id)}
+            <button
+              type="button"
+              aria-pressed={shown === filter.id}
+              class="-ml-px flex h-6 max-w-32 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem] first:ml-0 {shown ===
+              filter.id
+                ? 'text-foreground relative z-10 border-indigo-500'
+                : 'border-border text-muted-foreground hover:text-foreground'}"
+              onclick={() => (shown = filter.id)}
+            >
+              <span class="truncate">{filter.label}</span>
+              <span class="ml-1 tabular-nums opacity-70">({formatNumber(counts[filter.id])})</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+
       <button
-        class="text-muted-foreground hover:bg-accent hover:text-foreground ml-auto flex size-6 cursor-pointer items-center justify-center"
+        class="text-muted-foreground hover:bg-accent hover:text-foreground {columns.length > 1
+          ? ''
+          : 'ml-auto'} flex size-6 cursor-pointer items-center justify-center"
         aria-label="Close variants panel"
         onclick={onClose}
       >
@@ -175,7 +234,7 @@
           size="sm"
           variant="outline"
           class="h-6 px-2 text-[0.6875rem]"
-          onclick={() => setStaged(variants.rows.map((r) => r.key))}
+          onclick={() => setStaged(rows.map((r) => r.key))}
         >
           All
         </Button>
@@ -283,7 +342,9 @@
           />
         {/snippet}
         {#snippet empty()}
-          <p class="text-muted-foreground p-4 text-xs">No variants in this log.</p>
+          <p class="text-muted-foreground p-4 text-xs">
+            {shown === "all" ? "No variants in this log." : "No variants under that filter."}
+          </p>
         {/snippet}
       </VirtualList>
     {/if}

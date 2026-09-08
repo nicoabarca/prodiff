@@ -2,13 +2,7 @@
   /** What the tree on screen is made of, and the way into the Variants panel. */
   import { formatNumber } from "$lib/format";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import {
-    isStagedDirty,
-    selectedVariants,
-    settings,
-    variants,
-    view
-  } from "$lib/tree/state/tree.svelte";
+  import { selectedVariants, settings, variants, view } from "$lib/tree/state/tree.svelte";
   import { totalCases, visibleNodes } from "$lib/tree/utils/tree";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
 
@@ -33,7 +27,6 @@
   });
 
   const selected = $derived(settings.value.selectedVariants.length);
-  const dirty = $derived(isStagedDirty());
 </script>
 
 <button
@@ -67,9 +60,6 @@
       <span class="text-base leading-none font-semibold">Select variants</span>
     {/if}
   </span>
-  {#if dirty}
-    <span class="bg-primary/10 text-primary rounded px-1.5 py-0.5 text-[0.625rem]">edited</span>
-  {/if}
   <ChevronDown
     class="text-muted-foreground size-4 shrink-0 transition-transform {open ? 'rotate-180' : ''}"
   />
