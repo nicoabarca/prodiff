@@ -24,9 +24,9 @@
     charts,
     clearDismissed,
     dismiss,
-    forgetDistributions,
     loadDistributions,
     loaded,
+    resetDistributions,
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
   import {
@@ -42,6 +42,7 @@
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+  import Eye from "@lucide/svelte/icons/eye";
   import Plus from "@lucide/svelte/icons/plus";
   import RefreshCw from "@lucide/svelte/icons/refresh-cw";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
@@ -87,7 +88,9 @@
   /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
-    const open = new Set(requested.map((card) => card.name));
+    const open = new Set(
+      requested.filter((card) => !charts.dismissed.includes(card.name)).map((card) => card.name)
+    );
     return attributeOptions(project.columns, project.hiddenColumns).filter(
       (name) => !open.has(name)
     );
@@ -116,13 +119,8 @@
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
   $effect(() => {
-    void selected.id;
-    untrack(clearDismissed);
-  });
-
-  $effect(() => {
     void [project?.id, built.key];
-    untrack(forgetDistributions);
+    untrack(resetDistributions);
   });
 
   // Every input listed explicitly and the call untracked: `loadDistributions`
@@ -237,6 +235,13 @@
               <ToggleGroup.Item value="name" class={SELECTED}>Name</ToggleGroup.Item>
             </ToggleGroup.Root>
           </div>
+
+          {#if charts.dismissed.length > 0}
+            <Button variant="outline" size="sm" onclick={clearDismissed}>
+              <Eye data-icon="inline-start" />
+              Show all ({charts.dismissed.length})
+            </Button>
+          {/if}
 
           <Popover.Root>
             <Popover.Trigger>

@@ -57,5 +57,6 @@ export const treeSettings = sqliteTable("tree_settings", {
   attributes: text("attributes", { mode: "json" }).$type<TreeSettings["attributes"]>().notNull(),
   selectedVariants: text("selected_variants", { mode: "json" })
     .$type<TreeSettings["selectedVariants"]>()
-    .notNull()
+    .notNull(),
+  attributesChosen: integer("attributes_chosen", { mode: "boolean" }).notNull().default(false)
 });

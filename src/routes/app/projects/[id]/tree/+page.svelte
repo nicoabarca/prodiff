@@ -16,6 +16,7 @@
     variants
   } from "$lib/tree/state/tree.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
+  import AttributePrompt from "$lib/tree/components/attribute-prompt.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
   import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
@@ -42,6 +43,7 @@
 
   let comparing = $state(false);
   let variantsOpen = $state(false);
+  let buildSettingsOpen = $state(false);
 
   let panelOpen = $state(false);
   $effect(() => {
@@ -78,7 +80,7 @@
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
         </Button>
-        <BuildSettings {project} />
+        <BuildSettings {project} bind:open={buildSettingsOpen} />
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
@@ -100,6 +102,7 @@
     </div>
 
     <CompareDialog {project} bind:open={comparing} />
+    <AttributePrompt {project} />
 
     <div class="flex min-h-0 flex-1">
       {#if built.tree && variantsOpen}
@@ -142,6 +145,7 @@
                 tree={built.tree}
                 nodeId={selected.id}
                 onClose={() => (selected.id = null)}
+                onOpenBuildSettings={() => (buildSettingsOpen = true)}
               />
             {/if}
           </div>
@@ -158,7 +162,11 @@
                   attribute, so it only happens when you ask.
                 </Empty.Description>
               </Empty.Header>
-              <Button disabled={built.building} onclick={() => build(project)}>
+              <Button
+                disabled={built.building || !groups[0] || noVariants}
+                title={noVariants ? "Select at least one variant" : undefined}
+                onclick={() => build(project)}
+              >
                 <Play data-icon="inline-start" />
                 {built.building ? "Building…" : "Build tree"}
               </Button>

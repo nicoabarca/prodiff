@@ -15,7 +15,6 @@
   import type { Project } from "$lib/event-log/types";
   import type { Group } from "$lib/groups/types";
   import type { Snippet } from "svelte";
-  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   /** `trailing` is whatever the current view wants to say about the same Groups. */
   let { project, trailing, actions }: { project: Project; trailing?: Snippet; actions?: Snippet } =
@@ -94,84 +93,77 @@
 <div
   class="border-border bg-sidebar flex h-10 shrink-0 items-center gap-1 overflow-hidden border-b px-3"
 >
-  {#if entries.length === 0}
-    <p class="text-muted-foreground flex items-center gap-2 text-xs">
-      <SlidersHorizontal class="size-3.5" aria-hidden="true" />
-      No groups yet. Every view shows the whole event log.
-    </p>
-  {:else}
-    {#each inline as group, index (group.id)}
-      {#if index > 0}
-        <Separator orientation="vertical" class="h-5 self-center" />
-      {/if}
-      <HoverCard.Root openDelay={120}>
-        <HoverCard.Trigger
-          href="/app/projects/{projectId}/filters"
-          class="hover:bg-muted focus-visible:ring-ring flex min-w-0 items-center gap-1.5 px-2 py-1 whitespace-nowrap focus-visible:ring-1 focus-visible:outline-none"
-        >
-          {@render dot(group)}
-          <span class="truncate text-xs font-semibold">{group.name}</span>
-          <Badge variant="secondary">{group.filters.length}</Badge>
-          {@render figures(group)}
-        </HoverCard.Trigger>
-        <HoverCard.Content class="w-80">
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center gap-1.5">
-              {@render dot(group)}
-              <span class="text-sm font-semibold">{group.name}</span>
-            </div>
-            <Separator />
-            {@render details(group)}
-          </div>
-        </HoverCard.Content>
-      </HoverCard.Root>
-    {/each}
-    {#if overflow.length > 0}
+  {#each inline as group, index (group.id)}
+    {#if index > 0}
       <Separator orientation="vertical" class="h-5 self-center" />
-      <Popover.Root>
-        <Popover.Trigger
-          class="hover:bg-muted focus-visible:ring-ring text-muted-foreground shrink-0 px-2 py-1 text-xs font-medium whitespace-nowrap focus-visible:ring-1 focus-visible:outline-none"
-        >
-          +{overflow.length} more
-        </Popover.Trigger>
-        <Popover.Content class="max-h-96 w-80 overflow-auto">
-          <div class="flex flex-col gap-4">
-            {#each overflow as group (group.id)}
-              <div class="flex flex-col gap-2">
-                <a
-                  href="/app/projects/{projectId}/filters"
-                  class="hover:bg-muted focus-visible:ring-ring -mx-1 flex items-center gap-1.5 rounded px-1 py-0.5 focus-visible:ring-1 focus-visible:outline-none"
-                >
-                  {@render dot(group)}
-                  <span class="truncate text-xs font-semibold">{group.name}</span>
-                  <Badge variant="secondary">{group.filters.length}</Badge>
-                </a>
-                {@render figures(group)}
-                <Separator />
-                {@render details(group)}
-              </div>
-            {/each}
-          </div>
-        </Popover.Content>
-      </Popover.Root>
     {/if}
-    {#if overlapping}
-      {@const shared = sharedCases(overlapping)}
-      <Separator orientation="vertical" class="h-5 self-center" />
-      <span
-        class="text-muted-foreground flex shrink-0 items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap"
+    <HoverCard.Root openDelay={120}>
+      <HoverCard.Trigger
+        href="/app/projects/{projectId}/filters"
+        class="hover:bg-muted focus-visible:ring-ring flex min-w-0 items-center gap-1.5 px-2 py-1 whitespace-nowrap focus-visible:ring-1 focus-visible:outline-none"
       >
-        <span class="relative flex size-3 shrink-0 items-center" aria-hidden="true">
-          <span class="border-muted-foreground absolute left-0 size-2.5 rounded-full border"></span>
-          <span class="border-muted-foreground absolute left-1 size-2.5 rounded-full border"></span>
-        </span>
-        {shared === null
-          ? ""
-          : shared > 0
-            ? `${formatNumber(shared)} cases shared`
-            : "No cases shared"}
+        {@render dot(group)}
+        <span class="truncate text-xs font-semibold">{group.name}</span>
+        <Badge variant="secondary">{group.filters.length}</Badge>
+        {@render figures(group)}
+      </HoverCard.Trigger>
+      <HoverCard.Content class="w-80">
+        <div class="flex flex-col gap-2">
+          <div class="flex items-center gap-1.5">
+            {@render dot(group)}
+            <span class="text-sm font-semibold">{group.name}</span>
+          </div>
+          <Separator />
+          {@render details(group)}
+        </div>
+      </HoverCard.Content>
+    </HoverCard.Root>
+  {/each}
+  {#if overflow.length > 0}
+    <Separator orientation="vertical" class="h-5 self-center" />
+    <Popover.Root>
+      <Popover.Trigger
+        class="hover:bg-muted focus-visible:ring-ring text-muted-foreground shrink-0 px-2 py-1 text-xs font-medium whitespace-nowrap focus-visible:ring-1 focus-visible:outline-none"
+      >
+        +{overflow.length} more
+      </Popover.Trigger>
+      <Popover.Content class="max-h-96 w-80 overflow-auto">
+        <div class="flex flex-col gap-4">
+          {#each overflow as group (group.id)}
+            <div class="flex flex-col gap-2">
+              <a
+                href="/app/projects/{projectId}/filters"
+                class="hover:bg-muted focus-visible:ring-ring -mx-1 flex items-center gap-1.5 rounded px-1 py-0.5 focus-visible:ring-1 focus-visible:outline-none"
+              >
+                {@render dot(group)}
+                <span class="truncate text-xs font-semibold">{group.name}</span>
+                <Badge variant="secondary">{group.filters.length}</Badge>
+              </a>
+              {@render figures(group)}
+              <Separator />
+              {@render details(group)}
+            </div>
+          {/each}
+        </div>
+      </Popover.Content>
+    </Popover.Root>
+  {/if}
+  {#if overlapping}
+    {@const shared = sharedCases(overlapping)}
+    <Separator orientation="vertical" class="h-5 self-center" />
+    <span
+      class="text-muted-foreground flex shrink-0 items-center gap-1.5 px-2 py-1 text-xs whitespace-nowrap"
+    >
+      <span class="relative flex size-3 shrink-0 items-center" aria-hidden="true">
+        <span class="border-muted-foreground absolute left-0 size-2.5 rounded-full border"></span>
+        <span class="border-muted-foreground absolute left-1 size-2.5 rounded-full border"></span>
       </span>
-    {/if}
+      {shared === null
+        ? ""
+        : shared > 0
+          ? `${formatNumber(shared)} cases shared`
+          : "No cases shared"}
+    </span>
   {/if}
   <div class="ml-auto flex shrink-0 items-center gap-3">
     {#if trailing}

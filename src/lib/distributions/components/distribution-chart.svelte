@@ -23,8 +23,7 @@
     PLOT_TOGGLE,
     SCOPE_LABEL,
     type Scope,
-    TOP_CATEGORIES,
-    type Bar
+    TOP_CATEGORIES
   } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
@@ -77,12 +76,18 @@
       : bars(distribution, attribute, expanded, ids)
   );
 
+  const rows = $derived(
+    data.map((bar) => ({
+      ...bar,
+      ...Object.fromEntries(ids.map((id) => [id, bar.counts[id] ?? 0]))
+    }))
+  );
+
   const series = $derived(
     drawn.map((group) => ({
       key: group.id,
       label: group.name,
-      color: colorVar(group.color),
-      value: (bar: Bar) => bar.counts[group.id] ?? 0
+      color: colorVar(group.color)
     }))
   );
 
@@ -241,7 +246,7 @@
         style="--cols:{data.length}"
       >
         <BarChart
-          {data}
+          data={rows}
           {series}
           seriesLayout="group"
           orientation="vertical"

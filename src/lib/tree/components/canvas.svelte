@@ -49,6 +49,10 @@
     })
   );
 
+  const hasAttributes = $derived(
+    Object.keys(tree.nodes[0]?.eventLevel ?? {}).length > 0 || tree.nodes[0]?.transitionTime != null
+  );
+
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);
     if (next.has(id)) next.delete(id);
@@ -59,7 +63,7 @@
   const flow = $derived(
     toFlow(tree, visible, {
       groups: flowGroups,
-      secondary: view.secondary,
+      secondary: hasAttributes ? view.secondary : "cases",
       focus: view.focus,
       edgeLabels: view.edgeLabels,
       selected: selected.id,
