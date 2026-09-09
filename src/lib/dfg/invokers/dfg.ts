@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import { ACTIVITY_DURATION, TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { Project } from "$lib/event-log/types";
-import type { ResponseDfg } from "$lib/dfg/invokers/types";
+import type { RequestDfgAttribute, ResponseDfg } from "$lib/dfg/invokers/types";
 
 /**
  * Builds the whole graph from the Groups' materialized Parquet files. `groups`
@@ -18,7 +19,13 @@ export function dfg(
   return invoke<ResponseDfg>("dfg", {
     projectId: project.id,
     groups,
-    attributes,
+    attributes: attributes.map(requestAttribute),
     columns: project.columns
   });
+}
+
+function requestAttribute(name: string): RequestDfgAttribute {
+  if (name === ACTIVITY_DURATION) return { kind: "activityDuration" };
+  if (name === TRANSITION_TIME) return { kind: "transitionTime" };
+  return { kind: "column", name };
 }

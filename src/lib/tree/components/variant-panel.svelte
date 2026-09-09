@@ -10,6 +10,7 @@
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import {
     applyStaged,
     isStagedDirty,
@@ -23,7 +24,6 @@
     variants,
     view
   } from "$lib/tree/state/tree.svelte";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { variantCases, variantsCovering } from "$lib/tree/utils/variants";
   import VariantRow from "$lib/tree/components/variant-row.svelte";

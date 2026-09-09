@@ -10,6 +10,11 @@
  */
 import type { AttributeBlock } from "$lib/analysis/types";
 
+export type RequestDfgAttribute =
+  | { kind: "column"; name: string }
+  | { kind: "activityDuration" }
+  | { kind: "transitionTime" };
+
 export interface ResponseDfg {
   nodes: DfgNode[];
   variants: Variant[];

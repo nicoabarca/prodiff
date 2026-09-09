@@ -1,14 +1,13 @@
-//! Aggregates the DFG payload from Group logs.
+//! DFG aggregation.
 
-use super::Counts;
-use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
+use super::{Counts, RequestedAttribute};
+use crate::analysis::{Acc, GroupLog};
 use crate::column_mapping::{
     find_role, require_role, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
 };
 use polars::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
-/// Columns this pass adds. Prefixed so a log's own headers can't collide.
 const GROUP: &str = "__dfg_group";
 const CASE: &str = "__dfg_case";
 const ACT: &str = "__dfg_activity";
@@ -24,8 +23,6 @@ const VALUE: &str = "__dfg_value";
 const SEQUENCE: &str = "__dfg_sequence";
 const GROUPS_PER_CASE: &str = "__dfg_groups_per_case";
 
-/// One event-level attribute as the pass reads it: the name it answers to and
-/// the projected column its values arrive in.
 pub(super) struct EventAttr {
     pub name: String,
     pub numeric: bool,
@@ -38,72 +35,65 @@ pub(super) struct NodeAgg {
     pub attributes: HashMap<String, HashMap<String, Acc>>,
 }
 
-/// One trace shape: the activities in the order they occurred, and how many
-/// cases of each Group ran it. Every count the graph draws is folded from
-/// these, so hiding an activity re-links through it with figures the log
-/// actually holds.
 pub(super) struct VariantAgg {
     pub activities: Vec<String>,
     pub cases: HashMap<String, i64>,
 }
 
-/// Waits in milliseconds by (source, target) then Group id.
 pub(super) type Transitions = HashMap<(String, String), HashMap<String, Acc>>;
 
 pub(super) struct Aggregates {
     pub nodes: HashMap<String, NodeAgg>,
     pub variants: Vec<VariantAgg>,
     pub transitions: Transitions,
+    pub case_counts: HashMap<String, i64>,
     pub overlap_cases: i64,
     pub attributes: Vec<EventAttr>,
     pub skipped_case_level: Vec<String>,
 }
 
-/// Splits the requested names into the event-level attributes a node can carry,
-/// the case-level ones it cannot, and whether the edges were asked for their
-/// waiting time. Names the mapping does not know are dropped.
-fn plan(
-    requested: &[String],
+pub(super) fn plan(
+    requested: &[RequestedAttribute],
     mapping: &[ColumnMapping],
     has_start: bool,
-) -> (Vec<EventAttr>, bool, Vec<String>) {
+) -> Result<(Vec<EventAttr>, bool, Vec<String>), String> {
     let mut attributes = Vec::new();
     let mut wants_transition = false;
     let mut skipped = Vec::new();
+    let mut names = HashSet::new();
 
-    for name in requested {
-        if name == TRANSITION_TIME {
-            wants_transition = true;
-            continue;
+    for request in requested {
+        let name = request.name();
+        if !names.insert(name) {
+            return Err(format!("Attribute {name:?} was requested more than once."));
         }
-        if name == ACTIVITY_DURATION {
-            if has_start {
+        match request {
+            RequestedAttribute::TransitionTime => wants_transition = true,
+            RequestedAttribute::ActivityDuration if has_start => attributes.push(EventAttr {
+                name: name.to_string(),
+                numeric: true,
+                column: DURATION.to_string(),
+            }),
+            RequestedAttribute::ActivityDuration => {}
+            RequestedAttribute::Column { name } => {
+                let Some(column) = mapping.iter().find(|column| &column.name == name) else {
+                    continue;
+                };
+                if matches!(column.scope, ColumnScope::Case { .. }) {
+                    skipped.push(name.clone());
+                    continue;
+                }
                 attributes.push(EventAttr {
                     name: name.clone(),
-                    numeric: true,
-                    column: DURATION.to_string(),
+                    numeric: matches!(column.column_type, ColumnType::Integer | ColumnType::Float),
+                    column: format!("__dfg_attr_{}", attributes.len()),
                 });
             }
-            continue;
         }
-        let Some(column) = mapping.iter().find(|c| &c.name == name) else {
-            continue;
-        };
-        if matches!(column.scope, ColumnScope::Case { .. }) {
-            skipped.push(name.clone());
-            continue;
-        }
-        attributes.push(EventAttr {
-            name: name.clone(),
-            numeric: matches!(column.column_type, ColumnType::Integer | ColumnType::Float),
-            column: format!("__dfg_attr_{}", attributes.len()),
-        });
     }
-    (attributes, wants_transition, skipped)
+    Ok((attributes, wants_transition, skipped))
 }
 
-/// The Groups stacked into one frame, projected down to what the pass reads and
-/// carrying the Group id as a column.
 fn combined(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
@@ -129,9 +119,6 @@ fn combined(
         millis(complete_col).alias(COMPLETE),
     ];
     match start_col {
-        // With a start timestamp the wait ends when the next activity begins;
-        // without one it ends when the next activity completes, which absorbs
-        // that activity's own duration.
         Some(start) => {
             projection.push(millis(start).alias(ARRIVAL));
             projection.push(
@@ -171,13 +158,13 @@ fn combined(
 pub(super) fn aggregate(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
-    requested: &[String],
+    requested: &[RequestedAttribute],
 ) -> Result<Aggregates, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
-    let (attributes, wants_transition, skipped_case_level) = plan(requested, mapping, has_start);
+    let (attributes, wants_transition, skipped_case_level) = plan(requested, mapping, has_start)?;
 
     let window = || [col(GROUP), col(CASE)];
-    let lf = combined(logs, mapping, &attributes)?
+    let prepared = combined(logs, mapping, &attributes)?
         .with_columns([
             col(ACT)
                 .shift(lit(1))
@@ -194,7 +181,10 @@ pub(super) fn aggregate(
             (col(ARRIVAL) - col(PREVIOUS_COMPLETE))
                 .cast(DataType::Float64)
                 .alias(DELTA),
-        );
+        )
+        .collect()
+        .map_err(|e| e.to_string())?;
+    let lf = prepared.lazy();
 
     let mut nodes: HashMap<String, NodeAgg> = HashMap::new();
     node_counts(&lf, &attributes, &mut nodes)?;
@@ -210,15 +200,13 @@ pub(super) fn aggregate(
         } else {
             HashMap::new()
         },
+        case_counts: case_counts(&lf)?,
         overlap_cases: overlap(&lf)?,
         attributes,
         skipped_case_level,
     })
 }
 
-/// Per (Group, activity): the two counts, plus the raw values of every numeric
-/// attribute. Categorical ones are counted separately, which keeps a text
-/// column from travelling one string per event.
 fn node_counts(
     lf: &LazyFrame,
     attributes: &[EventAttr],
@@ -267,8 +255,6 @@ fn node_counts(
     Ok(())
 }
 
-/// One categorical attribute, counted in the query rather than shipped as
-/// values: the Significance Test only ever sees the contingency table.
 fn categorical(
     lf: &LazyFrame,
     attr: &EventAttr,
@@ -303,8 +289,6 @@ fn categorical(
     Ok(())
 }
 
-/// One row per case, its activities in trace order, folded into the distinct
-/// shapes and counted per Group.
 fn variants(lf: &LazyFrame) -> Result<Vec<VariantAgg>, String> {
     let df = lf
         .clone()
@@ -329,19 +313,10 @@ fn variants(lf: &LazyFrame) -> Result<Vec<VariantAgg>, String> {
         .into_iter()
         .map(|(activities, cases)| VariantAgg { activities, cases })
         .collect();
-    // Ordered so the same log always ships the same payload: the widest shapes
-    // first, then alphabetically.
-    variants.sort_by(|a, b| {
-        let total = |v: &VariantAgg| -> i64 { v.cases.values().sum() };
-        total(b)
-            .cmp(&total(a))
-            .then_with(|| a.activities.cmp(&b.activities))
-    });
+    variants.sort_by(|a, b| a.activities.cmp(&b.activities));
     Ok(variants)
 }
 
-/// The wait each directly-follows pair spans, in milliseconds. A null previous
-/// activity marks the first event of its case, which has no pair to contribute.
 fn transitions(lf: &LazyFrame) -> Result<Transitions, String> {
     let df = lf
         .clone()
@@ -366,8 +341,19 @@ fn transitions(lf: &LazyFrame) -> Result<Transitions, String> {
     Ok(transitions)
 }
 
-/// Cases living in more than one Group. Non-zero means the samples are not
-/// independent and every Significance Test below it is optimistic.
+fn case_counts(lf: &LazyFrame) -> Result<HashMap<String, i64>, String> {
+    let df = lf
+        .clone()
+        .group_by([col(GROUP)])
+        .agg([col(CASE).n_unique().cast(DataType::Int64).alias(CASES)])
+        .collect()
+        .map_err(|e| e.to_string())?;
+
+    let groups = strings(&df, GROUP)?;
+    let cases = ints(&df, CASES)?;
+    Ok(groups.into_iter().zip(cases).collect())
+}
+
 fn overlap(lf: &LazyFrame) -> Result<i64, String> {
     let df = lf
         .clone()
