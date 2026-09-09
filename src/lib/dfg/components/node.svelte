@@ -43,8 +43,10 @@
     </Tooltip.Trigger>
     <Tooltip.Content>
       {data.label}
-      {#if data.counts.some((count) => count !== null)}
-        · {data.counts.filter((count) => count !== null).join(" · ")}
+      {#if Object.values(data.counts).some((count) => count !== null)}
+        · {Object.values(data.counts)
+          .filter((count) => count !== null)
+          .join(" · ")}
       {/if}
     </Tooltip.Content>
   </Tooltip.Root>
@@ -70,9 +72,9 @@
     </Tooltip.Root>
 
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
-      {#each data.groups as group, index (group.id)}
-        {#if data.counts[index]}
-          <span style="color:var(--{group.color})">{data.counts[index]}</span>
+      {#each data.groups as group (group.id)}
+        {#if data.counts[group.id]}
+          <span style="color:var(--{group.color})">{data.counts[group.id]}</span>
         {/if}
       {/each}
     </div>

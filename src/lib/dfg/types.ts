@@ -12,12 +12,7 @@ export type Measure = "cases" | "events";
 export type Direction = "TB" | "LR";
 
 export interface DfgView {
-  /**
-   * The share of the log's cases the drawing accounts for. 1 draws every trace
-   * shape, 0 the single one most cases ran.
-   */
   coverage: number;
-  /** A share of the paths the chosen shapes hold. 1 draws all of them. */
   paths: number;
   measure: Measure;
   direction: Direction;
@@ -49,9 +44,8 @@ export interface DfgNodeData {
   label: string;
   kind: NodeKind;
   groups: FaceGroup[];
-  counts: (string | null)[];
+  counts: Record<string, string | null>;
   findings: number;
-  /** The Group that alone reaches here, or `null` where more than one does. */
   membership: string | null;
   selected: boolean;
   direction: Direction;
@@ -59,11 +53,9 @@ export interface DfgNodeData {
 }
 
 export interface DfgEdgeData {
-  /** The path ELK routed, in the same space the node positions came from. */
   path: string;
   width: number;
   label: string | null;
-  /** Start and End edges are structure rather than behaviour, and drawn dashed. */
   boundary: boolean;
   [key: string]: unknown;
 }

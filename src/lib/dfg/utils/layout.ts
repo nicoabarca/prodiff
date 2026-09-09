@@ -1,18 +1,4 @@
-/**
- * Where the simplified graph goes on screen. ELK does the placement and routes
- * the edges around the boxes, which matters here in a way it does not for a
- * tree: a DFG has cycles, and a router that ignores them draws through nodes.
- *
- * Three things keep the flow readable. Start and End are pinned to the first
- * and last layer. Every edge carries its own count as its ELK priority, so
- * breaking a cycle turns a quiet edge around rather than the busiest one. And a
- * self-loop never reaches ELK at all: it is a bump drawn beside its own box,
- * where ELK would otherwise open a whole layer for it.
- *
- * Two rules keep this cheap. The box is a fixed size, so adding a figure to a
- * face cannot change the topology. And the layout is handed topology, priority
- * and direction only, never labels or styles, so it is cached by exactly those.
- */
+/** Positions and routes a simplified DFG with ELK. */
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkNode } from "elkjs/lib/elk-api";
 import { END_ID, START_ID, type Direction, type Measure } from "$lib/dfg/types";
@@ -21,7 +7,6 @@ import type { Simplified } from "$lib/dfg/utils/simplify";
 
 export const NODE_WIDTH = 150;
 export const NODE_HEIGHT = 58;
-/** Start and End are markers rather than boxes, and are drawn as circles. */
 export const TERMINAL_SIZE = 36;
 
 export interface Point {
@@ -30,16 +15,13 @@ export interface Point {
 }
 
 export interface Placement {
-  /** Top-left corners, by node id. */
   nodes: Map<number, Point>;
-  /** SVG path data, by `source->target`. */
   paths: Map<string, string>;
 }
 
 const elk = new ELK();
 const cache = new Map<string, Placement>();
 
-/** How many layouts to keep. Flipping direction and back should not recompute. */
 const CACHE_LIMIT = 12;
 
 export const edgeKey = edgeId;
@@ -52,10 +34,7 @@ export function nodeSize(id: number): { width: number; height: number } {
     : { width: NODE_WIDTH, height: NODE_HEIGHT };
 }
 
-/**
- * What the placement depends on and nothing else. Two graphs sharing this key
- * are drawn the same way however differently they are labelled.
- */
+/** Cache key for layout topology, direction, and edge priority. */
 export function topologyKey(graph: Simplified, direction: Direction, measure: Measure): string {
   return JSON.stringify([
     direction,
@@ -64,11 +43,7 @@ export function topologyKey(graph: Simplified, direction: Direction, measure: Me
   ]);
 }
 
-/**
- * ELK hands back a start, a run of control points and an end. Three control
- * points make one cubic segment; a leftover tail is a straight line, which is
- * what a two-point edge is anyway.
- */
+/** Converts ELK section points to SVG path data. */
 function path(points: Point[]): string {
   if (points.length === 0) return "";
   let data = `M${points[0].x},${points[0].y}`;
@@ -82,10 +57,7 @@ function path(points: Point[]): string {
   return data;
 }
 
-/**
- * A self-loop as a bump on the side the flow leaves free: to the right of the
- * box going down, below it going across.
- */
+/** Draws a self-loop beside its activity node. */
 function selfLoop(corner: Point, id: number, direction: Direction): string {
   const { width, height } = nodeSize(id);
   const reach = 36;
@@ -101,18 +73,9 @@ function selfLoop(corner: Point, id: number, direction: Direction): string {
   return `M${x},${startY} C${x + reach},${startY - 4} ${x + reach},${endY + 4} ${x + 4},${endY}`;
 }
 
-export async function layout(
-  graph: Simplified,
-  direction: Direction,
-  measure: Measure
-): Promise<Placement> {
-  const key = topologyKey(graph, direction, measure);
-  const hit = cache.get(key);
-  if (hit) return hit;
-
+function elkGraph(graph: Simplified, direction: Direction, measure: Measure): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
-
-  const laid: ElkNode = await elk.layout({
+  return {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
@@ -125,9 +88,6 @@ export async function layout(
       "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-      // A DFG is cyclic by nature; this is what turns the back edges around
-      // instead of drawing them through the layers. It reads the priorities
-      // below, so the edge it turns around is a quiet one.
       "elk.layered.cycleBreaking.strategy": "GREEDY"
     },
     children: graph.nodes.map((node) => ({
@@ -143,8 +103,10 @@ export async function layout(
       targets: [String(edge.target)],
       layoutOptions: { "elk.priority": String(Math.round(unionCount(edge.counts, measure))) }
     }))
-  });
+  };
+}
 
+function placementFromElk(graph: Simplified, laid: ElkNode, direction: Direction): Placement {
   const nodes = new Map(
     (laid.children ?? []).map((child) => [Number(child.id), { x: child.x ?? 0, y: child.y ?? 0 }])
   );
@@ -162,8 +124,23 @@ export async function layout(
     if (corner)
       paths.set(edgeKey(edge.source, edge.target), selfLoop(corner, edge.source, direction));
   }
+  return { nodes, paths };
+}
 
-  const placement: Placement = { nodes, paths };
+export async function layout(
+  graph: Simplified,
+  direction: Direction,
+  measure: Measure
+): Promise<Placement> {
+  const key = topologyKey(graph, direction, measure);
+  const hit = cache.get(key);
+  if (hit) return hit;
+
+  const placement = placementFromElk(
+    graph,
+    await elk.layout(elkGraph(graph, direction, measure)),
+    direction
+  );
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
   cache.set(key, placement);
   return placement;

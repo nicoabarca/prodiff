@@ -15,23 +15,18 @@ export interface ResponseDfg {
   variants: Variant[];
   transitions: Transition[];
   groups: GroupBlock[];
-  comparing: boolean;
   overlapCases: number;
-  transitionTimeBasis: "startComplete" | "completeOnly";
-  hasActivityDuration: boolean;
   skippedCaseLevel: string[];
 }
 
 export interface DfgNode {
   id: number;
   label: string;
-  /** Over the whole log, whatever is on screen. The Activities slider ranks by these. */
   counts: Record<string, Counts>;
   attributes: Record<string, AttributeBlock>;
 }
 
 export interface Variant {
-  /** Node ids, in the order they occurred. */
   activities: number[];
   cases: Record<string, number>;
 }
@@ -43,13 +38,10 @@ export interface Transition {
 }
 
 export interface Counts {
-  /** Distinct cases passing through here at least once. */
   cases: number;
-  /** Every occurrence. A case visiting the activity twice counts twice. */
   events: number;
 }
 
 export interface GroupBlock {
   id: string;
-  caseCount: number;
 }

@@ -1,19 +1,4 @@
-/**
- * What the two sliders leave on screen, run once over the union of the Groups
- * so both sides see one graph.
- *
- * The first slider chooses behaviour: the trace shapes are taken in order of
- * how many cases ran them until the chosen share of the log is covered, and the
- * graph is the directly-follows graph of exactly those cases. Every edge drawn
- * therefore happened, in that order, in a case being counted, and no activity
- * is ever an ending the log does not give it. A shape enters whole, which is
- * why raising the slider adds a run of activities at once rather than one.
- *
- * The second slider then thins the paths, ranked inside each Group rather than
- * across them, so a Group with fewer cases is not drowned by a larger one. Start
- * and End edges are never cut, and every activity keeps its busiest way in and
- * its busiest way out, which is what stops the graph coming apart.
- */
+/** Simplifies DFG variants and paths for display. */
 import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
 import { fold, unionCount, type FoldedEdge } from "$lib/dfg/utils/fold";
@@ -28,7 +13,6 @@ export interface SimplifiedNode {
 export interface Simplified {
   nodes: SimplifiedNode[];
   edges: FoldedEdge[];
-  /** `cases` of `totalCases` is the share of the log the drawing accounts for. */
   variants: { shown: number; total: number; cases: number; totalCases: number };
   activities: { shown: number; total: number };
   paths: { shown: number; total: number };
@@ -68,11 +52,7 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
   };
 }
 
-/**
- * The most travelled shapes, taken whole until they account for `coverage` of
- * the cases. Never none: at the bottom of the slider the graph is the single
- * route the log takes most often.
- */
+/** Chooses whole trace shapes up to the requested case coverage. */
 function chooseVariants(
   variants: Variant[],
   coverage: number
@@ -93,10 +73,7 @@ function chooseVariants(
   return { chosen, cases, totalCases };
 }
 
-/**
- * Top-N inside each Group, then the union of those, then the guarantee. Ranking
- * across the Groups instead would let the larger one decide the whole picture.
- */
+/** Keeps each Group's busiest paths and every activity's busiest connections. */
 function cutPaths(
   edges: FoldedEdge[],
   groups: string[],

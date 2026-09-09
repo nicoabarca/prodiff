@@ -135,7 +135,7 @@
     <Dialog.Header>
       <Dialog.Title>Compare groups</Dialog.Title>
       <Dialog.Description>
-        Pick what the tree measures against. Only applied groups can be compared.
+        Pick the Groups the comparison views measure. Only applied Groups can be compared.
       </Dialog.Description>
     </Dialog.Header>
 
@@ -156,8 +156,7 @@
         {:else}
           <p class="text-xs">
             <span class="font-semibold">{formatNumber(shared)} cases are in both groups.</span>
-            Every p-value on the tree assumes they are independent samples, so shared cases make the findings
-            optimistic.
+            Every p-value assumes independent samples, so shared cases make the findings optimistic.
           </p>
           <Button
             variant="outline"

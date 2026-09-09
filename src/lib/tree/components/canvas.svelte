@@ -9,13 +9,8 @@
   import { toFlow } from "$lib/tree/utils/flow";
   import { diffKeys } from "$lib/tree/utils/diff";
   import type { Point } from "$lib/tree/utils/layout";
-  import {
-    comparedGroups,
-    selected,
-    selectedVariants,
-    shownVariant,
-    view
-  } from "$lib/tree/state/tree.svelte";
+  import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { built } from "$lib/tree/state/build.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";

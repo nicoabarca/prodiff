@@ -1,12 +1,12 @@
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import {
-  comparedGroups,
   resetBuildView,
   resetTreeState,
   saveSettings,
   settings
 } from "$lib/tree/state/tree.svelte";
+import { comparedGroups } from "$lib/groups/state/comparison.svelte";
 import type { Project } from "$lib/event-log/types";
 import type { TreeSettings } from "$lib/tree/types";
 import { groupKey, treeKey, treeKeyFromGroupKeys } from "$lib/tree/utils/settings";

@@ -17,11 +17,13 @@ export function faceCounts(
   counts: Record<string, Counts>,
   groups: FaceGroup[],
   measure: Measure
-): (string | null)[] {
-  return groups.map((group) => {
-    const value = counts[group.id]?.[measure] ?? 0;
-    return value === 0 ? null : formatNumber(value);
-  });
+): Record<string, string | null> {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const value = counts[group.id]?.[measure] ?? 0;
+      return [group.id, value === 0 ? null : formatNumber(value)];
+    })
+  );
 }
 
 /** Edge thickness, between 0.5 and 5.5, scaled against the busiest edge drawn. */

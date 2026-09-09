@@ -26,29 +26,19 @@
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
 
-  let { graph, simplified, stale }: { graph: ResponseDfg; simplified: Simplified; stale: boolean } =
-    $props();
+  let {
+    graph,
+    simplified,
+    groups,
+    stale
+  }: { graph: ResponseDfg; simplified: Simplified; groups: FaceGroup[]; stale: boolean } = $props();
 
   const nodeTypes = { activity: ActivityNode };
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
-
-  // The canvas paints Groups in the names and colours the user chose, so the
-  // payload can stay ids-only and a rename never leaves a stale label behind.
-  const groups: FaceGroup[] = $derived(
-    graph.groups.map((group) => {
-      const known = comparedGroups().find((candidate) => candidate.id === group.id);
-      return {
-        id: group.id,
-        name: known?.name ?? group.id,
-        color: known?.color ?? "group-original"
-      };
-    })
-  );
 
   // ELK is asynchronous, so the placement lands a tick after the topology
   // changes. The token drops a result whose request has already been superseded.

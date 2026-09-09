@@ -7,10 +7,11 @@
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { selected, view } from "$lib/dfg/state/view.svelte";
   import { simplify } from "$lib/dfg/utils/simplify";
+  import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
-  import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
+  import CompareDialog from "$lib/groups/components/compare-dialog.svelte";
   import GitCompare from "@lucide/svelte/icons/git-compare";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Waypoints from "@lucide/svelte/icons/waypoints";
@@ -18,8 +19,9 @@
   const project = $derived(currentProject());
   const groups = $derived(comparedGroups());
   const stale = $derived(isStale());
-  // One simplification for the canvas and the panel: they are two readings of
-  // the same picture, and running it twice would let them disagree.
+  const graphGroupsForView = $derived(
+    built.graph && project ? graphGroups(built.graph, project.id) : []
+  );
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
 
   let comparing = $state(false);
@@ -34,8 +36,6 @@
     if (comparison.projectId !== project.id) loadComparison(project.id);
   });
 
-  // Unlike the tree, the graph builds itself: nothing about it is a decision the
-  // user has to commit to first, and the simplification is all on this side.
   $effect(() => {
     if (project && groupsLoaded.projectId === project.id) load(project);
   });
@@ -75,7 +75,7 @@
     {#if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
         <div class="relative flex min-h-0 flex-1">
-          <Canvas graph={built.graph} {simplified} {stale} />
+          <Canvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">
               <Button
@@ -93,7 +93,7 @@
         </div>
         {#if panelOpen}
           <div class="border-border bg-background w-80 shrink-0 border-l">
-            <DetailPanel graph={built.graph} {simplified} />
+            <DetailPanel graph={built.graph} {simplified} groups={graphGroupsForView} />
           </div>
         {/if}
       </div>

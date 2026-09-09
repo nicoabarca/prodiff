@@ -46,8 +46,7 @@ function graphOf(variants: [number[], Record<string, number>][]): ResponseDfg {
     }));
 
   const groups = [...new Set(built.flatMap((variant) => Object.keys(variant.cases)))].map((id) => ({
-    id,
-    caseCount: 0
+    id
   }));
 
   return {
@@ -55,10 +54,7 @@ function graphOf(variants: [number[], Record<string, number>][]): ResponseDfg {
     variants: built,
     transitions: [],
     groups,
-    comparing: groups.length > 1,
     overlapCases: 0,
-    transitionTimeBasis: "completeOnly",
-    hasActivityDuration: false,
     skippedCaseLevel: []
   };
 }

@@ -2,6 +2,7 @@ import { dfg } from "$lib/dfg/invokers/dfg";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey } from "$lib/dfg/types";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { selected } from "$lib/dfg/state/view.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
@@ -44,6 +45,7 @@ export async function load(project: Project, force = false) {
 
   built.building = true;
   built.error = null;
+  selected.id = null;
   try {
     built.graph = await dfg(project, comparedIds(), selection.attributes);
     built.projectId = project.id;
@@ -72,9 +74,7 @@ export function forgetOtherProject(projectId: string) {
 }
 
 /**
- * Drops the graph outright. Called when the Column Mapping changes: type and
- * granularity decide which test ran and how it aggregated, so a graph built
- * under the old declarations cannot be reinterpreted.
+ * Drops the graph outright when Column Mapping type or scope changes.
  */
 export function invalidateDfg() {
   clear();

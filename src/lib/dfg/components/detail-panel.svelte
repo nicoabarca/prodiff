@@ -6,16 +6,18 @@
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected } from "$lib/dfg/state/view.svelte";
   import type { Simplified } from "$lib/dfg/utils/simplify";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
+  import type { FaceGroup } from "$lib/dfg/types";
   import { formatDuration, formatNumber } from "$lib/format";
 
-  let { graph, simplified }: { graph: ResponseDfg; simplified: Simplified } = $props();
+  let {
+    graph,
+    simplified,
+    groups
+  }: { graph: ResponseDfg; simplified: Simplified; groups: FaceGroup[] } = $props();
 
   const node = $derived(simplified.nodes.find((candidate) => candidate.id === selected.id) ?? null);
   const measured = $derived(graph.nodes.find((candidate) => candidate.id === selected.id) ?? null);
-  const groups = $derived(comparedGroups());
 
-  /** Findings first: an attribute that came back significant is the reason to look. */
   const blocks = $derived(
     measured
       ? Object.entries(measured.attributes).sort(

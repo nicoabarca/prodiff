@@ -1,14 +1,9 @@
-//! One vectorized pass over the concatenation of the Groups. Everything the
-//! payload measures comes out of here; nothing is pruned, scored or laid out.
-//!
-//! Rows are persisted sorted by (case, timestamp) and filtering preserves
-//! order, so a window partitioned by (group, case) sees each case in trace
-//! order without a sort.
+//! Aggregates the DFG payload from Group logs.
 
 use super::Counts;
 use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
 use crate::column_mapping::{
-    find_role, require_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType,
+    find_role, require_role, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
 };
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -40,7 +35,6 @@ pub(super) struct EventAttr {
 #[derive(Default)]
 pub(super) struct NodeAgg {
     pub counts: HashMap<String, Counts>,
-    /// Attribute name, then Group id.
     pub attributes: HashMap<String, HashMap<String, Acc>>,
 }
 
@@ -59,9 +53,7 @@ pub(super) type Transitions = HashMap<(String, String), HashMap<String, Acc>>;
 pub(super) struct Aggregates {
     pub nodes: HashMap<String, NodeAgg>,
     pub variants: Vec<VariantAgg>,
-    /// Filled only when the view asked for the Transition Time.
     pub transitions: Transitions,
-    pub case_counts: HashMap<String, i64>,
     pub overlap_cases: i64,
     pub attributes: Vec<EventAttr>,
     pub skipped_case_level: Vec<String>,
@@ -97,7 +89,7 @@ fn plan(
         let Some(column) = mapping.iter().find(|c| &c.name == name) else {
             continue;
         };
-        if column.granularity == ColumnGranularity::Case {
+        if matches!(column.scope, ColumnScope::Case { .. }) {
             skipped.push(name.clone());
             continue;
         }
@@ -218,7 +210,6 @@ pub(super) fn aggregate(
         } else {
             HashMap::new()
         },
-        case_counts: case_counts(&lf)?,
         overlap_cases: overlap(&lf)?,
         attributes,
         skipped_case_level,
@@ -373,19 +364,6 @@ fn transitions(lf: &LazyFrame) -> Result<Transitions, String> {
             .insert(groups[row].clone(), Acc::Num(delta));
     }
     Ok(transitions)
-}
-
-fn case_counts(lf: &LazyFrame) -> Result<HashMap<String, i64>, String> {
-    let df = lf
-        .clone()
-        .group_by([col(GROUP)])
-        .agg([col(CASE).n_unique().cast(DataType::Int64).alias(CASES)])
-        .collect()
-        .map_err(|e| e.to_string())?;
-
-    let groups = strings(&df, GROUP)?;
-    let cases = ints(&df, CASES)?;
-    Ok(groups.into_iter().zip(cases).collect())
 }
 
 /// Cases living in more than one Group. Non-zero means the samples are not

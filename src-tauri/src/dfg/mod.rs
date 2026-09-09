@@ -1,28 +1,18 @@
-//! The Directly-Follows Graph, shipped as the log's distinct trace shapes plus
-//! what each activity measures. Nothing is pruned, ranked or laid out here.
-//!
-//! The frontend folds the variants into nodes and edges for whatever set of
-//! activities is on screen, so hiding an activity re-links through it with
-//! counts the log actually holds rather than with a stand-in. Moving a slider
-//! never comes back here, and Rust never learns a Group's name or colour.
+//! Directly-Follows Graph payload construction.
 
 mod build;
 pub mod commands;
 
 use crate::analysis::{stats, Acc, AttributeBlock, GroupLog, ALPHA, MIN_GROUP_CASES};
-use crate::column_mapping::{find_role, ColumnMapping, ColumnRole};
+use crate::column_mapping::ColumnMapping;
 use std::collections::HashMap;
 
-/// Start and End are the frontend's, folded from the variants. Activities take
-/// the ids above them, so the two synthetic nodes can never collide.
 const FIRST_ACTIVITY_ID: usize = 2;
 
 #[derive(serde::Serialize, Debug, Clone, Copy, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Counts {
-    /// Distinct cases passing through here at least once.
     pub cases: i64,
-    /// Every occurrence. A case visiting the activity twice counts twice.
     pub events: i64,
 }
 
@@ -31,8 +21,6 @@ pub struct Counts {
 pub struct DfgNode {
     pub id: usize,
     pub label: String,
-    /// Over the whole log, whatever the view is showing. The Activities slider
-    /// ranks by these.
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, AttributeBlock>,
 }
@@ -41,13 +29,10 @@ pub struct DfgNode {
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Variant {
-    /// Node ids, in the order they occurred.
     pub activities: Vec<usize>,
     pub cases: HashMap<String, i64>,
 }
 
-/// The wait one directly-follows pair spans. Only pairs the log holds have one,
-/// and only when the view asked for the Transition Time.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Transition {
@@ -60,7 +45,6 @@ pub struct Transition {
 #[serde(rename_all = "camelCase")]
 pub struct GroupBlock {
     pub id: String,
-    pub case_count: i64,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -69,15 +53,8 @@ pub struct Dfg {
     pub nodes: Vec<DfgNode>,
     pub variants: Vec<Variant>,
     pub transitions: Vec<Transition>,
-    /// Ordered: carries both the order and the identity of the Groups compared.
     pub groups: Vec<GroupBlock>,
-    pub comparing: bool,
-    /// Cases in both Groups. Non-zero means the samples are not independent.
     pub overlap_cases: i64,
-    pub transition_time_basis: &'static str,
-    pub has_activity_duration: bool,
-    /// Attributes asked for and dropped: a case-level one holds a single value
-    /// per case and has nothing to say about one activity.
     pub skipped_case_level: Vec<String>,
 }
 
@@ -86,7 +63,6 @@ pub fn build(
     mapping: &[ColumnMapping],
     attributes: &[String],
 ) -> Result<Dfg, String> {
-    let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
     let aggregates = build::aggregate(logs, mapping, attributes)?;
 
@@ -107,21 +83,8 @@ pub fn build(
         nodes,
         variants: variants(&node_id, &aggregates)?,
         transitions,
-        groups: ids
-            .iter()
-            .map(|id| GroupBlock {
-                id: id.clone(),
-                case_count: aggregates.case_counts.get(id).copied().unwrap_or(0),
-            })
-            .collect(),
-        comparing: ids.len() > 1,
+        groups: ids.iter().map(|id| GroupBlock { id: id.clone() }).collect(),
         overlap_cases: aggregates.overlap_cases,
-        transition_time_basis: if has_start {
-            "startComplete"
-        } else {
-            "completeOnly"
-        },
-        has_activity_duration: has_start,
         skipped_case_level: aggregates.skipped_case_level,
     })
 }
@@ -271,19 +234,19 @@ mod tests {
     fn mapping(with_start: bool) -> Vec<Mapping> {
         let mut columns: Vec<Mapping> = serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"case"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"ts","role":"complete_timestamp","type":"datetime","granularity":"event"},
-              {"name":"cost","role":"other","type":"integer","granularity":"event"},
-              {"name":"who","role":"other","type":"string","granularity":"event"},
-              {"name":"region","role":"other","type":"string","granularity":"case"}
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"cost","role":"other","type":"integer","scope":"event"},
+              {"name":"who","role":"other","type":"string","scope":"event"},
+              {"name":"region","role":"other","type":"string","scope":"case","caseResolution":"constant"}
             ]"#,
         )
         .unwrap();
         if with_start {
             columns.push(
                 serde_json::from_str(
-                    r#"{"name":"start","role":"start_timestamp","type":"datetime","granularity":"event"}"#,
+                    r#"{"name":"start","role":"start_timestamp","type":"datetime","scope":"event"}"#,
                 )
                 .unwrap(),
             );
@@ -542,7 +505,6 @@ mod tests {
             false,
         );
 
-        assert!(!dfg.comparing);
         assert_eq!(dfg.groups.len(), 1);
         assert!(node(&dfg, "A").attributes["cost"].test.is_none());
         assert!(transition(&dfg, "A", "B").wait.test.is_none());
@@ -554,7 +516,6 @@ mod tests {
         let b = log(&[("2", &[("A", 0, 90)])]);
         let dfg = dfg_with(&a, Some(&b), &["cost"], false);
 
-        assert!(dfg.comparing);
         let node = node(&dfg, "A");
         assert_eq!(node.counts["a"].cases, 1);
         assert_eq!(node.counts["b"].cases, 1);
@@ -616,8 +577,6 @@ mod tests {
             false,
         );
 
-        assert_eq!(dfg.transition_time_basis, "completeOnly");
-        assert!(!dfg.has_activity_duration);
         assert!(!node(&dfg, "A").attributes.contains_key(ACTIVITY_DURATION));
     }
 
@@ -630,8 +589,6 @@ mod tests {
             true,
         );
 
-        assert_eq!(dfg.transition_time_basis, "startComplete");
-        assert!(dfg.has_activity_duration);
         let block = &node(&dfg, "A").attributes[ACTIVITY_DURATION];
         let Summary::Numerical { median, .. } = &block.summaries["a"] else {
             panic!("a duration is numeric");
