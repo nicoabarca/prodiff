@@ -32,9 +32,11 @@
   import {
     autoBuild,
     built,
-    comparedGroups,
     isStale,
-    retryBuild,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparedGroups,
     selected,
     settings,
     view

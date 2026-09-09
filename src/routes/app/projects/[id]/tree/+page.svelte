@@ -6,12 +6,14 @@
     autoBuild,
     build,
     built,
-    comparison,
     forgetOtherProject,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparison,
     comparedGroups,
     loadComparison,
     loadSettings,
-    retryBuild,
     selected,
     settings,
     variants
@@ -153,11 +155,6 @@
                   <Network />
                 </Empty.Media>
                 <Empty.Title>No tree built yet</Empty.Title>
-                <Empty.Description>
-                  Building runs a full scan of the log and one Significance Test per node and
-                  attribute, so the first one is yours to start. After that the tree rebuilds itself
-                  whenever the groups, attributes or variants change.
-                </Empty.Description>
               </Empty.Header>
               <Button
                 disabled={built.building || !groups[0] || noVariants}

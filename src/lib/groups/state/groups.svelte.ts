@@ -3,6 +3,7 @@ import { db } from "$lib/db/client";
 import { groups as groupsTable } from "$lib/db/schema";
 import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/kind/filter";
+import { filtersKey } from "$lib/filters/utils/key";
 import { appliedGroups } from "$lib/groups/invokers/applied-groups";
 import { applyGroup as applyGroupFile } from "$lib/groups/invokers/apply-group";
 import { deleteGroupFile } from "$lib/groups/invokers/delete-group-file";
@@ -154,11 +155,6 @@ export async function removeGroupsForProject(projectId: string) {
     groups.length = 0;
     groupsLoaded.projectId = null;
   }
-}
-
-/** Cache key for a Filter List. */
-export function filtersKey(filters: Filter[]): string {
-  return JSON.stringify(filters);
 }
 
 /**

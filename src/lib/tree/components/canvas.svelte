@@ -4,13 +4,13 @@
   import ActivityNode from "$lib/tree/components/node.svelte";
   import { toFlow } from "$lib/tree/utils/flow";
   import {
-    built,
     comparedGroups,
     selected,
     selectedVariants,
     shownVariant,
     view
   } from "$lib/tree/state/tree.svelte";
+  import { built } from "$lib/tree/state/build.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
@@ -123,8 +123,6 @@
   </SvelteFlow>
 
   {#if built.building}
-    <!-- Covers the canvas alone: the panels stay live, so the next edit can be
-         staged while this build runs. -->
     <div
       class="bg-background/50 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-xs"
     >

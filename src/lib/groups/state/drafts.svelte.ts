@@ -1,5 +1,5 @@
 import type { Filter } from "$lib/filters/kind/filter";
-import { filtersKey } from "$lib/groups/state/groups.svelte";
+import { filtersKey } from "$lib/filters/utils/key";
 import type { Group } from "$lib/groups/types";
 
 /**

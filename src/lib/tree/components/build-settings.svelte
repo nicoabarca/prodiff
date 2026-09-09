@@ -1,9 +1,4 @@
 <script lang="ts">
-  /**
-   * The one input to a build: which attributes get Significance Tests. The
-   * selection is held while the popover is open and written once on close, so
-   * ticking three boxes is one edit and one rebuild.
-   */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -17,25 +12,34 @@
 
   const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
 
-  /** The attributes being edited: null while the popover is closed. */
-  let held = $state<string[] | null>(null);
+  let draftAttributes = $state<string[] | null>(null);
+  let saveError = $state<string | null>(null);
 
-  const shown = $derived(held ?? settings.value.attributes);
+  const displayedAttributes = $derived(draftAttributes ?? settings.value.attributes);
 
   function toggle(name: string, on: boolean) {
-    held = on ? [...shown, name] : shown.filter((a) => a !== name);
+    saveError = null;
+    draftAttributes = on
+      ? [...displayedAttributes, name]
+      : displayedAttributes.filter((attribute) => attribute !== name);
   }
 
-  function commit(edited: string[]) {
-    held = null;
+  async function commit(edited: string[]) {
+    draftAttributes = null;
     const same =
       edited.length === settings.value.attributes.length &&
       edited.every((name) => settings.value.attributes.includes(name));
-    if (!same) saveSettings(project.id, { ...settings.value, attributes: edited });
+    if (same) return;
+    try {
+      await saveSettings(project.id, { ...settings.value, attributes: edited });
+    } catch (cause) {
+      saveError = String(cause);
+      open = true;
+    }
   }
 
   $effect(() => {
-    if (!open && held !== null) commit(held);
+    if (!open && draftAttributes !== null) void commit(draftAttributes);
   });
 </script>
 
@@ -45,9 +49,9 @@
       <Button {...props} variant="outline" size="sm">
         <Settings2 data-icon="inline-start" />
         Build settings
-        {#if shown.length > 0}
+        {#if displayedAttributes.length > 0}
           <span class="text-muted-foreground ml-1 font-mono text-[0.6875rem]">
-            {shown.length}
+            {displayedAttributes.length}
           </span>
         {/if}
       </Button>
@@ -61,7 +65,7 @@
           {#each options as name (name)}
             <label class="flex items-center gap-2 text-xs">
               <Checkbox
-                checked={shown.includes(name)}
+                checked={displayedAttributes.includes(name)}
                 onCheckedChange={(checked) => toggle(name, checked === true)}
               />
               <span>{name}</span>
@@ -77,6 +81,9 @@
           findings of another. Unselected attributes are never tested. The tree rebuilds when this
           closes.
         </p>
+        {#if saveError}
+          <p class="text-destructive text-xs">Could not save build settings: {saveError}</p>
+        {/if}
       </div>
     </div>
   </Popover.Content>
