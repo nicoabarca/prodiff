@@ -94,6 +94,11 @@
   function afterDelete(group: Group) {
     if (editing?.groupId === group.id) editing = null;
   }
+
+  /** A move renumbers the list, so the open editor's index no longer names the filter it opened on. */
+  function afterMove(group: Group) {
+    if (editing?.groupId === group.id) editing = null;
+  }
 </script>
 
 {#if project}
@@ -149,6 +154,7 @@
               onedit={openEditor}
               onapply={apply}
               oncopy={copy}
+              onmove={afterMove}
               onremovegroup={(target) => (deleting = target)}
             />
           {/each}

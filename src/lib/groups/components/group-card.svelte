@@ -21,8 +21,9 @@
   import type { Project } from "$lib/event-log/types";
   import type { Group } from "$lib/groups/types";
   import Check from "@lucide/svelte/icons/check";
+  import ArrowDown from "@lucide/svelte/icons/arrow-down";
+  import ArrowUp from "@lucide/svelte/icons/arrow-up";
   import Copy from "@lucide/svelte/icons/copy";
-  import GripVertical from "@lucide/svelte/icons/grip-vertical";
   import Plus from "@lucide/svelte/icons/plus";
   import Pencil from "@lucide/svelte/icons/pencil";
   import Trash2 from "@lucide/svelte/icons/trash-2";
@@ -35,6 +36,7 @@
     onedit,
     onapply,
     oncopy,
+    onmove,
     onremovegroup
   }: {
     project: Project;
@@ -43,6 +45,7 @@
     onedit: (group: Group, index: number | null) => void;
     onapply: (group: Group) => void;
     oncopy: (group: Group) => void;
+    onmove: (group: Group) => void;
     onremovegroup: (group: Group) => void;
   } = $props();
 
@@ -96,14 +99,9 @@
     if (renaming) nameInput?.select();
   });
 
-  // Reordering is semantic, not cosmetic: a trim changes what the filters after
-  // it see, so moving a row is a real edit to the draft.
-  let dragging = $state<number | null>(null);
-
-  function drop(target: number) {
-    if (dragging === null || dragging === target) return;
-    moveInDraft(group, dragging, target);
-    dragging = null;
+  function move(index: number, to: number) {
+    moveInDraft(group, index, to);
+    onmove(group);
   }
 </script>
 
@@ -201,22 +199,39 @@
         {@const measured = impact(index)}
         {@const pct = retained(index)}
         <li
-          draggable="true"
-          ondragstart={() => (dragging = index)}
-          ondragover={(event) => event.preventDefault()}
-          ondrop={() => drop(index)}
-          ondragend={() => (dragging = null)}
-          class="border-border flex items-center gap-3 border-t px-6 py-3 {editingIndex === index
+          class="border-border group flex items-center gap-3 border-t px-6 py-3 {editingIndex === index
             ? 'bg-muted'
-            : ''} {dragging === index ? 'opacity-50' : ''}"
+            : ''}"
         >
-          <span
-            class="text-muted-foreground flex shrink-0 cursor-grab items-center gap-1"
-            aria-hidden="true"
-          >
-            <GripVertical class="size-3.5" />
-            <span class="w-4 font-mono text-xs">{index + 1}</span>
+          <span class="text-muted-foreground w-4 shrink-0 font-mono text-xs" aria-hidden="true">
+            {index + 1}
           </span>
+          {#if filters.length > 1}
+            <div
+              class="flex flex-col opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100"
+            >
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="size-5"
+                disabled={index === 0}
+                onclick={() => move(index, index - 1)}
+                aria-label="Move filter up"
+              >
+                <ArrowUp />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                class="size-5"
+                disabled={index === filters.length - 1}
+                onclick={() => move(index, index + 1)}
+                aria-label="Move filter down"
+              >
+                <ArrowDown />
+              </Button>
+            </div>
+          {/if}
           <div class="min-w-0 flex-1">
             <p class="truncate text-sm font-medium">{described.title}</p>
             <p class="text-muted-foreground truncate font-mono text-xs">{described.detail}</p>
