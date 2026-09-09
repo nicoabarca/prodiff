@@ -1,28 +1,39 @@
-//! The Directly-Follows Graph, shipped as the log's distinct trace shapes plus
-//! what each activity measures. Nothing is pruned, ranked or laid out here.
-//!
-//! The frontend folds the variants into nodes and edges for whatever set of
-//! activities is on screen, so hiding an activity re-links through it with
-//! counts the log actually holds rather than with a stand-in. Moving a slider
-//! never comes back here, and Rust never learns a Group's name or colour.
+//! Directly-Follows Graph payload generation.
 
 mod build;
 pub mod commands;
 
-use crate::analysis::{stats, Acc, AttributeBlock, GroupLog, ALPHA, MIN_GROUP_CASES};
+use crate::analysis::{
+    stats, Acc, AttributeBlock, GroupLog, ACTIVITY_DURATION, ALPHA, MIN_GROUP_CASES,
+    TRANSITION_TIME,
+};
 use crate::column_mapping::{find_role, ColumnMapping, ColumnRole};
 use std::collections::HashMap;
 
-/// Start and End are the frontend's, folded from the variants. Activities take
-/// the ids above them, so the two synthetic nodes can never collide.
 const FIRST_ACTIVITY_ID: usize = 2;
+
+#[derive(serde::Deserialize, Debug, Clone, PartialEq, Eq)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum RequestedAttribute {
+    Column { name: String },
+    ActivityDuration,
+    TransitionTime,
+}
+
+impl RequestedAttribute {
+    fn name(&self) -> &str {
+        match self {
+            Self::Column { name } => name,
+            Self::ActivityDuration => ACTIVITY_DURATION,
+            Self::TransitionTime => TRANSITION_TIME,
+        }
+    }
+}
 
 #[derive(serde::Serialize, Debug, Clone, Copy, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Counts {
-    /// Distinct cases passing through here at least once.
     pub cases: i64,
-    /// Every occurrence. A case visiting the activity twice counts twice.
     pub events: i64,
 }
 
@@ -31,23 +42,17 @@ pub struct Counts {
 pub struct DfgNode {
     pub id: usize,
     pub label: String,
-    /// Over the whole log, whatever the view is showing. The Activities slider
-    /// ranks by these.
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, AttributeBlock>,
 }
 
-/// One trace shape and how many cases of each Group ran it.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Variant {
-    /// Node ids, in the order they occurred.
     pub activities: Vec<usize>,
     pub cases: HashMap<String, i64>,
 }
 
-/// The wait one directly-follows pair spans. Only pairs the log holds have one,
-/// and only when the view asked for the Transition Time.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Transition {
@@ -69,22 +74,18 @@ pub struct Dfg {
     pub nodes: Vec<DfgNode>,
     pub variants: Vec<Variant>,
     pub transitions: Vec<Transition>,
-    /// Ordered: carries both the order and the identity of the Groups compared.
     pub groups: Vec<GroupBlock>,
     pub comparing: bool,
-    /// Cases in both Groups. Non-zero means the samples are not independent.
     pub overlap_cases: i64,
     pub transition_time_basis: &'static str,
     pub has_activity_duration: bool,
-    /// Attributes asked for and dropped: a case-level one holds a single value
-    /// per case and has nothing to say about one activity.
     pub skipped_case_level: Vec<String>,
 }
 
 pub fn build(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
-    attributes: &[String],
+    attributes: &[RequestedAttribute],
 ) -> Result<Dfg, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
@@ -126,8 +127,6 @@ pub fn build(
     })
 }
 
-/// One node per activity, in label order so the same log always numbers them
-/// the same way.
 fn activity_nodes(
     ids: &[String],
     labels: &[&String],
@@ -155,7 +154,6 @@ fn activity_nodes(
         .collect()
 }
 
-/// The trace shapes with their activities resolved to node ids.
 fn variants(
     node_id: &HashMap<&str, usize>,
     aggregates: &build::Aggregates,
@@ -181,7 +179,6 @@ fn variants(
         .collect()
 }
 
-/// One entry per pair the log holds, in `(source, target)` id order.
 fn transitions(
     ids: &[String],
     node_id: &HashMap<&str, usize>,
@@ -202,8 +199,6 @@ fn transitions(
     transitions
 }
 
-/// One Group's values summarized, and the two compared when there are two.
-/// A Group with too few observations gets its Summary and no test.
 fn block(ids: &[String], accs: &HashMap<String, Acc>, numeric: bool) -> AttributeBlock {
     let summaries = ids
         .iter()
@@ -223,36 +218,33 @@ fn block(ids: &[String], accs: &HashMap<String, Acc>, numeric: bool) -> Attribut
     AttributeBlock { summaries, test }
 }
 
-/// Benjamini-Hochberg per attribute family: one attribute across every node of
-/// the graph. See `docs/statistics.md`.
 fn correct(nodes: &mut [DfgNode], aggregates: &build::Aggregates) {
     for attr in &aggregates.attributes {
-        let family: Vec<f64> = nodes
-            .iter()
-            .filter_map(|node| Some(node.attributes.get(&attr.name)?.test.as_ref()?.p_value))
-            .collect();
-        let cutoff = stats::benjamini_hochberg(&family, ALPHA);
-        for node in nodes.iter_mut() {
-            if let Some(test) = node
-                .attributes
-                .get_mut(&attr.name)
-                .and_then(|block| block.test.as_mut())
-            {
-                test.significant = test.p_value <= cutoff;
-            }
-        }
+        correct_blocks(
+            nodes
+                .iter_mut()
+                .filter_map(|node| node.attributes.get_mut(&attr.name)),
+        );
     }
 }
 
-/// The transition times are their own family: one quantity across every pair.
 fn correct_transitions(transitions: &mut [Transition]) {
-    let family: Vec<f64> = transitions
+    correct_blocks(
+        transitions
+            .iter_mut()
+            .map(|transition| &mut transition.wait),
+    );
+}
+
+fn correct_blocks<'a>(blocks: impl Iterator<Item = &'a mut AttributeBlock>) {
+    let mut blocks: Vec<&mut AttributeBlock> = blocks.collect();
+    let family: Vec<f64> = blocks
         .iter()
-        .filter_map(|transition| Some(transition.wait.test.as_ref()?.p_value))
+        .filter_map(|block| block.test.as_ref().map(|test| test.p_value))
         .collect();
     let cutoff = stats::benjamini_hochberg(&family, ALPHA);
-    for transition in transitions.iter_mut() {
-        if let Some(test) = transition.wait.test.as_mut() {
+    for block in &mut blocks {
+        if let Some(test) = block.test.as_mut() {
             test.significant = test.p_value <= cutoff;
         }
     }
@@ -262,28 +254,25 @@ fn correct_transitions(transitions: &mut [Transition]) {
 mod tests {
     use super::*;
     use crate::analysis::{Summary, ACTIVITY_DURATION, TRANSITION_TIME};
-    // `polars::prelude` ships a `ColumnMapping` of its own, so this one is named
-    // in full wherever it appears.
     use crate::column_mapping::ColumnMapping as Mapping;
     use polars::prelude::*;
 
-    /// `region` is the case-level attribute, the one a node cannot measure.
     fn mapping(with_start: bool) -> Vec<Mapping> {
         let mut columns: Vec<Mapping> = serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"case"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"ts","role":"complete_timestamp","type":"datetime","granularity":"event"},
-              {"name":"cost","role":"other","type":"integer","granularity":"event"},
-              {"name":"who","role":"other","type":"string","granularity":"event"},
-              {"name":"region","role":"other","type":"string","granularity":"case"}
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"cost","role":"other","type":"integer","scope":"event"},
+              {"name":"who","role":"other","type":"string","scope":"event"},
+              {"name":"region","role":"other","type":"string","scope":"case","caseResolution":"constant"}
             ]"#,
         )
         .unwrap();
         if with_start {
             columns.push(
                 serde_json::from_str(
-                    r#"{"name":"start","role":"start_timestamp","type":"datetime","granularity":"event"}"#,
+                    r#"{"name":"start","role":"start_timestamp","type":"datetime","scope":"event"}"#,
                 )
                 .unwrap(),
             );
@@ -291,10 +280,6 @@ mod tests {
         columns
     }
 
-    /// One case: its id and its events, each `(activity, second, cost)`. The
-    /// second is when the activity completes, so a test can make one wait
-    /// longer than another. Every activity starts half a second before it
-    /// completes, which is what Activity Duration reads.
     type Trace<'a> = (&'a str, &'a [(&'a str, i64, i64)]);
 
     fn log(traces: &[Trace]) -> DataFrame {
@@ -352,7 +337,16 @@ mod tests {
     }
 
     fn dfg_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str], with_start: bool) -> Dfg {
-        let attributes: Vec<String> = attrs.iter().map(|a| a.to_string()).collect();
+        let attributes = attrs
+            .iter()
+            .map(|name| match *name {
+                ACTIVITY_DURATION => RequestedAttribute::ActivityDuration,
+                TRANSITION_TIME => RequestedAttribute::TransitionTime,
+                name => RequestedAttribute::Column {
+                    name: name.to_string(),
+                },
+            })
+            .collect::<Vec<_>>();
         build(&logs(a, b), &mapping(with_start), &attributes).unwrap()
     }
 
@@ -371,7 +365,6 @@ mod tests {
             .unwrap_or_else(|| panic!("no transition {from} to {to}"))
     }
 
-    /// A variant as its labels, which reads better in an assertion than ids do.
     fn shape(dfg: &Dfg, variant: &Variant) -> Vec<String> {
         variant
             .activities
@@ -421,12 +414,10 @@ mod tests {
         );
 
         assert_eq!(dfg.variants.len(), 2);
-        // The most travelled shape first: two cases ran it against the other's
-        // one.
-        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B"]);
-        assert_eq!(dfg.variants[0].cases["a"], 2);
-        assert_eq!(shape(&dfg, &dfg.variants[1]), ["A"]);
-        assert_eq!(dfg.variants[1].cases["a"], 1);
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A"]);
+        assert_eq!(dfg.variants[0].cases["a"], 1);
+        assert_eq!(shape(&dfg, &dfg.variants[1]), ["A", "B"]);
+        assert_eq!(dfg.variants[1].cases["a"], 2);
     }
 
     #[test]
@@ -510,6 +501,40 @@ mod tests {
         assert_eq!(dfg.skipped_case_level, vec!["region".to_string()]);
         assert!(node(&dfg, "A").attributes.contains_key("cost"));
         assert!(!node(&dfg, "A").attributes.contains_key("region"));
+    }
+
+    #[test]
+    fn a_column_named_as_a_derived_attribute_stays_a_column() {
+        let mut columns = mapping(false);
+        columns.push(
+            serde_json::from_str(
+                r#"{"name":"Transition Time","role":"other","type":"integer","scope":"event"}"#,
+            )
+            .unwrap(),
+        );
+        let requested = [RequestedAttribute::Column {
+            name: TRANSITION_TIME.to_string(),
+        }];
+
+        let (attributes, wants_transition, _) = build::plan(&requested, &columns, false).unwrap();
+
+        assert_eq!(attributes[0].name, TRANSITION_TIME);
+        assert!(!wants_transition);
+    }
+
+    #[test]
+    fn a_column_and_derived_attribute_with_the_same_name_are_rejected() {
+        let requested = [
+            RequestedAttribute::Column {
+                name: TRANSITION_TIME.to_string(),
+            },
+            RequestedAttribute::TransitionTime,
+        ];
+
+        assert!(matches!(
+            build::plan(&requested, &mapping(false), false),
+            Err(error) if error.contains("more than once")
+        ));
     }
 
     #[test]

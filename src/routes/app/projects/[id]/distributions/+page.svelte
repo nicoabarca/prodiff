@@ -29,18 +29,9 @@
     resetDistributions,
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
-  import {
-    autoBuild,
-    built,
-    isStale,
-    retryBuild
-  } from "$lib/tree/state/build.svelte";
-  import {
-    comparedGroups,
-    selected,
-    settings,
-    view
-  } from "$lib/tree/state/tree.svelte";
+  import { autoBuild, built, isStale, retryBuild } from "$lib/tree/state/build.svelte";
+  import { selected, settings, view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { attributeOptions } from "$lib/analysis/attributes";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";

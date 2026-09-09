@@ -19,7 +19,8 @@ vi.mock("$lib/db/client", () => ({
 
 const { autoBuild, build, built, isStale, retryBuild } =
   await import("$lib/tree/state/build.svelte");
-const { comparison, saveSettings, settings } = await import("$lib/tree/state/tree.svelte");
+const { saveSettings, settings } = await import("$lib/tree/state/tree.svelte");
+const { comparison } = await import("$lib/groups/state/comparison.svelte");
 
 const project = { id: "p", columns: [] } as unknown as Project;
 
@@ -71,9 +72,9 @@ describe("saveSettings", () => {
     persistSettings.mockRejectedValueOnce(new Error("disk full"));
     const previous = settings.value;
 
-    await expect(
-      saveSettings(project.id, { ...previous, attributes: ["Region"] })
-    ).rejects.toThrow("disk full");
+    await expect(saveSettings(project.id, { ...previous, attributes: ["Region"] })).rejects.toThrow(
+      "disk full"
+    );
 
     expect(settings.value).toBe(previous);
   });

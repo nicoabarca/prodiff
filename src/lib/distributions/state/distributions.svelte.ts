@@ -7,7 +7,8 @@ import { nodeDistributions } from "$lib/distributions/invokers/node-distribution
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
 import { built, isStale } from "$lib/tree/state/build.svelte";
-import { comparedIds, selected } from "$lib/tree/state/tree.svelte";
+import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { selected } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
 import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
