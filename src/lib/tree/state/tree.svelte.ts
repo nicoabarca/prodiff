@@ -12,7 +12,6 @@ import {
   defaultTreeView
 } from "$lib/tree/types";
 import { sameSelection, variantsCovering } from "$lib/tree/utils/variants";
-import type { Filter } from "$lib/filters/kind/filter";
 import type { Project } from "$lib/event-log/types";
 
 /** Build inputs, persisted per project. Changing either invalidates the tree. */

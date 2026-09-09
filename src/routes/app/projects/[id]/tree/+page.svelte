@@ -15,7 +15,7 @@
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import AttributePrompt from "$lib/tree/components/attribute-prompt.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
-  import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
+  import CompareDialog from "$lib/groups/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import GroupHeader from "$lib/tree/components/group-header.svelte";
   import VariantPanel from "$lib/tree/components/variant-panel.svelte";

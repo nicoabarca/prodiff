@@ -29,6 +29,9 @@ importers:
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2
+      elkjs:
+        specifier: ^0.12.0
+        version: 0.12.0
       mode-watcher:
         specifier: ^1.1.0
         version: 1.1.0(svelte@5.56.6)
@@ -1250,6 +1253,9 @@ packages:
         optional: true
       sqlite3:
         optional: true
+
+  elkjs@0.12.0:
+    resolution: {integrity: sha512-YZcKynxVxYoKIOEpywEPwCFdg+BTbxQRNf3pbwdDCvc8O3kQD8bmIwSxKU1eOTVc4Xo+VG9Te+575mlfvOrhEQ==}
 
   enhanced-resolve@5.24.2:
     resolution: {integrity: sha512-rpsZEGT1jFuve6QlpyRp9ckQ+kN61hvF9BzCPyMdaKTm8UJce96KBn3sorXOFXlzjPrs3Vc4T1NsSroZ3PxlFw==}
@@ -2758,6 +2764,8 @@ snapshots:
   dom-accessibility-api@0.6.3: {}
 
   drizzle-orm@0.45.2: {}
+
+  elkjs@0.12.0: {}
 
   enhanced-resolve@5.24.2:
     dependencies:

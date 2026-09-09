@@ -10,6 +10,7 @@
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+  import Waypoints from "@lucide/svelte/icons/waypoints";
 
   let { activeProject }: { activeProject: Project } = $props();
 
@@ -32,6 +33,11 @@
       href: `/app/projects/${activeProject.id}/tree`,
       label: "Directed Rooted Tree",
       icon: Network
+    },
+    {
+      href: `/app/projects/${activeProject.id}/dfg`,
+      label: "Directly-Follows Graph",
+      icon: Waypoints
     }
   ]);
 
