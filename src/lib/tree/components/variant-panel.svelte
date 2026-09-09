@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * Which Variants the next build is made of. Everything here edits a staged
-   * selection; only Apply writes it through, and only then does the tree read
-   * stale.
+   * selection; only Apply writes it through, and only then does the tree
+   * rebuild.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";

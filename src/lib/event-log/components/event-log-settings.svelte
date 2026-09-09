@@ -29,7 +29,7 @@
   } from "$lib/event-log/utils/field-settings";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import { updateProject } from "$lib/event-log/state/projects.svelte";
-  import { invalidateTree } from "$lib/tree/state/tree.svelte";
+  import { invalidateTree } from "$lib/tree/state/build.svelte";
   import type {
     CaseResolution,
     ColumnScope,

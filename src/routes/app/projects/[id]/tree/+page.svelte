@@ -3,12 +3,15 @@
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
+    autoBuild,
     build,
     built,
-    comparison,
     forgetOtherProject,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparison,
     comparedGroups,
-    isStale,
     loadComparison,
     loadSettings,
     selected,
@@ -30,11 +33,10 @@
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
   import GitCompare from "@lucide/svelte/icons/git-compare";
-  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 
   const project = $derived(currentProject());
   const groups = $derived(comparedGroups());
-  const stale = $derived(isStale());
 
   // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
@@ -56,6 +58,10 @@
     if (settings.projectId !== project.id) loadSettings(project.id);
     if (comparison.projectId !== project.id) loadComparison(project.id);
   });
+
+  $effect(() => {
+    if (project) autoBuild(project);
+  });
 </script>
 
 {#if project}
@@ -66,11 +72,6 @@
         open={variantsOpen}
         onToggle={() => (variantsOpen = !variantsOpen)}
       />
-      {#if stale && !built.building}
-        <p class="text-destructive text-xs">
-          Filters, variants or settings changed since this tree was built.
-        </p>
-      {/if}
       {#if built.error}
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
@@ -84,20 +85,6 @@
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
-        <Button
-          size="sm"
-          disabled={built.building || !groups[0] || noVariants}
-          title={noVariants ? "Select at least one variant" : undefined}
-          onclick={() => build(project)}
-        >
-          {#if built.tree}
-            <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
-            Rebuild
-          {:else}
-            <Play data-icon="inline-start" />
-            {built.building ? "Building…" : "Build tree"}
-          {/if}
-        </Button>
       </div>
     </div>
 
@@ -114,8 +101,19 @@
           <GroupHeader tree={built.tree} />
           <div class="flex min-h-0 flex-1">
             <div class="relative flex min-h-0 min-w-0 flex-1">
-              <Canvas tree={built.tree} {stale} />
+              <Canvas tree={built.tree} />
               <ViewLegend />
+              {#if built.error && !built.building}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  class="bg-background/90 absolute top-3 left-3 z-10 backdrop-blur"
+                  aria-label="Build the tree again"
+                  onclick={() => retryBuild(project)}
+                >
+                  <RotateCcw />
+                </Button>
+              {/if}
               {#if selected.id !== null}
                 <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
                   <Button
@@ -157,18 +155,19 @@
                   <Network />
                 </Empty.Media>
                 <Empty.Title>No tree built yet</Empty.Title>
-                <Empty.Description>
-                  Building runs a full scan of the log and one Significance Test per node and
-                  attribute, so it only happens when you ask.
-                </Empty.Description>
               </Empty.Header>
               <Button
                 disabled={built.building || !groups[0] || noVariants}
                 title={noVariants ? "Select at least one variant" : undefined}
                 onclick={() => build(project)}
               >
-                <Play data-icon="inline-start" />
-                {built.building ? "Building…" : "Build tree"}
+                {#if built.error}
+                  <RotateCcw data-icon="inline-start" />
+                  {built.building ? "Building…" : "Try again"}
+                {:else}
+                  <Play data-icon="inline-start" />
+                  {built.building ? "Building…" : "Build tree"}
+                {/if}
               </Button>
             </Empty.Root>
           </div>
