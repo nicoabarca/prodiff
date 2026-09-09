@@ -24,19 +24,30 @@
     charts,
     clearDismissed,
     dismiss,
-    forgetDistributions,
     loadDistributions,
     loaded,
+    resetDistributions,
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
-  import { build, built, isStale, selected, settings, view } from "$lib/tree/state/tree.svelte";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
+  import {
+    autoBuild,
+    built,
+    isStale,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparedGroups,
+    selected,
+    settings,
+    view
+  } from "$lib/tree/state/tree.svelte";
   import { attributeOptions } from "$lib/analysis/attributes";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+  import Eye from "@lucide/svelte/icons/eye";
   import Plus from "@lucide/svelte/icons/plus";
-  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   const project = $derived(currentProject());
@@ -49,6 +60,10 @@
     if (project && (!built.tree || selected.id === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
     }
+  });
+
+  $effect(() => {
+    if (project) autoBuild(project);
   });
 
   /** The trace down to this step and everything that follows it. */
@@ -80,7 +95,9 @@
   /** Attributes the build never tested here. */
   const available = $derived.by(() => {
     if (!project) return [];
-    const open = new Set(requested.map((card) => card.name));
+    const open = new Set(
+      requested.filter((card) => !charts.dismissed.includes(card.name)).map((card) => card.name)
+    );
     return attributeOptions(project.columns, project.hiddenColumns).filter(
       (name) => !open.has(name)
     );
@@ -109,13 +126,8 @@
   const SELECTED = `text-xs ${PLOT_TOGGLE}`;
 
   $effect(() => {
-    void selected.id;
-    untrack(clearDismissed);
-  });
-
-  $effect(() => {
     void [project?.id, built.key];
-    untrack(forgetDistributions);
+    untrack(resetDistributions);
   });
 
   // Every input listed explicitly and the call untracked: `loadDistributions`
@@ -158,7 +170,7 @@
           Its trace and next steps. Click to move.
         </p>
       </div>
-      <Canvas {tree} stale={false} deselectOnPaneClick={false} only={context} />
+      <Canvas {tree} deselectOnPaneClick={false} only={context} />
     </aside>
 
     <div class="flex min-h-0 flex-1 flex-col">
@@ -231,6 +243,13 @@
             </ToggleGroup.Root>
           </div>
 
+          {#if charts.dismissed.length > 0}
+            <Button variant="outline" size="sm" onclick={clearDismissed}>
+              <Eye data-icon="inline-start" />
+              Show all ({charts.dismissed.length})
+            </Button>
+          {/if}
+
           <Popover.Root>
             <Popover.Trigger>
               {#snippet child({ props })}
@@ -275,15 +294,19 @@
 
       {#if stale}
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-          <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
-          <p class="max-w-md text-xs">
-            Filters, variants or settings changed since this tree was built. Distributions would
-            describe a different set of cases than the tree on screen.
-          </p>
-          <Button size="sm" disabled={built.building} onclick={() => build(project)}>
-            <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
-            Rebuild tree
-          </Button>
+          {#if built.error && !built.building}
+            <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
+            <p class="text-destructive max-w-md text-xs">{built.error}</p>
+            <Button size="sm" onclick={() => retryBuild(project)}>
+              <RotateCcw data-icon="inline-start" />
+              Try again
+            </Button>
+          {:else}
+            <p class="text-muted-foreground max-w-md text-xs">
+              Rebuilding the tree. Distributions would describe a different set of cases than the
+              tree on screen.
+            </p>
+          {/if}
         </div>
       {:else if rootAtStep}
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">

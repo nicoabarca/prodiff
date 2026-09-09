@@ -22,3 +22,11 @@ export interface ProjectDraft {
   filePath: string;
   fileName: string;
 }
+
+export interface FormatCheck {
+  pattern: string;
+  rows: number;
+  missing: number;
+  failed: number;
+  sample: string | null;
+}

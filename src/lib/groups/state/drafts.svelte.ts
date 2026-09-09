@@ -1,5 +1,5 @@
 import type { Filter } from "$lib/filters/kind/filter";
-import { filtersKey } from "$lib/groups/state/groups.svelte";
+import { filtersKey } from "$lib/filters/utils/key";
 import type { Group } from "$lib/groups/types";
 
 /**
@@ -60,9 +60,4 @@ export function moveInDraft(group: Group, from: number, to: number) {
 /** Drops the draft, so the Group reads as its applied list again. */
 export function discardDraft(group: Group) {
   delete drafts[group.id];
-}
-
-/** Copies one Group's list onto another as a draft. */
-export function copyDraftFrom(source: Group, target: Group) {
-  setDraft(target, [...source.filters]);
 }

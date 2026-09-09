@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * What is drawn, as opposed to what was built. Nothing here triggers a
-   * rebuild, so these controls stay usable while the tree is stale.
+   * rebuild, so these controls stay usable while one runs.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -9,11 +9,10 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
-  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
+  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import { comparedGroups, selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import type { Direction, GroupFocus, Secondary } from "$lib/tree/types";
+  import type { GroupFocus, Secondary } from "$lib/tree/types";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { formatNumber } from "$lib/format";
@@ -53,7 +52,12 @@
   );
 
   const hasTransitionTime = $derived(attributes.includes(TRANSITION_TIME));
+  const hasAttributes = $derived(attributes.length > 0);
   const visible = $derived(visibleNodes(tree, view, selectedVariants()));
+
+  $effect(() => {
+    if (!hasAttributes) view.significantOnly = false;
+  });
 </script>
 
 <Popover.Root>
@@ -67,21 +71,6 @@
   </Popover.Trigger>
   <Popover.Content class="w-80">
     <div class="flex flex-col gap-4">
-      <div class="flex items-center justify-between">
-        <Label class="text-xs">Layout direction</Label>
-        <ToggleGroup.Root
-          type="single"
-          size="sm"
-          value={view.direction}
-          onValueChange={(value) => {
-            if (value) view.direction = value as Direction;
-          }}
-        >
-          <ToggleGroup.Item value="TB" aria-label="Top to bottom">TB</ToggleGroup.Item>
-          <ToggleGroup.Item value="LR" aria-label="Left to right">LR</ToggleGroup.Item>
-        </ToggleGroup.Root>
-      </div>
-
       <div class="flex flex-col gap-1.5">
         <Label class="text-xs">Node shows</Label>
         <Select.Root
@@ -135,18 +124,28 @@
         </span>
       </label>
 
-      <label class="flex items-start gap-2 text-xs">
-        <Checkbox
-          checked={view.significantOnly}
-          onCheckedChange={(checked) => (view.significantOnly = checked === true)}
-        />
-        <span>
-          Only variants with a significant finding
-          <span class="text-muted-foreground block text-[0.625rem]">
-            Whole paths are kept or dropped, never truncated.
+      <Tooltip.Root>
+        <Tooltip.Trigger>
+          <span class="block">
+            <label class="flex items-start gap-2 text-xs">
+              <Checkbox
+                checked={view.significantOnly}
+                disabled={!hasAttributes}
+                onCheckedChange={(checked) => (view.significantOnly = checked === true)}
+              />
+              <span>
+                Only variants with a significant finding
+                <span class="text-muted-foreground block text-[0.625rem]">
+                  Whole paths are kept or dropped, never truncated.
+                </span>
+              </span>
+            </label>
           </span>
-        </span>
-      </label>
+        </Tooltip.Trigger>
+        {#if !hasAttributes}
+          <Tooltip.Content>Build with at least one attribute to use this filter.</Tooltip.Content>
+        {/if}
+      </Tooltip.Root>
 
       <div class="text-muted-foreground border-border border-t pt-2 text-[0.625rem]">
         {formatNumber(visible.variantsShown)} variants shown

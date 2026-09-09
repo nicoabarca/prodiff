@@ -2,12 +2,11 @@
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import type { Snippet } from "svelte";
   import type { Project } from "$lib/event-log/types";
-  import Home from "@lucide/svelte/icons/home";
 
   type ProjectView = "tree" | "distributions" | "statistics" | "data" | "filters";
 
   const viewLabels: Record<ProjectView, string> = {
-    tree: "Comparison Directed Rooted Tree",
+    tree: "Directed Rooted Tree",
     distributions: "Distributions",
     statistics: "Statistics & data",
     data: "Data table",
@@ -21,14 +20,11 @@
   }: { project: Project; projectView?: ProjectView; actions?: Snippet } = $props();
 </script>
 
-<header class="border-border bg-background flex h-10 shrink-0 items-center border-b px-4">
+<header class="border-border bg-background flex h-10 shrink-0 items-center gap-2 border-b px-2">
   <Breadcrumb.Root>
     <Breadcrumb.List>
-      <Breadcrumb.Item>
-        <Breadcrumb.Link href="/app/projects" class="flex items-center gap-1.5">
-          <Home class="h-3.5 w-3.5" aria-hidden="true" />
-          Projects
-        </Breadcrumb.Link>
+      <Breadcrumb.Item class="ml-1">
+        <Breadcrumb.Link href="/app/projects">Projects</Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator />
       <Breadcrumb.Item>

@@ -65,11 +65,12 @@ pub fn group_preview(
     project_id: String,
     filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
+    offset: usize,
     limit: usize,
 ) -> Result<PreviewTable, String> {
     let df = filtered(&app, &project_id, &read_event_log(&app, &project_id)?, &filters, &columns)?;
     let total_events = df.height();
-    let page = df.head(Some(limit));
+    let page = df.slice(offset as i64, limit);
 
     let names: Vec<String> = page
         .get_column_names()

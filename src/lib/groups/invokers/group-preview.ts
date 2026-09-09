@@ -6,12 +6,14 @@ import type { ResponsePreviewTable } from "$lib/groups/invokers/types";
 export function groupPreview(
   project: Project,
   filters: Filter[],
+  offset: number,
   limit: number
 ): Promise<ResponsePreviewTable> {
   return invoke<ResponsePreviewTable>("group_preview", {
     projectId: project.id,
     filters,
     columns: project.columns,
+    offset,
     limit
   });
 }

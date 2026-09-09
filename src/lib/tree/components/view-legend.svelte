@@ -26,7 +26,6 @@
 
   const items = $derived(
     [
-      view.direction === "TB" ? "Top → bottom" : "Left → right",
       secondaryLabel,
       focusLabel,
       view.edgeLabels ? "Transition time on edges" : "",

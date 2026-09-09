@@ -16,15 +16,9 @@
   const accentVar = $derived(`--${accent}`);
   const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
   const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
-  const vertical = $derived(data.direction === "TB");
 </script>
 
-<Handle
-  type="target"
-  position={vertical ? Position.Top : Position.Left}
-  style="opacity:0"
-  isConnectable={false}
-/>
+<Handle type="target" position={Position.Top} style="opacity:0" isConnectable={false} />
 
 <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
      resolves to nothing here. -->
@@ -33,7 +27,11 @@
     ? 'opacity-25'
     : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
     ? 'ring-destructive/60 ring-2'
-    : ''} {data.highlighted ? 'ring-foreground ring-2 ring-offset-1' : ''}"
+    : ''} {data.highlighted
+    ? 'shadow-[0_0_1.25rem_0.125rem_rgba(99,102,241,0.55)] ring-2 ring-indigo-500 ring-offset-1'
+    : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
+    ? 'tree-node-exit pointer-events-none'
+    : ''}"
   style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
 >
   <div class="flex w-full items-start justify-center gap-1">
@@ -84,9 +82,7 @@
   {#if data.hiddenBelow > 0 || data.hasChildren}
     <button
       type="button"
-      class="text-muted-foreground hover:text-foreground absolute -bottom-2 {vertical
-        ? 'left-1/2 -translate-x-1/2'
-        : '-right-2 bottom-1/2 translate-y-1/2'} bg-card border-border flex items-center gap-0.5 border px-1 text-[0.625rem]"
+      class="text-muted-foreground hover:text-foreground bg-card border-border absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 border px-1 text-[0.625rem]"
       onclick={(event) => {
         event.stopPropagation();
         data.onToggleCollapse();
@@ -102,9 +98,4 @@
   {/if}
 </div>
 
-<Handle
-  type="source"
-  position={vertical ? Position.Bottom : Position.Right}
-  style="opacity:0"
-  isConnectable={false}
-/>
+<Handle type="source" position={Position.Bottom} style="opacity:0" isConnectable={false} />

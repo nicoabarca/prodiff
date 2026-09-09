@@ -36,9 +36,9 @@ pub fn apply(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::column_mapping::ColumnMapping;
     use crate::filters::tests::support::{cases, log};
     use crate::filters::Filter;
-    use crate::column_mapping::ColumnMapping;
 
     fn run(position: Endpoint, mode: EndpointMode, activities: &[&str]) -> DataFrame {
         let activities: Vec<String> = activities.iter().map(|a| a.to_string()).collect();
@@ -77,9 +77,9 @@ mod tests {
         .unwrap();
         let numeric_activity: Vec<ColumnMapping> = serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id"},
-              {"name":"act_num","role":"activity_name","type":"integer"},
-              {"name":"ts","role":"complete_timestamp"}
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"act_num","role":"activity_name","type":"integer","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"}
             ]"#,
         )
         .unwrap();

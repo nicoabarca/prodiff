@@ -53,7 +53,7 @@
     {/if}
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={confirm}>Delete</AlertDialog.Action>
+      <AlertDialog.Action variant="destructive" onclick={confirm}>Delete</AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>

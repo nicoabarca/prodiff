@@ -2,7 +2,7 @@
   import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
   import type { AssignableRole } from "$lib/event-log/utils/roles";
   import { roleMeta } from "$lib/event-log/utils/roles";
-  import { GRANULARITY_LABELS } from "$lib/event-log/utils/field-settings";
+  import { CASE_RESOLUTION_LABELS, SCOPE_LABELS } from "$lib/event-log/utils/field-settings";
   import * as Table from "$lib/components/ui/table/index.js";
   import FileCheck from "@lucide/svelte/icons/file-check";
   import Info from "@lucide/svelte/icons/info";
@@ -32,16 +32,15 @@
 <div class="border-primary bg-primary/5 mb-5 flex shrink-0 items-center gap-3 border-l-4 px-4 py-3">
   <FileCheck class="text-primary h-5 w-5 shrink-0" aria-hidden="true" />
   <p class="text-foreground text-base font-medium text-pretty">
-    Review the column mapping for <span class="font-mono">{fileName}</span> before it's sent to create
-    the project.
+    Review the column mapping for <span class="font-mono">{fileName}</span> before it is sent to
+    create the project.
   </p>
 </div>
 
 <div class="border-border bg-card mb-5 flex shrink-0 items-center gap-3 border px-4 py-2">
   <Info class="text-muted-foreground h-4 w-4 shrink-0" aria-hidden="true" />
   <p class="text-muted-foreground text-xs">
-    Hidden columns aren't lost. You'll be able to toggle them back to visible later from the
-    project's settings.
+    Hidden columns are retained. They can be made visible again from the project settings.
   </p>
 </div>
 
@@ -60,12 +59,13 @@
         <Table.Row class="hover:bg-transparent">
           <Table.Head>Field name</Table.Head>
           <Table.Head>Role</Table.Head>
-          <Table.Head>Granularity</Table.Head>
+          <Table.Head>Scope</Table.Head>
           <Table.Head>Data type</Table.Head>
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each visibleMapping as { name, type, granularity }}
+        {#each visibleMapping as column}
+          {@const { name, type } = column}
           {@const required = roleByColumn[name] !== undefined}
           <Table.Row class="hover:bg-primary/5">
             <Table.Cell class="font-mono text-xs">{name}</Table.Cell>
@@ -76,7 +76,11 @@
                 {roleLabel(name)}
               </span>
             </Table.Cell>
-            <Table.Cell class="text-xs">{GRANULARITY_LABELS[granularity]}</Table.Cell>
+            <Table.Cell class="text-xs">
+              {SCOPE_LABELS[column.scope]}{column.scope === "case"
+                ? ` · ${CASE_RESOLUTION_LABELS[column.caseResolution]}`
+                : ""}
+            </Table.Cell>
             <Table.Cell class="font-mono text-xs">{type}</Table.Cell>
           </Table.Row>
         {/each}

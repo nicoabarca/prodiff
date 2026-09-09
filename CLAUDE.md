@@ -6,10 +6,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `pnpm dev` — start the Vite dev server (frontend only, port 1420, fixed via `vite.config.js`).
 - `pnpm tauri dev` — run the full desktop app (spawns the frontend dev server via `beforeDevCommand` in `src-tauri/tauri.conf.json`, then opens the native window).
+- `pnpm dev:port <port>` — same, on another port (`scripts/dev-port.sh`). It derives the app identifier from the current git branch, so each branch gets its own Application Support data and two worktrees never share a SQLite database or project files.
 - `pnpm build` — build the frontend (`vite build`); `pnpm tauri build` builds the full desktop bundle.
-- `pnpm check` — type-check via `svelte-kit sync && svelte-check`. Run this after any change.
+- `pnpm check` — type-check via `svelte-kit sync && svelte-check`. Run this after any change. `tsconfig.json` excludes `**/*.test.ts`, so it does not type-check test files: a fixture built from a type that has since changed passes `check` and fails only under `pnpm test`. Run both.
 - `pnpm test` — run Vitest once; `pnpm test:watch` for watch mode. Config lives in `vitest.config.ts`, deliberately separate from the Tauri-tuned `vite.config.js`.
 - Adding/updating shadcn-svelte components: `npx shadcn-svelte@latest add <name>` (see `components.json` for config: style `lyra`, base color `neutral`, icon library `lucide`). Never hand-edit files under `src/lib/components/ui/` — treat them as generated; re-run `add`/`update` instead.
+
+The domain vocabulary — Project, Event Log, Column Mapping, Filter, Filter List, Group, Original — is defined in `CONTEXT.md`, including the words to avoid for each. Use those terms verbatim in code, comments and user-facing copy.
 
 ## Architecture
 
@@ -25,7 +28,7 @@ src/lib/
 │   └── virtual-list/  own reusable component + its logic + its test
 ├── db/                client.ts, schema.ts (one file, all tables)
 ├── hooks/             shadcn
-├── format.ts          global: 21 importers, no domain knowledge
+├── format.ts          global: no domain knowledge
 ├── utils.ts           shadcn `cn()`
 ├── analysis/          Summary, Test, AttributeBlock, the attribute vocabulary
 ├── event-log/         Project record, column mapping, upload wizard
@@ -49,15 +52,15 @@ Dependencies run one way — `statistics | tree | distributions → groups → f
 - Types at a call boundary carry a direction prefix: `Response*` for what an invoker returns (`ResponseDirectedTree`), `Request*` for what it sends (`RequestColumnMapping`). Types nested inside those stay unprefixed (`TreeNode`, `Test`, `Summary`) — the prefix marks what an invoker hands over directly, not everything bound to a serde struct.
 - **Payloads are keyed by Group id, never by A/B.** `ResponseDirectedTree.groups` and `ResponseNodeDistributions.groups` are ordered arrays carrying both order and identity (`[{ id, ... }]`); everything below them is a map keyed by id — `TreeNode.cases`, `AttributeBlock.summaries`, `CategoryCount.counts`, `Distribution.counts`/`n`/`totals`, `DurationShape.ecdf`/`boxStats`/`logCounts`. `Test.higher` names the Group that ranks higher by id, `null` for chi². Ids only: Rust never learns a Group's name or colour, so a rename cannot go stale inside a cached tree, and the views join back through `comparedGroups()`. Two casings appear in one payload and neither is wrong — serde fields are camelCase, while attribute names and attribute values are the user's own column headers and cell values, verbatim.
 - **Props and arguments are keyed by Group id too.** A component takes the ordered `groups` and reads its data by `group.id`; it never takes `groupA`/`groupB`, a `nameA`/`COLOR_B` pair, or a row shaped `{ a, b }`. `Bar.counts` and `CurveRow.shares` are maps keyed by id; `SummaryCompare` takes `summaries` keyed by id; `comparedGroups()` returns `Group[]`. On the Rust side the pipeline takes `&[GroupLog]`, id and DataFrame together, and `by_group`/`keyed` are the only places the positional internals meet the ids.
-- A new filter kind is one file in `filters/kind/` (type, modes, copy, its `describe`/`isComplete` arms) plus two lines in `filters/kind/filter.ts`, and one file in `filters/components/editors/` plus one `{:else if}` in `filter-editor.svelte`. Mirrors `src-tauri/src/filters/`.
-- `case_not_in_group` is the one filter that reads something other than the log. Its excluded case ids are resolved in `queries::filtered` before the pipeline runs and handed to `filters::apply` as `ExcludedCases`; a Group that has never been applied contributes nothing. It also makes Groups a dependency graph — scanned out of Filter Lists by `dependentsOf`, never stored — and deleting a Group cascades to everything that excludes it.
+- A new filter kind is one file in `filters/kind/` (type, modes, copy, its `describe`/`isComplete` arms) plus two lines in `filters/kind/filter.ts`, and one file in `filters/components/editors/` plus one `{:else if}` in `filter-editor.svelte`. Mirrors `src-tauri/src/filters/`, where the file names are the Rust ones: `kind/case-not-in-group.ts` is `filters/group_membership.rs`.
+- `case_not_in_group` is the one filter that reads something other than the log (see `docs/adr/0006`). Its excluded case ids are resolved in `queries::filtered` before the pipeline runs and handed to `filters::apply` as `ExcludedCases`; a Group that has never been applied contributes nothing. It also makes Groups a dependency graph — scanned out of Filter Lists by `dependentsOf`, never stored — and deleting a Group cascades to everything that excludes it.
 - Tests go in `<domain>/tests/{components,state,invokers,utils}/`. Shared components keep their test beside their source. A test using runes must have `.svelte` in its filename (`slices.svelte.test.ts`) or Vitest will not compile them.
 
 **Conventions:** kebab-case filenames and folders throughout. Deep imports, no barrel files — `import type { Slice } from "$lib/slices/types"`, not from a domain index. Prefer the `$lib` alias over relative paths.
 
 **Comments document, they don't argue.** A comment says what a thing is, the units and contracts it carries, or a behavior surprising enough to trip the next reader (`min-h-0` being load-bearing, `log(0)` not existing, an effect that would retrigger itself). It never justifies the design: no "rather than X", no "instead of Y", no "deliberately", no pointers to an ADR. Rationale belongs in `docs/adr/`, where it can be read and superseded. Delete a stale comment with the code it describes. No em dashes, in comments or in user-facing copy. No comments on the members of an interface, type, struct, enum or prop list either: the field name and its type carry it, and anything else goes above the declaration.
 
-**Routes stay thin.** `src/routes/` handles URL structure and page composition. Four routes are still fat (`distributions`, `new`, `filters`, `tree`) and are a known deferred cleanup — don't add to them.
+**Routes stay thin.** `src/routes/` handles URL structure and page composition. Three routes are still fat (`distributions`, `filters`, `tree`) and are a known deferred cleanup — don't add to them.
 
 **Groups are materialized.** A Group is a Filter List applied to the Event Log and written to `{app_data}/projects/{project_id}/groups/{group_id}.parquet` (see `docs/adr/0005`). The Filter List stays the source of truth; the Parquet is its product. `apply_group` writes the file and returns the Group's figures in the same pass, so `stats` non-null means "this Group has a Parquet" and null means "not applied yet" — there is no separate key column to compare. The row is written before the file and deleted after it, so a file without a row is unreachable; `loadGroups` checks the file still exists and drops the cached figures when it does not. Group ids are eight random base62 characters and are never reused, because a copied Filter List can carry `case_not_in_group(id)`.
 
@@ -67,6 +70,6 @@ Dependencies run one way — `statistics | tree | distributions → groups → f
 
 The Original is not a row: it is the whole Event Log, synthesized by `originalGroup()`, answering to the id `original` everywhere including in Rust.
 
-**Which Groups the tree compares** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the tree degrades to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
+**Which Groups the tree compares** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. What the tree is built from — the attributes to test and the Variants to include — is persisted per project too, in `tree_settings`; the tree itself is never cached and lives in memory while the app is open. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the tree degrades to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
 
 Styling convention: Tailwind utility classes directly on elements/component `class` props — no scoped `<style>` blocks with `@apply` in routes or components. Use `rem`/`em` for custom sizing, never `px`. Icons come from `@lucide/svelte`; when placed inside a shadcn `Button`, use `data-icon="inline-start"`/`"inline-end"` (the button component handles icon sizing/spacing itself — don't add manual size classes there).

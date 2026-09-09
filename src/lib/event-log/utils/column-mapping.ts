@@ -1,12 +1,15 @@
 import {
-  COLUMN_GRANULARITIES,
+  CASE_RESOLUTIONS,
   COLUMN_ROLES,
+  COLUMN_SCOPES,
   COLUMN_TYPES,
-  type ColumnGranularity,
+  type CaseResolution,
+  type ColumnScope,
   type RequestColumnMapping,
   type ColumnRole,
   type ColumnType
 } from "$lib/event-log/invokers/types";
+import { isTemporal } from "$lib/event-log/utils/field-settings";
 
 /**
  * Frontend-side validation of the column mapping payload before it is sent to
@@ -30,7 +33,10 @@ export function validateColumnMapping(
     if (typeof entry !== "object" || entry === null) {
       throw new Error("Each column mapping entry must be an object.");
     }
-    const { name, role, type, granularity } = entry as Record<string, unknown>;
+    const { name, role, type, scope, caseResolution, timestampFormat } = entry as Record<
+      string,
+      unknown
+    >;
 
     if (typeof name !== "string" || !expectedColumnNames.includes(name)) {
       throw new Error(`Column mapping references an unknown column: ${String(name)}`);
@@ -46,11 +52,30 @@ export function validateColumnMapping(
     if (typeof type !== "string" || !COLUMN_TYPES.includes(type as ColumnType)) {
       throw new Error(`Column "${name}" has an invalid type: ${String(type)}`);
     }
-    if (
-      typeof granularity !== "string" ||
-      !COLUMN_GRANULARITIES.includes(granularity as ColumnGranularity)
-    ) {
-      throw new Error(`Column "${name}" has an invalid granularity: ${String(granularity)}`);
+    if (typeof scope !== "string" || !COLUMN_SCOPES.includes(scope as ColumnScope)) {
+      throw new Error(`Column "${name}" has an invalid scope: ${String(scope)}`);
+    }
+    if (scope === "case") {
+      if (
+        typeof caseResolution !== "string" ||
+        !CASE_RESOLUTIONS.includes(caseResolution as CaseResolution)
+      ) {
+        throw new Error(
+          `Column "${name}" has an invalid case resolution: ${String(caseResolution)}`
+        );
+      }
+    } else if (caseResolution !== undefined) {
+      throw new Error(`Column "${name}" is event-scoped and cannot carry a case resolution.`);
+    }
+
+    if (isTemporal(type as ColumnType)) {
+      if (timestampFormat !== null && (typeof timestampFormat !== "string" || !timestampFormat)) {
+        throw new Error(`Column "${name}" has an invalid timestamp format.`);
+      }
+    } else if (timestampFormat !== undefined) {
+      throw new Error(
+        `Column "${name}" is declared ${String(type)} and cannot carry a timestamp format.`
+      );
     }
 
     if (role === "case_id") caseIdCount++;

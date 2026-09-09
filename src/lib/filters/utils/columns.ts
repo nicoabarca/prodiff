@@ -6,6 +6,11 @@ import type { Project } from "$lib/event-log/types";
  * picker's availability check and the editor that reads a column agree.
  */
 
+/** Column lists are read as menus, so they are ordered by name, not by file position. */
+function byName(columns: RequestColumnMapping[]): RequestColumnMapping[] {
+  return [...columns].sort((a, b) => a.name.localeCompare(b.name));
+}
+
 /** Everything the project has not hidden. Hidden columns are inert everywhere. */
 export function usableColumns(project: Project): RequestColumnMapping[] {
   return project.columns.filter((c) => !project.hiddenColumns.includes(c.name));
@@ -18,11 +23,11 @@ export function activityColumn(project: Project): string {
 
 /**
  * Columns an attribute or endpoint filter can select on. Case ids and
- * timestamps are excluded: filtering by one case id is not a slice, and
+ * timestamps are excluded: filtering by one case id is not a Group, and
  * timestamps have their own filter kind.
  */
 export function categoricalColumns(project: Project): RequestColumnMapping[] {
-  return usableColumns(project).filter(
+  return byName(usableColumns(project)).filter(
     (c) =>
       (c.type === "string" || c.type === "boolean") &&
       c.role !== "case_id" &&
@@ -33,7 +38,7 @@ export function categoricalColumns(project: Project): RequestColumnMapping[] {
 
 /** Columns a numeric filter can bound. */
 export function numericColumns(project: Project): RequestColumnMapping[] {
-  return usableColumns(project).filter((c) => c.type === "integer" || c.type === "float");
+  return byName(usableColumns(project)).filter((c) => c.type === "integer" || c.type === "float");
 }
 
 /**
@@ -41,5 +46,5 @@ export function numericColumns(project: Project): RequestColumnMapping[] {
  * the whole case, so it can never produce a reference/follower pair.
  */
 export function eventLevelColumns(project: Project): RequestColumnMapping[] {
-  return categoricalColumns(project).filter((c) => c.granularity !== "case");
+  return categoricalColumns(project).filter((c) => c.scope !== "case");
 }

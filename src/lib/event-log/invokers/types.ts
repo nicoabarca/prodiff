@@ -16,20 +16,61 @@ export type ColumnRole = (typeof COLUMN_ROLES)[number];
 export const COLUMN_TYPES = ["string", "integer", "float", "boolean", "date", "datetime"] as const;
 export type ColumnType = (typeof COLUMN_TYPES)[number];
 
-export const COLUMN_GRANULARITIES = ["event", "case", "case_and_event"] as const;
-export type ColumnGranularity = (typeof COLUMN_GRANULARITIES)[number];
+export const COLUMN_SCOPES = ["event", "case"] as const;
+export type ColumnScope = (typeof COLUMN_SCOPES)[number];
 
-export interface RequestColumnMapping {
+// Which of a case's rows a case-scoped column is read from.
+export const CASE_RESOLUTIONS = ["constant", "first", "last"] as const;
+export type CaseResolution = (typeof CASE_RESOLUTIONS)[number];
+
+/**
+ * Scope and, under `case`, the row the column is read from. An event-scoped
+ * column carries no resolution: there is no row to pick.
+ */
+export type ColumnScoping = { scope: "event" } | { scope: "case"; caseResolution: CaseResolution };
+
+export const TEMPORAL_COLUMN_TYPES = ["date", "datetime"] as const;
+export type TemporalColumnType = (typeof TEMPORAL_COLUMN_TYPES)[number];
+
+/**
+ * The declared type and, for the temporal types alone, the pattern the values
+ * are parsed with. `null` there means the reader infers it.
+ */
+export type ColumnTyping =
+  | { type: Exclude<ColumnType, TemporalColumnType> }
+  | { type: TemporalColumnType; timestampFormat: string | null };
+
+export type RequestColumnMapping = {
   name: string;
   role: ColumnRole;
-  type: ColumnType;
-  granularity: ColumnGranularity;
+} & ColumnScoping &
+  ColumnTyping;
+
+/** A case-scoped column whose value is not constant within at least one case. */
+export interface ResponseCaseColumnViolation {
+  column: string;
+  cases: number;
+  exampleCase: string;
+  exampleValues: string[];
 }
 
-/** What `preview_event_log` returns: the head of the file, typed. */
 export interface ResponseEventLogPreview {
   columns: { name: string; dtype: ColumnType }[];
   rows: string[][];
+}
+
+export interface PatternCoverage {
+  pattern: string;
+  failed: number;
+}
+
+export interface ResponseTimestampColumnReport {
+  column: string;
+  rows: number;
+  missing: number;
+  best: string | null;
+  coverage: PatternCoverage[];
+  deviants: string[];
 }
 
 /**

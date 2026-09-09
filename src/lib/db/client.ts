@@ -3,7 +3,8 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
 
-// DDL is derived from schema.ts and run idempotently at startup. No migrations.
+// DDL is derived from schema.ts and run idempotently at startup. Additive columns
+// are applied after their tables exist so installed databases gain new settings.
 function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   const { name, columns } = getTableConfig(table);
   const columnDefs = columns.map((column) => {
@@ -13,6 +14,18 @@ function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
     return parts.join(" ");
   });
   return `CREATE TABLE IF NOT EXISTS ${name} (\n  ${columnDefs.join(",\n  ")}\n);`;
+}
+
+async function addColumnIfMissing(
+  sqlite: Database,
+  table: string,
+  column: string,
+  definition: string
+) {
+  const columns = await sqlite.select<{ name: string }[]>(`PRAGMA table_info(${table})`);
+  if (!columns.some((known) => known.name === column)) {
+    await sqlite.execute(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+  }
 }
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -34,6 +47,12 @@ export function initDb(): Promise<Db> {
       await sqlite.execute(createTableSql(schema.groups));
       await sqlite.execute(createTableSql(schema.comparisons));
       await sqlite.execute(createTableSql(schema.treeSettings));
+      await addColumnIfMissing(
+        sqlite,
+        "tree_settings",
+        "attributes_chosen",
+        "attributes_chosen integer NOT NULL DEFAULT 0"
+      );
 
       instance = drizzle(
         async (sql, params, method) => {

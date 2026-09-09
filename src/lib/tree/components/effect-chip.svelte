@@ -2,7 +2,7 @@
   /** One attribute's Significance Test, said in one word. */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
+  import { comparedGroups } from "$lib/tree/state/tree.svelte";
   import type { Test } from "$lib/analysis/types";
   import { effectBand, effectStep } from "$lib/tree/utils/effect";
 
