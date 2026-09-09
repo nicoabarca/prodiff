@@ -20,6 +20,7 @@ vi.mock("$lib/db/client", () => ({
 const { autoBuild, build, built, isStale, retryBuild } =
   await import("$lib/tree/state/build.svelte");
 const { comparison, saveSettings, settings } = await import("$lib/tree/state/tree.svelte");
+const { groupsLoaded } = await import("$lib/groups/state/groups.svelte");
 
 const project = { id: "p", columns: [] } as unknown as Project;
 
@@ -60,6 +61,7 @@ beforeEach(() => {
   built.tree = null;
   built.building = false;
   built.error = null;
+  groupsLoaded.projectId = "p";
   comparison.projectId = "p";
   comparison.groupIds = [];
   settings.projectId = "p";
@@ -80,7 +82,23 @@ describe("saveSettings", () => {
 });
 
 describe("autoBuild", () => {
-  it("does not build before the first build is asked for", () => {
+  it("builds the first tree without one being asked for", async () => {
+    directedTree.mockResolvedValue(tree());
+
+    autoBuild(project);
+    await vi.waitFor(() => expect(directedTree).toHaveBeenCalledTimes(1));
+  });
+
+  it("waits for the persisted inputs before the first build", () => {
+    settings.projectId = null;
+
+    autoBuild(project);
+    expect(directedTree).not.toHaveBeenCalled();
+  });
+
+  it("leaves the first tree to the attribute prompt", () => {
+    settings.value = { ...settings.value, attributesChosen: false };
+
     autoBuild(project);
     expect(directedTree).not.toHaveBeenCalled();
   });
