@@ -22,7 +22,7 @@
     aria-label="Change group colour"
   ></Popover.Trigger>
   <Popover.Content class="w-auto p-2">
-    <div class="grid grid-cols-4 gap-1.5">
+    <div class="grid grid-cols-3 gap-1.5">
       {#each GROUP_COLORS as color (color)}
         <button
           type="button"

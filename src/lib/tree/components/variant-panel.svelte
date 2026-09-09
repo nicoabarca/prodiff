@@ -112,6 +112,28 @@
 
   const rows = $derived(variants.rows.filter((row) => matches(row, shown)));
 
+  /** The Variants each select action stages: every one, the ones a Group holds
+      cases on, or the ones every Group holds cases on. Membership, not
+      exclusivity: a Variant both Groups hold stages under either of them. */
+  const selectors = $derived([
+    { id: "all", label: "All", ink: "var(--foreground)", keys: variants.rows.map((row) => row.key) },
+    ...columns.map((group) => ({
+      id: group.id,
+      label: group.name,
+      ink: accents[group.id],
+      keys: variants.rows.filter((row) => holds(row, group.id)).map((row) => row.key)
+    })),
+    {
+      id: "shared",
+      label: "Shared",
+      ink: "var(--muted-foreground)",
+      keys: variants.rows.filter((row) => matches(row, "shared")).map((row) => row.key)
+    }
+  ]);
+
+  /** The Original alone has nothing to pick between. */
+  const selectActions = $derived(columns.length > 1 ? selectors : selectors.slice(0, 1));
+
   // A Group that leaves the comparison takes its filter with it.
   $effect(() => {
     if (!filters.some((filter) => filter.id === shown)) shown = "all";
@@ -231,14 +253,17 @@
 
     <div class="flex shrink-0 flex-col gap-2 border-b px-3 py-2.5">
       <div class="flex flex-wrap items-center gap-1.5">
-        <Button
-          size="sm"
-          variant="outline"
-          class="h-6 px-2 text-[0.6875rem]"
-          onclick={() => setStaged(rows.map((r) => r.key))}
-        >
-          All
-        </Button>
+        <span class="text-muted-foreground text-[0.625rem] tracking-wide uppercase">Select</span>
+        {#each selectActions as action (action.id)}
+          <button
+            type="button"
+            class="border-border hover:bg-accent flex h-6 max-w-32 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem]"
+            style="color:{action.ink}"
+            onclick={() => setStaged(action.keys)}
+          >
+            <span class="truncate">{action.label}</span>
+          </button>
+        {/each}
         <Button
           size="sm"
           variant="ghost"
@@ -246,7 +271,7 @@
           disabled={staged.size === 0}
           onclick={() => setStaged([])}
         >
-          Clear all
+          Clear
         </Button>
         <div class="ml-auto flex min-w-40 flex-1 items-center gap-2">
           <span class="text-muted-foreground text-[0.625rem] whitespace-nowrap">Coverage</span>

@@ -32,7 +32,9 @@
     : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
     ? 'tree-node-exit pointer-events-none'
     : ''}"
-  style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
+  style="background:{fill};border-color:{data.divergent
+    ? 'var(--destructive)'
+    : border};transition-duration:var(--tree-dim-duration)"
 >
   <div class="flex w-full items-start justify-center gap-1">
     <Tooltip.Root>
