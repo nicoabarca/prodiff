@@ -29,6 +29,8 @@
     ? 'ring-destructive/60 ring-2'
     : ''} {data.highlighted
     ? 'shadow-[0_0_1.25rem_0.125rem_rgba(99,102,241,0.55)] ring-2 ring-indigo-500 ring-offset-1'
+    : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
+    ? 'tree-node-exit pointer-events-none'
     : ''}"
   style="background:{fill};border-color:{data.divergent ? 'var(--destructive)' : border}"
 >

@@ -93,6 +93,8 @@
   /* The Original stays grey. */
   --group-original: oklch(0.45 0.007 85);
 
+  --tree-enter: oklch(0.585 0.233 277.117);
+
   /* Effect magnitude: a sequential ramp, one hue. The foreground flips at step
        3, where dark text stops carrying. */
   --effect-1: oklch(0.95 0.035 25);
@@ -174,6 +176,8 @@
   --chart-5: oklch(0.424 0.199 265.638);
 
   --group-original: oklch(0.708 0 0);
+
+  --tree-enter: oklch(0.673 0.182 276.935);
 
   --effect-1: oklch(0.28 0.05 25);
   --effect-1-foreground: oklch(0.85 0.07 25);
@@ -354,4 +358,65 @@
 
 .thin-scrollbars::-webkit-scrollbar-thumb:hover {
   background: var(--muted-foreground);
+}
+
+.svelte-flow__node {
+  transition: transform 300ms cubic-bezier(0.33, 1, 0.68, 1);
+}
+
+.tree-node-enter {
+  animation:
+    tree-node-fade-in 200ms ease-out 180ms backwards,
+    tree-node-glow 1000ms ease-out 180ms backwards;
+}
+
+.tree-node-exit,
+.tree-edge-exit {
+  animation: tree-node-fade-out 300ms ease-in forwards;
+}
+
+@keyframes tree-node-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tree-node-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes tree-node-glow {
+  0% {
+    box-shadow: 0 0 0 0.125rem var(--tree-enter);
+  }
+  40% {
+    box-shadow: 0 0 1.25rem 0.125rem var(--tree-enter);
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .svelte-flow__node {
+    transition: none;
+  }
+
+  .tree-node-enter {
+    animation: tree-node-glow 1000ms ease-out;
+  }
+
+  .tree-node-exit,
+  .tree-edge-exit {
+    animation: none;
+    opacity: 0;
+  }
 }
