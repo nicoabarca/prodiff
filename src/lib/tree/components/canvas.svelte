@@ -16,18 +16,18 @@
     shownVariant,
     view
   } from "$lib/tree/state/tree.svelte";
+  import { built } from "$lib/tree/state/build.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { variantPath, visibleNodes } from "$lib/tree/utils/tree";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   let {
     tree,
-    stale,
     deselectOnPaneClick = true,
     /** Narrows the drawing to these nodes. Null draws the whole tree. */
     only = null
   }: {
     tree: ResponseDirectedTree;
-    stale: boolean;
     deselectOnPaneClick?: boolean;
     only?: Set<number> | null;
   } = $props();
@@ -217,7 +217,7 @@
   });
 </script>
 
-<div class="relative min-h-0 flex-1 {stale ? 'opacity-60' : ''}" bind:this={pane}>
+<div class="relative min-h-0 flex-1" bind:this={pane}>
   <SvelteFlow
     bind:nodes
     bind:edges
@@ -239,4 +239,12 @@
     <Background />
     <Controls showLock={false} />
   </SvelteFlow>
+
+  {#if built.building}
+    <div
+      class="bg-background/50 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-xs"
+    >
+      <LoaderCircle class="text-muted-foreground size-8 animate-spin" aria-label="Building tree" />
+    </div>
+  {/if}
 </div>

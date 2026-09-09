@@ -1,6 +1,7 @@
 <script lang="ts">
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { allGroups, computeStats, filtersKey } from "$lib/groups/state/groups.svelte";
+  import { allGroups, computeStats } from "$lib/groups/state/groups.svelte";
+  import { filtersKey } from "$lib/filters/utils/key";
   import type { Group } from "$lib/groups/types";
   import ComparisonCharts from "$lib/statistics/components/comparison-charts.svelte";
   import MetricsTable from "$lib/statistics/components/metrics-table.svelte";

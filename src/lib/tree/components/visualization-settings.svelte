@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
    * What is drawn, as opposed to what was built. Nothing here triggers a
-   * rebuild, so these controls stay usable while the tree is stale.
+   * rebuild, so these controls stay usable while one runs.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";

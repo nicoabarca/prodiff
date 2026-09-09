@@ -30,10 +30,13 @@
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
   import {
-    build,
+    autoBuild,
     built,
-    comparedGroups,
     isStale,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparedGroups,
     selected,
     settings,
     view
@@ -44,7 +47,7 @@
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
   import Eye from "@lucide/svelte/icons/eye";
   import Plus from "@lucide/svelte/icons/plus";
-  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   const project = $derived(currentProject());
@@ -57,6 +60,10 @@
     if (project && (!built.tree || selected.id === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
     }
+  });
+
+  $effect(() => {
+    if (project) autoBuild(project);
   });
 
   /** The trace down to this step and everything that follows it. */
@@ -163,7 +170,7 @@
           Its trace and next steps. Click to move.
         </p>
       </div>
-      <Canvas {tree} stale={false} deselectOnPaneClick={false} only={context} />
+      <Canvas {tree} deselectOnPaneClick={false} only={context} />
     </aside>
 
     <div class="flex min-h-0 flex-1 flex-col">
@@ -287,15 +294,19 @@
 
       {#if stale}
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
-          <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
-          <p class="max-w-md text-xs">
-            Filters, variants or settings changed since this tree was built. Distributions would
-            describe a different set of cases than the tree on screen.
-          </p>
-          <Button size="sm" disabled={built.building} onclick={() => build(project)}>
-            <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
-            Rebuild tree
-          </Button>
+          {#if built.error && !built.building}
+            <TriangleAlert class="text-destructive size-5" aria-hidden="true" />
+            <p class="text-destructive max-w-md text-xs">{built.error}</p>
+            <Button size="sm" onclick={() => retryBuild(project)}>
+              <RotateCcw data-icon="inline-start" />
+              Try again
+            </Button>
+          {:else}
+            <p class="text-muted-foreground max-w-md text-xs">
+              Rebuilding the tree. Distributions would describe a different set of cases than the
+              tree on screen.
+            </p>
+          {/if}
         </div>
       {:else if rootAtStep}
         <div class="flex flex-1 flex-col items-center justify-center gap-2 p-4 text-center">
