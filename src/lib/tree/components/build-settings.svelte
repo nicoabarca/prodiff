@@ -1,5 +1,9 @@
 <script lang="ts">
-  /** The one input to a build: which attributes get Significance Tests. */
+  /**
+   * The one input to a build: which attributes get Significance Tests. The
+   * selection is held while the popover is open and written once on close, so
+   * ticking three boxes is one edit and one rebuild.
+   */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -13,12 +17,26 @@
 
   const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
 
+  /** The attributes being edited: null while the popover is closed. */
+  let held = $state<string[] | null>(null);
+
+  const shown = $derived(held ?? settings.value.attributes);
+
   function toggle(name: string, on: boolean) {
-    const attributes = on
-      ? [...settings.value.attributes, name]
-      : settings.value.attributes.filter((a) => a !== name);
-    saveSettings(project.id, { ...settings.value, attributes });
+    held = on ? [...shown, name] : shown.filter((a) => a !== name);
   }
+
+  function commit(edited: string[]) {
+    held = null;
+    const same =
+      edited.length === settings.value.attributes.length &&
+      edited.every((name) => settings.value.attributes.includes(name));
+    if (!same) saveSettings(project.id, { ...settings.value, attributes: edited });
+  }
+
+  $effect(() => {
+    if (!open && held !== null) commit(held);
+  });
 </script>
 
 <Popover.Root bind:open>
@@ -27,9 +45,9 @@
       <Button {...props} variant="outline" size="sm">
         <Settings2 data-icon="inline-start" />
         Build settings
-        {#if settings.value.attributes.length > 0}
+        {#if shown.length > 0}
           <span class="text-muted-foreground ml-1 font-mono text-[0.6875rem]">
-            {settings.value.attributes.length}
+            {shown.length}
           </span>
         {/if}
       </Button>
@@ -43,7 +61,7 @@
           {#each options as name (name)}
             <label class="flex items-center gap-2 text-xs">
               <Checkbox
-                checked={settings.value.attributes.includes(name)}
+                checked={shown.includes(name)}
                 onCheckedChange={(checked) => toggle(name, checked === true)}
               />
               <span>{name}</span>
@@ -56,7 +74,8 @@
         </div>
         <p class="text-muted-foreground text-[0.625rem]">
           Each attribute is corrected within its own family, so adding one never weakens the
-          findings of another. Unselected attributes are never tested.
+          findings of another. Unselected attributes are never tested. The tree rebuilds when this
+          closes.
         </p>
       </div>
     </div>

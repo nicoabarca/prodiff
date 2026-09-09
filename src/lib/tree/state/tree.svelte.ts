@@ -106,7 +106,7 @@ export function setSelectedVariants(project: Project, keys: Iterable<string>) {
 /**
  * The Variant selection being edited, which nothing outside the panel reads:
  * `null` means no edit is pending and the applied selection stands. Only Apply
- * writes it through to `settings`, so staging alone never marks the tree stale.
+ * writes it through to `settings`, so staging alone never rebuilds the tree.
  */
 export const staged = $state<{ keys: string[] | null }>({ keys: null });
 
@@ -135,10 +135,7 @@ export function resetStaged() {
   staged.keys = null;
 }
 
-/**
- * Commits the staged selection. The tree goes stale from here; rebuilding is
- * still the user's move.
- */
+/** Commits the staged selection, which is what rebuilds the tree. */
 export async function applyStaged(project: Project) {
   if (staged.keys === null) return;
   const keys = staged.keys;
@@ -236,7 +233,7 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
 
 /** The key the tree on screen would need to match to still be current. */
 export function currentKey(): string {
-  return treeKey(comparedIds(), settings.value);
+  return treeKey(comparedGroups(), settings.value);
 }
 
 export function isStale(): boolean {
@@ -244,24 +241,35 @@ export function isStale(): boolean {
 }
 
 /**
- * Builds the tree for the current Groups, settings and selected Variants. Never
- * automatic: every input waits for the button. An empty selection lets the
- * backend pick by coverage.
+ * The build whose answer counts. A build started later takes the number, and
+ * anything older drops its tree on arrival.
+ */
+let generation = 0;
+
+/** The key of the last build that failed, which `autoBuild` will not retry. */
+let failedKey: string | null = null;
+
+/**
+ * Builds the tree for the current Groups, settings and selected Variants. An
+ * empty selection lets the backend pick by coverage. Starting a build while one
+ * is in flight is allowed: the newer one wins.
  */
 export async function build(project: Project) {
-  if (built.building) return;
-
+  const mine = ++generation;
+  const requestedKey = currentKey();
   built.building = true;
   built.error = null;
+  failedKey = null;
   try {
     const tree = await directedTree(project, comparedIds(), settings.value);
+    if (mine !== generation) return;
     built.projectId = project.id;
     built.tree = tree;
     selected.id = null;
     view.collapsed = new Set();
     // What the backend included, not what was asked for: the ceiling and the
     // log's own Variant count both cut a request short. Adopting it keeps the
-    // picker honest about what is actually on screen.
+    // panel honest about what is actually on screen.
     const includedKeys = tree.nodes
       .map((node) => node.variantKey)
       .filter((key): key is string => key !== null);
@@ -274,13 +282,37 @@ export async function build(project: Project) {
     // Keyed after the selection lands on the truth, so the tree reads current.
     built.key = currentKey();
   } catch (cause) {
+    if (mine !== generation) return;
     built.error = String(cause);
+    failedKey = requestedKey;
   } finally {
-    built.building = false;
+    if (mine === generation) built.building = false;
   }
 }
 
+/**
+ * Rebuilds the tree when what it was built from no longer matches what is
+ * selected: every trigger commits its edit and this is what notices. The first
+ * build is still asked for, and a key that failed waits for the retry.
+ */
+export function autoBuild(project: Project) {
+  if (built.tree === null || built.building) return;
+  const key = currentKey();
+  if (built.key === key || failedKey === key) return;
+  build(project);
+}
+
+/** Clears the failure the retry button is showing, and builds again. */
+export function retryBuild(project: Project) {
+  failedKey = null;
+  build(project);
+}
+
 function clear() {
+  // Anything in flight belongs to the tree being dropped.
+  generation += 1;
+  failedKey = null;
+  built.building = false;
   built.projectId = null;
   built.key = null;
   built.tree = null;

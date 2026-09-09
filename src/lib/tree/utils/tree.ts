@@ -94,7 +94,7 @@ export function groupIds(tree: ResponseDirectedTree): string[] {
  * Which nodes render. Pruning works on whole Variants, so a surviving path is
  * always a trace some case followed; collapsing is applied afterwards.
  * Unchecking a Variant prunes it at once, but the aggregates above it still
- * describe it until the next build, which is why that marks the tree stale.
+ * describe it until the next build.
  */
 export function visibleNodes(
   tree: ResponseDirectedTree,

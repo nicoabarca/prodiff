@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
-  import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
+  import { build, saveSettings, settings } from "$lib/tree/state/tree.svelte";
   import type { Project } from "$lib/event-log/types";
 
   let { project }: { project: Project } = $props();
@@ -42,6 +42,7 @@
       attributes: chosen,
       attributesChosen: true
     });
+    build(project);
   }
 </script>
 
