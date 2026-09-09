@@ -6,7 +6,7 @@
   import ViewportAnchor, {
     type ViewportAnchorState
   } from "$lib/tree/components/viewport-anchor.svelte";
-  import { toFlow } from "$lib/tree/utils/flow";
+  import { EDGE_LABEL_STYLE, toFlow } from "$lib/tree/utils/flow";
   import { diffKeys } from "$lib/tree/utils/diff";
   import type { Point } from "$lib/tree/utils/layout";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
@@ -200,10 +200,14 @@
     const liveEdges =
       lit === null || lit.size === 0
         ? flow.edges
-        : flow.edges.map((edge) => ({
-            ...edge,
-            class: lit.has(edge.source) && lit.has(edge.target) ? undefined : "opacity-15"
-          }));
+        : flow.edges.map((edge) => {
+            const on = lit.has(edge.source) && lit.has(edge.target);
+            return {
+              ...edge,
+              class: on ? undefined : "opacity-15",
+              labelStyle: on ? EDGE_LABEL_STYLE : `${EDGE_LABEL_STYLE};opacity:0.15`
+            };
+          });
 
     nodes = [...ghostNodes, ...live];
     edges = [...ghostEdges, ...liveEdges];

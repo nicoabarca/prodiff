@@ -25,6 +25,11 @@ export const NODE_HEIGHT = 80;
 const RANK_SEP = 60;
 const NODE_SEP = 24;
 
+// Svelte Flow draws an edge label in a portal outside the edge group, so a
+// class on the edge never reaches it and its dimming rides on this style.
+export const EDGE_LABEL_STYLE =
+  "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap";
+
 export function stableKeys(tree: ResponseDirectedTree): Map<number, string> {
   const keys = new Map<number, string>();
   const ordered = [...tree.nodes].sort((a, b) => a.id - b.id);
@@ -49,6 +54,7 @@ export interface FlowGroup {
 export interface TreeNodeData {
   nodeId: number;
   label: string;
+  root: boolean;
   membership: string;
   groups: FlowGroup[];
   secondaries: (string | null)[];
@@ -117,8 +123,9 @@ export interface FlowOptions {
 }
 
 /**
- * The edge's label: mean Transition Time per Group. Empty unless Transition
- * Time was one of the attributes built.
+ * The edge's label: mean Transition Time per Group. A single Group carries no
+ * name, only its figure. Empty unless Transition Time was one of the
+ * attributes built.
  */
 function edgeLabel(node: TreeNode, groups: FlowGroup[]): string | undefined {
   const block = node.transitionTime;
@@ -126,7 +133,9 @@ function edgeLabel(node: TreeNode, groups: FlowGroup[]): string | undefined {
   const parts = groups
     .map((group) => {
       const summary = block.summaries[group.id];
-      return summary?.type === "numerical" ? `${group.name} ${formatDuration(summary.mean)}` : null;
+      if (summary?.type !== "numerical") return null;
+      const value = formatDuration(summary.mean);
+      return groups.length === 1 ? value : `${group.name} ${value}`;
     })
     .filter(Boolean);
   return parts.length > 0 ? parts.join(" · ") : undefined;
@@ -161,6 +170,8 @@ export function toFlow(
   });
 
   const busiest = Math.max(1, ...casesById.values());
+  // The Start root is synthetic, so the edges leaving it are drawn dashed.
+  const roots = new Set(shown.filter((node) => node.parent === null).map((node) => node.id));
 
   const nodes: Node[] = shown.map((node) => {
     const point = placed.get(node.id) ?? { x: 0, y: 0 };
@@ -178,6 +189,7 @@ export function toFlow(
       data: {
         nodeId: node.id,
         label: node.label,
+        root: node.parent === null,
         membership: membership(node, ids),
         groups: options.groups,
         secondaries,
@@ -205,9 +217,12 @@ export function toFlow(
       target: keys.get(node.id) as string,
       type: "smoothstep",
       label: options.edgeLabels ? edgeLabel(node, options.groups) : undefined,
-      labelStyle:
-        "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap",
-      style: `stroke-width:${(0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5).toFixed(2)}`,
+      labelStyle: dimmed(node, options.focus, ids)
+        ? `${EDGE_LABEL_STYLE};opacity:0.25`
+        : EDGE_LABEL_STYLE,
+      style: `stroke-width:${(0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5).toFixed(2)}${
+        roots.has(node.parent as number) ? ";stroke-dasharray:4 3" : ""
+      }`,
       // Significance is a property of nodes, so dimming follows the child.
       class: dimmed(node, options.focus, ids) ? "opacity-25" : undefined
     }));
