@@ -13,11 +13,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "dev:port": "bash -c 'tauri dev --config \"{\\\"build\\\":{\\\"beforeDevCommand\\\":\\\"pnpm dev --port $1\\\",\\\"devUrl\\\":\\\"http://localhost:$1\\\"},\\\"app\\\":{\\\"windows\\\":[{\\\"title\\\":\\\"compare ($1)\\\",\\\"maximized\\\":true}]}}\"' _"
+    "dev:port": "bash scripts/dev-port.sh",
+    "seed": "python3 scripts/seed-project.py"
   },
   "license": "MIT",
   "dependencies": {
-    "@dagrejs/dagre": "^3.0.0",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.2",
     "@tauri-apps/plugin-opener": "^2",
@@ -26,6 +26,8 @@
     "d3-scale": "^4.0.2",
     "drizzle-orm": "^0.45.2",
     "elkjs": "^0.12.0",
+    "mode-watcher": "^1.1.0",
+    "svelte-sonner": "^1.2.1",
     "tailwindcss": "^4.3.3"
   },
   "devDependencies": {

@@ -7,14 +7,17 @@
 export interface TreeSettings {
   attributes: string[];
   selectedVariants: string[];
+  attributesChosen: boolean;
 }
 
-export const defaultTreeSettings: TreeSettings = { attributes: [], selectedVariants: [] };
+export const defaultTreeSettings: TreeSettings = {
+  attributes: [],
+  selectedVariants: [],
+  attributesChosen: false
+};
 
 /** What a cold build and a freshly seeded picker both open on. */
 export const DEFAULT_COVERAGE = 0.8;
-
-export type Direction = "TB" | "LR";
 
 /** What the node face shows under the activity name: `cases`, a Group id, or an attribute. */
 export type Secondary = "cases" | (string & {});
@@ -31,7 +34,6 @@ export type GroupFocus = "all" | "shared" | (string & {});
 export interface TreeView {
   significantOnly: boolean;
   collapsed: Set<number>;
-  direction: Direction;
   secondary: Secondary;
   focus: GroupFocus;
   edgeLabels: boolean;
@@ -40,7 +42,6 @@ export interface TreeView {
 export const defaultTreeView: TreeView = {
   significantOnly: false,
   collapsed: new Set(),
-  direction: "TB",
   secondary: "cases",
   focus: "all",
   edgeLabels: true

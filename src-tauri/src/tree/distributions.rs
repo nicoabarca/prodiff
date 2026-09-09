@@ -3,10 +3,10 @@
 //! A node is named by the Variant keys of the leaves in its subtree plus its
 //! depth, so nothing here re-derives node identity by joining activity labels.
 
-use super::{read_group, variant_key, AttrSpec, GroupRows, Source};
+use super::{read_group, resolved_row, variant_key, AttrSpec, GroupRows, Source};
 use crate::analysis::stats::{quantile, tukey};
 use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
-use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
+use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole};
 use std::collections::{HashMap, HashSet};
 
 /// How many categories ship at most. The frontend cuts to its own top-N and
@@ -137,7 +137,7 @@ pub struct NodeDistributions {
 struct Plan {
     name: String,
     numeric: bool,
-    per_case: bool,
+    case_resolution: Option<CaseResolution>,
     value_index: Option<usize>,
 }
 
@@ -156,7 +156,7 @@ fn plan(
             plans.push(Plan {
                 name: name.clone(),
                 numeric: true,
-                per_case: false,
+                case_resolution: None,
                 value_index: None,
             });
             continue;
@@ -168,7 +168,7 @@ fn plan(
                 plans.push(Plan {
                     name: name.clone(),
                     numeric: true,
-                    per_case: false,
+                    case_resolution: None,
                     value_index: Some(specs.len()),
                 });
                 specs.push(AttrSpec {
@@ -182,11 +182,11 @@ fn plan(
         let Some(column) = mapping.iter().find(|c| &c.name == name) else {
             continue;
         };
-        let numeric = matches!(column.column_type, ColumnType::Integer | ColumnType::Float);
+        let numeric = column.column_type.is_numeric();
         plans.push(Plan {
             name: name.clone(),
             numeric,
-            per_case: column.granularity == ColumnGranularity::Case,
+            case_resolution: column.scope.resolution(),
             value_index: Some(specs.len()),
         });
         specs.push(AttrSpec {
@@ -200,11 +200,7 @@ fn plan(
 
 /// The rows one case contributes, given the Scope. `None` when the case is
 /// shorter than the node's depth, which only a malformed selection produces.
-fn rows_for(
-    bounds: (usize, usize),
-    depth: usize,
-    scope: Scope,
-) -> Option<std::ops::Range<usize>> {
+fn rows_for(bounds: (usize, usize), depth: usize, scope: Scope) -> Option<std::ops::Range<usize>> {
     let (from, to) = bounds;
     match scope {
         Scope::WholeCase => Some(from..to),
@@ -241,12 +237,13 @@ fn accumulate(
         events += range.len() as i64;
 
         for (i, plan) in plans.iter().enumerate() {
-            // A case-level column is read once, from the case's first row,
-            // whatever the Scope asked for.
-            let read = if plan.per_case {
-                bounds.0..bounds.0 + 1
-            } else {
-                range.clone()
+            // A case-level column is read once, whatever the Scope asked for.
+            let read = match plan.case_resolution {
+                Some(resolution) => {
+                    let row = resolved_row(bounds, resolution);
+                    row..row + 1
+                }
+                None => range.clone(),
             };
             for row in read {
                 let Some(index) = plan.value_index else {
@@ -343,7 +340,11 @@ fn box_stats(sorted: &[f64]) -> Option<BoxStats> {
 /// Zero is always the first edge: a duration of nothing is common and its log
 /// does not exist, so the first bin is "under the first boundary".
 fn log_edges(max: f64) -> Vec<f64> {
-    let within: Vec<f64> = DURATION_EDGES.iter().copied().filter(|e| *e < max).collect();
+    let within: Vec<f64> = DURATION_EDGES
+        .iter()
+        .copied()
+        .filter(|e| *e < max)
+        .collect();
     // Coarsening by stride keeps the ladder's own boundaries: every other rung
     // is still a rung. `n` rungs make `n + 1` bins once the leading "under the
     // first rung" bin is counted, so the budget the stride divides is one short
@@ -352,7 +353,11 @@ fn log_edges(max: f64) -> Vec<f64> {
     let mut edges = vec![0.0];
     edges.extend(within.iter().step_by(stride));
     // The last bin is closed on the data's own maximum, so the tail has an end.
-    edges.push(if max > *edges.last().unwrap_or(&0.0) { max } else { max + 1.0 });
+    edges.push(if max > *edges.last().unwrap_or(&0.0) {
+        max
+    } else {
+        max + 1.0
+    });
     edges
 }
 
@@ -364,7 +369,9 @@ fn bin_by_edges(values: &[f64], edges: &[f64]) -> Vec<i64> {
     for &value in values {
         // The last bin is closed so the maximum lands in it; `partition_point`
         // gives the first edge strictly above.
-        let index = edges.partition_point(|edge| *edge <= value).saturating_sub(1);
+        let index = edges
+            .partition_point(|edge| *edge <= value)
+            .saturating_sub(1);
         counts[index.min(bins - 1)] += 1;
     }
     counts
@@ -379,7 +386,10 @@ fn duration_shape(ids: &[String], per_group: [&[f64]; 2], max: f64) -> DurationS
             per_group.map(|values| (!values.is_empty()).then(|| ecdf(values))),
         ),
         box_stats: keyed(ids, per_group.map(box_stats)),
-        log_counts: keyed(ids, per_group.map(|values| Some(bin_by_edges(values, &edges)))),
+        log_counts: keyed(
+            ids,
+            per_group.map(|values| Some(bin_by_edges(values, &edges))),
+        ),
         log_edges: edges,
     }
 }
@@ -413,7 +423,11 @@ fn numerical(ids: &[String], per_group: [&[f64]; 2], duration: bool) -> Distribu
     let bins = bin_count(&pooled, min, max);
     // A constant attribute still needs a bin with width, or every value sits on
     // a zero-wide edge and nothing draws.
-    let (lo, hi) = if max > min { (min, max) } else { (min, min + 1.0) };
+    let (lo, hi) = if max > min {
+        (min, max)
+    } else {
+        (min, min + 1.0)
+    };
     let edges: Vec<f64> = (0..=bins)
         .map(|i| lo + (hi - lo) * i as f64 / bins as f64)
         .collect();
@@ -458,7 +472,11 @@ fn categorical(ids: &[String], per_group: [&HashMap<String, i64>; 2]) -> Distrib
         .collect();
     // Pooled count then value, so the ranking is stable across Scopes and renders.
     let pooled = |row: &CategoryCount| row.counts.values().sum::<i64>();
-    values.sort_by(|x, y| pooled(y).cmp(&pooled(x)).then_with(|| x.value.cmp(&y.value)));
+    values.sort_by(|x, y| {
+        pooled(y)
+            .cmp(&pooled(x))
+            .then_with(|| x.value.cmp(&y.value))
+    });
     let distinct = values.len();
     values.truncate(SHIP_VALUES);
 
@@ -551,7 +569,8 @@ mod tests {
     fn bins_are_shared_and_hold_every_value() {
         let a = vec![1.0, 2.0, 3.0, 4.0, 5.0];
         let b = vec![6.0, 7.0, 8.0, 9.0, 10.0];
-        let Distribution::Numerical { edges, counts, .. } = numerical(&ids(), [&a, &b], false) else {
+        let Distribution::Numerical { edges, counts, .. } = numerical(&ids(), [&a, &b], false)
+        else {
             panic!("expected a numerical distribution");
         };
         let (counts_a, counts_b) = (&counts["a"], &counts["b"]);
@@ -566,7 +585,8 @@ mod tests {
 
     #[test]
     fn a_constant_attribute_still_bins() {
-        let Distribution::Numerical { counts, .. } = numerical(&ids(), [&[7.0, 7.0, 7.0], &[]], false)
+        let Distribution::Numerical { counts, .. } =
+            numerical(&ids(), [&[7.0, 7.0, 7.0], &[]], false)
         else {
             panic!("expected a numerical distribution");
         };
@@ -604,10 +624,7 @@ mod tests {
             ("2", &["A", "B", "D"], &[10, 60, 90]),
             ("3", &["A", "E"], &[10, 10]),
         ]);
-        let variants = vec![
-            "A\u{1}B\u{1}C".to_string(),
-            "A\u{1}B\u{1}D".to_string(),
-        ];
+        let variants = vec!["A\u{1}B\u{1}C".to_string(), "A\u{1}B\u{1}D".to_string()];
         let attributes = vec!["who".to_string()];
 
         let logs = super::super::tests::logs(&log, None);
@@ -642,7 +659,10 @@ mod tests {
 
     #[test]
     fn everything_null_is_empty_not_a_chart_of_zeroes() {
-        assert!(matches!(numerical(&ids(), [&[], &[]], false), Distribution::Empty));
+        assert!(matches!(
+            numerical(&ids(), [&[], &[]], false),
+            Distribution::Empty
+        ));
         assert!(matches!(
             categorical(&ids(), [&HashMap::new(), &HashMap::new()]),
             Distribution::Empty
@@ -660,11 +680,13 @@ mod tests {
     #[test]
     fn only_durations_carry_a_shape() {
         let values = skewed();
-        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], false) else {
+        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], false)
+        else {
             panic!("expected a numerical distribution");
         };
         assert!(shape.is_none());
-        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], true) else {
+        let Distribution::Numerical { shape, .. } = numerical(&ids(), [&values, &values], true)
+        else {
             panic!("expected a numerical distribution");
         };
         assert!(shape.is_some());
@@ -714,7 +736,10 @@ mod tests {
         let stats = box_stats(&sorted).expect("values");
         assert_eq!((stats.q1, stats.median, stats.q3), (0.0, 0.0, 0.0));
         assert_eq!(stats.whisker_low, 0.0);
-        assert!(stats.whisker_high > 0.0, "the whisker has to leave the floor");
+        assert!(
+            stats.whisker_high > 0.0,
+            "the whisker has to leave the floor"
+        );
         // A fraction of the sample, not a fifth of it.
         assert!(
             stats.outliers_high < sorted.len() / 20,

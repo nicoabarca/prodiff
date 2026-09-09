@@ -110,22 +110,6 @@ export function logBars(shape: DurationShape, ids: string[]): Bar[] {
   }));
 }
 
-/** What a box plot leaves out: how much was counted but not drawn, and the cutoff. */
-export function outlierNote(
-  group: string,
-  stats: { whiskerLow: number; whiskerHigh: number; outliersLow: number; outliersHigh: number },
-  format: (value: number) => string
-): string | null {
-  const parts: string[] = [];
-  if (stats.outliersHigh > 0) {
-    parts.push(`${formatNumber(stats.outliersHigh)} over ${format(stats.whiskerHigh)}`);
-  }
-  if (stats.outliersLow > 0) {
-    parts.push(`${formatNumber(stats.outliersLow)} under ${format(stats.whiskerLow)}`);
-  }
-  return parts.length === 0 ? null : `${group}: ${parts.join(", ")}, not plotted`;
-}
-
 /**
  * The cards the grid shows for one node, in order. It opens on what the build
  * tested; anything else is opt-in through `extra`, which follows the user from

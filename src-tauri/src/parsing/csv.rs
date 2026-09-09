@@ -24,12 +24,8 @@ fn detect_separator(path: &str) -> u8 {
 
 pub(crate) fn read_csv(path: &str, n_rows: Option<usize>) -> PolarsResult<DataFrame> {
     let mut options = CsvReadOptions::default()
-        .with_infer_schema_length(Some(500))
-        .with_parse_options(
-            CsvParseOptions::default()
-                .with_try_parse_dates(true)
-                .with_separator(detect_separator(path)),
-        );
+        .with_infer_schema_length(n_rows)
+        .with_parse_options(CsvParseOptions::default().with_separator(detect_separator(path)));
     if let Some(n) = n_rows {
         options = options.with_n_rows(Some(n));
     }
@@ -51,8 +47,6 @@ pub(crate) fn column_to_strings(df: &DataFrame, name: &str) -> Result<Vec<String
         .collect())
 }
 
-/// Translates a Polars dtype into the small canonical set the app's column
-/// mapping model understands (see `src/lib/column-mapping.ts` on the frontend).
 pub(crate) fn dtype_label(dtype: &DataType) -> &'static str {
     match dtype {
         DataType::Boolean => "boolean",
@@ -65,8 +59,6 @@ pub(crate) fn dtype_label(dtype: &DataType) -> &'static str {
         | DataType::UInt32
         | DataType::UInt64 => "integer",
         DataType::Float32 | DataType::Float64 => "float",
-        DataType::Date => "date",
-        DataType::Datetime(_, _) => "datetime",
         _ => "string",
     }
 }

@@ -1,18 +1,18 @@
 /**
- * Shared color logic for the column-picking tables in the "Required fields"
- * and "Other fields" wizard steps: locked columns are always muted, selected
- * columns are indigo/accent, everything else dims blue on hover.
+ * Shared color logic for the column-picking table in the "Map columns" wizard
+ * step. Every column the mapping keeps reads the same indigo, whatever it was
+ * picked for; everything else dims blue on hover.
  */
-export function columnHeaderClass(locked: boolean, selected: boolean, hovered: boolean): string {
-  if (locked) return "bg-muted text-muted-foreground cursor-default";
-  if (selected) return "bg-primary text-primary-foreground";
+export type ColumnPickState = "picked" | "none";
+
+export function columnHeaderClass(pick: ColumnPickState, hovered: boolean): string {
+  if (pick === "picked") return "bg-primary text-primary-foreground";
   if (hovered) return "bg-primary/10 text-foreground";
   return "bg-card text-muted-foreground";
 }
 
-export function columnCellClass(locked: boolean, selected: boolean, hovered: boolean): string {
-  if (locked) return "text-muted-foreground bg-muted cursor-default";
-  if (selected) {
+export function columnCellClass(pick: ColumnPickState, hovered: boolean): string {
+  if (pick === "picked") {
     return `text-accent-foreground cursor-pointer ${hovered ? "bg-accent/70" : "bg-accent"}`;
   }
   return `text-muted-foreground cursor-pointer ${hovered ? "bg-primary/10" : ""}`;

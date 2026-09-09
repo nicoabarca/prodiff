@@ -40,3 +40,39 @@ export function windowRange(
     padBottom: Math.max(0, (count - end) * rowHeight)
   };
 }
+
+/**
+ * Where each row starts, and where the list ends: `tops[i]` is the offset of row
+ * `i`, and the last entry is the full height, so the array is one longer than
+ * the list.
+ */
+export function rowTops(heights: number[]): number[] {
+  const tops = [0];
+  for (const height of heights) tops.push(tops[tops.length - 1] + height);
+  return tops;
+}
+
+/**
+ * The same window over a list whose rows differ in height, taking the offsets
+ * `rowTops` produced. An unmeasured viewport falls back to a fixed count of
+ * rows, for the reason `windowRange` does.
+ */
+export function windowRangeVaried(tops: number[], scrollTop: number, viewport: number): Window {
+  const count = tops.length - 1;
+  if (count <= 0) return { start: 0, end: 0, padTop: 0, padBottom: 0 };
+
+  let first = 0;
+  while (first < count - 1 && tops[first + 1] <= scrollTop) first++;
+  const start = Math.max(0, first - OVERSCAN);
+
+  let end = start;
+  if (viewport > 0) {
+    const bottom = scrollTop + viewport;
+    while (end < count && tops[end] < bottom) end++;
+    end = Math.min(count, end + OVERSCAN);
+  } else {
+    end = Math.min(count, start + 20 + OVERSCAN * 2);
+  }
+
+  return { start, end, padTop: tops[start], padBottom: tops[count] - tops[end] };
+}

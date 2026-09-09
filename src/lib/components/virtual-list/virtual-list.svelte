@@ -3,8 +3,10 @@
    * A scrolling list that only renders what is on screen; the windowing arithmetic
    * lives in `virtualRange`.
    *
-   * Rows must all be `rowHeight` tall: the maths assumes it, and a row that
-   * disagrees drifts out of place as the list scrolls.
+   * `rowHeight` is what a row measures, in pixels: one number for rows that are
+   * all the same, or one entry per item for rows that are not. A row that
+   * disagrees with the number given for it drifts out of place as the list
+   * scrolls.
    */
   import { virtualRange } from "$lib/components/virtual-list/virtual.svelte";
   import type { Snippet } from "svelte";
@@ -17,13 +19,16 @@
     class: className = ""
   }: {
     items: T[];
-    rowHeight: number;
+    rowHeight: number | number[];
     row: Snippet<[T, number]>;
     empty?: Snippet;
     class?: string;
   } = $props();
 
   const range = virtualRange({ count: () => items.length, rowHeight: () => rowHeight });
+
+  const heightOf = (index: number) =>
+    Array.isArray(rowHeight) ? (rowHeight[index] ?? 0) : rowHeight;
 </script>
 
 <div
@@ -36,7 +41,7 @@
   {:else}
     <div style:height="{range.padTop}px"></div>
     {#each items.slice(range.start, range.end) as item, offset (range.start + offset)}
-      <div style:height="{rowHeight}px">
+      <div style:height="{heightOf(range.start + offset)}px">
         {@render row(item, range.start + offset)}
       </div>
     {/each}

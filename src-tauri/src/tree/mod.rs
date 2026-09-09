@@ -18,7 +18,7 @@ use crate::analysis::{
     stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
     MIN_GROUP_CASES, TRANSITION_TIME,
 };
-use crate::column_mapping::{find_role, ColumnGranularity, ColumnMapping, ColumnRole, ColumnType};
+use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -79,6 +79,12 @@ struct AttrSpec {
     name: String,
     numeric: bool,
     source: Source,
+}
+
+/// A case-scoped attribute: one spec plus the row its Group blocks read.
+struct CaseAttr {
+    spec: AttrSpec,
+    resolution: CaseResolution,
 }
 
 enum Source {
@@ -156,7 +162,7 @@ fn plan_attributes(
     requested: &[String],
     mapping: &[ColumnMapping],
     has_start: bool,
-) -> (Vec<AttrSpec>, Vec<AttrSpec>, bool) {
+) -> (Vec<AttrSpec>, Vec<CaseAttr>, bool) {
     let mut event = Vec::new();
     let mut case_level = Vec::new();
     let mut wants_transition = false;
@@ -181,15 +187,24 @@ fn plan_attributes(
         };
         let spec = AttrSpec {
             name: name.clone(),
-            numeric: matches!(column.column_type, ColumnType::Integer | ColumnType::Float),
+            numeric: column.column_type.is_numeric(),
             source: Source::Column(name.clone()),
         };
-        match column.granularity {
-            ColumnGranularity::Case => case_level.push(spec),
-            _ => event.push(spec),
+        match column.scope {
+            ColumnScope::Case { resolution } => case_level.push(CaseAttr { spec, resolution }),
+            ColumnScope::Event => event.push(spec),
         }
     }
     (event, case_level, wants_transition)
+}
+
+/// The row a case-scoped attribute is read from. Rows run in timestamp order
+/// within a case, so `First` is its earliest event and `Last` its latest.
+fn resolved_row(bounds: (usize, usize), resolution: CaseResolution) -> usize {
+    match resolution {
+        CaseResolution::Constant | CaseResolution::First => bounds.0,
+        CaseResolution::Last => bounds.1 - 1,
+    }
 }
 
 fn read_group(
@@ -639,32 +654,36 @@ fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
 }
 
 /// Case-level attributes aggregate per Group, not per node: one value per case,
-/// taken from its first event. Computed over the whole Group, before the
+/// from the row its resolution names. Computed over the whole Group, before the
 /// coverage cut, so it matches `case_count`.
 fn case_level_blocks(
     logs: &[GroupLog],
     groups: &[Option<GroupRows>; 2],
-    case_attrs: &[AttrSpec],
+    case_attrs: &[CaseAttr],
 ) -> Result<(Vec<GroupBlock>, HashMap<String, Test>), String> {
     let ids = group_ids(logs);
     let per_group = |df: &DataFrame, rows: &GroupRows| -> Result<Vec<Acc>, String> {
         case_attrs
             .iter()
-            .map(|spec| {
-                let Source::Column(name) = &spec.source else {
-                    return Ok(Acc::new(spec.numeric));
+            .map(|attr| {
+                let Source::Column(name) = &attr.spec.source else {
+                    return Ok(Acc::new(attr.spec.numeric));
                 };
-                let mut acc = Acc::new(spec.numeric);
-                if spec.numeric {
+                let mut acc = Acc::new(attr.spec.numeric);
+                if attr.spec.numeric {
                     let values = column_floats(df, name)?;
                     if let Acc::Num(out) = &mut acc {
-                        out.extend(rows.bounds.iter().filter_map(|&(from, _)| values[from]));
+                        out.extend(
+                            rows.bounds
+                                .iter()
+                                .filter_map(|&b| values[resolved_row(b, attr.resolution)]),
+                        );
                     }
                 } else {
                     let values = column_strings(df, name)?;
                     if let Acc::Cat(out) = &mut acc {
-                        for &(from, _) in &rows.bounds {
-                            if let Some(value) = &values[from] {
+                        for &bounds in &rows.bounds {
+                            if let Some(value) = &values[resolved_row(bounds, attr.resolution)] {
                                 *out.entry(value.clone()).or_default() += 1;
                             }
                         }
@@ -690,7 +709,7 @@ fn case_level_blocks(
         case_level: case_attrs
             .iter()
             .zip(accs)
-            .filter_map(|(spec, acc)| Some((spec.name.clone(), acc.summary()?)))
+            .filter_map(|(attr, acc)| Some((attr.spec.name.clone(), acc.summary()?)))
             .collect(),
     };
 
@@ -699,12 +718,15 @@ fn case_level_blocks(
         let mut computed: Vec<(String, Test)> = case_attrs
             .iter()
             .enumerate()
-            .filter_map(|(i, spec)| {
+            .filter_map(|(i, attr)| {
                 let (a, b) = (&accs_a[i], &accs_b[i]);
                 if a.len() < MIN_GROUP_CASES || b.len() < MIN_GROUP_CASES {
                     return None;
                 }
-                Some((spec.name.clone(), stats::compare(&ids, &[a, b], spec.numeric)?))
+                Some((
+                    attr.spec.name.clone(),
+                    stats::compare(&ids, &[a, b], attr.spec.numeric)?,
+                ))
             })
             .collect();
         // Case-level attributes are their own family: one test each, no nodes.
@@ -735,14 +757,27 @@ fn case_level_blocks(
 mod tests {
     use super::*;
 
+    #[test]
+    fn the_resolution_policy_picks_which_end_of_the_case_is_read() {
+        let bounds = (4, 9);
+        assert_eq!(resolved_row(bounds, CaseResolution::First), 4);
+        assert_eq!(resolved_row(bounds, CaseResolution::Last), 8);
+        assert_eq!(resolved_row(bounds, CaseResolution::Constant), 4);
+    }
+
+    #[test]
+    fn a_single_event_case_resolves_to_its_one_row() {
+        assert_eq!(resolved_row((7, 8), CaseResolution::Last), 7);
+    }
+
     pub(super) fn mapping() -> Vec<ColumnMapping> {
         serde_json::from_str(
             r#"[
-              {"name":"case","role":"case_id","type":"string","granularity":"case"},
-              {"name":"act","role":"activity_name","type":"string","granularity":"event"},
-              {"name":"ts","role":"complete_timestamp","type":"datetime","granularity":"event"},
-              {"name":"cost","role":"other","type":"integer","granularity":"event"},
-              {"name":"who","role":"other","type":"string","granularity":"event"}
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"cost","role":"other","type":"integer","scope":"event"},
+              {"name":"who","role":"other","type":"string","scope":"event"}
             ]"#,
         )
         .unwrap()

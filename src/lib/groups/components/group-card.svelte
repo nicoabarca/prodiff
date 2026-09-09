@@ -1,6 +1,5 @@
 <script lang="ts">
   import * as Card from "$lib/components/ui/card/index.js";
-  import * as Empty from "$lib/components/ui/empty/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -28,7 +27,6 @@
   import Pencil from "@lucide/svelte/icons/pencil";
   import Trash2 from "@lucide/svelte/icons/trash-2";
   import Undo2 from "@lucide/svelte/icons/undo-2";
-  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let {
     project,
@@ -51,6 +49,9 @@
   const accent = $derived(colorVar(group.color));
   const filters = $derived(draftOf(group));
   const dirty = $derived(isDirty(group));
+
+  /** A Group created but never applied has no Parquet, so its filters still need writing. */
+  const pending = $derived(dirty || group.stats === null);
 
   // Measurement lives in the shared cache, so the comparison summary reads the same scan.
   const steps = $derived(groupSteps(group, filters));
@@ -145,8 +146,6 @@
     <Card.Description>
       {#if dirty}
         Unapplied edits. The numbers below are this draft's, not the group's.
-      {:else if filters.length === 0}
-        Runs on the whole event log.
       {:else}
         {filters.length}
         {filters.length === 1 ? "filter" : "filters"}, applied in order.
@@ -182,6 +181,7 @@
                 variant="ghost"
                 size="icon-sm"
                 onclick={() => onremovegroup(group)}
+                class="hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 dark:hover:bg-destructive/20"
                 aria-label="Delete group"
               >
                 <Trash2 />
@@ -195,99 +195,95 @@
   </Card.Header>
 
   <Card.Content class="px-0">
-    {#if filters.length === 0}
-      <Empty.Root class="py-6">
-        <Empty.Header>
-          <Empty.Media variant="icon">
-            <SlidersHorizontal />
-          </Empty.Media>
-          <Empty.Description>No filters, so this group is the whole event log.</Empty.Description>
-        </Empty.Header>
-      </Empty.Root>
-    {:else}
-      <ol class="flex flex-col">
-        {#each filters as filter, index (index)}
-          {@const described = describeGroupFilter(filter)}
-          {@const measured = impact(index)}
-          {@const pct = retained(index)}
-          <li
-            draggable="true"
-            ondragstart={() => (dragging = index)}
-            ondragover={(event) => event.preventDefault()}
-            ondrop={() => drop(index)}
-            ondragend={() => (dragging = null)}
-            class="border-border flex items-center gap-3 border-t px-6 py-3 {editingIndex === index
-              ? 'bg-muted'
-              : ''} {dragging === index ? 'opacity-50' : ''}"
+    <ol class="flex flex-col">
+      {#each filters as filter, index (index)}
+        {@const described = describeGroupFilter(filter)}
+        {@const measured = impact(index)}
+        {@const pct = retained(index)}
+        <li
+          draggable="true"
+          ondragstart={() => (dragging = index)}
+          ondragover={(event) => event.preventDefault()}
+          ondrop={() => drop(index)}
+          ondragend={() => (dragging = null)}
+          class="border-border flex items-center gap-3 border-t px-6 py-3 {editingIndex === index
+            ? 'bg-muted'
+            : ''} {dragging === index ? 'opacity-50' : ''}"
+        >
+          <span
+            class="text-muted-foreground flex shrink-0 cursor-grab items-center gap-1"
+            aria-hidden="true"
           >
-            <span
-              class="text-muted-foreground flex shrink-0 cursor-grab items-center gap-1"
-              aria-hidden="true"
-            >
-              <GripVertical class="size-3.5" />
-              <span class="w-4 font-mono text-xs">{index + 1}</span>
-            </span>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">{described.title}</p>
-              <p class="text-muted-foreground truncate font-mono text-xs">{described.detail}</p>
-            </div>
+            <GripVertical class="size-3.5" />
+            <span class="w-4 font-mono text-xs">{index + 1}</span>
+          </span>
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium">{described.title}</p>
+            <p class="text-muted-foreground truncate font-mono text-xs">{described.detail}</p>
+          </div>
 
-            <div class="w-40 shrink-0">
-              {#if measured && pct !== null}
-                <div class="flex items-center gap-2">
-                  <!-- The kept portion wears the Group's own colour; the
+          <div class="w-40 shrink-0">
+            {#if measured && pct !== null}
+              <div class="flex items-center gap-2">
+                <!-- The kept portion wears the Group's own colour; the
                        indicator's default is the primary accent. -->
-                  <Progress
-                    value={pct}
-                    class="h-1.5 [&_[data-slot=progress-indicator]]:bg-(--group-accent)"
-                    style="--group-accent: {accent}"
-                  />
-                  <span class="text-muted-foreground w-9 shrink-0 text-right font-mono text-xs">
-                    {pct}%
-                  </span>
-                </div>
-                <p class="text-muted-foreground mt-1 text-right font-mono text-[0.6875rem]">
-                  {formatNumber(measured.after.cases)} / {formatNumber(measured.before.cases)} cases
-                </p>
-              {:else if measureError}
-                <p class="text-destructive text-right text-[0.6875rem]" title={measureError}>
-                  Could not measure these filters
-                </p>
-              {:else}
-                <Skeleton class="h-4 w-full" />
-              {/if}
-            </div>
+                <Progress
+                  value={pct}
+                  class="h-1.5 [&_[data-slot=progress-indicator]]:bg-(--group-accent)"
+                  style="--group-accent: {accent}"
+                />
+                <span class="text-muted-foreground w-9 shrink-0 text-right font-mono text-xs">
+                  {pct}%
+                </span>
+              </div>
+              <p class="text-muted-foreground mt-1 text-right font-mono text-[0.6875rem]">
+                {formatNumber(measured.after.cases)} / {formatNumber(measured.before.cases)} cases
+              </p>
+            {:else if measureError}
+              <p class="text-destructive text-right text-[0.6875rem]" title={measureError}>
+                Could not measure these filters
+              </p>
+            {:else}
+              <Skeleton class="h-4 w-full" />
+            {/if}
+          </div>
 
-            <div class="flex shrink-0 gap-1">
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onclick={() => onedit(group, index)}
-                aria-label="Edit filter"
-              >
-                <Pencil />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onclick={() => removeFromDraft(group, index)}
-                aria-label="Remove filter"
-              >
-                <Trash2 />
-              </Button>
-            </div>
-          </li>
-        {/each}
-      </ol>
-    {/if}
+          <div class="flex shrink-0 gap-1">
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onclick={() => onedit(group, index)}
+              aria-label="Edit filter"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              disabled={filters.length === 1}
+              onclick={() => removeFromDraft(group, index)}
+              class="hover:bg-destructive/10 hover:text-destructive focus-visible:ring-destructive/20 dark:hover:bg-destructive/20"
+              aria-label="Remove filter"
+              title={filters.length === 1
+                ? "A group needs at least one filter. Delete the group instead."
+                : "Remove filter"}
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        </li>
+      {/each}
+    </ol>
   </Card.Content>
 
-  {#if dirty}
+  {#if pending}
     <Card.Footer class="justify-end gap-2 border-t pt-4">
-      <Button variant="ghost" size="sm" onclick={() => discardDraft(group)}>
-        <Undo2 data-icon="inline-start" />
-        Discard
-      </Button>
+      {#if dirty}
+        <Button variant="ghost" size="sm" onclick={() => discardDraft(group)}>
+          <Undo2 data-icon="inline-start" />
+          Discard
+        </Button>
+      {/if}
       <Button
         size="sm"
         onclick={() => onapply(group)}

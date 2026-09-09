@@ -2,24 +2,30 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import {
+    autoBuild,
     build,
     built,
     forgetOtherProject,
-    isStale,
+    retryBuild
+  } from "$lib/tree/state/build.svelte";
+  import {
+    comparison,
+    comparedGroups,
+    loadComparison,
     loadSettings,
     selected,
     settings,
     variants
   } from "$lib/tree/state/tree.svelte";
-  import { comparison, comparedGroups, loadComparison } from "$lib/groups/state/comparison.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
+  import AttributePrompt from "$lib/tree/components/attribute-prompt.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
   import CompareDialog from "$lib/tree/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import GroupHeader from "$lib/tree/components/group-header.svelte";
-  import VariantPicker from "$lib/tree/components/variant-picker.svelte";
+  import VariantPanel from "$lib/tree/components/variant-panel.svelte";
+  import VariantSummary from "$lib/tree/components/variant-summary.svelte";
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
   import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -27,11 +33,10 @@
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
   import GitCompare from "@lucide/svelte/icons/git-compare";
-  import RefreshCw from "@lucide/svelte/icons/refresh-cw";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 
   const project = $derived(currentProject());
   const groups = $derived(comparedGroups());
-  const stale = $derived(isStale());
 
   // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
@@ -39,6 +44,8 @@
   );
 
   let comparing = $state(false);
+  let variantsOpen = $state(false);
+  let buildSettingsOpen = $state(false);
 
   let panelOpen = $state(false);
   $effect(() => {
@@ -51,17 +58,20 @@
     if (settings.projectId !== project.id) loadSettings(project.id);
     if (comparison.projectId !== project.id) loadComparison(project.id);
   });
+
+  $effect(() => {
+    if (project) autoBuild(project);
+  });
 </script>
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      <VariantPicker {project} tree={built.tree} />
-      {#if stale && !built.building}
-        <p class="text-destructive text-xs">
-          Filters, variants or settings changed since this tree was built.
-        </p>
-      {/if}
+      <VariantSummary
+        tree={built.tree}
+        open={variantsOpen}
+        onToggle={() => (variantsOpen = !variantsOpen)}
+      />
       {#if built.error}
         <p class="text-destructive truncate text-xs">{built.error}</p>
       {/if}
@@ -71,101 +81,98 @@
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
         </Button>
-        <BuildSettings {project} />
+        <BuildSettings {project} bind:open={buildSettingsOpen} />
         {#if built.tree}
           <VisualizationSettings tree={built.tree} />
         {/if}
-        <Button
-          size="sm"
-          disabled={built.building || !groups[0] || noVariants}
-          title={noVariants ? "Select at least one variant" : undefined}
-          onclick={() => build(project)}
-        >
-          {#if built.tree}
-            <RefreshCw data-icon="inline-start" class={built.building ? "animate-spin" : ""} />
-            Rebuild
-          {:else}
-            <Play data-icon="inline-start" />
-            {built.building ? "Building…" : "Build tree"}
-          {/if}
-        </Button>
       </div>
     </div>
 
     <CompareDialog {project} bind:open={comparing} />
+    <AttributePrompt {project} />
 
-    {#if built.tree}
-      <GroupHeader tree={built.tree} />
-      <div class="flex min-h-0 flex-1">
-        <div class="relative flex min-h-0 flex-1">
-          <Canvas tree={built.tree} {stale} />
-          <ViewLegend />
-          {#if selected.id !== null}
-            <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                class="bg-background/90 backdrop-blur"
-                href="/app/projects/{project.id}/distributions"
-              >
-                <ChartColumn data-icon="inline-start" />
-                Distributions
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                class="bg-background/90 backdrop-blur"
-                aria-pressed={panelOpen}
-                onclick={() => (panelOpen = !panelOpen)}
-              >
-                <PanelRight data-icon="inline-start" />
-                {panelOpen ? "Hide" : "Show"} differences panel
-              </Button>
+    <div class="flex min-h-0 flex-1">
+      {#if built.tree && variantsOpen}
+        <VariantPanel {project} tree={built.tree} onClose={() => (variantsOpen = false)} />
+      {/if}
+
+      <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
+        {#if built.tree}
+          <GroupHeader tree={built.tree} />
+          <div class="flex min-h-0 flex-1">
+            <div class="relative flex min-h-0 min-w-0 flex-1">
+              <Canvas tree={built.tree} />
+              <ViewLegend />
+              {#if built.error && !built.building}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  class="bg-background/90 absolute top-3 left-3 z-10 backdrop-blur"
+                  aria-label="Build the tree again"
+                  onclick={() => retryBuild(project)}
+                >
+                  <RotateCcw />
+                </Button>
+              {/if}
+              {#if selected.id !== null}
+                <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="bg-background/90 backdrop-blur"
+                    href="/app/projects/{project.id}/distributions"
+                  >
+                    <ChartColumn data-icon="inline-start" />
+                    Distributions
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="bg-background/90 backdrop-blur"
+                    aria-pressed={panelOpen}
+                    onclick={() => (panelOpen = !panelOpen)}
+                  >
+                    <PanelRight data-icon="inline-start" />
+                    {panelOpen ? "Hide" : "Show"} differences panel
+                  </Button>
+                </div>
+              {/if}
             </div>
-          {/if}
-        </div>
-        {#if panelOpen}
-          <DetailPanel
-            tree={built.tree}
-            nodeId={selected.id}
-            onClose={() => (selected.id = null)}
-          />
+            {#if panelOpen}
+              <DetailPanel
+                tree={built.tree}
+                nodeId={selected.id}
+                onClose={() => (selected.id = null)}
+                onOpenBuildSettings={() => (buildSettingsOpen = true)}
+              />
+            {/if}
+          </div>
+        {:else}
+          <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
+            <Empty.Root>
+              <Empty.Header>
+                <Empty.Media variant="icon">
+                  <Network />
+                </Empty.Media>
+                <Empty.Title>No tree built yet</Empty.Title>
+              </Empty.Header>
+              <Button
+                disabled={built.building || !groups[0] || noVariants}
+                title={noVariants ? "Select at least one variant" : undefined}
+                onclick={() => build(project)}
+              >
+                {#if built.error}
+                  <RotateCcw data-icon="inline-start" />
+                  {built.building ? "Building…" : "Try again"}
+                {:else}
+                  <Play data-icon="inline-start" />
+                  {built.building ? "Building…" : "Build tree"}
+                {/if}
+              </Button>
+            </Empty.Root>
+          </div>
         {/if}
       </div>
-    {:else}
-      <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">
-        <Empty.Root>
-          <Empty.Header>
-            <Empty.Media variant="icon">
-              <Network />
-            </Empty.Media>
-            <Empty.Title>No tree built yet</Empty.Title>
-            <Empty.Description>
-              {#if !groupsLoaded.projectId}
-                Loading slices…
-              {:else if !groups[0]}
-                Create a slice in the Filters view first. A slice defines a group.
-              {:else if !groups[1]}
-                Only one slice exists, so the tree will render without comparisons. Add a second
-                slice to compare two groups.
-              {:else}
-                Building runs a full scan of the log and one Significance Test per node and
-                attribute, so it only happens when you ask.
-              {/if}
-            </Empty.Description>
-          </Empty.Header>
-          {#if groups[0]}
-            <Button disabled={built.building} onclick={() => build(project)}>
-              <Play data-icon="inline-start" />
-              {built.building ? "Building…" : "Build tree"}
-            </Button>
-          {:else}
-            <Button variant="outline" href="/app/projects/{project.id}/filters">
-              Go to Filters
-            </Button>
-          {/if}
-        </Empty.Root>
-      </div>
-    {/if}
+    </div>
   </div>
 {/if}
