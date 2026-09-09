@@ -22,7 +22,7 @@
     sharedCases
   } from "$lib/groups/state/groups.svelte";
   import { ORIGINAL_ID, type Group } from "$lib/groups/types";
-  import { comparison, saveComparison } from "$lib/tree/state/tree.svelte";
+  import { comparison, saveComparison } from "$lib/groups/state/comparison.svelte";
   import { colorVar, formatNumber } from "$lib/format";
   import Split from "@lucide/svelte/icons/split";
 

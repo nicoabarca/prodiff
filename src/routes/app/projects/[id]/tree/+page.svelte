@@ -10,15 +10,8 @@
     inputsReady,
     retryBuild
   } from "$lib/tree/state/build.svelte";
-  import {
-    comparison,
-    comparedGroups,
-    loadComparison,
-    loadSettings,
-    selected,
-    settings,
-    variants
-  } from "$lib/tree/state/tree.svelte";
+  import { loadSettings, selected, settings, variants } from "$lib/tree/state/tree.svelte";
+  import { comparison, comparedGroups, loadComparison } from "$lib/groups/state/comparison.svelte";
   import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import AttributePrompt from "$lib/tree/components/attribute-prompt.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";

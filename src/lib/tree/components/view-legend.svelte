@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import { comparedGroups, view } from "$lib/tree/state/tree.svelte";
+  import { view } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
 
   const groups = $derived(comparedGroups());
 

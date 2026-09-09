@@ -10,9 +10,9 @@
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDirectedTree, ResponseVariantRow } from "$lib/tree/invokers/types";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import {
     applyStaged,
-    comparedGroups,
     isStagedDirty,
     loadVariants,
     resetStaged,

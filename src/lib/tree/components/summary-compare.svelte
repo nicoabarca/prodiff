@@ -3,7 +3,7 @@
   import * as Chart from "$lib/components/ui/chart/index.js";
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
   import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
-  import { comparedGroups } from "$lib/tree/state/tree.svelte";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { Summary } from "$lib/analysis/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";

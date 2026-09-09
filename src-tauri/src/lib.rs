@@ -1,5 +1,6 @@
 mod analysis;
 mod column_mapping;
+mod dfg;
 mod event_log;
 mod filters;
 mod groups;
@@ -33,7 +34,8 @@ pub fn run() {
             filters::commands::daily_case_load,
             tree::commands::directed_tree,
             tree::commands::list_variants,
-            tree::commands::node_distributions
+            tree::commands::node_distributions,
+            dfg::commands::dfg
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
