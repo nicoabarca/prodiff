@@ -1,16 +1,10 @@
-/** The Group palette: schemePaired, in the order new Groups claim colours. Tokens in `app.css`. */
+/** The Group palette: the dark half of schemePaired, in the order new Groups claim colours. Tokens in `app.css`. */
 export const GROUP_COLORS = [
-  "group-1",
   "group-2",
-  "group-3",
   "group-4",
-  "group-5",
   "group-6",
-  "group-7",
   "group-8",
-  "group-9",
   "group-10",
-  "group-11",
   "group-12"
 ] as const;
 

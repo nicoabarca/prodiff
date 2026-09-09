@@ -7,6 +7,7 @@
     build,
     built,
     forgetOtherProject,
+    inputsReady,
     retryBuild
   } from "$lib/tree/state/build.svelte";
   import { loadSettings, selected, settings, variants } from "$lib/tree/state/tree.svelte";
@@ -22,6 +23,7 @@
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
   import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
@@ -34,6 +36,21 @@
   // Empty before the variant list loads means "never chosen"; after it, "cleared".
   const noVariants = $derived(
     variants.key !== null && settings.value.selectedVariants.length === 0
+  );
+
+  // Nothing to offer until the first tree either lands or fails: the build is
+  // already on its way.
+  const awaitingFirstTree = $derived(
+    !!project &&
+      built.tree === null &&
+      built.error === null &&
+      (built.building || !inputsReady(project.id))
+  );
+
+  // The attribute prompt owns the screen until it is answered, and the tree it
+  // asks for is the first one built.
+  const choosingAttributes = $derived(
+    !!project && settings.projectId === project.id && !settings.value.attributesChosen
   );
 
   let comparing = $state(false);
@@ -139,6 +156,15 @@
                 onOpenBuildSettings={() => (buildSettingsOpen = true)}
               />
             {/if}
+          </div>
+        {:else if choosingAttributes}
+          <div class="bg-sidebar min-h-0 flex-1"></div>
+        {:else if awaitingFirstTree}
+          <div
+            class="bg-sidebar flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6"
+          >
+            <LoaderCircle class="text-muted-foreground size-8 animate-spin" aria-hidden="true" />
+            <p class="text-muted-foreground text-sm">Building tree…</p>
           </div>
         {:else}
           <div class="bg-sidebar flex min-h-0 flex-1 items-center justify-center p-6">

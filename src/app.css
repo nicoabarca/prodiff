@@ -95,6 +95,9 @@
 
   --tree-enter: oklch(0.585 0.233 277.117);
 
+  /* How long a tree node takes to fade between drawn and dimmed. */
+  --tree-dim-duration: 300ms;
+
   /* Effect magnitude: a sequential ramp, one hue. The foreground flips at step
        3, where dark text stops carrying. */
   --effect-1: oklch(0.95 0.035 25);

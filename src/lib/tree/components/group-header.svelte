@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
@@ -12,16 +11,12 @@
   const caseLevel = $derived(Object.keys(tree.groups[0]?.caseLevel ?? {}));
   const comparing = $derived(tree.groups.length > 1);
   const hasContent = $derived(
-    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0 || !comparing
+    tree.overlapCases > 0 || tree.cappedByCeiling || caseLevel.length > 0
   );
 </script>
 
 {#if hasContent}
   <div class="border-border bg-background flex flex-col gap-3 border-b px-4 py-3">
-    {#if !comparing}
-      <Badge variant="secondary" class="self-start">One group, no comparison</Badge>
-    {/if}
-
     {#if tree.overlapCases > 0}
       <Alert.Root variant="destructive">
         <TriangleAlert />

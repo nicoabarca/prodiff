@@ -1,6 +1,7 @@
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-import { comparedGroups } from "$lib/groups/state/comparison.svelte";
+import { comparedGroups, comparison } from "$lib/groups/state/comparison.svelte";
+import { groupsLoaded } from "$lib/groups/state/groups.svelte";
 import {
   resetBuildView,
   resetTreeState,
@@ -95,8 +96,27 @@ export async function build(project: Project) {
   }
 }
 
+/**
+ * Whether every persisted input the tree key is made of has arrived for this
+ * project. Building on the defaults that stand before they load produces a tree
+ * the loaded selection then filters down to its root.
+ */
+export function inputsReady(projectId: string): boolean {
+  return (
+    groupsLoaded.projectId === projectId &&
+    settings.projectId === projectId &&
+    comparison.projectId === projectId
+  );
+}
+
+/**
+ * Rebuilds when an input the tree is made of has changed. The first tree of a
+ * project is the attribute prompt's to ask for and to build: until it is
+ * answered, `attributesChosen` is false and nothing here fires.
+ */
 export function autoBuild(project: Project) {
-  if (built.building || (built.tree === null && built.projectId === null)) return;
+  if (built.building || !inputsReady(project.id)) return;
+  if (!settings.value.attributesChosen) return;
   const key = treeKey(comparedGroups(), settings.value);
   if (built.key === key || failedKey === key) return;
   void build(project);
