@@ -93,8 +93,14 @@ function elkGraph(graph: Simplified, direction: Direction, measure: Measure): El
     children: graph.nodes.map((node) => ({
       id: String(node.id),
       ...nodeSize(node.id),
+      // Start and End each hold a layer of their own. A plain `FIRST` shares
+      // the first layer with every activity simplification left without an
+      // incoming edge, drawing them level with Start.
       layoutOptions: isTerminal(node.id)
-        ? { "elk.layered.layering.layerConstraint": node.id === START_ID ? "FIRST" : "LAST" }
+        ? {
+            "elk.layered.layering.layerConstraint":
+              node.id === START_ID ? "FIRST_SEPARATE" : "LAST_SEPARATE"
+          }
         : ({} as Record<string, string>)
     })),
     edges: routed.map((edge) => ({

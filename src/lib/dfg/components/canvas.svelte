@@ -37,6 +37,11 @@
   const nodeTypes = { activity: ActivityNode };
   const edgeTypes = { routed: RoutedEdge };
 
+  // The size is in stroke widths, not pixels: Svelte Flow scales its markers by
+  // the stroke width, so the head keeps one ratio to its edge at every weight.
+  // Its tip sits on the border ELK routed to.
+  const ARROW = { type: MarkerType.ArrowClosed, width: 8, height: 8 };
+
   const waits = $derived(transitionsById(graph));
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
 
@@ -84,7 +89,7 @@
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
+        markerEnd: ARROW,
         data: {
           path: placed.paths.get(key) ?? "",
           width: edgeWidth(edge.counts, busiestEdge, view.measure),

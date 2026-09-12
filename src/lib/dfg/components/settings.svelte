@@ -13,7 +13,7 @@
 
   let { project }: { project: Project } = $props();
 
-  const options = $derived(attributeOptions(project.columns));
+  const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
 
   function toggle(name: string) {
     const next = new Set(selection.attributes);
