@@ -18,6 +18,7 @@
   } from "$lib/dfg/utils/face";
   import { END_ID, START_ID, type FaceGroup, type Rect } from "$lib/dfg/types";
   import { arrow } from "$lib/dfg/utils/arrow";
+  import { placeLabels } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -75,22 +76,41 @@
       return corner ? { ...corner, ...nodeSize(id) } : null;
     };
 
-    const busiestEdge = busiest(simplified.edges, view.measure);
-    const edges: Edge[] = simplified.edges.map((edge) => {
+    const drawn = simplified.edges.map((edge) => {
       const key = edgeKey(edge.source, edge.target);
+      return { edge, key, label: edgeWait(waits.get(key), groups) };
+    });
+
+    const anchors = placeLabels(
+      drawn
+        .filter((one) => one.label !== null)
+        .map((one) => ({
+          key: one.key,
+          points: placed.routes.get(one.key) ?? [],
+          text: one.label ?? ""
+        })),
+      nodes.map((node) => ({
+        x: node.position.x,
+        y: node.position.y,
+        ...nodeSize(Number(node.id))
+      }))
+    );
+
+    const busiestEdge = busiest(simplified.edges, view.measure);
+    const edges: Edge[] = drawn.map(({ edge, key, label }) => {
       const width = edgeWidth(edge.counts, busiestEdge, view.measure);
-      const drawn = arrow(placed.routes.get(key) ?? [], rect(edge.target), width);
+      const shape = arrow(placed.routes.get(key) ?? [], rect(edge.target), width);
       return {
         id: key,
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
         data: {
-          shaft: drawn.shaft,
-          head: drawn.head,
+          shaft: shape.shaft,
+          head: shape.head,
           width,
-          label: edgeWait(waits.get(key), groups),
-          labelAt: drawn.label,
+          label,
+          labelAt: anchors.get(key) ?? { x: 0, y: 0 },
           boundary: edge.source === START_ID || edge.target === END_ID
         }
       };

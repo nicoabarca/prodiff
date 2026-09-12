@@ -8,7 +8,6 @@ import type { Point, Rect } from "$lib/dfg/types";
 export interface Arrow {
   shaft: string;
   head: string;
-  label: Point;
 }
 
 /** Samples per cubic segment. Enough that the polyline reads as the curve. */
@@ -21,7 +20,7 @@ const TIP_GAP = 2;
 const MAX_PULLBACK = 24;
 
 const headLength = (width: number) => 8 + width;
-const headHalf = (width: number) => 3 + width * 0.6;
+const headHalf = (width: number) => 3.2 + width * 0.8;
 
 function cubic(p0: Point, c1: Point, c2: Point, p3: Point, t: number): Point {
   const u = 1 - t;
@@ -52,7 +51,7 @@ export function polyline(points: Point[]): Point[] {
   return out;
 }
 
-function lengths(line: Point[]): number[] {
+export function lengths(line: Point[]): number[] {
   const out = [0];
   for (let i = 1; i < line.length; i++) {
     out.push(out[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].y - line[i - 1].y));
@@ -61,7 +60,7 @@ function lengths(line: Point[]): number[] {
 }
 
 /** The point a given distance along the polyline, clamped to both ends. */
-function at(line: Point[], run: number[], distance: number): Point {
+export function at(line: Point[], run: number[], distance: number): Point {
   const total = run[run.length - 1];
   const want = Math.min(Math.max(distance, 0), total);
   let i = 1;
@@ -121,16 +120,21 @@ function pullback(end: Point, direction: Point, rect: Rect | null, width: number
   return TIP_GAP + Math.min(Math.max(depth(1), depth(-1), 0) / into, MAX_PULLBACK);
 }
 
+/** The point a fraction of the way along a route, by arc length. */
+export function along(points: Point[], fraction: number): Point {
+  const line = polyline(points);
+  if (line.length === 0) return { x: 0, y: 0 };
+  const run = lengths(line);
+  return at(line, run, run[run.length - 1] * fraction);
+}
+
 /**
- * The shaft, the head and the label anchor for one route. `rect` is the box the
- * edge ends at, which the head is kept clear of.
+ * The shaft and the head for one route. `rect` is the box the edge ends at,
+ * which the head is kept clear of.
  */
 export function arrow(points: Point[], rect: Rect | null, width: number): Arrow {
   const line = polyline(points);
-  if (line.length < 2) {
-    const only = line[0] ?? { x: 0, y: 0 };
-    return { shaft: "", head: "", label: only };
-  }
+  if (line.length < 2) return { shaft: "", head: "" };
 
   const run = lengths(line);
   const total = run[run.length - 1];
@@ -144,15 +148,19 @@ export function arrow(points: Point[], rect: Rect | null, width: number): Arrow 
   const length = Math.min(headLength(width), total);
   const gap = Math.min(pullback(end, direction, rect, width), Math.max(total - length, 0));
   const tip = at(line, run, total - gap);
-  const base = { x: tip.x - length * direction.x, y: tip.y - length * direction.y };
+  // The base sits on the route where the shaft stops, not on the straight line
+  // back from the tip: on a curve the two part company, and the head reads as
+  // detached from its edge.
+  const stop = at(line, run, Math.max(total - gap - length, 0));
+  const span = Math.hypot(tip.x - stop.x, tip.y - stop.y);
+  const axis = span === 0 ? direction : { x: (tip.x - stop.x) / span, y: (tip.y - stop.y) / span };
   const half = headHalf(width);
-  const side = { x: -direction.y, y: direction.x };
+  const side = { x: -axis.y, y: axis.x };
   const corner = (sign: number) =>
-    `${round(base.x + half * sign * side.x)},${round(base.y + half * sign * side.y)}`;
+    `${round(stop.x + half * sign * side.x)},${round(stop.y + half * sign * side.y)}`;
 
   return {
     shaft: cut(line, run, Math.max(total - gap - length, 0)),
-    head: `M${round(tip.x)},${round(tip.y)}L${corner(1)}L${corner(-1)}Z`,
-    label: at(line, run, total / 2)
+    head: `M${round(tip.x)},${round(tip.y)}L${corner(1)}L${corner(-1)}Z`
   };
 }
