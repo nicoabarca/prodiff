@@ -1,7 +1,7 @@
 /** Positions and routes a simplified DFG with ELK. */
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkNode } from "elkjs/lib/elk-api";
-import { END_ID, START_ID, type Direction, type Measure } from "$lib/dfg/types";
+import { END_ID, START_ID, type Direction, type Measure, type Point } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -9,14 +9,9 @@ export const NODE_WIDTH = 150;
 export const NODE_HEIGHT = 58;
 export const TERMINAL_SIZE = 36;
 
-export interface Point {
-  x: number;
-  y: number;
-}
-
 export interface Placement {
   nodes: Map<number, Point>;
-  paths: Map<string, string>;
+  routes: Map<string, Point[]>;
 }
 
 const elk = new ELK();
@@ -43,34 +38,33 @@ export function topologyKey(graph: Simplified, direction: Direction, measure: Me
   ]);
 }
 
-/** Converts ELK section points to SVG path data. */
-function path(points: Point[]): string {
-  if (points.length === 0) return "";
-  let data = `M${points[0].x},${points[0].y}`;
-  let i = 1;
-  while (i + 2 < points.length) {
-    const [a, b, c] = [points[i], points[i + 1], points[i + 2]];
-    data += ` C${a.x},${a.y} ${b.x},${b.y} ${c.x},${c.y}`;
-    i += 3;
-  }
-  for (; i < points.length; i++) data += ` L${points[i].x},${points[i].y}`;
-  return data;
-}
-
-/** Draws a self-loop beside its activity node. */
-function selfLoop(corner: Point, id: number, direction: Direction): string {
+/**
+ * Routes a self-loop beside its activity node, as the start point followed by
+ * one cubic: the shape every other route already has.
+ */
+function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   const { width, height } = nodeSize(id);
   const reach = 36;
   if (direction === "LR") {
     const startX = corner.x + width * 0.3;
     const endX = corner.x + width * 0.7;
     const y = corner.y + height;
-    return `M${startX},${y} C${startX - 4},${y + reach} ${endX + 4},${y + reach} ${endX},${y + 4}`;
+    return [
+      { x: startX, y },
+      { x: startX - 4, y: y + reach },
+      { x: endX + 4, y: y + reach },
+      { x: endX, y }
+    ];
   }
   const x = corner.x + width;
   const startY = corner.y + height * 0.3;
   const endY = corner.y + height * 0.7;
-  return `M${x},${startY} C${x + reach},${startY - 4} ${x + reach},${endY + 4} ${x + 4},${endY}`;
+  return [
+    { x, y: startY },
+    { x: x + reach, y: startY - 4 },
+    { x: x + reach, y: endY + 4 },
+    { x, y: endY }
+  ];
 }
 
 function elkGraph(graph: Simplified, direction: Direction, measure: Measure): ElkNode {
@@ -116,21 +110,21 @@ function placementFromElk(graph: Simplified, laid: ElkNode, direction: Direction
   const nodes = new Map(
     (laid.children ?? []).map((child) => [Number(child.id), { x: child.x ?? 0, y: child.y ?? 0 }])
   );
-  const paths = new Map(
+  const routes = new Map(
     (laid.edges ?? []).flatMap((edge) => {
       const section = edge.sections?.[0];
       if (!section) return [];
       const points = [section.startPoint, ...(section.bendPoints ?? []), section.endPoint];
-      return [[edge.id, path(points)] as [string, string]];
+      return [[edge.id, points] as [string, Point[]]];
     })
   );
   for (const edge of graph.edges) {
     if (edge.source !== edge.target) continue;
     const corner = nodes.get(edge.source);
     if (corner)
-      paths.set(edgeKey(edge.source, edge.target), selfLoop(corner, edge.source, direction));
+      routes.set(edgeKey(edge.source, edge.target), selfLoop(corner, edge.source, direction));
   }
-  return { nodes, paths };
+  return { nodes, routes };
 }
 
 export async function layout(

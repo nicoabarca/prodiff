@@ -1,12 +1,5 @@
 <script lang="ts">
-  import {
-    SvelteFlow,
-    Background,
-    Controls,
-    MarkerType,
-    type Edge,
-    type Node
-  } from "@xyflow/svelte";
+  import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
@@ -23,7 +16,8 @@
     membership,
     transitionsById
   } from "$lib/dfg/utils/face";
-  import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
+  import { END_ID, START_ID, type FaceGroup, type Rect } from "$lib/dfg/types";
+  import { arrow } from "$lib/dfg/utils/arrow";
   import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -36,11 +30,6 @@
 
   const nodeTypes = { activity: ActivityNode };
   const edgeTypes = { routed: RoutedEdge };
-
-  // The size is in stroke widths, not pixels: Svelte Flow scales its markers by
-  // the stroke width, so the head keeps one ratio to its edge at every weight.
-  // Its tip sits on the border ELK routed to.
-  const ARROW = { type: MarkerType.ArrowClosed, width: 8, height: 8 };
 
   const waits = $derived(transitionsById(graph));
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
@@ -81,19 +70,27 @@
         }
       }));
 
+    const rect = (id: number): Rect | null => {
+      const corner = placed.nodes.get(id);
+      return corner ? { ...corner, ...nodeSize(id) } : null;
+    };
+
     const busiestEdge = busiest(simplified.edges, view.measure);
     const edges: Edge[] = simplified.edges.map((edge) => {
       const key = edgeKey(edge.source, edge.target);
+      const width = edgeWidth(edge.counts, busiestEdge, view.measure);
+      const drawn = arrow(placed.routes.get(key) ?? [], rect(edge.target), width);
       return {
         id: key,
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
-        markerEnd: ARROW,
         data: {
-          path: placed.paths.get(key) ?? "",
-          width: edgeWidth(edge.counts, busiestEdge, view.measure),
+          shaft: drawn.shaft,
+          head: drawn.head,
+          width,
           label: edgeWait(waits.get(key), groups),
+          labelAt: drawn.label,
           boundary: edge.source === START_ID || edge.target === END_ID
         }
       };
