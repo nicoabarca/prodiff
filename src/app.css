@@ -423,3 +423,35 @@
     opacity: 0;
   }
 }
+
+/*
+ * A hairline shadow marks a Button as pressable. Selected by the variant's own
+ * background class: `ghost` and `link` are meant to read flat and carry none.
+ * The shadow goes through `--tw-shadow` and repeats Tailwind's composed
+ * `box-shadow` so a focus ring still draws alongside it. The press already
+ * shifts the button down a pixel, so the shadow leaves with it.
+ */
+[data-slot="button"].bg-primary,
+[data-slot="button"].bg-secondary,
+[data-slot="button"].bg-background,
+[data-slot="button"][class~="bg-destructive/10"] {
+  --tw-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+  box-shadow:
+    var(--tw-inset-shadow),
+    var(--tw-inset-ring-shadow),
+    var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow),
+    var(--tw-shadow);
+}
+
+.dark [data-slot="button"].bg-primary,
+.dark [data-slot="button"].bg-secondary,
+.dark [data-slot="button"].bg-background,
+.dark [data-slot="button"][class~="bg-destructive/10"] {
+  --tw-shadow: 0 1px 2px rgb(0 0 0 / 0.4);
+}
+
+[data-slot="button"]:active:not([aria-haspopup]),
+[data-slot="button"]:disabled {
+  --tw-shadow: 0 0 #0000;
+}

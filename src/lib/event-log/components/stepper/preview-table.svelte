@@ -57,7 +57,10 @@
             class={cn("hover:bg-transparent", rowIndex % 2 === 1 ? "bg-muted/40" : "bg-card")}
           >
             <Table.Cell
-              class="border-border text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-0.5 text-right font-mono text-xs"
+              class={cn(
+                "border-border text-muted-foreground bg-card sticky left-0 z-10 border-r border-b px-2 py-0.5 text-right font-mono text-xs",
+                rowIndex % 2 === 1 && "from-muted/40 to-muted/40 bg-linear-to-r"
+              )}
             >
               {rowIndex + 1}
             </Table.Cell>
