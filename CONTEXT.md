@@ -54,3 +54,7 @@ _Avoid_: Histogram (that is the drawing, not the numbers), breakdown
 **Distribution Scope**:
 Which of a node's cases' events a Distribution counts. `At this step` counts the single event at that node's own position in the trace; `Whole case` counts every event of those same cases, at every position. The set of cases is identical either way — only which of their events are counted changes. Undefined at the Start root under `At this step`, which has no event.
 _Avoid_: Variant scope — a node other than a leaf sits on many Variants, so "the Variant" names nothing there
+
+**Directly-Follows Graph**:
+A graph over an Event Log's activities, one node per activity and one edge per observed activity-to-activity transition, built from the compared Groups' Parquet files. Unlike the tree it has no root and no Variants: a case contributes every one of its transitions, so a node appears once no matter how many traces reach it. Simplification thresholds and layout are the frontend's and never re-run the command.
+_Avoid_: Process map, flow chart, DFG in user-facing copy (spell it out)

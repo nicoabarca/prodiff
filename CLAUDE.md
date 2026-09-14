@@ -18,7 +18,7 @@ The domain vocabulary — Project, Event Log, Column Mapping, Filter, Filter Lis
 
 **SPA mode, not SSR.** `src/routes/+layout.ts` sets `export const ssr = false` and `svelte.config.js` uses `@sveltejs/adapter-static` with `fallback: "index.html"` — Tauri has no Node server, so the whole app is client-rendered and all routing happens in the browser after load.
 
-**Organized by domain, not by kind of file** (see `docs/adr/0004`). Six domains under `src/lib/`, each owning its own components, state, Tauri invokers, invocation contracts, utilities and tests:
+**Organized by domain, not by kind of file** (see `docs/adr/0004`). Each domain under `src/lib/` owns its own components, state, Tauri invokers, invocation contracts, utilities and tests:
 
 ```
 src/lib/
@@ -36,29 +36,30 @@ src/lib/
 ├── groups/            Group records, Filter Lists, palette, impact cache
 ├── statistics/        comparison charts, metrics table, event data table
 ├── tree/              directed tree, variants, canvas, node detail
+├── dfg/               directly-follows graph, simplification, canvas, detail panel
 └── distributions/     per-node attribute distributions
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
 **Where new code goes:**
 
 - A component used by one feature goes in that domain's `components/`. Only put it in `src/lib/components/` if two unrelated features use it.
 - A new Tauri command gets one file in `<domain>/invokers/`, named after the command (`invoke("directed_tree", …)` → `tree/invokers/directed-tree.ts`). Components call the invoker, never `invoke()` directly.
-- The read commands take **Group ids, not Filter Lists** — `directed_tree`, `list_variants`, `node_distributions`, `group_stats` and `shared_cases` resolve an id to its Parquet themselves. Filters only reach Rust through `filters_impact` (the draft preview) and `apply_group` (the write). `groups` is ordered, holds one or two ids, and `original` is the whole Event Log; `comparedIds()` falls back to it, which is the tree the user opens on.
+- The read commands take **Group ids, not Filter Lists** — `directed_tree`, `dfg`, `list_variants`, `node_distributions`, `group_stats` and `shared_cases` resolve an id to its Parquet themselves. Filters only reach Rust through `filters_impact` (the draft preview) and `apply_group` (the write). `groups` is ordered, holds one or two ids, and `original` is the whole Event Log; `comparedIds()` falls back to it, which is the tree the user opens on.
 - A type Rust serializes goes in `<domain>/invokers/types.ts`; everything else in `<domain>/types.ts`, including shapes persisted to SQLite that never cross `invoke`. Never re-declare a type in a second file — import it, following the direction above.
 - Types at a call boundary carry a direction prefix: `Response*` for what an invoker returns (`ResponseDirectedTree`), `Request*` for what it sends (`RequestColumnMapping`). Types nested inside those stay unprefixed (`TreeNode`, `Test`, `Summary`) — the prefix marks what an invoker hands over directly, not everything bound to a serde struct.
 - **Payloads are keyed by Group id, never by A/B.** `ResponseDirectedTree.groups` and `ResponseNodeDistributions.groups` are ordered arrays carrying both order and identity (`[{ id, ... }]`); everything below them is a map keyed by id — `TreeNode.cases`, `AttributeBlock.summaries`, `CategoryCount.counts`, `Distribution.counts`/`n`/`totals`, `DurationShape.ecdf`/`boxStats`/`logCounts`. `Test.higher` names the Group that ranks higher by id, `null` for chi². Ids only: Rust never learns a Group's name or colour, so a rename cannot go stale inside a cached tree, and the views join back through `comparedGroups()`. Two casings appear in one payload and neither is wrong — serde fields are camelCase, while attribute names and attribute values are the user's own column headers and cell values, verbatim.
 - **Props and arguments are keyed by Group id too.** A component takes the ordered `groups` and reads its data by `group.id`; it never takes `groupA`/`groupB`, a `nameA`/`COLOR_B` pair, or a row shaped `{ a, b }`. `Bar.counts` and `CurveRow.shares` are maps keyed by id; `SummaryCompare` takes `summaries` keyed by id; `comparedGroups()` returns `Group[]`. On the Rust side the pipeline takes `&[GroupLog]`, id and DataFrame together, and `by_group`/`keyed` are the only places the positional internals meet the ids.
 - A new filter kind is one file in `filters/kind/` (type, modes, copy, its `describe`/`isComplete` arms) plus two lines in `filters/kind/filter.ts`, and one file in `filters/components/editors/` plus one `{:else if}` in `filter-editor.svelte`. Mirrors `src-tauri/src/filters/`, where the file names are the Rust ones: `kind/case-not-in-group.ts` is `filters/group_membership.rs`.
 - `case_not_in_group` is the one filter that reads something other than the log (see `docs/adr/0006`). Its excluded case ids are resolved in `queries::filtered` before the pipeline runs and handed to `filters::apply` as `ExcludedCases`; a Group that has never been applied contributes nothing. It also makes Groups a dependency graph — scanned out of Filter Lists by `dependentsOf`, never stored — and deleting a Group cascades to everything that excludes it.
-- Tests go in `<domain>/tests/{components,state,invokers,utils}/`. Shared components keep their test beside their source. A test using runes must have `.svelte` in its filename (`slices.svelte.test.ts`) or Vitest will not compile them.
+- Tests go in `<domain>/tests/{components,state,invokers,utils}/`. Shared components keep their test beside their source. A test using runes must have `.svelte` in its filename (`drafts.svelte.test.ts`) or Vitest will not compile them.
 
-**Conventions:** kebab-case filenames and folders throughout. Deep imports, no barrel files — `import type { Slice } from "$lib/slices/types"`, not from a domain index. Prefer the `$lib` alias over relative paths.
+**Conventions:** kebab-case filenames and folders throughout. Deep imports, no barrel files — `import type { Group } from "$lib/groups/types"`, not from a domain index. Prefer the `$lib` alias over relative paths.
 
-**Comments document, they don't argue.** A comment says what a thing is, the units and contracts it carries, or a behavior surprising enough to trip the next reader (`min-h-0` being load-bearing, `log(0)` not existing, an effect that would retrigger itself). It never justifies the design: no "rather than X", no "instead of Y", no "deliberately", no pointers to an ADR. Rationale belongs in `docs/adr/`, where it can be read and superseded. Delete a stale comment with the code it describes. No em dashes, in comments or in user-facing copy. No comments on the members of an interface, type, struct, enum or prop list either: the field name and its type carry it, and anything else goes above the declaration.
+**Comments document, they don't argue.** A comment says what a thing is, the units and contracts it carries, or a behavior surprising enough to trip the next reader (`min-h-0` being load-bearing, `log(0)` not existing, an effect that would retrigger itself). It never justifies the design: no "rather than X", no "instead of Y", no "deliberately", no pointers to an ADR. Rationale belongs in `docs/adr/`, where it can be read and superseded. Delete a stale comment with the code it describes. No em dashes in user-facing copy. No comments on the members of an interface, type, struct, enum or prop list either: the field name and its type carry it, and anything else goes above the declaration.
 
 **Routes stay thin.** `src/routes/` handles URL structure and page composition. Three routes are still fat (`distributions`, `filters`, `tree`) and are a known deferred cleanup — don't add to them.
 
