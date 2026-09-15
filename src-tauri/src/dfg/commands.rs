@@ -9,7 +9,8 @@ pub fn dfg(
     groups: Vec<String>,
     attributes: Vec<RequestedAttribute>,
     columns: Vec<ColumnMapping>,
+    variants: Option<Vec<String>>,
 ) -> Result<Dfg, String> {
     let logs = read_groups(&app, &project_id, &groups)?;
-    build(&logs, &columns, &attributes)
+    build(&logs, &columns, &attributes, variants.as_deref())
 }

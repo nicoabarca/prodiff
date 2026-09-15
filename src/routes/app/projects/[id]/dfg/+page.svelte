@@ -4,8 +4,11 @@
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
+  import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
+  import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { loadSettings as loadVariantSettings, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
@@ -25,6 +28,7 @@
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
 
   let comparing = $state(false);
+  let variantsOpen = $state(false);
   let panelOpen = $state(false);
   $effect(() => {
     panelOpen = selected.id !== null;
@@ -34,6 +38,7 @@
     if (!project) return;
     forgetOtherProject(project.id);
     if (comparison.projectId !== project.id) loadComparison(project.id);
+    if (variantSettings.projectId !== project.id) loadVariantSettings(project.id);
   });
 
   $effect(() => {
@@ -44,6 +49,11 @@
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
     <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
+      <VariantSummary
+        graph={built.graph}
+        open={variantsOpen}
+        onToggle={() => (variantsOpen = !variantsOpen)}
+      />
       {#if built.graph && built.graph.overlapCases > 0}
         <p class="text-muted-foreground text-xs">
           {built.graph.overlapCases} cases in both groups
@@ -74,7 +84,10 @@
 
     {#if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
-        <div class="relative flex min-h-0 flex-1">
+        {#if variantsOpen}
+          <VariantPanel {project} graph={built.graph} onClose={() => (variantsOpen = false)} />
+        {/if}
+        <div class="relative flex min-h-0 min-w-0 flex-1">
           <Canvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">

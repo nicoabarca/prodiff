@@ -38,11 +38,23 @@ export const defaultDfgView: DfgView = {
 };
 
 /**
+ * Which Variants the build is cut to. Persisted per project; empty means
+ * "no selection", which is not "not chosen yet" as it is for the tree, but
+ * every Variant, matching what the graph shows before this panel is ever
+ * opened.
+ */
+export interface DfgSettings {
+  selectedVariants: string[];
+}
+
+export const defaultDfgSettings: DfgSettings = { selectedVariants: [] };
+
+/**
  * Identifies the numbers a build produces, for the in-memory cache. Nothing
  * from `DfgView` belongs here: the view never reaches the backend.
  */
-export function dfgKey(groups: string[], attributes: string[]): string {
-  return JSON.stringify([groups, [...attributes].sort()]);
+export function dfgKey(groups: string[], attributes: string[], selectedVariants: string[]): string {
+  return JSON.stringify([groups, [...attributes].sort(), [...selectedVariants].sort()]);
 }
 
 /** One Group as the canvas needs it: what to call it and what colour to use. */
@@ -71,5 +83,6 @@ export interface DfgEdgeData {
   label: string | null;
   labelAt: Point;
   boundary: boolean;
+  highlighted: boolean;
   [key: string]: unknown;
 }

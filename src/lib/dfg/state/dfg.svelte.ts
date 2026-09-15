@@ -4,6 +4,7 @@ import { dfgKey } from "$lib/dfg/types";
 import { attributeOptions } from "$lib/analysis/attributes";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
+import { resetVariantsState, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
@@ -32,8 +33,9 @@ export function selectedAttributes(project: Project): string[] {
   return selection.attributes.filter((attribute) => available.has(attribute));
 }
 
+/** The key the graph on screen would need to match to still be current. */
 export function currentKey(project: Project): string {
-  return dfgKey(comparedIds(), selectedAttributes(project));
+  return dfgKey(comparedIds(), selectedAttributes(project), variantSettings.value.selectedVariants);
 }
 
 export function isStale(project: Project | null): boolean {
@@ -47,14 +49,19 @@ export function isStale(project: Project | null): boolean {
  */
 export async function load(project: Project, force = false) {
   const attributes = selectedAttributes(project);
-  const key = dfgKey(comparedIds(), attributes);
+  const key = dfgKey(comparedIds(), attributes, variantSettings.value.selectedVariants);
   if (built.building || (!force && built.projectId === project.id && built.key === key)) return;
 
   built.building = true;
   built.error = null;
   selected.id = null;
   try {
-    built.graph = await dfg(project, comparedIds(), attributes);
+    built.graph = await dfg(
+      project,
+      comparedIds(),
+      attributes,
+      variantSettings.value.selectedVariants
+    );
     built.projectId = project.id;
     built.key = key;
   } catch (cause) {
@@ -77,7 +84,10 @@ function clear() {
 
 /** Drops a graph belonging to another project when the route changes. */
 export function forgetOtherProject(projectId: string) {
-  if (built.projectId && built.projectId !== projectId) clear();
+  if (built.projectId && built.projectId !== projectId) {
+    clear();
+    resetVariantsState();
+  }
 }
 
 /**
