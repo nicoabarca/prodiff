@@ -1,7 +1,7 @@
 mod analysis;
-mod column_mapping;
+pub mod column_mapping;
 mod dfg;
-mod event_log;
+pub mod event_log;
 mod filters;
 mod groups;
 mod parsing;

@@ -13,7 +13,8 @@ import { isTemporal } from "$lib/event-log/utils/field-settings";
 
 /**
  * Frontend-side validation of the column mapping payload before it is sent to
- * Rust or written to sqlite. The only validation boundary.
+ * Rust or written to sqlite. The importer runs the same checks against the
+ * file's header.
  */
 export function validateColumnMapping(
   mapping: unknown,

@@ -16,16 +16,35 @@ function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   return `CREATE TABLE IF NOT EXISTS ${name} (\n  ${columnDefs.join(",\n  ")}\n);`;
 }
 
+export type SqlExecute = (sql: string) => Promise<unknown>;
+export type SqlSelect = <T>(sql: string) => Promise<T[]>;
+
 async function addColumnIfMissing(
-  sqlite: Database,
+  execute: SqlExecute,
+  select: SqlSelect,
   table: string,
   column: string,
   definition: string
 ) {
-  const columns = await sqlite.select<{ name: string }[]>(`PRAGMA table_info(${table})`);
+  const columns = await select<{ name: string }>(`PRAGMA table_info(${table})`);
   if (!columns.some((known) => known.name === column)) {
-    await sqlite.execute(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
+    await execute(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
   }
+}
+
+/** Creates every table and applies additive columns, through any SQLite driver. Idempotent. */
+export async function ensureSchema(execute: SqlExecute, select: SqlSelect) {
+  await execute(createTableSql(schema.projects));
+  await execute(createTableSql(schema.groups));
+  await execute(createTableSql(schema.comparisons));
+  await execute(createTableSql(schema.treeSettings));
+  await addColumnIfMissing(
+    execute,
+    select,
+    "tree_settings",
+    "attributes_chosen",
+    "attributes_chosen integer NOT NULL DEFAULT 0"
+  );
 }
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -43,15 +62,9 @@ export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:compare.db");
-      await sqlite.execute(createTableSql(schema.projects));
-      await sqlite.execute(createTableSql(schema.groups));
-      await sqlite.execute(createTableSql(schema.comparisons));
-      await sqlite.execute(createTableSql(schema.treeSettings));
-      await addColumnIfMissing(
-        sqlite,
-        "tree_settings",
-        "attributes_chosen",
-        "attributes_chosen integer NOT NULL DEFAULT 0"
+      await ensureSchema(
+        (sql) => sqlite.execute(sql),
+        <T>(sql: string) => sqlite.select<T[]>(sql)
       );
 
       instance = drizzle(
