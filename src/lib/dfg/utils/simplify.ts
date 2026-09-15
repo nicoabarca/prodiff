@@ -1,7 +1,7 @@
 /** Simplifies DFG variants and paths for display. */
 import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
-import { fold, unionCount, type FoldedEdge } from "$lib/dfg/utils/fold";
+import { fold, unionCount, variantKey, type FoldedEdge } from "$lib/dfg/utils/fold";
 
 export interface SimplifiedNode {
   id: number;
@@ -13,7 +13,15 @@ export interface SimplifiedNode {
 export interface Simplified {
   nodes: SimplifiedNode[];
   edges: FoldedEdge[];
-  variants: { shown: number; total: number; cases: number; totalCases: number };
+  variants: {
+    shown: number;
+    total: number;
+    cases: number;
+    totalCases: number;
+    /** Keys of the Variants the Behaviour cut kept, for the picker to mark
+        which rows are actually drawn. */
+    keys: Set<string>;
+  };
   activities: { shown: number; total: number };
   paths: { shown: number; total: number };
 }
@@ -25,12 +33,12 @@ const variantCases = (variant: Variant): number =>
 
 export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
   const ids = graph.groups.map((group) => group.id);
+  const labels = new Map(graph.nodes.map((node) => [node.id, node.label]));
   const { chosen, cases, totalCases } = chooseVariants(graph.variants, view.coverage);
 
   const folded = fold(chosen);
   const edges = cutPaths(folded.edges, ids, view.paths, view.measure);
 
-  const labels = new Map(graph.nodes.map((node) => [node.id, node.label]));
   const nodes: SimplifiedNode[] = [...folded.nodes.entries()]
     .map(([id, counts]) => ({
       id,
@@ -43,7 +51,13 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
   return {
     nodes,
     edges,
-    variants: { shown: chosen.length, total: graph.variants.length, cases, totalCases },
+    variants: {
+      shown: chosen.length,
+      total: graph.variants.length,
+      cases,
+      totalCases,
+      keys: new Set(chosen.map((variant) => variantKey(variant.activities, labels)))
+    },
     activities: {
       shown: nodes.filter((node) => node.kind === "activity").length,
       total: graph.nodes.length

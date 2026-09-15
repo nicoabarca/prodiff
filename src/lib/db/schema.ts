@@ -3,6 +3,7 @@ import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
+import type { DfgSettings } from "$lib/dfg/types";
 
 export const projects = sqliteTable("projects", {
   id: text("id").primaryKey(),
@@ -82,3 +83,15 @@ export const appSettings = sqliteTable("app_settings", {
   key: text("key").primaryKey(),
   value: text("value", { mode: "json" }).notNull()
 });
+
+/**
+ * Which Variants the DFG is built from, per project. Empty means every
+ * Variant: unlike the tree, the DFG has no "not chosen yet" state.
+ */
+export const dfgSettings = sqliteTable("dfg_settings", {
+  projectId: text("project_id").primaryKey(),
+  selectedVariants: text("selected_variants", { mode: "json" })
+    .$type<DfgSettings["selectedVariants"]>()
+    .notNull()
+});
+

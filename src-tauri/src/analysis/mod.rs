@@ -33,6 +33,11 @@ pub fn transition_time_expr(arrival: Expr, previous_complete: Expr) -> Expr {
     when(gap.clone().lt(lit(0))).then(lit(0.0)).otherwise(gap)
 }
 
+/// Joins a case's activity sequence into a Variant key. Shared so `tree` and
+/// `dfg` derive identical keys: a Variant selection made against one picker's
+/// list has to match the other's cases exactly.
+pub const VARIANT_KEY_SEP: &str = "\u{1}";
+
 /// One Group's materialized Event Log, carrying the id every payload keys it by.
 /// The pipeline is handed these in the order the comparison lists them.
 pub struct GroupLog {
