@@ -481,6 +481,40 @@ mod tests {
     }
 
     #[test]
+    fn an_overlapping_activity_never_shows_a_negative_wait() {
+        let timestamp = |name: &str, values: Vec<i64>| {
+            Column::new(name.into(), values)
+                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+                .unwrap()
+        };
+        // B starts at 9_500ms, before A completes at 10_000ms: a real overlap,
+        // not an ordering artifact (B still completes after A, at 10_500ms).
+        let df = DataFrame::new(
+            2,
+            vec![
+                Column::new("case".into(), vec!["1".to_string(), "1".to_string()]),
+                Column::new("act".into(), vec!["A".to_string(), "B".to_string()]),
+                timestamp("ts", vec![10_000, 10_500]),
+                timestamp("start", vec![9_000, 9_500]),
+                Column::new("cost".into(), vec![10i64, 10i64]),
+                Column::new("who".into(), vec!["Bo".to_string(), "Bo".to_string()]),
+                Column::new("region".into(), vec!["south".to_string(), "south".to_string()]),
+            ],
+        )
+        .unwrap();
+
+        let dfg = build(&logs(&df, None), &mapping(true), &[RequestedAttribute::TransitionTime])
+            .unwrap();
+
+        let wait = &transition(&dfg, "A", "B").wait;
+        let Summary::Numerical { min, max, .. } = &wait.summaries["a"] else {
+            panic!("a wait is numeric");
+        };
+        assert_eq!(*min, 0.0);
+        assert_eq!(*max, 0.0);
+    }
+
+    #[test]
     fn a_pair_carries_the_wait_between_its_ends() {
         let dfg = dfg_with(
             &log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]),
