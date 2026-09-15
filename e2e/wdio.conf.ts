@@ -27,12 +27,10 @@ export const config: WebdriverIO.Config = {
   mochaOpts: { ui: "bdd", timeout: 60_000 },
   reporters: ["spec"],
 
+  // Runs before the service's own `onPrepare`, which launches the app once for the whole run.
+  // Each run starts from an empty app data dir; spec files within a run share it.
   onPrepare() {
     ensureBinary(profile);
-  },
-
-  // Every spec file starts from an empty app data dir: no SQLite database, no Projects.
-  beforeSession() {
     wipeAppData();
   },
 
