@@ -9,17 +9,19 @@
 
 <BaseEdge
   path={edge.shaft}
-  style="stroke-width:{edge.width.toFixed(2)};stroke:var(--muted-foreground)"
-  class={edge.boundary ? "opacity-60 [stroke-dasharray:4_4]" : undefined}
+  style="stroke-width:{edge.width.toFixed(2)};stroke:{edge.highlighted
+    ? 'var(--color-indigo-500)'
+    : 'var(--muted-foreground)'}"
+  class={edge.boundary && !edge.highlighted ? "opacity-60 [stroke-dasharray:4_4]" : undefined}
 />
 
 <!-- The head is its own filled shape: the shaft stops where its base is, so no
      stroke shows through the tip at any weight. -->
 <path
   d={edge.head}
-  fill="var(--muted-foreground)"
+  fill={edge.highlighted ? "var(--color-indigo-500)" : "var(--muted-foreground)"}
   stroke="none"
-  class={edge.boundary ? "opacity-60" : undefined}
+  class={edge.boundary && !edge.highlighted ? "opacity-60" : undefined}
 />
 
 {#if edge.label}

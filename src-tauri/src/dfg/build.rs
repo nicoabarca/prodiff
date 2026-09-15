@@ -1,7 +1,7 @@
 //! DFG aggregation.
 
 use super::{Counts, RequestedAttribute};
-use crate::analysis::{Acc, GroupLog};
+use crate::analysis::{Acc, GroupLog, VARIANT_KEY_SEP};
 use crate::column_mapping::{
     find_role, require_role, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
 };
@@ -159,6 +159,7 @@ pub(super) fn aggregate(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
     requested: &[RequestedAttribute],
+    selection: Option<&[String]>,
 ) -> Result<Aggregates, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attributes, wants_transition, skipped_case_level) = plan(requested, mapping, has_start)?;
@@ -186,6 +187,12 @@ pub(super) fn aggregate(
         .collect()
         .map_err(|e| e.to_string())?;
     let lf = prepared.lazy();
+    // Cut before anything is accumulated, so every Node Aggregate and
+    // Significance Test downstream describes exactly the Variants included.
+    let lf = match selection {
+        Some(keys) => filter_by_variants(lf, keys)?,
+        None => lf,
+    };
 
     let mut nodes: HashMap<String, NodeAgg> = HashMap::new();
     node_counts(&lf, &attributes, &mut nodes)?;
@@ -288,6 +295,45 @@ fn categorical(
         }
     }
     Ok(())
+}
+
+/// Keeps only the cases whose activity sequence joins into one of `keys`, the
+/// same key format `tree::variant_key` and `list_variants` use. Filters
+/// per-Group rather than by `CASE` alone: a case id can appear in both Groups
+/// with a different trace under each one's own filters.
+fn filter_by_variants(lf: LazyFrame, keys: &[String]) -> Result<LazyFrame, String> {
+    let wanted: HashSet<&str> = keys.iter().map(String::as_str).collect();
+
+    let df = lf
+        .clone()
+        .group_by([col(GROUP), col(CASE)])
+        .agg([col(ACT).alias(SEQUENCE)])
+        .collect()
+        .map_err(|e| e.to_string())?;
+
+    let groups = strings(&df, GROUP)?;
+    let cases = strings(&df, CASE)?;
+    let sequences = string_lists(&df, SEQUENCE)?;
+
+    let mut allowed: HashMap<String, Vec<String>> = HashMap::new();
+    for row in 0..groups.len() {
+        let key = sequences[row].join(VARIANT_KEY_SEP);
+        if wanted.contains(key.as_str()) {
+            allowed
+                .entry(groups[row].clone())
+                .or_default()
+                .push(cases[row].clone());
+        }
+    }
+
+    let predicate = allowed.into_iter().fold(lit(false), |acc, (group, cases)| {
+        let ids = Series::new("__dfg_case".into(), cases);
+        acc.or(col(GROUP)
+            .eq(lit(group))
+            .and(col(CASE).is_in(lit(ids).implode(true), false)))
+    });
+
+    Ok(lf.filter(predicate))
 }
 
 fn variants(lf: &LazyFrame) -> Result<Vec<VariantAgg>, String> {

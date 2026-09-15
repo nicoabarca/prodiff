@@ -47,6 +47,7 @@ export function initDb(): Promise<Db> {
       await sqlite.execute(createTableSql(schema.groups));
       await sqlite.execute(createTableSql(schema.comparisons));
       await sqlite.execute(createTableSql(schema.treeSettings));
+      await sqlite.execute(createTableSql(schema.dfgSettings));
       await addColumnIfMissing(
         sqlite,
         "tree_settings",

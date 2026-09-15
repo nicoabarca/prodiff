@@ -15,8 +15,8 @@ pub mod commands;
 pub mod distributions;
 
 use crate::analysis::{
-    stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
-    MIN_GROUP_CASES, TRANSITION_TIME,
+    stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA, MIN_GROUP_CASES,
+    TRANSITION_TIME, VARIANT_KEY_SEP,
 };
 use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope};
 use polars::prelude::*;
@@ -290,7 +290,7 @@ fn read_group(
 
 fn variant_key(rows: &GroupRows, case: usize) -> String {
     let (from, to) = rows.bounds[case];
-    rows.activities[from..to].join("\u{1}")
+    rows.activities[from..to].join(VARIANT_KEY_SEP)
 }
 
 /// Counts cases per Variant across both Groups. `list_variants` ships this to
@@ -583,7 +583,10 @@ pub fn build(
                 id,
                 parent: node.parent,
                 label: node.label.clone(),
-                cases: by_group(&ids, [Some(node.cases[0]), comparing.then_some(node.cases[1])]),
+                cases: by_group(
+                    &ids,
+                    [Some(node.cases[0]), comparing.then_some(node.cases[1])],
+                ),
                 event_level: blocks
                     .into_iter()
                     .enumerate()

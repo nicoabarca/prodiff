@@ -86,10 +86,11 @@ pub fn build(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
     attributes: &[RequestedAttribute],
+    selection: Option<&[String]>,
 ) -> Result<Dfg, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
-    let aggregates = build::aggregate(logs, mapping, attributes)?;
+    let aggregates = build::aggregate(logs, mapping, attributes, selection)?;
 
     let mut labels: Vec<&String> = aggregates.nodes.keys().collect();
     labels.sort();
@@ -337,6 +338,16 @@ mod tests {
     }
 
     fn dfg_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str], with_start: bool) -> Dfg {
+        dfg_with_selection(a, b, attrs, with_start, None)
+    }
+
+    fn dfg_with_selection(
+        a: &DataFrame,
+        b: Option<&DataFrame>,
+        attrs: &[&str],
+        with_start: bool,
+        selection: Option<&[String]>,
+    ) -> Dfg {
         let attributes = attrs
             .iter()
             .map(|name| match *name {
@@ -347,7 +358,7 @@ mod tests {
                 },
             })
             .collect::<Vec<_>>();
-        build(&logs(a, b), &mapping(with_start), &attributes).unwrap()
+        build(&logs(a, b), &mapping(with_start), &attributes, selection).unwrap()
     }
 
     fn node<'a>(dfg: &'a Dfg, label: &str) -> &'a DfgNode {
@@ -696,5 +707,40 @@ mod tests {
         assert_eq!(ids(&first), ids(&second));
         assert_eq!(node(&first, "A").id, 2);
         assert_eq!(node(&first, "B").id, 3);
+    }
+
+    #[test]
+    fn a_variant_selection_drops_the_other_cases_from_every_count() {
+        let a = log(&[("1", &[("A", 0, 10), ("B", 1, 20)]), ("2", &[("A", 0, 10)])]);
+        let keep = vec![format!("A{}B", "\u{1}")];
+        let dfg = dfg_with_selection(&a, None, &[], false, Some(&keep));
+
+        assert_eq!(dfg.variants.len(), 1);
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B"]);
+        assert_eq!(node(&dfg, "A").counts["a"].cases, 1);
+        assert_eq!(node(&dfg, "B").counts["a"].cases, 1);
+    }
+
+    #[test]
+    fn a_variant_selection_scopes_the_attribute_summary_to_included_cases() {
+        let a = log(&[("1", &[("A", 0, 10)]), ("2", &[("A", 0, 10), ("B", 1, 20)])]);
+        let keep = vec![format!("A{}B", "\u{1}")];
+        let dfg = dfg_with_selection(&a, None, &["cost"], false, Some(&keep));
+
+        let block = &node(&dfg, "A").attributes["cost"];
+        let Summary::Numerical { n, .. } = &block.summaries["a"] else {
+            panic!("cost is numeric");
+        };
+        assert_eq!(*n, 1);
+    }
+
+    #[test]
+    fn a_selection_matching_nothing_leaves_the_graph_empty() {
+        let a = log(&[("1", &[("A", 0, 10)])]);
+        let keep = vec!["nonexistent".to_string()];
+        let dfg = dfg_with_selection(&a, None, &[], false, Some(&keep));
+
+        assert!(dfg.nodes.is_empty());
+        assert!(dfg.variants.is_empty());
     }
 }
