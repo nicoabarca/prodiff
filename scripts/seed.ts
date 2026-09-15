@@ -132,10 +132,7 @@ async function main() {
   const db = drizzle(sqlite, { schema });
   const failures: string[] = [];
 
-  await ensureSchema(
-    async (sql) => sqlite.exec(sql),
-    async <T>(sql: string) => sqlite.prepare(sql).all() as T[]
-  );
+  await ensureSchema(async (sql) => sqlite.exec(sql));
 
   console.log(`App data: ${appDataDir}`);
   for (const slug of slugs) {

@@ -3,8 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
 
-// DDL is derived from schema.ts and run idempotently at startup. Additive columns
-// are applied after their tables exist so installed databases gain new settings.
+// DDL is derived from schema.ts and run idempotently at startup.
 function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   const { name, columns } = getTableConfig(table);
   const columnDefs = columns.map((column) => {
@@ -17,34 +16,13 @@ function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
 }
 
 export type SqlExecute = (sql: string) => Promise<unknown>;
-export type SqlSelect = <T>(sql: string) => Promise<T[]>;
 
-async function addColumnIfMissing(
-  execute: SqlExecute,
-  select: SqlSelect,
-  table: string,
-  column: string,
-  definition: string
-) {
-  const columns = await select<{ name: string }>(`PRAGMA table_info(${table})`);
-  if (!columns.some((known) => known.name === column)) {
-    await execute(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
-  }
-}
-
-/** Creates every table and applies additive columns, through any SQLite driver. Idempotent. */
-export async function ensureSchema(execute: SqlExecute, select: SqlSelect) {
+/** Creates every table through any SQLite driver. Idempotent. */
+export async function ensureSchema(execute: SqlExecute) {
   await execute(createTableSql(schema.projects));
   await execute(createTableSql(schema.groups));
   await execute(createTableSql(schema.comparisons));
   await execute(createTableSql(schema.treeSettings));
-  await addColumnIfMissing(
-    execute,
-    select,
-    "tree_settings",
-    "attributes_chosen",
-    "attributes_chosen integer NOT NULL DEFAULT 0"
-  );
 }
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -62,10 +40,7 @@ export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:compare.db");
-      await ensureSchema(
-        (sql) => sqlite.execute(sql),
-        <T>(sql: string) => sqlite.select<T[]>(sql)
-      );
+      await ensureSchema((sql) => sqlite.execute(sql));
 
       instance = drizzle(
         async (sql, params, method) => {
