@@ -179,9 +179,11 @@ pub(super) fn aggregate(
                 .alias(PREVIOUS_COMPLETE),
         ])
         .with_column(
-            // Floored at zero: two events in the same case can overlap (a
-            // start before the previous one's complete), which would
-            // otherwise read as a negative wait.
+            // Floored at zero: a short interruption logged as its own row can
+            // start at the same instant as the longer activity it interrupts
+            // but complete sooner, so sorting by complete time puts it right
+            // before the row it actually overlaps, which would otherwise
+            // read as a negative wait.
             when((col(ARRIVAL) - col(PREVIOUS_COMPLETE)).lt(lit(0)))
                 .then(lit(0.0))
                 .otherwise(col(ARRIVAL) - col(PREVIOUS_COMPLETE))
