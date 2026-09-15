@@ -401,6 +401,23 @@ mod tests {
     }
 
     #[test]
+    fn a_trace_orders_by_timestamp_not_by_row_order_in_the_log() {
+        let dfg = dfg_with(
+            &log(&[("1", &[("B", 1, 20), ("A", 0, 10)])]),
+            None,
+            &[TRANSITION_TIME],
+            false,
+        );
+
+        assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B"]);
+        let wait = &transition(&dfg, "A", "B").wait;
+        let Summary::Numerical { mean, .. } = &wait.summaries["a"] else {
+            panic!("a wait is numeric");
+        };
+        assert!(*mean >= 0.0, "transition time went negative: {mean}");
+    }
+
+    #[test]
     fn cases_running_the_same_trace_fold_into_one_variant() {
         let dfg = dfg_with(
             &log(&[

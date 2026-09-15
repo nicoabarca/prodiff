@@ -75,7 +75,7 @@
     <div class="space-y-2">
       <Label class="text-xs">Attributes to test</Label>
       <p class="text-muted-foreground text-[0.6875rem]">
-        Changing these rebuilds the graph. The sliders above never do.
+        Changing these rebuilds the graph. Faces show and Direction above never do.
       </p>
       <div class="max-h-48 space-y-1.5 overflow-y-auto">
         {#each options as option (option)}

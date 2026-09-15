@@ -165,6 +165,7 @@ pub(super) fn aggregate(
 
     let window = || [col(GROUP), col(CASE)];
     let prepared = combined(logs, mapping, &attributes)?
+        .sort([GROUP, CASE, COMPLETE, ARRIVAL], SortMultipleOptions::default())
         .with_columns([
             col(ACT)
                 .shift(lit(1))
