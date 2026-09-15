@@ -11,6 +11,13 @@ export type Measure = "cases" | "events";
 
 export type Direction = "TB" | "LR";
 
+/**
+ * Which layout computes node positions and edge routes. A spike toggle:
+ * `elk1` and `elk2` are two hand-tuned ELK spacing profiles (see
+ * `layout.ts`), `graphviz` routes through the Graphviz WASM spike instead.
+ */
+export type LayoutEngine = "elk1" | "elk2" | "graphviz";
+
 export interface Point {
   x: number;
   y: number;
@@ -28,13 +35,15 @@ export interface DfgView {
   paths: number;
   measure: Measure;
   direction: Direction;
+  engine: LayoutEngine;
 }
 
 export const defaultDfgView: DfgView = {
   coverage: 0.8,
   paths: 1,
   measure: "cases",
-  direction: "TB"
+  direction: "TB",
+  engine: "elk1"
 };
 
 /**

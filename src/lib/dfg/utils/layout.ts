@@ -5,6 +5,7 @@ import {
   END_ID,
   START_ID,
   type Direction,
+  type LayoutEngine,
   type Measure,
   type Point,
   type Rect
@@ -68,7 +69,7 @@ export function topologyKey(graph: Simplified, direction: Direction, measure: Me
  * Routes a self-loop beside its activity node, as the start point followed by
  * one cubic: the shape every other route already has.
  */
-function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
+export function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   const { width, height } = nodeSize(id);
   const reach = 36;
   if (direction === "LR") {
@@ -93,20 +94,60 @@ function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   ];
 }
 
-function elkGraph(graph: Simplified, direction: Direction, measure: Measure): ElkNode {
+export type ElkProfile = Exclude<LayoutEngine, "graphviz">;
+
+interface SpacingTier {
+  edgeRouting: "SPLINES" | "POLYLINE" | "ORTHOGONAL";
+  nodeNodeBetweenLayers: number;
+  nodeNode: number;
+  edgeNode: number;
+  edgeEdge: number;
+}
+
+/**
+ * Two hand-picked spacing profiles, chosen by the button in the DFG toolbar
+ * rather than by graph size: `elk1` reads best on a small, sparse graph;
+ * `elk2` trades curved edges and horizontal room for more vertical space
+ * between layers, which is what keeps parallel edges and their labels apart
+ * once a log turns spaghetti (many activities or many edges between them).
+ */
+export const TIERS: Record<ElkProfile, SpacingTier> = {
+  elk1: {
+    edgeRouting: "SPLINES",
+    nodeNodeBetweenLayers: 80,
+    nodeNode: 90,
+    edgeNode: 30,
+    edgeEdge: 20
+  },
+  elk2: {
+    edgeRouting: "POLYLINE",
+    nodeNodeBetweenLayers: 120,
+    nodeNode: 60,
+    edgeNode: 40,
+    edgeEdge: 25
+  }
+};
+
+function elkGraph(
+  graph: Simplified,
+  direction: Direction,
+  measure: Measure,
+  profile: ElkProfile
+): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
+  const tier = TIERS[profile];
   return {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": direction === "TB" ? "DOWN" : "RIGHT",
-      "elk.edgeRouting": "SPLINES",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "80",
-      "elk.spacing.nodeNode": "90",
-      "elk.spacing.edgeNode": "30",
-      "elk.spacing.edgeEdge": "20",
+      "elk.edgeRouting": tier.edgeRouting,
+      "elk.layered.spacing.nodeNodeBetweenLayers": String(tier.nodeNodeBetweenLayers),
+      "elk.spacing.nodeNode": String(tier.nodeNode),
+      "elk.spacing.edgeNode": String(tier.edgeNode),
+      "elk.spacing.edgeEdge": String(tier.edgeEdge),
       "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
       "elk.layered.cycleBreaking.strategy": "GREEDY"
     },
@@ -156,15 +197,16 @@ function placementFromElk(graph: Simplified, laid: ElkNode, direction: Direction
 export async function layout(
   graph: Simplified,
   direction: Direction,
-  measure: Measure
+  measure: Measure,
+  profile: ElkProfile
 ): Promise<Placement> {
-  const key = topologyKey(graph, direction, measure);
+  const key = `${profile}:${topologyKey(graph, direction, measure)}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const placement = placementFromElk(
     graph,
-    await elk.layout(elkGraph(graph, direction, measure)),
+    await elk.layout(elkGraph(graph, direction, measure, profile)),
     direction
   );
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);

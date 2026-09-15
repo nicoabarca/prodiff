@@ -6,6 +6,7 @@
   import Settings from "$lib/dfg/components/settings.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
+  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { selected, view } from "$lib/dfg/state/view.svelte";
   import { loadSettings as loadVariantSettings, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
@@ -72,6 +73,19 @@
       {/if}
 
       <div class="ml-auto flex items-center gap-2">
+        <ToggleGroup.Root
+          type="single"
+          size="sm"
+          variant="outline"
+          value={view.engine}
+          onValueChange={(value) => {
+            if (value) view.engine = value as typeof view.engine;
+          }}
+        >
+          <ToggleGroup.Item value="elk1">ELK1</ToggleGroup.Item>
+          <ToggleGroup.Item value="elk2">ELK2</ToggleGroup.Item>
+          <ToggleGroup.Item value="graphviz">Graphviz</ToggleGroup.Item>
+        </ToggleGroup.Root>
         <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}

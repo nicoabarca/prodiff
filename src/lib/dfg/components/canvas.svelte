@@ -22,6 +22,7 @@
   import { variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
   import { placeLabels } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
+  import { layoutGraphviz } from "$lib/dfg/utils/layout-graphviz";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
   let {
@@ -54,8 +55,17 @@
   let pending = 0;
   $effect(() => {
     const request = ++pending;
-    const wanted = { graph: simplified, direction: view.direction, measure: view.measure };
-    layout(wanted.graph, wanted.direction, wanted.measure).then((laid) => {
+    const wanted = {
+      graph: simplified,
+      direction: view.direction,
+      measure: view.measure,
+      engine: view.engine
+    };
+    const promise =
+      wanted.engine === "graphviz"
+        ? layoutGraphviz(wanted.graph, wanted.direction, wanted.measure)
+        : layout(wanted.graph, wanted.direction, wanted.measure, wanted.engine);
+    promise.then((laid) => {
       if (request === pending) placement = laid;
     });
   });
