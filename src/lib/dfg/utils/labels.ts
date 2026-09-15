@@ -3,11 +3,11 @@
  * the obvious anchor puts one pill on top of another and neither reads.
  */
 import type { Point, Rect } from "$lib/dfg/types";
-import { along } from "$lib/dfg/utils/arrow";
+import { along, type Route } from "$lib/dfg/utils/arrow";
 
 export interface Labelled {
   key: string;
-  points: Point[];
+  route: Route;
   text: string;
 }
 
@@ -48,7 +48,7 @@ export function placeLabels(edges: Labelled[], nodes: Rect[]): Map<string, Point
   const placed = new Map<string, Point>();
 
   for (const edge of edges) {
-    const tried = STOPS.map((stop) => along(edge.points, stop));
+    const tried = STOPS.map((stop) => along(edge.route, stop));
     const free = tried.find((point) => {
       const shape = box(point, edge.text);
       return (

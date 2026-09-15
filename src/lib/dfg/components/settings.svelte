@@ -15,6 +15,12 @@
 
   const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
 
+  $effect(() => {
+    const available = new Set(options);
+    const kept = selection.attributes.filter((attribute) => available.has(attribute));
+    if (kept.length !== selection.attributes.length) setAttributes(kept);
+  });
+
   function toggle(name: string) {
     const next = new Set(selection.attributes);
     if (!next.delete(name)) next.add(name);

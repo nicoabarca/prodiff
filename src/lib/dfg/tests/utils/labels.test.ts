@@ -1,22 +1,23 @@
 import { describe, expect, it } from "vitest";
 import type { Rect } from "$lib/dfg/types";
+import { prepareRoute } from "$lib/dfg/utils/arrow";
 import { placeLabels } from "$lib/dfg/utils/labels";
 
 const crossing = [
   {
     key: "a",
-    points: [
+    route: prepareRoute([
       { x: 0, y: 0 },
       { x: 200, y: 200 }
-    ],
+    ]),
     text: "2.4 h"
   },
   {
     key: "b",
-    points: [
+    route: prepareRoute([
       { x: 200, y: 0 },
       { x: 0, y: 200 }
-    ],
+    ]),
     text: "3.1 h"
   }
 ];

@@ -1,7 +1,14 @@
 /** Positions and routes a simplified DFG with ELK. */
 import ELK from "elkjs/lib/elk.bundled.js";
 import type { ElkNode } from "elkjs/lib/elk-api";
-import { END_ID, START_ID, type Direction, type Measure, type Point } from "$lib/dfg/types";
+import {
+  END_ID,
+  START_ID,
+  type Direction,
+  type Measure,
+  type Point,
+  type Rect
+} from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -27,6 +34,25 @@ export function nodeSize(id: number): { width: number; height: number } {
   return isTerminal(id)
     ? { width: TERMINAL_SIZE, height: TERMINAL_SIZE }
     : { width: NODE_WIDTH, height: NODE_HEIGHT };
+}
+
+/** A handle-to-handle route for the rare edge ELK declines to section. */
+export function straightRoute(
+  source: Rect | null,
+  target: Rect | null,
+  direction: Direction
+): Point[] {
+  if (!source || !target) return [];
+  if (direction === "LR") {
+    return [
+      { x: source.x + source.width, y: source.y + source.height / 2 },
+      { x: target.x, y: target.y + target.height / 2 }
+    ];
+  }
+  return [
+    { x: source.x + source.width / 2, y: source.y + source.height },
+    { x: target.x + target.width / 2, y: target.y }
+  ];
 }
 
 /** Cache key for layout topology, direction, and edge priority. */

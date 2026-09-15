@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Point, Rect } from "$lib/dfg/types";
-import { along, arrow, polyline } from "$lib/dfg/utils/arrow";
+import { along, arrow, polyline, prepareRoute } from "$lib/dfg/utils/arrow";
 
 const node: Rect = { x: 100, y: 200, width: 150, height: 58 };
 
@@ -55,10 +55,10 @@ describe("polyline", () => {
 describe("arrow", () => {
   it("points at the border it was routed to", () => {
     const drawn = arrow(
-      [
+      prepareRoute([
         { x: 175, y: 100 },
         { x: 175, y: 200 }
-      ],
+      ]),
       node,
       2
     );
@@ -96,17 +96,17 @@ describe("arrow", () => {
       ]
     ];
     for (const [start, end] of arrivals) {
-      const drawn = arrow([start, end], node, 8);
+      const drawn = arrow(prepareRoute([start, end]), node, 8);
       for (const point of corners(drawn.head)) expect(inside(point, node)).toBe(false);
     }
   });
 
   it("stops the shaft where the head begins", () => {
     const drawn = arrow(
-      [
+      prepareRoute([
         { x: 175, y: 100 },
         { x: 175, y: 200 }
-      ],
+      ]),
       node,
       4
     );
@@ -118,12 +118,12 @@ describe("arrow", () => {
 
   it("joins the head to the shaft on a curve", () => {
     const drawn = arrow(
-      [
+      prepareRoute([
         { x: 40, y: 100 },
         { x: 160, y: 110 },
         { x: 200, y: 150 },
         { x: 175, y: 200 }
-      ],
+      ]),
       node,
       6
     );
@@ -131,10 +131,11 @@ describe("arrow", () => {
     const base = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2 };
     const stop = ends(drawn.shaft);
     expect(Math.hypot(stop.x - base.x, stop.y - base.y)).toBeLessThan(0.5);
+    for (const point of corners(drawn.head)) expect(inside(point, node)).toBe(false);
   });
 
   it("draws nothing for a route with no points", () => {
-    expect(arrow([], node, 2)).toEqual({ shaft: "", head: "" });
+    expect(arrow(prepareRoute([]), node, 2)).toEqual({ shaft: "", head: "" });
   });
 });
 
@@ -145,12 +146,17 @@ describe("along", () => {
       { x: 100, y: 0 },
       { x: 100, y: 100 }
     ];
-    expect(along(points, 0.5)).toEqual({ x: 100, y: 0 });
-    expect(along(points, 0)).toEqual({ x: 0, y: 0 });
-    expect(along(points, 1)).toEqual({ x: 100, y: 100 });
+    const route = prepareRoute(points);
+    expect(along(route, 0.5)).toEqual({ x: 100, y: 0 });
+    expect(along(route, 0)).toEqual({ x: 0, y: 0 });
+    expect(along(route, 1)).toEqual({ x: 100, y: 100 });
   });
 
   it("has nowhere to sit on an empty route", () => {
-    expect(along([], 0.5)).toEqual({ x: 0, y: 0 });
+    expect(along(prepareRoute([]), 0.5)).toEqual({ x: 0, y: 0 });
+  });
+
+  it("uses the sole point of a degenerate route", () => {
+    expect(along(prepareRoute([{ x: 1, y: 2 }]), 0.5)).toEqual({ x: 1, y: 2 });
   });
 });

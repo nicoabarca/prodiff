@@ -16,10 +16,10 @@
     membership,
     transitionsById
   } from "$lib/dfg/utils/face";
-  import { END_ID, START_ID, type FaceGroup, type Rect } from "$lib/dfg/types";
-  import { arrow } from "$lib/dfg/utils/arrow";
+  import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
+  import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
   import { placeLabels } from "$lib/dfg/utils/labels";
-  import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
+  import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
   let {
@@ -51,34 +51,48 @@
     const placed = placement;
     if (!placed) return { nodes: [], edges: [] };
 
-    const nodes: Node[] = simplified.nodes
-      .filter((node) => placed.nodes.has(node.id))
-      .map((node) => ({
-        id: String(node.id),
-        type: "activity",
-        position: placed.nodes.get(node.id) ?? { x: 0, y: 0 },
-        ...nodeSize(node.id),
-        draggable: false,
-        data: {
-          label: node.label,
-          kind: node.kind,
-          groups,
-          counts: faceCounts(node.counts, groups, view.measure),
-          findings: findings(measured.get(node.id)),
-          membership: membership(node.counts, groups),
-          selected: selected.id === node.id,
-          direction: view.direction
-        }
-      }));
+    const boxes = new Map(
+      simplified.nodes.flatMap((node) => {
+        const position = placed.nodes.get(node.id);
+        return position ? [[node.id, { ...position, ...nodeSize(node.id) }]] : [];
+      })
+    );
 
-    const rect = (id: number): Rect | null => {
-      const corner = placed.nodes.get(id);
-      return corner ? { ...corner, ...nodeSize(id) } : null;
-    };
+    const nodes: Node[] = simplified.nodes.flatMap((node) => {
+      const box = boxes.get(node.id);
+      if (!box) return [];
+      return [
+        {
+          id: String(node.id),
+          type: "activity",
+          position: { x: box.x, y: box.y },
+          width: box.width,
+          height: box.height,
+          draggable: false,
+          data: {
+            label: node.label,
+            kind: node.kind,
+            groups,
+            counts: faceCounts(node.counts, groups, view.measure),
+            findings: findings(measured.get(node.id)),
+            membership: membership(node.counts, groups),
+            selected: selected.id === node.id,
+            direction: view.direction
+          }
+        }
+      ];
+    });
 
     const drawn = simplified.edges.map((edge) => {
       const key = edgeKey(edge.source, edge.target);
-      return { edge, key, label: edgeWait(waits.get(key), groups) };
+      const points =
+        placed.routes.get(key) ??
+        straightRoute(
+          boxes.get(edge.source) ?? null,
+          boxes.get(edge.target) ?? null,
+          view.direction
+        );
+      return { edge, key, label: edgeWait(waits.get(key), groups), route: prepareRoute(points) };
     });
 
     const anchors = placeLabels(
@@ -86,20 +100,16 @@
         .filter((one) => one.label !== null)
         .map((one) => ({
           key: one.key,
-          points: placed.routes.get(one.key) ?? [],
+          route: one.route,
           text: one.label ?? ""
         })),
-      nodes.map((node) => ({
-        x: node.position.x,
-        y: node.position.y,
-        ...nodeSize(Number(node.id))
-      }))
+      [...boxes.values()]
     );
 
     const busiestEdge = busiest(simplified.edges, view.measure);
-    const edges: Edge[] = drawn.map(({ edge, key, label }) => {
+    const edges: Edge[] = drawn.map(({ edge, key, label, route }) => {
       const width = edgeWidth(edge.counts, busiestEdge, view.measure);
-      const shape = arrow(placed.routes.get(key) ?? [], rect(edge.target), width);
+      const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       return {
         id: key,
         source: String(edge.source),
