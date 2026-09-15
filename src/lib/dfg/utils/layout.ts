@@ -104,29 +104,56 @@ interface SpacingTier {
   edgeEdge: number;
 }
 
+/** Both profiles agree below this size: the graph is not spaghetti, so
+ * there is nothing to A/B. */
+const COMPACT: SpacingTier = {
+  edgeRouting: "SPLINES",
+  nodeNodeBetweenLayers: 80,
+  nodeNode: 90,
+  edgeNode: 30,
+  edgeEdge: 20
+};
+
 /**
- * Two hand-picked spacing profiles, chosen by the button in the DFG toolbar
- * rather than by graph size: `elk1` reads best on a small, sparse graph;
- * `elk2` trades curved edges and horizontal room for more vertical space
- * between layers, which is what keeps parallel edges and their labels apart
- * once a log turns spaghetti (many activities or many edges between them).
+ * Two competing spacing proposals for a spaghetti graph, switched to
+ * automatically once the graph crosses `SPAGHETTI_ACTIVITIES` or
+ * `SPAGHETTI_EDGES`. The `elk1`/`elk2` toggle in the DFG toolbar picks which
+ * proposal answers that automatic switch, so a small graph looks identical
+ * either way and the two only diverge where there is something to compare.
+ *
+ * `elk1` trades curved edges and horizontal room for more vertical space
+ * between layers. `elk2` keeps the curves and leans entirely on wider
+ * edge-to-edge spacing to keep parallel edges and their labels apart.
  */
-export const TIERS: Record<ElkProfile, SpacingTier> = {
+const SPAGHETTI: Record<ElkProfile, SpacingTier> = {
   elk1: {
-    edgeRouting: "SPLINES",
-    nodeNodeBetweenLayers: 80,
-    nodeNode: 90,
-    edgeNode: 30,
-    edgeEdge: 20
-  },
-  elk2: {
     edgeRouting: "POLYLINE",
     nodeNodeBetweenLayers: 120,
     nodeNode: 60,
     edgeNode: 40,
     edgeEdge: 25
+  },
+  elk2: {
+    edgeRouting: "SPLINES",
+    nodeNodeBetweenLayers: 100,
+    nodeNode: 100,
+    edgeNode: 35,
+    edgeEdge: 45
   }
 };
+
+const SPAGHETTI_ACTIVITIES = 30;
+const SPAGHETTI_EDGES = 60;
+
+function isSpaghetti(graph: Simplified): boolean {
+  const activities = graph.nodes.filter((node) => !isTerminal(node.id)).length;
+  const routedEdges = graph.edges.filter((edge) => edge.source !== edge.target).length;
+  return activities >= SPAGHETTI_ACTIVITIES || routedEdges >= SPAGHETTI_EDGES;
+}
+
+export function tierFor(graph: Simplified, profile: ElkProfile): SpacingTier {
+  return isSpaghetti(graph) ? SPAGHETTI[profile] : COMPACT;
+}
 
 function elkGraph(
   graph: Simplified,
@@ -135,7 +162,7 @@ function elkGraph(
   profile: ElkProfile
 ): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
-  const tier = TIERS[profile];
+  const tier = tierFor(graph, profile);
   return {
     id: "root",
     layoutOptions: {

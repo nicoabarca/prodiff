@@ -13,8 +13,10 @@ export type Direction = "TB" | "LR";
 
 /**
  * Which layout computes node positions and edge routes. A spike toggle:
- * `elk1` and `elk2` are two hand-tuned ELK spacing profiles (see
- * `layout.ts`), `graphviz` routes through the Graphviz WASM spike instead.
+ * `elk1` and `elk2` are two competing ELK spacing proposals for spaghetti
+ * graphs (see `tierFor` in `layout.ts`) that agree below that size, so a
+ * small graph looks the same either way; `graphviz` routes through the
+ * Graphviz WASM spike instead.
  */
 export type LayoutEngine = "elk1" | "elk2" | "graphviz";
 
