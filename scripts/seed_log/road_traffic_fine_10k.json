@@ -1,0 +1,62 @@
+{
+  "name": "Road traffic fine 10k (seed)",
+  "columns": [
+    {
+      "name": "Case ID",
+      "role": "case_id",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    { "name": "Activity", "role": "activity_name", "scope": "event", "type": "string" },
+    {
+      "name": "Resource",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "first",
+      "type": "float"
+    },
+    {
+      "name": "Complete Timestamp",
+      "role": "complete_timestamp",
+      "scope": "event",
+      "type": "datetime",
+      "timestampFormat": "YYYY-MM-DD HH:mm:ss.SSS"
+    },
+    { "name": "Variant", "role": "other", "scope": "event", "type": "string" },
+    { "name": "Variant index", "role": "other", "scope": "event", "type": "integer" },
+    { "name": "amount", "role": "other", "scope": "event", "type": "float" },
+    { "name": "dismissal", "role": "other", "scope": "event", "type": "string" },
+    { "name": "vehicleClass", "role": "other", "scope": "event", "type": "string" },
+    {
+      "name": "totalPaymentAmount",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "last",
+      "type": "float"
+    },
+    { "name": "lifecycle:transition", "role": "other", "scope": "event", "type": "string" },
+    { "name": "article", "role": "other", "scope": "event", "type": "integer" },
+    { "name": "points", "role": "other", "scope": "event", "type": "integer" },
+    { "name": "expense", "role": "other", "scope": "event", "type": "float" },
+    { "name": "notificationType", "role": "other", "scope": "event", "type": "string" },
+    { "name": "lastSent", "role": "other", "scope": "event", "type": "string" },
+    { "name": "paymentAmount", "role": "other", "scope": "event", "type": "float" },
+    { "name": "matricola", "role": "other", "scope": "event", "type": "string" }
+  ],
+  "hiddenColumns": [
+    "Variant",
+    "Variant index",
+    "amount",
+    "dismissal",
+    "vehicleClass",
+    "lifecycle:transition",
+    "article",
+    "points",
+    "expense",
+    "notificationType",
+    "lastSent",
+    "paymentAmount",
+    "matricola"
+  ]
+}

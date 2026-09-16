@@ -127,8 +127,9 @@ pub fn find_role(mapping: &[ColumnMapping], role: ColumnRole) -> Option<&str> {
         .map(|c| c.name.as_str())
 }
 
-/// Looks up a role that the event log cannot be summarized without. The frontend
-/// validates this before submitting, so a failure here means a malformed payload.
+/// Looks up a role that the event log cannot be summarized without. The importer
+/// validates this before anything reads it, so a failure here means a caller
+/// skipped the import.
 pub fn require_role(mapping: &[ColumnMapping], role: ColumnRole) -> Result<&str, String> {
     find_role(mapping, role)
         .ok_or_else(|| format!("Column mapping is missing a {} column.", role.label()))

@@ -3,8 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
 
-// DDL is derived from schema.ts and run idempotently at startup. Additive columns
-// are applied after their tables exist so installed databases gain new settings.
+// DDL is derived from schema.ts and run idempotently at startup.
 function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   const { name, columns } = getTableConfig(table);
   const columnDefs = columns.map((column) => {
@@ -16,16 +15,14 @@ function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
   return `CREATE TABLE IF NOT EXISTS ${name} (\n  ${columnDefs.join(",\n  ")}\n);`;
 }
 
-async function addColumnIfMissing(
-  sqlite: Database,
-  table: string,
-  column: string,
-  definition: string
-) {
-  const columns = await sqlite.select<{ name: string }[]>(`PRAGMA table_info(${table})`);
-  if (!columns.some((known) => known.name === column)) {
-    await sqlite.execute(`ALTER TABLE ${table} ADD COLUMN ${definition}`);
-  }
+export type SqlExecute = (sql: string) => Promise<unknown>;
+
+/** Creates every table through any SQLite driver. Idempotent. */
+export async function ensureSchema(execute: SqlExecute) {
+  await execute(createTableSql(schema.projects));
+  await execute(createTableSql(schema.groups));
+  await execute(createTableSql(schema.comparisons));
+  await execute(createTableSql(schema.treeSettings));
 }
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -43,16 +40,7 @@ export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:compare.db");
-      await sqlite.execute(createTableSql(schema.projects));
-      await sqlite.execute(createTableSql(schema.groups));
-      await sqlite.execute(createTableSql(schema.comparisons));
-      await sqlite.execute(createTableSql(schema.treeSettings));
-      await addColumnIfMissing(
-        sqlite,
-        "tree_settings",
-        "attributes_chosen",
-        "attributes_chosen integer NOT NULL DEFAULT 0"
-      );
+      await ensureSchema((sql) => sqlite.execute(sql));
 
       instance = drizzle(
         async (sql, params, method) => {

@@ -1,6 +1,6 @@
 //! Where a Group's materialized Event Log lives.
 
-use crate::event_log::storage::project_dir_path;
+use crate::event_log::storage::{project_dir, projects_dir};
 use polars::prelude::*;
 use std::fs;
 use std::path::PathBuf;
@@ -10,7 +10,7 @@ pub const ORIGINAL: &str = "original";
 
 /// `{app_data}/projects/{project_id}/groups/`.
 fn groups_dir(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
-    Ok(project_dir_path(app, project_id)?.join("groups"))
+    Ok(project_dir(&projects_dir(app)?, project_id).join("groups"))
 }
 
 pub(crate) fn group_path(

@@ -12,10 +12,8 @@
     "moduleResolution": "bundler"
   },
   // TypeScript replaces `exclude` rather than merging it, so the generated
-  // config's entries are repeated here verbatim. The only addition is the
-  // self-checks: they run under `npx tsx`, not in the app bundle, so they are
-  // the one place Node built-ins appear — type-checking them here would mean
-  // pulling in @types/node for the whole project to serve a handful of asserts.
+  // config's entries are repeated here verbatim. The only addition is
+  // `**/*.test.ts`.
   "exclude": [
     "./node_modules/**",
     "./src/service-worker.js",

@@ -3,36 +3,38 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tauri::Manager;
 
-/// `{app_data}/projects/{project_id}/`.
-pub(crate) fn project_dir_path(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
+/// `{app_data}/projects/`.
+pub(crate) fn projects_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
-    Ok(app_data_dir.join("projects").join(project_id))
+    Ok(app_data_dir.join("projects"))
 }
 
-pub(crate) fn create_project_dir(
-    app: &tauri::AppHandle,
-    project_id: &str,
-) -> Result<PathBuf, String> {
-    let dir = project_dir_path(app, project_id)?;
-    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir)
+/// `{projects_dir}/{project_id}/`.
+pub(crate) fn project_dir(projects_dir: &Path, project_id: &str) -> PathBuf {
+    projects_dir.join(project_id)
+}
+
+/// The file name the raw upload is copied to: `original.{extension}`.
+pub(crate) fn original_file_name(source_path: &str) -> String {
+    let extension = Path::new(source_path)
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("csv");
+    format!("original.{extension}")
 }
 
 /// Copies the raw upload into the project directory and returns the copy's path.
 pub(crate) fn copy_original(source_path: &str, project_dir: &Path) -> Result<PathBuf, String> {
-    let extension = PathBuf::from(source_path)
-        .extension()
-        .and_then(|e| e.to_str())
-        .unwrap_or("csv")
-        .to_string();
-    let dest = project_dir.join(format!("original.{extension}"));
+    let dest = project_dir.join(original_file_name(source_path));
     fs::copy(source_path, &dest).map_err(|e| e.to_string())?;
     Ok(dest)
 }
 
+pub(crate) const EVENT_LOG_FILE: &str = "event_log.parquet";
+
 /// Writes the normalized Event Log as Parquet and returns its path.
 pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<PathBuf, String> {
-    let path = project_dir.join("event_log.parquet");
+    let path = project_dir.join(EVENT_LOG_FILE);
     let file = fs::File::create(&path).map_err(|e| e.to_string())?;
     ParquetWriter::new(file)
         .finish(df)
@@ -41,17 +43,17 @@ pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<Pa
 }
 
 /// Where a project's persisted Event Log lives.
-pub(crate) fn event_log_path(app: &tauri::AppHandle, project_id: &str) -> Result<PathBuf, String> {
-    let path = project_dir_path(app, project_id)?.join("event_log.parquet");
+pub(crate) fn event_log_path(projects_dir: &Path, project_id: &str) -> Result<PathBuf, String> {
+    let path = project_dir(projects_dir, project_id).join(EVENT_LOG_FILE);
     if !path.exists() {
         return Err(format!("No event log found for project {project_id}."));
     }
     Ok(path)
 }
 
-/// Deletes `{app_data}/projects/{project_id}/`. No-op if it is already gone.
-pub(crate) fn delete_project_dir(app: &tauri::AppHandle, project_id: &str) -> Result<(), String> {
-    let dir = project_dir_path(app, project_id)?;
+/// Deletes `{projects_dir}/{project_id}/`. No-op if it is already gone.
+pub(crate) fn delete_project_dir(projects_dir: &Path, project_id: &str) -> Result<(), String> {
+    let dir = project_dir(projects_dir, project_id);
     if dir.exists() {
         fs::remove_dir_all(&dir).map_err(|e| e.to_string())?;
     }

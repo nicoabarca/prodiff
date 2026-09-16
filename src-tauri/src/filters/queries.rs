@@ -4,13 +4,13 @@
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
 use super::{apply, timestamp_millis, Endpoint, ExcludedCases, Filter};
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
-use crate::event_log::storage::event_log_path;
+use crate::event_log::storage::{event_log_path, projects_dir};
 use crate::groups::storage::read_group;
 use polars::prelude::*;
 use std::collections::HashSet;
 
 pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFrame, String> {
-    let path = event_log_path(app, project_id)?;
+    let path = event_log_path(&projects_dir(app)?, project_id)?;
     let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
