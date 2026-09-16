@@ -198,11 +198,42 @@ fn validate_mapping(columns: &[ColumnMapping], header: &[String]) -> Result<(), 
 
 /// `.{name}-tmp`, beside `project_dir`.
 fn staging_dir(project_dir: &Path) -> PathBuf {
+    sibling_dir(project_dir, "tmp")
+}
+
+/// `.{name}-old`, beside `project_dir`: where the files being replaced are held
+/// until the new ones are in place.
+fn previous_dir(project_dir: &Path) -> PathBuf {
+    sibling_dir(project_dir, "old")
+}
+
+fn sibling_dir(project_dir: &Path, suffix: &str) -> PathBuf {
     let name = project_dir
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
-    project_dir.with_file_name(format!(".{name}-tmp"))
+    project_dir.with_file_name(format!(".{name}-{suffix}"))
+}
+
+/// Replaces `project_dir` with `staging`, both siblings, so the directory is
+/// either the old import or the new one and never partly written.
+fn swap_into_place(staging: &Path, project_dir: &Path) -> Result<(), String> {
+    let previous = previous_dir(project_dir);
+    if previous.exists() {
+        fs::remove_dir_all(&previous).map_err(|e| e.to_string())?;
+    }
+    let replacing = project_dir.exists();
+    if replacing {
+        fs::rename(project_dir, &previous).map_err(|e| e.to_string())?;
+    }
+    if let Err(error) = fs::rename(staging, project_dir) {
+        if replacing {
+            let _ = fs::rename(&previous, project_dir);
+        }
+        return Err(error.to_string());
+    }
+    let _ = fs::remove_dir_all(&previous);
+    Ok(())
 }
 
 fn write_staged(staging: &Path, source_path: &str, df: &mut DataFrame) -> Result<(), String> {
@@ -265,13 +296,10 @@ pub fn import_event_log(
         let _ = fs::remove_dir_all(&staging);
         return Err(error);
     }
-    if project_dir.exists() {
-        if let Err(error) = fs::remove_dir_all(project_dir) {
-            let _ = fs::remove_dir_all(&staging);
-            return Err(error.to_string());
-        }
+    if let Err(error) = swap_into_place(&staging, project_dir) {
+        let _ = fs::remove_dir_all(&staging);
+        return Err(error);
     }
-    fs::rename(&staging, project_dir).map_err(|e| e.to_string())?;
 
     Ok(CreateEventLogResult {
         stats,
@@ -699,6 +727,8 @@ B7,Payment,2006-09-10 14:30,C
 
         assert!(project.join("event_log.parquet").exists());
         assert!(!project.join("groups").exists());
+        assert!(!staging_dir(&project).exists());
+        assert!(!previous_dir(&project).exists());
     }
 
     #[test]
