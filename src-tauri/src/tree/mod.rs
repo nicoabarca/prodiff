@@ -263,7 +263,8 @@ fn read_group(
 
     // Transition into event N: from the previous event's completion to this
     // one's start when start timestamps exist, otherwise completion to
-    // completion, which absorbs activity N's own duration.
+    // completion, which absorbs activity N's own duration. Floored at zero:
+    // an activity that starts before the previous one completes overlaps it.
     let mut transition = vec![None; cases.len()];
     for &(from, to) in &bounds {
         for r in (from + 1)..to {
@@ -272,7 +273,7 @@ fn read_group(
                 None => complete[r],
             };
             transition[r] = match (arrival, complete[r - 1]) {
-                (Some(a), Some(prev)) => Some(a - prev),
+                (Some(a), Some(prev)) => Some((a - prev).max(0.0)),
                 _ => None,
             };
         }
@@ -767,6 +768,36 @@ mod tests {
     #[test]
     fn a_single_event_case_resolves_to_its_one_row() {
         assert_eq!(resolved_row((7, 8), CaseResolution::Last), 7);
+    }
+
+    #[test]
+    fn an_overlapping_activity_never_shows_a_negative_transition() {
+        let timestamp = |name: &str, values: Vec<i64>| {
+            Column::new(name.into(), values)
+                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+                .unwrap()
+        };
+        // B starts at 9_500ms, before A completes at 10_000ms.
+        let df = DataFrame::new(
+            2,
+            vec![
+                Column::new("case".into(), vec!["1".to_string(), "1".to_string()]),
+                Column::new("act".into(), vec!["A".to_string(), "B".to_string()]),
+                timestamp("ts", vec![10_000, 10_500]),
+                timestamp("start", vec![9_000, 9_500]),
+            ],
+        )
+        .unwrap();
+        let mut mapping = mapping();
+        mapping.push(
+            serde_json::from_str(
+                r#"{"name":"start","role":"start_timestamp","type":"datetime","scope":"event"}"#,
+            )
+            .unwrap(),
+        );
+
+        let rows = read_group(&df, &mapping, &[]).unwrap();
+        assert_eq!(rows.transition, [None, Some(0.0)]);
     }
 
     pub(super) fn mapping() -> Vec<ColumnMapping> {
