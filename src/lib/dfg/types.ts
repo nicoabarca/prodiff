@@ -13,12 +13,9 @@ export type Direction = "TB" | "LR";
 
 /**
  * Which layout computes node positions and edge routes. A spike toggle:
- * `elk1` and `elk2` are two competing ELK spacing proposals for spaghetti
- * graphs (see `tierFor` in `layout.ts`) that agree below that size, so a
- * small graph looks the same either way; `graphviz` routes through the
- * Graphviz WASM spike instead.
+ * `graphviz` routes through the Graphviz WASM spike instead of ELK.
  */
-export type LayoutEngine = "elk1" | "elk2" | "graphviz";
+export type LayoutEngine = "elk" | "graphviz";
 
 export interface Point {
   x: number;
@@ -45,7 +42,7 @@ export const defaultDfgView: DfgView = {
   paths: 1,
   measure: "cases",
   direction: "TB",
-  engine: "elk1"
+  engine: "elk"
 };
 
 /**

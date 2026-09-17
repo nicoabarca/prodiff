@@ -12,14 +12,7 @@ import { Graphviz } from "@hpcc-js/wasm-graphviz";
 import { formatNumber } from "$lib/format";
 import { END_ID, START_ID, type Direction, type Measure, type Point } from "$lib/dfg/types";
 import { unionCount } from "$lib/dfg/utils/fold";
-import {
-  edgeKey,
-  isTerminal,
-  nodeSize,
-  selfLoop,
-  topologyKey,
-  type Placement
-} from "$lib/dfg/utils/layout";
+import { edgeKey, isTerminal, nodeSize, selfLoop, type Placement } from "$lib/dfg/utils/layout";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
 const PT_PER_IN = 72;
@@ -33,31 +26,63 @@ function loadGraphviz(): Promise<Graphviz> {
 
 const escape = (label: string) => label.replace(/"/g, '\\"');
 
-function dotSource(graph: Simplified, direction: Direction, measure: Measure): string {
+export const inches = (px: number) => (px / PT_PER_IN).toFixed(4);
+
+/**
+ * What `dot` is run with besides the nodes' own geometry. `edge` receives an
+ * edge's count on the current measure and the busiest routed edge's count.
+ */
+export interface DotAttributes {
+  graph: Record<string, string>;
+  pinTerminals: boolean;
+  edge: (count: number, busiest: number) => Record<string, string>;
+}
+
+export const defaultDotAttributes: DotAttributes = {
+  graph: { nodesep: inches(90), ranksep: inches(80) },
+  pinTerminals: true,
+  edge: (count) => ({
+    label: count > 0 ? formatNumber(count) : "",
+    weight: String(Math.max(1, Math.round(count)))
+  })
+};
+
+const attributeList = (attributes: Record<string, string>) =>
+  Object.entries(attributes)
+    .map(([key, value]) => `${key}="${escape(value)}"`)
+    .join(" ");
+
+export function dotSource(
+  graph: Simplified,
+  direction: Direction,
+  measure: Measure,
+  attributes: DotAttributes = defaultDotAttributes
+): string {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
-  const lines = [
-    "digraph DFG {",
-    `  rankdir=${direction};`,
-    `  nodesep=${(90 / PT_PER_IN).toFixed(4)};`,
-    `  ranksep=${(80 / PT_PER_IN).toFixed(4)};`
-  ];
+  const lines = ["digraph DFG {", `  rankdir=${direction};`];
+  for (const [key, value] of Object.entries(attributes.graph))
+    lines.push(`  ${key}="${escape(value)}";`);
 
   for (const node of graph.nodes) {
     const { width, height } = nodeSize(node.id);
     const shape = isTerminal(node.id) ? "circle" : "box";
     lines.push(
-      `  ${nodeName(node.id)} [shape=${shape} fixedsize=true width=${(width / PT_PER_IN).toFixed(4)} height=${(height / PT_PER_IN).toFixed(4)} label=""];`
+      `  ${nodeName(node.id)} [shape=${shape} fixedsize=true width=${inches(width)} height=${inches(height)} label=""];`
     );
   }
-  lines.push(`  { rank=source; ${nodeName(START_ID)}; }`, `  { rank=sink; ${nodeName(END_ID)}; }`);
-
-  for (const edge of routed) {
-    const weight = unionCount(edge.counts, measure);
-    const label = weight > 0 ? escape(formatNumber(weight)) : "";
+  if (attributes.pinTerminals)
     lines.push(
-      `  ${nodeName(edge.source)} -> ${nodeName(edge.target)} [label="${label}" weight=${Math.max(1, Math.round(weight))}];`
+      `  { rank=source; ${nodeName(START_ID)}; }`,
+      `  { rank=sink; ${nodeName(END_ID)}; }`
     );
-  }
+
+  const counts = routed.map((edge) => unionCount(edge.counts, measure));
+  const busiest = Math.max(1, ...counts);
+  routed.forEach((edge, index) => {
+    lines.push(
+      `  ${nodeName(edge.source)} -> ${nodeName(edge.target)} [${attributeList(attributes.edge(counts[index], busiest))}];`
+    );
+  });
 
   lines.push("}");
   return lines.join("\n");
@@ -144,14 +169,15 @@ const CACHE_LIMIT = 12;
 export async function layoutGraphviz(
   graph: Simplified,
   direction: Direction,
-  measure: Measure
+  measure: Measure,
+  attributes: DotAttributes = defaultDotAttributes
 ): Promise<Placement> {
-  const key = topologyKey(graph, direction, measure);
+  const dot = dotSource(graph, direction, measure, attributes);
+  const key = dot;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const graphviz = await loadGraphviz();
-  const dot = dotSource(graph, direction, measure);
   const parsed = JSON.parse(graphviz.dot(dot, "json")) as GvGraph;
   const placement = placementFromGraphviz(graph, parsed, direction);
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { END_ID, START_ID, type Rect } from "$lib/dfg/types";
-import { tierFor, straightRoute } from "$lib/dfg/utils/layout";
+import { COMPACT, SPAGHETTI, tierFor, straightRoute } from "$lib/dfg/utils/layout";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
 const noCounts = { a: { cases: 1, events: 1 } };
@@ -59,28 +59,15 @@ describe("straightRoute", () => {
 });
 
 describe("tierFor", () => {
-  it("agrees on the same compact tier for a small graph, whichever profile is asked", () => {
-    const small = chain(5);
-    expect(tierFor(small, "elk1")).toEqual(tierFor(small, "elk2"));
-    expect(tierFor(small, "elk1").edgeRouting).toBe("SPLINES");
+  it("keeps the compact tier for a small graph", () => {
+    expect(tierFor(chain(5))).toEqual(COMPACT);
   });
 
-  it("diverges once activities pile up: elk1 goes polyline, elk2 stays splined but wider", () => {
-    const spaghetti = chain(35);
-    const elk1 = tierFor(spaghetti, "elk1");
-    const elk2 = tierFor(spaghetti, "elk2");
-
-    expect(elk1.edgeRouting).toBe("POLYLINE");
-    expect(elk1.nodeNodeBetweenLayers).toBeGreaterThan(80);
-
-    expect(elk2.edgeRouting).toBe("SPLINES");
-    expect(elk2.edgeEdge).toBeGreaterThan(20);
+  it("switches to the spaghetti tier once activities pile up", () => {
+    expect(tierFor(chain(35))).toEqual(SPAGHETTI);
   });
 
-  it("diverges on edge density alone, even with few activities", () => {
-    const dense = chain(3, 65);
-    expect(tierFor(dense, "elk1").edgeRouting).toBe("POLYLINE");
-    expect(tierFor(dense, "elk2").edgeRouting).toBe("SPLINES");
-    expect(tierFor(dense, "elk2").edgeEdge).toBeGreaterThan(tierFor(dense, "elk1").edgeEdge);
+  it("switches on edge density alone, even with few activities", () => {
+    expect(tierFor(chain(3, 65))).toEqual(SPAGHETTI);
   });
 });

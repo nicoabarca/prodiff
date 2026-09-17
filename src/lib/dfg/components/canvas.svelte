@@ -21,7 +21,14 @@
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
   import { variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
   import { placeLabels } from "$lib/dfg/utils/labels";
-  import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
+  import {
+    edgeKey,
+    layout,
+    nodeSize,
+    straightRoute,
+    type LayoutOverrides,
+    type Placement
+  } from "$lib/dfg/utils/layout";
   import { layoutGraphviz } from "$lib/dfg/utils/layout-graphviz";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -29,8 +36,15 @@
     graph,
     simplified,
     groups,
-    stale
-  }: { graph: ResponseDfg; simplified: Simplified; groups: FaceGroup[]; stale: boolean } = $props();
+    stale,
+    overrides = {}
+  }: {
+    graph: ResponseDfg;
+    simplified: Simplified;
+    groups: FaceGroup[];
+    stale: boolean;
+    overrides?: LayoutOverrides;
+  } = $props();
 
   const nodeTypes = { activity: ActivityNode };
   const edgeTypes = { routed: RoutedEdge };
@@ -63,11 +77,18 @@
     };
     const promise =
       wanted.engine === "graphviz"
-        ? layoutGraphviz(wanted.graph, wanted.direction, wanted.measure)
-        : layout(wanted.graph, wanted.direction, wanted.measure, wanted.engine);
-    promise.then((laid) => {
-      if (request === pending) placement = laid;
-    });
+        ? layoutGraphviz(
+            wanted.graph,
+            wanted.direction,
+            wanted.measure,
+            overrides.graphviz?.(wanted.graph)
+          )
+        : layout(wanted.graph, wanted.direction, wanted.measure, overrides.elk?.(wanted.graph));
+    promise
+      .then((laid) => {
+        if (request === pending) placement = laid;
+      })
+      .catch((error: unknown) => console.error("DFG layout failed", error));
   });
 
   const flow = $derived.by((): { nodes: Node[]; edges: Edge[] } => {

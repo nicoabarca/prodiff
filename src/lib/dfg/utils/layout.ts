@@ -5,12 +5,12 @@ import {
   END_ID,
   START_ID,
   type Direction,
-  type LayoutEngine,
   type Measure,
   type Point,
   type Rect
 } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import type { DotAttributes } from "$lib/dfg/utils/layout-graphviz";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
 export const NODE_WIDTH = 150;
@@ -94,9 +94,7 @@ export function selfLoop(corner: Point, id: number, direction: Direction): Point
   ];
 }
 
-export type ElkProfile = Exclude<LayoutEngine, "graphviz">;
-
-interface SpacingTier {
+export interface SpacingTier {
   edgeRouting: "SPLINES" | "POLYLINE" | "ORTHOGONAL";
   nodeNodeBetweenLayers: number;
   nodeNode: number;
@@ -104,9 +102,7 @@ interface SpacingTier {
   edgeEdge: number;
 }
 
-/** Both profiles agree below this size: the graph is not spaghetti, so
- * there is nothing to A/B. */
-const COMPACT: SpacingTier = {
+export const COMPACT: SpacingTier = {
   edgeRouting: "SPLINES",
   nodeNodeBetweenLayers: 80,
   nodeNode: 90,
@@ -115,54 +111,49 @@ const COMPACT: SpacingTier = {
 };
 
 /**
- * Two competing spacing proposals for a spaghetti graph, switched to
- * automatically once the graph crosses `SPAGHETTI_ACTIVITIES` or
- * `SPAGHETTI_EDGES`. The `elk1`/`elk2` toggle in the DFG toolbar picks which
- * proposal answers that automatic switch, so a small graph looks identical
- * either way and the two only diverge where there is something to compare.
- *
- * `elk1` trades curved edges and horizontal room for more vertical space
- * between layers. `elk2` keeps the curves and leans entirely on wider
- * edge-to-edge spacing to keep parallel edges and their labels apart.
+ * The spacing for a graph past `SPAGHETTI_ACTIVITIES` or `SPAGHETTI_EDGES`:
+ * straight segments and horizontal room traded for more vertical space
+ * between layers.
  */
-const SPAGHETTI: Record<ElkProfile, SpacingTier> = {
-  elk1: {
-    edgeRouting: "POLYLINE",
-    nodeNodeBetweenLayers: 120,
-    nodeNode: 60,
-    edgeNode: 40,
-    edgeEdge: 25
-  },
-  elk2: {
-    edgeRouting: "SPLINES",
-    nodeNodeBetweenLayers: 100,
-    nodeNode: 100,
-    edgeNode: 35,
-    edgeEdge: 45
-  }
+export const SPAGHETTI: SpacingTier = {
+  edgeRouting: "POLYLINE",
+  nodeNodeBetweenLayers: 120,
+  nodeNode: 60,
+  edgeNode: 40,
+  edgeEdge: 25
 };
 
 const SPAGHETTI_ACTIVITIES = 30;
 const SPAGHETTI_EDGES = 60;
 
-function isSpaghetti(graph: Simplified): boolean {
+export function isSpaghetti(graph: Simplified): boolean {
   const activities = graph.nodes.filter((node) => !isTerminal(node.id)).length;
   const routedEdges = graph.edges.filter((edge) => edge.source !== edge.target).length;
   return activities >= SPAGHETTI_ACTIVITIES || routedEdges >= SPAGHETTI_EDGES;
 }
 
-export function tierFor(graph: Simplified, profile: ElkProfile): SpacingTier {
-  return isSpaghetti(graph) ? SPAGHETTI[profile] : COMPACT;
+export function tierFor(graph: Simplified): SpacingTier {
+  return isSpaghetti(graph) ? SPAGHETTI : COMPACT;
+}
+
+/**
+ * Replacement layout inputs for the dev tuning panels. `elk` returns ELK
+ * layout options laid over the tier's own; `graphviz` returns the whole
+ * attribute set `dot` is run with.
+ */
+export interface LayoutOverrides {
+  elk?: (graph: Simplified) => Record<string, string>;
+  graphviz?: (graph: Simplified) => DotAttributes;
 }
 
 function elkGraph(
   graph: Simplified,
   direction: Direction,
   measure: Measure,
-  profile: ElkProfile
+  options: Record<string, string>
 ): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
-  const tier = tierFor(graph, profile);
+  const tier = tierFor(graph);
   return {
     id: "root",
     layoutOptions: {
@@ -176,7 +167,8 @@ function elkGraph(
       "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
       "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-      "elk.layered.cycleBreaking.strategy": "GREEDY"
+      "elk.layered.cycleBreaking.strategy": "GREEDY",
+      ...options
     },
     children: graph.nodes.map((node) => ({
       id: String(node.id),
@@ -225,15 +217,15 @@ export async function layout(
   graph: Simplified,
   direction: Direction,
   measure: Measure,
-  profile: ElkProfile
+  options: Record<string, string> = {}
 ): Promise<Placement> {
-  const key = `${profile}:${topologyKey(graph, direction, measure)}`;
+  const key = `${JSON.stringify(options)}:${topologyKey(graph, direction, measure)}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const placement = placementFromElk(
     graph,
-    await elk.layout(elkGraph(graph, direction, measure, profile)),
+    await elk.layout(elkGraph(graph, direction, measure, options)),
     direction
   );
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
