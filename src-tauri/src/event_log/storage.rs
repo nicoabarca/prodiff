@@ -14,6 +14,14 @@ pub(crate) fn project_dir(projects_dir: &Path, project_id: &str) -> PathBuf {
     projects_dir.join(project_id)
 }
 
+/// Resolves one project's directory from the Tauri app data directory.
+pub(crate) fn project_dir_for_app(
+    app: &tauri::AppHandle,
+    project_id: &str,
+) -> Result<PathBuf, String> {
+    Ok(project_dir(&projects_dir(app)?, project_id))
+}
+
 /// The file name the raw upload is copied to: `original.{extension}`.
 pub(crate) fn original_file_name(source_path: &str) -> String {
     let extension = Path::new(source_path)
@@ -43,10 +51,10 @@ pub(crate) fn write_parquet(df: &mut DataFrame, project_dir: &Path) -> Result<Pa
 }
 
 /// Where a project's persisted Event Log lives.
-pub(crate) fn event_log_path(projects_dir: &Path, project_id: &str) -> Result<PathBuf, String> {
-    let path = project_dir(projects_dir, project_id).join(EVENT_LOG_FILE);
+pub(crate) fn event_log_path(project_dir: &Path) -> Result<PathBuf, String> {
+    let path = project_dir.join(EVENT_LOG_FILE);
     if !path.exists() {
-        return Err(format!("No event log found for project {project_id}."));
+        return Err(format!("No event log found in {}.", project_dir.display()));
     }
     Ok(path)
 }

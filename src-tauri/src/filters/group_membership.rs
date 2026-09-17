@@ -10,7 +10,11 @@
 use polars::prelude::*;
 use std::collections::HashSet;
 
-pub fn apply(lf: LazyFrame, excluded: &HashSet<String>, case_col: &str) -> Result<LazyFrame, String> {
+pub fn apply(
+    lf: LazyFrame,
+    excluded: &HashSet<String>,
+    case_col: &str,
+) -> Result<LazyFrame, String> {
     // An empty exclusion set keeps everything, which is what an unapplied Group
     // means here.
     if excluded.is_empty() {
@@ -38,10 +42,8 @@ mod tests {
             "other".to_string(),
             excluded.iter().map(|id| id.to_string()).collect(),
         );
-        let filters: Vec<Filter> = serde_json::from_str(
-            r#"[{"kind":"case_not_in_group","groupId":"other"}]"#,
-        )
-        .unwrap();
+        let filters: Vec<Filter> =
+            serde_json::from_str(r#"[{"kind":"case_not_in_group","groupId":"other"}]"#).unwrap();
         apply_chain(log().lazy(), &filters, &mapping(), &map)
             .unwrap()
             .collect()

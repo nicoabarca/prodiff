@@ -47,8 +47,17 @@ pub fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
         )
     };
     // Snapped to observations either way: a whisker cap is a case that happened.
-    let low = sorted.iter().copied().find(|v| *v >= lower).unwrap_or(first);
-    let high = sorted.iter().copied().rev().find(|v| *v <= upper).unwrap_or(last);
+    let low = sorted
+        .iter()
+        .copied()
+        .find(|v| *v >= lower)
+        .unwrap_or(first);
+    let high = sorted
+        .iter()
+        .copied()
+        .rev()
+        .find(|v| *v <= upper)
+        .unwrap_or(last);
     (
         low,
         high,
@@ -148,9 +157,7 @@ fn mann_whitney(ids: &[String], a: &[f64], b: &[f64]) -> Option<Test> {
         effect_size: effect_signed.abs(),
         effect_signed: Some(effect_signed),
         significant: false, // set by the Benjamini-Hochberg pass
-        higher: ids
-            .get(if effect_signed >= 0.0 { 0 } else { 1 })
-            .cloned(),
+        higher: ids.get(if effect_signed >= 0.0 { 0 } else { 1 }).cloned(),
     })
 }
 
@@ -246,8 +253,12 @@ mod tests {
 
     #[test]
     fn mann_whitney_separates_disjoint_samples() {
-        let test = mann_whitney(&ids(), &[1.0, 2.0, 3.0, 4.0, 5.0], &[10.0, 11.0, 12.0, 13.0, 14.0])
-            .unwrap();
+        let test = mann_whitney(
+            &ids(),
+            &[1.0, 2.0, 3.0, 4.0, 5.0],
+            &[10.0, 11.0, 12.0, 13.0, 14.0],
+        )
+        .unwrap();
         // The first Group ranks entirely below the second: U = 0, rank-biserial = −1.
         assert_eq!(test.statistic, 0.0);
         assert_eq!(test.effect_signed, Some(-1.0));

@@ -10,6 +10,7 @@ pub mod stats;
 use crate::groups::storage::read_group;
 use polars::prelude::*;
 use std::collections::HashMap;
+use std::path::Path;
 
 /// Derived attributes. Not columns of the log: the picker offers them alongside
 /// the mapped ones and they cost test budget like any other.
@@ -28,11 +29,7 @@ pub struct GroupLog {
 }
 
 /// The Groups a command was asked for, read from their files, in the order asked.
-pub fn read_groups(
-    app: &tauri::AppHandle,
-    project_id: &str,
-    groups: &[String],
-) -> Result<Vec<GroupLog>, String> {
+pub fn read_groups(project_dir: &Path, groups: &[String]) -> Result<Vec<GroupLog>, String> {
     if groups.is_empty() {
         return Err("A comparison needs at least one group.".to_string());
     }
@@ -47,7 +44,7 @@ pub fn read_groups(
         .map(|id| {
             Ok(GroupLog {
                 id: id.clone(),
-                df: read_group(app, project_id, id)?,
+                df: read_group(project_dir, id)?,
             })
         })
         .collect()

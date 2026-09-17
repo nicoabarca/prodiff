@@ -1,6 +1,7 @@
 use super::{build, Dfg, RequestedAttribute};
 use crate::analysis::read_groups;
 use crate::column_mapping::ColumnMapping;
+use crate::event_log::storage::project_dir_for_app;
 
 #[tauri::command]
 pub fn dfg(
@@ -10,6 +11,6 @@ pub fn dfg(
     attributes: Vec<RequestedAttribute>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Dfg, String> {
-    let logs = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
     build(&logs, &columns, &attributes)
 }
