@@ -20,9 +20,6 @@ pub fn apply(
     let is_reference = matches_any_of(as_text.clone(), reference);
     let is_follower = matches_any_of(as_text, follower);
 
-    // Rows are persisted sorted by (case, timestamp) and filtering preserves
-    // order, so "earlier in the case" is "earlier in the window" without
-    // re-sorting.
     let pair = match mode {
         FollowerMode::Eventually | FollowerMode::NeverEventually => {
             // A running count of reference events, minus this row's own

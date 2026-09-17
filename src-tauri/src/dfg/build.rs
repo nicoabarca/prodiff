@@ -165,7 +165,6 @@ pub(super) fn aggregate(
 
     let window = || [col(GROUP), col(CASE)];
     let prepared = combined(logs, mapping, &attributes)?
-        .sort([GROUP, CASE, COMPLETE, ARRIVAL], SortMultipleOptions::default())
         .with_columns([
             col(ACT)
                 .shift(lit(1))
@@ -179,11 +178,7 @@ pub(super) fn aggregate(
                 .alias(PREVIOUS_COMPLETE),
         ])
         .with_column(
-            // Floored at zero: a short interruption logged as its own row can
-            // start at the same instant as the longer activity it interrupts
-            // but complete sooner, so sorting by complete time puts it right
-            // before the row it actually overlaps, which would otherwise
-            // read as a negative wait.
+            // Floored at zero: for overlapping activities
             when((col(ARRIVAL) - col(PREVIOUS_COMPLETE)).lt(lit(0)))
                 .then(lit(0.0))
                 .otherwise(col(ARRIVAL) - col(PREVIOUS_COMPLETE))
