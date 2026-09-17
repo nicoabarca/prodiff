@@ -178,7 +178,10 @@ pub(super) fn aggregate(
                 .alias(PREVIOUS_COMPLETE),
         ])
         .with_column(
-            (col(ARRIVAL) - col(PREVIOUS_COMPLETE))
+            // Floored at zero: for overlapping activities
+            when((col(ARRIVAL) - col(PREVIOUS_COMPLETE)).lt(lit(0)))
+                .then(lit(0.0))
+                .otherwise(col(ARRIVAL) - col(PREVIOUS_COMPLETE))
                 .cast(DataType::Float64)
                 .alias(DELTA),
         )

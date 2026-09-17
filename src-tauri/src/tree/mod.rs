@@ -106,9 +106,8 @@ struct NodeBuild {
     acc: Vec<[Acc; 2]>,
 }
 
-/// One Group's rows, already grouped into cases. Rows are persisted sorted by
-/// (case, timestamp) and filtering preserves order, so contiguous runs of the
-/// case column are whole cases in trace order.
+/// One Group's rows, already grouped into cases: contiguous runs of the case
+/// column are whole cases, in trace order.
 struct GroupRows {
     case_ids: Vec<String>,
     bounds: Vec<(usize, usize)>,

@@ -13,8 +13,6 @@ pub fn apply(
     case_col: &str,
     timestamp_col: &str,
 ) -> Result<LazyFrame, String> {
-    // Rows are sorted by (case, timestamp), so last - first over the case
-    // window is its lifetime without re-sorting (see the endpoint filter).
     // The result is already one scalar per case, broadcast to every row of
     // it, so no further per-case lift is needed before filtering.
     let ts = timestamp_millis(timestamp_col).cast(DataType::Int64);

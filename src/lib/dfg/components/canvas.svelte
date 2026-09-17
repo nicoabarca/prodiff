@@ -1,12 +1,5 @@
 <script lang="ts">
-  import {
-    SvelteFlow,
-    Background,
-    Controls,
-    MarkerType,
-    type Edge,
-    type Node
-  } from "@xyflow/svelte";
+  import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
@@ -24,7 +17,9 @@
     transitionsById
   } from "$lib/dfg/utils/face";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
-  import { edgeKey, layout, nodeSize, type Placement } from "$lib/dfg/utils/layout";
+  import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
+  import { placeLabels } from "$lib/dfg/utils/labels";
+  import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
   let {
@@ -56,39 +51,76 @@
     const placed = placement;
     if (!placed) return { nodes: [], edges: [] };
 
-    const nodes: Node[] = simplified.nodes
-      .filter((node) => placed.nodes.has(node.id))
-      .map((node) => ({
-        id: String(node.id),
-        type: "activity",
-        position: placed.nodes.get(node.id) ?? { x: 0, y: 0 },
-        ...nodeSize(node.id),
-        draggable: false,
-        data: {
-          label: node.label,
-          kind: node.kind,
-          groups,
-          counts: faceCounts(node.counts, groups, view.measure),
-          findings: findings(measured.get(node.id)),
-          membership: membership(node.counts, groups),
-          selected: selected.id === node.id,
-          direction: view.direction
+    const boxes = new Map(
+      simplified.nodes.flatMap((node) => {
+        const position = placed.nodes.get(node.id);
+        return position ? [[node.id, { ...position, ...nodeSize(node.id) }]] : [];
+      })
+    );
+
+    const nodes: Node[] = simplified.nodes.flatMap((node) => {
+      const box = boxes.get(node.id);
+      if (!box) return [];
+      return [
+        {
+          id: String(node.id),
+          type: "activity",
+          position: { x: box.x, y: box.y },
+          width: box.width,
+          height: box.height,
+          draggable: false,
+          data: {
+            label: node.label,
+            kind: node.kind,
+            groups,
+            counts: faceCounts(node.counts, groups, view.measure),
+            findings: findings(measured.get(node.id)),
+            membership: membership(node.counts, groups),
+            selected: selected.id === node.id,
+            direction: view.direction
+          }
         }
-      }));
+      ];
+    });
+
+    const drawn = simplified.edges.map((edge) => {
+      const key = edgeKey(edge.source, edge.target);
+      const points =
+        placed.routes.get(key) ??
+        straightRoute(
+          boxes.get(edge.source) ?? null,
+          boxes.get(edge.target) ?? null,
+          view.direction
+        );
+      return { edge, key, label: edgeWait(waits.get(key), groups), route: prepareRoute(points) };
+    });
+
+    const anchors = placeLabels(
+      drawn
+        .filter((one) => one.label !== null)
+        .map((one) => ({
+          key: one.key,
+          route: one.route,
+          text: one.label ?? ""
+        })),
+      [...boxes.values()]
+    );
 
     const busiestEdge = busiest(simplified.edges, view.measure);
-    const edges: Edge[] = simplified.edges.map((edge) => {
-      const key = edgeKey(edge.source, edge.target);
+    const edges: Edge[] = drawn.map(({ edge, key, label, route }) => {
+      const width = edgeWidth(edge.counts, busiestEdge, view.measure);
+      const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       return {
         id: key,
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
-        markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
         data: {
-          path: placed.paths.get(key) ?? "",
-          width: edgeWidth(edge.counts, busiestEdge, view.measure),
-          label: edgeWait(waits.get(key), groups),
+          shaft: shape.shaft,
+          head: shape.head,
+          width,
+          label,
+          labelAt: anchors.get(key) ?? { x: 0, y: 0 },
           boundary: edge.source === START_ID || edge.target === END_ID
         }
       };

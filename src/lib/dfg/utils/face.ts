@@ -9,6 +9,10 @@ import type { Counts, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 
+/** The thinnest and thickest an edge is ever drawn, in SVG user units. */
+export const EDGE_WIDTH_MIN = 1.5;
+export const EDGE_WIDTH_MAX = 8;
+
 /**
  * One entry per Group, in the order they are compared, so each can be printed
  * in its own colour. `null` where that Group never reached here.
@@ -26,14 +30,16 @@ export function faceCounts(
   );
 }
 
-/** Edge thickness, between 0.5 and 5.5, scaled against the busiest edge drawn. */
+/** Edge thickness, between 1.5 and 8, scaled against the busiest edge drawn. */
 export function edgeWidth(
   counts: Record<string, Counts>,
   busiest: number,
   measure: Measure
 ): number {
-  if (busiest <= 0) return 0.5;
-  return 0.5 + (unionCount(counts, measure) / busiest) * 5;
+  if (busiest <= 0) return EDGE_WIDTH_MIN;
+  return (
+    EDGE_WIDTH_MIN + (unionCount(counts, measure) / busiest) * (EDGE_WIDTH_MAX - EDGE_WIDTH_MIN)
+  );
 }
 
 /**
