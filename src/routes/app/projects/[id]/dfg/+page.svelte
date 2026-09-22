@@ -2,13 +2,21 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import Canvas from "$lib/dfg/components/canvas.svelte";
+  import DevElkTuning from "$lib/dev-elk/components/tuning-panel.svelte";
+  import { elkOverride } from "$lib/dev-elk/state/tuning.svelte";
+  import DevGraphvizTuning from "$lib/dev-graphviz/components/tuning-panel.svelte";
+  import { graphvizOverride } from "$lib/dev-graphviz/state/tuning.svelte";
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
+  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { selected, view } from "$lib/dfg/state/view.svelte";
-  import { loadSettings as loadVariantSettings, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
+  import {
+    loadSettings as loadVariantSettings,
+    settings as variantSettings
+  } from "$lib/dfg/state/variants.svelte";
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
@@ -26,6 +34,8 @@
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
+
+  const devOverrides = import.meta.env.DEV ? { elk: elkOverride, graphviz: graphvizOverride } : {};
 
   let comparing = $state(false);
   let variantsOpen = $state(false);
@@ -72,6 +82,25 @@
       {/if}
 
       <div class="ml-auto flex items-center gap-2">
+        <ToggleGroup.Root
+          type="single"
+          size="sm"
+          variant="outline"
+          value={view.engine}
+          onValueChange={(value) => {
+            if (value) view.engine = value as typeof view.engine;
+          }}
+        >
+          <ToggleGroup.Item value="elk">ELK</ToggleGroup.Item>
+          <ToggleGroup.Item value="graphviz">Graphviz</ToggleGroup.Item>
+        </ToggleGroup.Root>
+        {#if import.meta.env.DEV && simplified}
+          {#if view.engine === "graphviz"}
+            <DevGraphvizTuning {simplified} />
+          {:else}
+            <DevElkTuning {simplified} />
+          {/if}
+        {/if}
         <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
@@ -88,7 +117,13 @@
           <VariantPanel {project} graph={built.graph} onClose={() => (variantsOpen = false)} />
         {/if}
         <div class="relative flex min-h-0 min-w-0 flex-1">
-          <Canvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
+          <Canvas
+            graph={built.graph}
+            {simplified}
+            groups={graphGroupsForView}
+            {stale}
+            overrides={devOverrides}
+          />
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">
               <Button

@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@hpcc-js/wasm-graphviz':
+        specifier: ^1.29.1
+        version: 1.29.1
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.1
@@ -374,6 +377,9 @@ packages:
 
   '@fontsource-variable/inter@5.2.8':
     resolution: {integrity: sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ==}
+
+  '@hpcc-js/wasm-graphviz@1.29.1':
+    resolution: {integrity: sha512-koAQL0wlryEMeBs4/cQC3GB5ziITv66gR9DU/SWYjjup+iQ+Nbjcqxeaef+sffN4F4cBYZ3P31B5z7+cbSABbw==}
 
   '@internationalized/date@3.12.2':
     resolution: {integrity: sha512-FY1Y+H64NDs+HAF6omlnWxm3mEpfgaCSWtL5l551ZZfImA+kGjPFgrnJrGjH6lfmLL0g8Z/mBu1R3kufeCp6Jw==}
@@ -2075,6 +2081,8 @@ snapshots:
   '@floating-ui/utils@0.2.12': {}
 
   '@fontsource-variable/inter@5.2.8': {}
+
+  '@hpcc-js/wasm-graphviz@1.29.1': {}
 
   '@internationalized/date@3.12.2':
     dependencies:

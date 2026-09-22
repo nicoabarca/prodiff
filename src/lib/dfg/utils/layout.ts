@@ -10,6 +10,7 @@ import {
   type Rect
 } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import type { DotAttributes } from "$lib/dfg/utils/layout-graphviz";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
 export const NODE_WIDTH = 150;
@@ -68,7 +69,7 @@ export function topologyKey(graph: Simplified, direction: Direction, measure: Me
  * Routes a self-loop beside its activity node, as the start point followed by
  * one cubic: the shape every other route already has.
  */
-function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
+export function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   const { width, height } = nodeSize(id);
   const reach = 36;
   if (direction === "LR") {
@@ -93,22 +94,81 @@ function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   ];
 }
 
-function elkGraph(graph: Simplified, direction: Direction, measure: Measure): ElkNode {
+export interface SpacingTier {
+  edgeRouting: "SPLINES" | "POLYLINE" | "ORTHOGONAL";
+  nodeNodeBetweenLayers: number;
+  nodeNode: number;
+  edgeNode: number;
+  edgeEdge: number;
+}
+
+export const COMPACT: SpacingTier = {
+  edgeRouting: "SPLINES",
+  nodeNodeBetweenLayers: 80,
+  nodeNode: 90,
+  edgeNode: 30,
+  edgeEdge: 20
+};
+
+/**
+ * The spacing for a graph past `SPAGHETTI_ACTIVITIES` or `SPAGHETTI_EDGES`:
+ * straight segments and horizontal room traded for more vertical space
+ * between layers.
+ */
+export const SPAGHETTI: SpacingTier = {
+  edgeRouting: "POLYLINE",
+  nodeNodeBetweenLayers: 120,
+  nodeNode: 60,
+  edgeNode: 40,
+  edgeEdge: 25
+};
+
+const SPAGHETTI_ACTIVITIES = 30;
+const SPAGHETTI_EDGES = 60;
+
+export function isSpaghetti(graph: Simplified): boolean {
+  const activities = graph.nodes.filter((node) => !isTerminal(node.id)).length;
+  const routedEdges = graph.edges.filter((edge) => edge.source !== edge.target).length;
+  return activities >= SPAGHETTI_ACTIVITIES || routedEdges >= SPAGHETTI_EDGES;
+}
+
+export function tierFor(graph: Simplified): SpacingTier {
+  return isSpaghetti(graph) ? SPAGHETTI : COMPACT;
+}
+
+/**
+ * Replacement layout inputs for the dev tuning panels. `elk` returns ELK
+ * layout options laid over the tier's own; `graphviz` returns the whole
+ * attribute set `dot` is run with.
+ */
+export interface LayoutOverrides {
+  elk?: (graph: Simplified) => Record<string, string>;
+  graphviz?: (graph: Simplified) => DotAttributes;
+}
+
+function elkGraph(
+  graph: Simplified,
+  direction: Direction,
+  measure: Measure,
+  options: Record<string, string>
+): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
+  const tier = tierFor(graph);
   return {
     id: "root",
     layoutOptions: {
       "elk.algorithm": "layered",
       "elk.direction": direction === "TB" ? "DOWN" : "RIGHT",
-      "elk.edgeRouting": "SPLINES",
-      "elk.layered.spacing.nodeNodeBetweenLayers": "80",
-      "elk.spacing.nodeNode": "90",
-      "elk.spacing.edgeNode": "30",
-      "elk.spacing.edgeEdge": "20",
+      "elk.edgeRouting": tier.edgeRouting,
+      "elk.layered.spacing.nodeNodeBetweenLayers": String(tier.nodeNodeBetweenLayers),
+      "elk.spacing.nodeNode": String(tier.nodeNode),
+      "elk.spacing.edgeNode": String(tier.edgeNode),
+      "elk.spacing.edgeEdge": String(tier.edgeEdge),
       "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
-      "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+      "elk.layered.nodePlacement.strategy": "NETWORK_SIMPLEX",
       "elk.layered.considerModelOrder.strategy": "NODES_AND_EDGES",
-      "elk.layered.cycleBreaking.strategy": "GREEDY"
+      "elk.layered.cycleBreaking.strategy": "GREEDY",
+      ...options
     },
     children: graph.nodes.map((node) => ({
       id: String(node.id),
@@ -156,15 +216,16 @@ function placementFromElk(graph: Simplified, laid: ElkNode, direction: Direction
 export async function layout(
   graph: Simplified,
   direction: Direction,
-  measure: Measure
+  measure: Measure,
+  options: Record<string, string> = {}
 ): Promise<Placement> {
-  const key = topologyKey(graph, direction, measure);
+  const key = `${JSON.stringify(options)}:${topologyKey(graph, direction, measure)}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const placement = placementFromElk(
     graph,
-    await elk.layout(elkGraph(graph, direction, measure)),
+    await elk.layout(elkGraph(graph, direction, measure, options)),
     direction
   );
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);
