@@ -24,3 +24,12 @@ fn civil_from_days(z: i64) -> (i64, u32, u32) {
     let m = if mp < 10 { mp + 3 } else { mp - 9 } as u32;
     (if m <= 2 { y + 1 } else { y }, m, d)
 }
+
+/// A Polars Datetime column in milliseconds, for test fixtures.
+#[cfg(test)]
+pub(crate) fn datetime_column(name: &str, millis: Vec<i64>) -> polars::prelude::Column {
+    use polars::prelude::*;
+    Column::new(name.into(), millis)
+        .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
+        .unwrap()
+}
