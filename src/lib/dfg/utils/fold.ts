@@ -21,6 +21,24 @@ export interface Folded {
 
 export const edgeId = (source: number, target: number) => `${source}->${target}`;
 
+/** Joins a Variant's activity labels the same way `list_variants` keys them,
+    so a picker key can be matched against a graph Variant. */
+export function variantKey(activities: number[], labels: Map<number, string>): string {
+  return activities.map((id) => labels.get(id) ?? String(id)).join("\u{1}");
+}
+
+/** The edges one Variant's trace draws, Start through End, for highlighting. */
+export function variantEdgeIds(activities: number[]): Set<string> {
+  if (activities.length === 0) return new Set();
+  const ids = new Set<string>();
+  ids.add(edgeId(START_ID, activities[0]));
+  for (let i = 0; i + 1 < activities.length; i++) {
+    ids.add(edgeId(activities[i], activities[i + 1]));
+  }
+  ids.add(edgeId(activities[activities.length - 1], END_ID));
+  return ids;
+}
+
 /** The union across the Groups, which is what everything ranks and scales by. */
 export function unionCount(counts: Record<string, Counts>, measure: Measure): number {
   let total = 0;

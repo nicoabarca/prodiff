@@ -7,6 +7,7 @@
   import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
     edgeWait,
@@ -18,6 +19,7 @@
   } from "$lib/dfg/utils/face";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
+  import { variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
   import { placeLabels } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -34,6 +36,17 @@
 
   const waits = $derived(transitionsById(graph));
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
+
+  /** The edges of the Variant a row's eye icon lit, if any is still on the
+      graph. */
+  const highlightedEdgeIds = $derived.by(() => {
+    if (shownVariant.key === null) return new Set<string>();
+    const lit = graph.variants.find(
+      (variant) => variantKey(variant.activities, labels) === shownVariant.key
+    );
+    return lit ? variantEdgeIds(lit.activities) : new Set<string>();
+  });
 
   // ELK is asynchronous, so the placement lands a tick after the topology
   // changes. The token drops a result whose request has already been superseded.
@@ -121,7 +134,8 @@
           width,
           label,
           labelAt: anchors.get(key) ?? { x: 0, y: 0 },
-          boundary: edge.source === START_ID || edge.target === END_ID
+          boundary: edge.source === START_ID || edge.target === END_ID,
+          highlighted: highlightedEdgeIds.has(key)
         }
       };
     });

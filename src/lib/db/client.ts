@@ -23,6 +23,7 @@ export async function ensureSchema(execute: SqlExecute) {
   await execute(createTableSql(schema.groups));
   await execute(createTableSql(schema.comparisons));
   await execute(createTableSql(schema.treeSettings));
+  await execute(createTableSql(schema.dfgSettings));
 }
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
