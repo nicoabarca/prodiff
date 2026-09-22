@@ -255,6 +255,7 @@ mod tests {
     use super::*;
     use crate::analysis::{Summary, ACTIVITY_DURATION, TRANSITION_TIME};
     use crate::column_mapping::ColumnMapping as Mapping;
+    use crate::time::datetime_column;
     use polars::prelude::*;
 
     fn mapping(with_start: bool) -> Vec<Mapping> {
@@ -302,18 +303,13 @@ mod tests {
             }
         }
         let height = cases.len();
-        let timestamp = |name: &str, values: Vec<i64>| {
-            Column::new(name.into(), values)
-                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-                .unwrap()
-        };
         DataFrame::new(
             height,
             vec![
                 Column::new("case".into(), cases),
                 Column::new("act".into(), acts),
-                timestamp("ts", complete),
-                timestamp("start", start),
+                datetime_column("ts", complete),
+                datetime_column("start", start),
                 Column::new("cost".into(), costs),
                 Column::new("who".into(), who),
                 Column::new("region".into(), region),
@@ -465,11 +461,6 @@ mod tests {
 
     #[test]
     fn an_overlapping_activity_never_shows_a_negative_wait() {
-        let timestamp = |name: &str, values: Vec<i64>| {
-            Column::new(name.into(), values)
-                .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-                .unwrap()
-        };
         // B starts at 9_500ms, before A completes at 10_000ms: a real overlap,
         // not an ordering artifact (B still completes after A, at 10_500ms).
         let df = DataFrame::new(
@@ -477,8 +468,8 @@ mod tests {
             vec![
                 Column::new("case".into(), vec!["1".to_string(), "1".to_string()]),
                 Column::new("act".into(), vec!["A".to_string(), "B".to_string()]),
-                timestamp("ts", vec![10_000, 10_500]),
-                timestamp("start", vec![9_000, 9_500]),
+                datetime_column("ts", vec![10_000, 10_500]),
+                datetime_column("start", vec![9_000, 9_500]),
                 Column::new("cost".into(), vec![10i64, 10i64]),
                 Column::new("who".into(), vec!["Bo".to_string(), "Bo".to_string()]),
                 Column::new(
