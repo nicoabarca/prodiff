@@ -21,6 +21,18 @@ pub const TRANSITION_TIME: &str = "Transition Time";
 pub const MIN_GROUP_CASES: usize = 5;
 pub const ALPHA: f64 = 0.05;
 
+/// Transition Time in ms, from the previous event's completion to this one's
+/// arrival. Floored at 0 due to negative times from overlapping activities.
+pub fn transition_time(arrival: f64, previous_complete: f64) -> f64 {
+    (arrival - previous_complete).max(0.0)
+}
+
+/// `transition_time` over columns.
+pub fn transition_time_expr(arrival: Expr, previous_complete: Expr) -> Expr {
+    let gap = arrival - previous_complete;
+    when(gap.clone().lt(lit(0))).then(lit(0.0)).otherwise(gap)
+}
+
 /// One Group's materialized Event Log, carrying the id every payload keys it by.
 /// The pipeline is handed these in the order the comparison lists them.
 pub struct GroupLog {

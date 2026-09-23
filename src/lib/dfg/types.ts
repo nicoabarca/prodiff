@@ -11,6 +11,18 @@ export type Measure = "cases" | "events";
 
 export type Direction = "TB" | "LR";
 
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface Rect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface DfgView {
   coverage: number;
   paths: number;
@@ -53,9 +65,11 @@ export interface DfgNodeData {
 }
 
 export interface DfgEdgeData {
-  path: string;
+  shaft: string;
+  head: string;
   width: number;
   label: string | null;
+  labelAt: Point;
   boundary: boolean;
   [key: string]: unknown;
 }

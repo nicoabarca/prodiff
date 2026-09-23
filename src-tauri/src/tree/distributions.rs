@@ -617,7 +617,7 @@ mod tests {
     /// and the value indexing all only exist once `read_group` is in the loop.
     #[test]
     fn scope_decides_the_events_but_never_the_cases() {
-        let mapping = super::super::tests::mapping();
+        let mapping = super::super::tests::mapping(false);
         // Two cases through `B` at depth 2, one that doesn't reach it.
         let log = super::super::tests::log(&[
             ("1", &["A", "B", "C"], &[10, 60, 10]),

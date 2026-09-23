@@ -11,9 +11,6 @@ pub fn apply(
     case_col: &str,
     activity_col: &str,
 ) -> Result<LazyFrame, String> {
-    // Rows are persisted sorted by (case, timestamp) at Event Log creation and
-    // filtering preserves order, so first/last over the case window are the
-    // case's endpoints without re-sorting.
     // Compared as text: the activities arrive as the display strings the
     // picker showed, and an activity column of numeric codes is stored as a
     // number, which would fail the comparison outright.

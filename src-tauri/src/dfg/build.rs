@@ -1,7 +1,7 @@
 //! DFG aggregation.
 
 use super::{Counts, RequestedAttribute};
-use crate::analysis::{Acc, GroupLog};
+use crate::analysis::{transition_time_expr, Acc, GroupLog};
 use crate::column_mapping::{
     find_role, require_role, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
 };
@@ -178,7 +178,7 @@ pub(super) fn aggregate(
                 .alias(PREVIOUS_COMPLETE),
         ])
         .with_column(
-            (col(ARRIVAL) - col(PREVIOUS_COMPLETE))
+            transition_time_expr(col(ARRIVAL), col(PREVIOUS_COMPLETE))
                 .cast(DataType::Float64)
                 .alias(DELTA),
         )

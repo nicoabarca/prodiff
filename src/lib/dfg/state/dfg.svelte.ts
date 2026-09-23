@@ -1,6 +1,7 @@
 import { dfg } from "$lib/dfg/invokers/dfg";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey } from "$lib/dfg/types";
+import { attributeOptions } from "$lib/analysis/attributes";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
 import type { Project } from "$lib/event-log/types";
@@ -25,13 +26,18 @@ export const built = $state<{
  */
 export const selection = $state<{ attributes: string[] }>({ attributes: [] });
 
-/** The key the graph on screen would need to match to still be current. */
-export function currentKey(): string {
-  return dfgKey(comparedIds(), selection.attributes);
+/** The selected attributes that are still valid and visible for this project. */
+export function selectedAttributes(project: Project): string[] {
+  const available = new Set(attributeOptions(project.columns, project.hiddenColumns));
+  return selection.attributes.filter((attribute) => available.has(attribute));
 }
 
-export function isStale(): boolean {
-  return built.graph !== null && built.key !== currentKey();
+export function currentKey(project: Project): string {
+  return dfgKey(comparedIds(), selectedAttributes(project));
+}
+
+export function isStale(project: Project | null): boolean {
+  return project !== null && built.graph !== null && built.key !== currentKey(project);
 }
 
 /**
@@ -40,14 +46,15 @@ export function isStale(): boolean {
  * again; moving a simplification slider never does.
  */
 export async function load(project: Project, force = false) {
-  const key = currentKey();
+  const attributes = selectedAttributes(project);
+  const key = dfgKey(comparedIds(), attributes);
   if (built.building || (!force && built.projectId === project.id && built.key === key)) return;
 
   built.building = true;
   built.error = null;
   selected.id = null;
   try {
-    built.graph = await dfg(project, comparedIds(), selection.attributes);
+    built.graph = await dfg(project, comparedIds(), attributes);
     built.projectId = project.id;
     built.key = key;
   } catch (cause) {

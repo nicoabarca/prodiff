@@ -18,7 +18,7 @@
 
   const project = $derived(currentProject());
   const groups = $derived(comparedGroups());
-  const stale = $derived(isStale());
+  const stale = $derived(isStale(project));
   const graphGroupsForView = $derived(
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );

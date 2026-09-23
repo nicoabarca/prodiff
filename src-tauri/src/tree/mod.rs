@@ -15,8 +15,8 @@ pub mod commands;
 pub mod distributions;
 
 use crate::analysis::{
-    stats, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA, MIN_GROUP_CASES,
-    TRANSITION_TIME,
+    stats, transition_time, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
+    MIN_GROUP_CASES, TRANSITION_TIME,
 };
 use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope};
 use polars::prelude::*;
@@ -106,9 +106,8 @@ struct NodeBuild {
     acc: Vec<[Acc; 2]>,
 }
 
-/// One Group's rows, already grouped into cases. Rows are persisted sorted by
-/// (case, timestamp) and filtering preserves order, so contiguous runs of the
-/// case column are whole cases in trace order.
+/// One Group's rows, already grouped into cases: contiguous runs of the case
+/// column are whole cases, in trace order.
 struct GroupRows {
     case_ids: Vec<String>,
     bounds: Vec<(usize, usize)>,
@@ -273,7 +272,7 @@ fn read_group(
                 None => complete[r],
             };
             transition[r] = match (arrival, complete[r - 1]) {
-                (Some(a), Some(prev)) => Some(a - prev),
+                (Some(a), Some(prev)) => Some(transition_time(a, prev)),
                 _ => None,
             };
         }
@@ -759,6 +758,7 @@ fn case_level_blocks(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::time::datetime_column;
 
     #[test]
     fn the_resolution_policy_picks_which_end_of_the_case_is_read() {
@@ -773,8 +773,26 @@ mod tests {
         assert_eq!(resolved_row((7, 8), CaseResolution::Last), 7);
     }
 
-    pub(super) fn mapping() -> Vec<ColumnMapping> {
-        serde_json::from_str(
+    #[test]
+    fn an_overlapping_activity_never_shows_a_negative_transition() {
+        // B starts at 9_500ms, before A completes at 10_000ms.
+        let df = DataFrame::new(
+            2,
+            vec![
+                Column::new("case".into(), vec!["1".to_string(), "1".to_string()]),
+                Column::new("act".into(), vec!["A".to_string(), "B".to_string()]),
+                datetime_column("ts", vec![10_000, 10_500]),
+                datetime_column("start", vec![9_000, 9_500]),
+            ],
+        )
+        .unwrap();
+
+        let rows = read_group(&df, &mapping(true), &[]).unwrap();
+        assert_eq!(rows.transition, [None, Some(0.0)]);
+    }
+
+    pub(super) fn mapping(with_start: bool) -> Vec<ColumnMapping> {
+        let mut columns: Vec<ColumnMapping> = serde_json::from_str(
             r#"[
               {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
               {"name":"act","role":"activity_name","type":"string","scope":"event"},
@@ -783,7 +801,16 @@ mod tests {
               {"name":"who","role":"other","type":"string","scope":"event"}
             ]"#,
         )
-        .unwrap()
+        .unwrap();
+        if with_start {
+            columns.push(
+                serde_json::from_str(
+                    r#"{"name":"start","role":"start_timestamp","type":"datetime","scope":"event"}"#,
+                )
+                .unwrap(),
+            );
+        }
+        columns
     }
 
     /// `traces` is one `(case, activities, costs)` per case, at one event per
@@ -809,9 +836,7 @@ mod tests {
             vec![
                 Column::new("case".into(), cases),
                 Column::new("act".into(), acts),
-                Column::new("ts".into(), ts)
-                    .cast(&DataType::Datetime(TimeUnit::Milliseconds, None))
-                    .unwrap(),
+                datetime_column("ts", ts),
                 Column::new("cost".into(), costs),
                 Column::new("who".into(), who),
             ],
@@ -837,7 +862,7 @@ mod tests {
 
     fn build_with(a: &DataFrame, b: Option<&DataFrame>, attrs: &[&str]) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
-        build(&logs(a, b), &mapping(), &attributes, None).unwrap()
+        build(&logs(a, b), &mapping(false), &attributes, None).unwrap()
     }
 
     /// The key the builder gives a trace: activities joined the way
@@ -854,7 +879,7 @@ mod tests {
     ) -> DirectedTree {
         let attributes: Vec<String> = attrs.iter().map(|s| s.to_string()).collect();
         let keys: Vec<String> = selection.iter().map(|v| key(v)).collect();
-        build(&logs(a, b), &mapping(), &attributes, Some(&keys)).unwrap()
+        build(&logs(a, b), &mapping(false), &attributes, Some(&keys)).unwrap()
     }
 
     fn labels(tree: &DirectedTree) -> Vec<(Option<usize>, &str, i64, i64)> {

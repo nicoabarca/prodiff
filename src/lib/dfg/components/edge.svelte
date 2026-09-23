@@ -1,22 +1,33 @@
 <script lang="ts">
-  import { BaseEdge, type EdgeProps } from "@xyflow/svelte";
+  import { BaseEdge, EdgeLabel, type EdgeProps } from "@xyflow/svelte";
   import type { DfgEdgeData } from "$lib/dfg/types";
 
-  let { data, sourceX, sourceY, targetX, targetY, markerEnd }: EdgeProps = $props();
+  let { data }: EdgeProps = $props();
 
   const edge = $derived(data as DfgEdgeData);
-  // ELK routes the whole edge around the boxes. The straight line between the
-  // two handles is only the fallback for one it declined to route.
-  const path = $derived(edge.path || `M${sourceX},${sourceY} L${targetX},${targetY}`);
 </script>
 
 <BaseEdge
-  {path}
-  {markerEnd}
-  label={edge.label ?? undefined}
-  labelX={(sourceX + targetX) / 2}
-  labelY={(sourceY + targetY) / 2}
-  labelStyle="font-size:0.625rem;font-family:ui-monospace,monospace;fill:var(--muted-foreground)"
+  path={edge.shaft}
   style="stroke-width:{edge.width.toFixed(2)};stroke:var(--muted-foreground)"
   class={edge.boundary ? "opacity-60 [stroke-dasharray:4_4]" : undefined}
 />
+
+<!-- The head is its own filled shape: the shaft stops where its base is, so no
+     stroke shows through the tip at any weight. -->
+<path
+  d={edge.head}
+  fill="var(--muted-foreground)"
+  stroke="none"
+  class={edge.boundary ? "opacity-60" : undefined}
+/>
+
+{#if edge.label}
+  <EdgeLabel x={edge.labelAt.x} y={edge.labelAt.y} transparent>
+    <span
+      class="border-border/70 bg-card text-muted-foreground inline-block rounded-full border px-1.5 py-px text-[0.625rem] leading-tight font-medium whitespace-nowrap"
+    >
+      {edge.label}
+    </span>
+  </EdgeLabel>
+{/if}

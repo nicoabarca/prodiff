@@ -98,11 +98,20 @@ function cutPaths(
         !top || unionCount(edge.counts, measure) > unionCount(top.counts, measure) ? edge : top,
       null
     );
-  for (const node of new Set(inner.flatMap((edge) => [edge.source, edge.target]))) {
-    const incoming = best(inner.filter((edge) => edge.target === node));
-    const outgoing = best(inner.filter((edge) => edge.source === node));
-    if (incoming) preserved.add(incoming);
-    if (outgoing) preserved.add(outgoing);
+  const push = (into: Map<number, FoldedEdge[]>, node: number, edge: FoldedEdge) => {
+    const found = into.get(node);
+    if (found) found.push(edge);
+    else into.set(node, [edge]);
+  };
+  const incomingByNode = new Map<number, FoldedEdge[]>();
+  const outgoingByNode = new Map<number, FoldedEdge[]>();
+  for (const edge of inner) {
+    push(incomingByNode, edge.target, edge);
+    push(outgoingByNode, edge.source, edge);
+  }
+  for (const edges of [...incomingByNode.values(), ...outgoingByNode.values()]) {
+    const winner = best(edges);
+    if (winner) preserved.add(winner);
   }
 
   return edges.filter((edge) => preserved.has(edge));

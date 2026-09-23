@@ -13,7 +13,13 @@
 
   let { project }: { project: Project } = $props();
 
-  const options = $derived(attributeOptions(project.columns));
+  const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
+
+  $effect(() => {
+    const available = new Set(options);
+    const kept = selection.attributes.filter((attribute) => available.has(attribute));
+    if (kept.length !== selection.attributes.length) setAttributes(kept);
+  });
 
   function toggle(name: string) {
     const next = new Set(selection.attributes);
@@ -68,9 +74,6 @@
 
     <div class="space-y-2">
       <Label class="text-xs">Attributes to test</Label>
-      <p class="text-muted-foreground text-[0.6875rem]">
-        Changing these rebuilds the graph. The sliders above never do.
-      </p>
       <div class="max-h-48 space-y-1.5 overflow-y-auto">
         {#each options as option (option)}
           <div class="flex items-center gap-2">
