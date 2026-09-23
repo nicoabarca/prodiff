@@ -160,7 +160,7 @@ pub struct CreateEventLogResult {
 /// order the Groups were given.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Imported {
+pub struct ImportWithGroups {
     pub event_log: CreateEventLogResult,
     pub groups: Vec<EventLogStats>,
 }
@@ -259,8 +259,7 @@ fn write_staged(
     groups
         .iter()
         .map(|group| {
-            groups::apply(staging, &group.id, &group.filters, columns)
-                .map_err(|e| format!("Group {}: {e}", group.id))
+            groups::apply(staging, group, columns).map_err(|e| format!("Group {}: {e}", group.id))
         })
         .collect()
 }
@@ -273,7 +272,7 @@ pub fn import_event_log(
     source_path: &str,
     columns: &[ColumnMapping],
     groups: &[GroupFilters],
-) -> Result<Imported, String> {
+) -> Result<ImportWithGroups, String> {
     let df = read_csv(source_path, None).map_err(|e| e.to_string())?;
     let header: Vec<String> = df
         .get_column_names()
@@ -327,7 +326,7 @@ pub fn import_event_log(
         return Err(error);
     }
 
-    Ok(Imported {
+    Ok(ImportWithGroups {
         event_log: CreateEventLogResult {
             stats,
             original_path: project_dir

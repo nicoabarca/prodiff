@@ -12,7 +12,7 @@ use std::path::Path;
 use storage::write_group;
 
 /// A Group to apply: its id and the Filter List that defines it.
-#[derive(serde::Deserialize, Debug, Clone)]
+#[derive(serde::Deserialize, Debug)]
 pub struct GroupFilters {
     pub id: String,
     pub filters: Vec<Filter>,
@@ -22,12 +22,11 @@ pub struct GroupFilters {
 /// result as Parquet and returns its figures.
 pub fn apply(
     project_dir: &Path,
-    group_id: &str,
-    filters: &[Filter],
+    group: &GroupFilters,
     columns: &[ColumnMapping],
 ) -> Result<EventLogStats, String> {
     let df = read_event_log(project_dir)?;
-    let mut applied = filtered(project_dir, &df, filters, columns)?;
-    write_group(project_dir, group_id, &mut applied)?;
+    let mut applied = filtered(project_dir, &df, &group.filters, columns)?;
+    write_group(project_dir, &group.id, &mut applied)?;
     summarize(&applied, columns)
 }

@@ -30,7 +30,6 @@ import type {
   ResponseCreateEventLog
 } from "../src/lib/event-log/invokers/types";
 import type { Project } from "../src/lib/event-log/types";
-import type { Filter } from "../src/lib/filters/kind/filter";
 import { defaultColor } from "../src/lib/groups/colors";
 import type { ResponseEventLogStats } from "../src/lib/groups/invokers/types";
 import type { Group } from "../src/lib/groups/types";
@@ -47,11 +46,9 @@ const SEED_BIN = join(
   platform() === "win32" ? "seed-project.exe" : "seed-project"
 );
 
-interface ManifestGroup {
-  name: string;
-  color?: string;
-  filters: Filter[];
-}
+type ManifestGroup = Pick<Group, "name" | "filters"> & Partial<Pick<Group, "color">>;
+
+type SeedGroup = ManifestGroup & Pick<Group, "id">;
 
 interface Manifest {
   name: string;
@@ -60,7 +57,7 @@ interface Manifest {
   groups?: ManifestGroup[];
 }
 
-interface Seeded {
+interface ImportWithGroups {
   eventLog: ResponseCreateEventLog;
   groups: ResponseEventLogStats[];
 }
@@ -71,7 +68,13 @@ interface SeedInput {
   csvPath: string;
   projectDir: string;
   manifest: Manifest;
-  groups: (ManifestGroup & { id: string })[];
+  groups: SeedGroup[];
+}
+
+interface SeedContext {
+  appDataDir: string;
+  available: string[];
+  db: BetterSQLite3Database<typeof schema>;
 }
 
 interface Args {
@@ -140,12 +143,12 @@ function buildSeeder() {
   if (build.status !== 0) fail("Building seed-project failed.");
 }
 
-/** Imports the Event Log and applies `groups` to it, in one pass. */
+/** Imports the Event Log into `projectDir` and applies `groups` to it, in one pass. */
 function seedProject(
   projectDir: string,
   csvPath: string,
   columns: RequestColumnMapping[],
-  groups: { id: string; filters: Filter[] }[]
+  groups: Pick<Group, "id" | "filters">[]
 ) {
   const run = spawnSync(SEED_BIN, [projectDir, csvPath], {
     input: JSON.stringify({ columns, groups }),
@@ -153,10 +156,10 @@ function seedProject(
     maxBuffer: 16 * 1024 * 1024
   });
   if (run.status !== 0) throw new Error(run.stderr.trim() || `exited with ${run.status}`);
-  return JSON.parse(run.stdout) as Seeded;
+  return JSON.parse(run.stdout) as ImportWithGroups;
 }
 
-function seedInput(slug: string, available: string[], appDataDir: string): SeedInput {
+function seedInput(slug: string, { available, appDataDir }: SeedContext): SeedInput {
   if (!available.includes(slug)) {
     throw new Error(`No ${slug}.csv with a matching ${slug}.json in ${SEED_LOG_DIR}.`);
   }
@@ -165,7 +168,8 @@ function seedInput(slug: string, available: string[], appDataDir: string): SeedI
   const unsupported = manifest.groups?.find((group) =>
     group.filters.some((filter) => filter.kind === "case_not_in_group")
   );
-  if (unsupported) throw new Error(`Group "${unsupported.name}" uses unsupported case_not_in_group.`);
+  if (unsupported)
+    throw new Error(`Group "${unsupported.name}" uses unsupported case_not_in_group.`);
   const id = uuidv5(`compare:seed:${slug}`, uuidv5.URL);
   return {
     slug,
@@ -177,51 +181,51 @@ function seedInput(slug: string, available: string[], appDataDir: string): SeedI
   };
 }
 
-function moveProjectAside(projectDir: string): string | null {
-  if (!existsSync(projectDir)) return null;
-  const backupDir = join(dirname(projectDir), `.${basename(projectDir)}-seed-backup-${randomUUID()}`);
-  renameSync(projectDir, backupDir);
-  return backupDir;
+/** `.{project id}-seed-{suffix}`, beside `projectDir`. */
+function siblingDir(projectDir: string, suffix: string): string {
+  return join(dirname(projectDir), `.${basename(projectDir)}-seed-${suffix}`);
 }
 
-function restoreProject(projectDir: string, backupDir: string | null) {
-  rmSync(projectDir, { recursive: true, force: true });
-  if (backupDir) renameSync(backupDir, projectDir);
-}
-
-function discardProjectBackup(backupDir: string | null) {
-  if (!backupDir) return;
+/**
+ * Moves `staging` to `projectDir`, keeping the directory it replaces beside it.
+ * Returns that directory, or null when there was none.
+ */
+function swapIntoPlace(staging: string, projectDir: string): string | null {
+  const previous = existsSync(projectDir)
+    ? siblingDir(projectDir, `previous-${randomUUID()}`)
+    : null;
+  if (previous) renameSync(projectDir, previous);
   try {
-    rmSync(backupDir, { recursive: true, force: true });
+    renameSync(staging, projectDir);
   } catch (error) {
-    console.warn(`Seeded Project but could not remove backup ${backupDir}: ${String(error)}`);
-  }
-}
-
-function replaceProject<T>(projectDir: string, work: () => T): T {
-  const backupDir = moveProjectAside(projectDir);
-  let result: T;
-  try {
-    result = work();
-  } catch (error) {
-    try {
-      restoreProject(projectDir, backupDir);
-    } catch (recoveryError) {
-      throw new AggregateError([error, recoveryError], "Seeding failed and could not restore the Project.");
-    }
+    if (previous) renameSync(previous, projectDir);
     throw error;
   }
-  discardProjectBackup(backupDir);
-  return result;
+  return previous;
 }
 
+function swapBack(projectDir: string, previous: string | null) {
+  rmSync(projectDir, { recursive: true, force: true });
+  if (previous) renameSync(previous, projectDir);
+}
+
+function discardPrevious(previous: string | null) {
+  if (!previous) return;
+  try {
+    rmSync(previous, { recursive: true, force: true });
+  } catch (error) {
+    console.warn(`Seeded Project but could not remove ${previous}: ${String(error)}`);
+  }
+}
+
+/** `result` names files in the staging directory; the Project row names them in `input.projectDir`. */
 function seededProject(input: SeedInput, result: ResponseCreateEventLog): Project {
   return {
     id: input.id,
     name: input.manifest.name,
     fileName: basename(input.csvPath),
-    originalPath: result.originalPath,
-    eventLogPath: result.eventLogPath,
+    originalPath: join(input.projectDir, basename(result.originalPath)),
+    eventLogPath: join(input.projectDir, basename(result.eventLogPath)),
     columns: input.manifest.columns,
     hiddenColumns: input.manifest.hiddenColumns,
     events: result.events,
@@ -249,10 +253,15 @@ function seededGroups(input: SeedInput, stats: ResponseEventLogStats[]): Group[]
   }));
 }
 
+/**
+ * Writes the Project and its Groups, then runs `placeFiles` in the same
+ * transaction, so a failed write leaves the previous files in place.
+ */
 function persistSeed(
   db: BetterSQLite3Database<typeof schema>,
   project: Project,
-  groups: Group[]
+  groups: Group[],
+  placeFiles: () => void
 ) {
   const { id, ...changes } = project;
   db.transaction((tx) => {
@@ -264,36 +273,48 @@ function persistSeed(
       .onConflictDoUpdate({ target: schema.projects.id, set: changes })
       .run();
     if (groups.length > 0) tx.insert(schema.groups).values(groups).run();
+    placeFiles();
   });
 }
 
-function seedSlug(slug: string, available: string[], appDataDir: string, db: BetterSQLite3Database<typeof schema>) {
-  const input = seedInput(slug, available, appDataDir);
-  return replaceProject(input.projectDir, () => {
-    const seeded = seedProject(
-      input.projectDir,
-      input.csvPath,
-      input.manifest.columns,
-      input.groups.map(({ id, filters }) => ({ id, filters }))
-    );
-    const project = seededProject(input, seeded.eventLog);
-    const groups = seededGroups(input, seeded.groups);
-    persistSeed(db, project, groups);
+function seedSlug(slug: string, context: SeedContext) {
+  const input = seedInput(slug, context);
+  const staging = siblingDir(input.projectDir, "staging");
+  rmSync(staging, { recursive: true, force: true });
+  try {
+    const imported = seedProject(staging, input.csvPath, input.manifest.columns, input.groups);
+    const project = seededProject(input, imported.eventLog);
+    const groups = seededGroups(input, imported.groups);
+    let previous: string | null | undefined;
+    try {
+      persistSeed(context.db, project, groups, () => {
+        previous = swapIntoPlace(staging, input.projectDir);
+      });
+    } catch (error) {
+      if (previous === undefined) throw error;
+      try {
+        swapBack(input.projectDir, previous);
+      } catch (recoveryError) {
+        throw new AggregateError(
+          [error, recoveryError],
+          "Seeding failed and could not restore the Project."
+        );
+      }
+      throw error;
+    }
+    discardPrevious(previous ?? null);
     return { project, groups };
-  });
+  } finally {
+    rmSync(staging, { recursive: true, force: true });
+  }
 }
 
-function seedAll(
-  slugs: string[],
-  available: string[],
-  appDataDir: string,
-  db: BetterSQLite3Database<typeof schema>
-) {
+function seedAll(slugs: string[], context: SeedContext) {
   const failures: string[] = [];
-  console.log(`App data: ${appDataDir}`);
+  console.log(`App data: ${context.appDataDir}`);
   for (const slug of slugs) {
     try {
-      const { project, groups } = seedSlug(slug, available, appDataDir, db);
+      const { project, groups } = seedSlug(slug, context);
 
       console.log(
         `seeded  ${slug}: ${project.name} (${project.id}), ` +
@@ -322,7 +343,7 @@ async function main() {
   const sqlite = new BetterSqlite(join(appDataDir, "compare.db"));
   const db = drizzle(sqlite, { schema });
   await ensureSchema(async (sql) => sqlite.exec(sql));
-  const failures = seedAll(slugs, available, appDataDir, db);
+  const failures = seedAll(slugs, { appDataDir, available, db });
   sqlite.close();
   if (failures.length > 0) process.exit(1);
 }

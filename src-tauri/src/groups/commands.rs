@@ -18,7 +18,11 @@ pub fn apply_group(
     columns: Vec<ColumnMapping>,
 ) -> Result<EventLogStats, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    super::apply(&dir, &group_id, &filters, &columns)
+    let group = super::GroupFilters {
+        id: group_id,
+        filters,
+    };
+    super::apply(&dir, &group, &columns)
 }
 
 /// Drops a Group's Parquet.
