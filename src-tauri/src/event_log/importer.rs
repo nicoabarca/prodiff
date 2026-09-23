@@ -6,6 +6,7 @@ use crate::column_mapping::{
     find_role, require_role, to_polars_format, CaseResolution, ColumnMapping, ColumnRole,
     ColumnType,
 };
+use crate::groups::{self, GroupFilters};
 use crate::parsing::{column_to_strings, read_csv};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
@@ -155,6 +156,15 @@ pub struct CreateEventLogResult {
     pub event_log_path: String,
 }
 
+/// An import together with the figures of each Group applied during it, in the
+/// order the Groups were given.
+#[derive(serde::Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ImportWithGroups {
+    pub event_log: CreateEventLogResult,
+    pub groups: Vec<EventLogStats>,
+}
+
 /// Checks the mapping against the file's header: every header column mapped
 /// exactly once, nothing unknown, and the required roles present once each.
 fn validate_mapping(columns: &[ColumnMapping], header: &[String]) -> Result<(), String> {
@@ -236,21 +246,33 @@ fn swap_into_place(staging: &Path, project_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-fn write_staged(staging: &Path, source_path: &str, df: &mut DataFrame) -> Result<(), String> {
+fn write_staged(
+    staging: &Path,
+    source_path: &str,
+    df: &mut DataFrame,
+    columns: &[ColumnMapping],
+    groups: &[GroupFilters],
+) -> Result<Vec<EventLogStats>, String> {
     fs::create_dir_all(staging).map_err(|e| e.to_string())?;
     copy_original(source_path, staging)?;
     write_parquet(df, staging)?;
-    Ok(())
+    groups
+        .iter()
+        .map(|group| {
+            groups::apply(staging, group, columns).map_err(|e| format!("Group {}: {e}", group.id))
+        })
+        .collect()
 }
 
 /// Imports the Event Log at `source_path` into `project_dir`, replacing whatever
-/// was there. A failure leaves `project_dir` as it was and no staging directory
-/// behind.
+/// was there, and applies `groups` to it in order. A failure, in the import or
+/// in any Group, leaves `project_dir` as it was and no staging directory behind.
 pub fn import_event_log(
     project_dir: &Path,
     source_path: &str,
     columns: &[ColumnMapping],
-) -> Result<CreateEventLogResult, String> {
+    groups: &[GroupFilters],
+) -> Result<ImportWithGroups, String> {
     let df = read_csv(source_path, None).map_err(|e| e.to_string())?;
     let header: Vec<String> = df
         .get_column_names()
@@ -292,25 +314,31 @@ pub fn import_event_log(
     if staging.exists() {
         fs::remove_dir_all(&staging).map_err(|e| e.to_string())?;
     }
-    if let Err(error) = write_staged(&staging, source_path, &mut df) {
-        let _ = fs::remove_dir_all(&staging);
-        return Err(error);
-    }
+    let group_stats = match write_staged(&staging, source_path, &mut df, columns, groups) {
+        Ok(group_stats) => group_stats,
+        Err(error) => {
+            let _ = fs::remove_dir_all(&staging);
+            return Err(error);
+        }
+    };
     if let Err(error) = swap_into_place(&staging, project_dir) {
         let _ = fs::remove_dir_all(&staging);
         return Err(error);
     }
 
-    Ok(CreateEventLogResult {
-        stats,
-        original_path: project_dir
-            .join(original_file_name(source_path))
-            .to_string_lossy()
-            .into_owned(),
-        event_log_path: project_dir
-            .join(EVENT_LOG_FILE)
-            .to_string_lossy()
-            .into_owned(),
+    Ok(ImportWithGroups {
+        event_log: CreateEventLogResult {
+            stats,
+            original_path: project_dir
+                .join(original_file_name(source_path))
+                .to_string_lossy()
+                .into_owned(),
+            event_log_path: project_dir
+                .join(EVENT_LOG_FILE)
+                .to_string_lossy()
+                .into_owned(),
+        },
+        groups: group_stats,
     })
 }
 
@@ -687,7 +715,9 @@ B7,Payment,2006-09-10 14:30,C
         let source = scratch.csv(FINES_CSV);
         let project = scratch.project();
 
-        let result = import_event_log(&project, &source, &fines_columns()).unwrap();
+        let result = import_event_log(&project, &source, &fines_columns(), &[])
+            .unwrap()
+            .event_log;
 
         assert_eq!(result.stats.events, 4);
         assert_eq!(result.stats.cases, 2);
@@ -723,7 +753,7 @@ B7,Payment,2006-09-10 14:30,C
         fs::create_dir_all(project.join("groups")).unwrap();
         fs::write(project.join("groups").join("Xk3PqL9a.parquet"), "old").unwrap();
 
-        import_event_log(&project, &source, &fines_columns()).unwrap();
+        import_event_log(&project, &source, &fines_columns(), &[]).unwrap();
 
         assert!(project.join("event_log.parquet").exists());
         assert!(!project.join("groups").exists());
@@ -747,13 +777,69 @@ B7,Payment,2006-09-10 14:30,C
         fs::create_dir_all(&project).unwrap();
         fs::write(project.join("event_log.parquet"), "previous").unwrap();
 
-        let error = import_event_log(&project, &source, &columns).unwrap_err();
+        let error = import_event_log(&project, &source, &columns, &[]).unwrap_err();
 
         assert!(error.contains("vehicleClass"), "names the column: {error}");
         assert_eq!(
             fs::read_to_string(project.join("event_log.parquet")).unwrap(),
             "previous"
         );
+        assert!(!staging_dir(&project).exists());
+    }
+
+    fn group(id: &str, filters: &str) -> GroupFilters {
+        serde_json::from_str(&format!(r#"{{"id":"{id}","filters":{filters}}}"#)).unwrap()
+    }
+
+    #[test]
+    fn an_import_applies_its_groups_in_order() {
+        let scratch = Scratch::new("groups");
+        let source = scratch.csv(FINES_CSV);
+        let project = scratch.project();
+        let groups = [
+            group(
+                "Paid0001",
+                r#"[{"kind":"attribute","column":"Activity","mode":"mandatory","values":["Payment"]}]"#,
+            ),
+            group("All00002", "[]"),
+        ];
+
+        let result = import_event_log(&project, &source, &fines_columns(), &groups).unwrap();
+
+        assert_eq!(result.groups.len(), 2);
+        assert_eq!(result.groups[0].cases, 1);
+        assert_eq!(result.groups[0].events, 2);
+        assert_eq!(result.groups[1].cases, 2);
+        let file = fs::File::open(project.join("groups").join("Paid0001.parquet")).unwrap();
+        let written = ParquetReader::new(file).finish().unwrap();
+        assert_eq!(
+            column_to_strings(&written, "Case ID").unwrap(),
+            ["B7", "B7"]
+        );
+        assert!(project.join("groups").join("All00002.parquet").exists());
+        assert!(!staging_dir(&project).exists());
+    }
+
+    #[test]
+    fn a_failing_group_leaves_the_previous_project_untouched() {
+        let scratch = Scratch::new("group-failure");
+        let source = scratch.csv(FINES_CSV);
+        let project = scratch.project();
+        fs::create_dir_all(&project).unwrap();
+        fs::write(project.join("event_log.parquet"), "previous").unwrap();
+        let groups = [group(
+            "Missing1",
+            r#"[{"kind":"attribute","column":"nope","mode":"mandatory","values":["x"]}]"#,
+        )];
+
+        let error = import_event_log(&project, &source, &fines_columns(), &groups).unwrap_err();
+
+        assert!(error.contains("Missing1"), "names the Group: {error}");
+        assert_eq!(
+            fs::read_to_string(project.join("event_log.parquet")).unwrap(),
+            "previous"
+        );
+        assert!(!project.join("groups").exists());
         assert!(!staging_dir(&project).exists());
     }
 
@@ -768,7 +854,7 @@ B7,Payment,2006-09-10 14:30,C
         .unwrap();
         let project = scratch.project();
 
-        assert!(import_event_log(&project, &source, &columns).is_err());
+        assert!(import_event_log(&project, &source, &columns, &[]).is_err());
         assert!(!project.exists());
         assert!(!staging_dir(&project).exists());
     }

@@ -1,7 +1,7 @@
 use super::importer::{
     case_column_violations, import_event_log, CaseColumnViolation, CreateEventLogResult,
 };
-use super::storage::{delete_project_dir, project_dir, projects_dir};
+use super::storage::{delete_project_dir, project_dir_for_app, projects_dir};
 use crate::column_mapping::ColumnMapping;
 use crate::parsing::read_csv;
 
@@ -12,8 +12,8 @@ pub fn create_event_log(
     source_path: String,
     columns: Vec<ColumnMapping>,
 ) -> Result<CreateEventLogResult, String> {
-    let dir = project_dir(&projects_dir(&app)?, &project_id);
-    import_event_log(&dir, &source_path, &columns)
+    let dir = project_dir_for_app(&app, &project_id)?;
+    import_event_log(&dir, &source_path, &columns, &[]).map(|imported| imported.event_log)
 }
 
 /// Only the violating columns come back.

@@ -3,7 +3,7 @@ pub mod column_mapping;
 mod dfg;
 pub mod event_log;
 mod filters;
-mod groups;
+pub mod groups;
 mod parsing;
 mod stats;
 mod time;

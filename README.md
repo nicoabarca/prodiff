@@ -21,6 +21,53 @@ pnpm tauri build            # release binary and installers in src-tauri/target/
 pnpm tauri build --debug    # debug build in src-tauri/target/debug
 ```
 
+### Seed data
+
+```bash
+pnpm seed                                     # seed every log in scripts/seed_log/
+pnpm seed road_traffic_fine_10k               # seed one log by its slug
+pnpm seed --app-id com.nicoabarca.compare     # seed the app data of `pnpm tauri dev`
+pnpm seed --app-data-dir /path/to/app-data    # seed any app data directory
+```
+
+By default the seed writes to the current branch's app data (`com.nicoabarca.compare.dev-<branch>`), which is what `pnpm dev:port` opens. Reload the app if it is open. The first run compiles the `seed-project` binary in release mode, which takes a few minutes.
+
+Each seed log is a pair of files in `scripts/seed_log/`: `<slug>.csv` holds the Event Log and `<slug>.json` holds its manifest.
+
+```json
+{
+  "name": "Road traffic fine 10k (seed)",
+  "columns": [
+    {
+      "name": "Case ID",
+      "role": "case_id",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    { "name": "Activity", "role": "activity_name", "scope": "event", "type": "string" }
+  ],
+  "hiddenColumns": ["Variant"],
+  "groups": [
+    {
+      "name": "Not dismissed",
+      "color": "group-2",
+      "filters": [
+        { "kind": "attribute", "column": "dismissal", "mode": "mandatory", "values": ["NIL"] }
+      ]
+    }
+  ]
+}
+```
+
+- `columns` is the Column Mapping. It must map every column in the CSV header exactly once.
+- `hiddenColumns` lists the columns hidden from the event data table, the Filter editor and the tree's attribute choices.
+- `groups` is optional. Each Group is applied in array order, which is also its position. `color` is optional and defaults to the palette color for that position. `filters` is a Filter List in the same JSON the app stores. `case_not_in_group` is not supported.
+
+To add a seed log, drop a new CSV and manifest pair into `scripts/seed_log/`. No code changes are needed.
+
+Seeding a slug again resets its Project: the files are replaced, and its Groups, comparison and tree settings are deleted. If the import or any Group fails, the seed reports the error and leaves the previous Project as it was.
+
 ### Frontend tests
 
 ```bash

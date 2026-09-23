@@ -582,7 +582,10 @@ pub fn build(
                 id,
                 parent: node.parent,
                 label: node.label.clone(),
-                cases: by_group(&ids, [Some(node.cases[0]), comparing.then_some(node.cases[1])]),
+                cases: by_group(
+                    &ids,
+                    [Some(node.cases[0]), comparing.then_some(node.cases[1])],
+                ),
                 event_level: blocks
                     .into_iter()
                     .enumerate()

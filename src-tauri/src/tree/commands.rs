@@ -8,6 +8,7 @@ use super::distributions::{distributions, NodeDistributions, Scope};
 use super::{build, DirectedTree};
 use crate::analysis::read_groups;
 use crate::column_mapping::ColumnMapping;
+use crate::event_log::storage::project_dir_for_app;
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to
@@ -31,7 +32,7 @@ pub fn list_variants(
     groups: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
-    let logs = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
 
     let mut rows = super::variant_rows(&logs, &columns)?;
     // Same order the cold-build cut uses, so the list the user sees and the set
@@ -54,7 +55,7 @@ pub fn directed_tree(
     columns: Vec<ColumnMapping>,
     variants: Option<Vec<String>>,
 ) -> Result<DirectedTree, String> {
-    let logs = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
 
     build(&logs, &columns, &attributes, variants.as_deref())
 }
@@ -78,7 +79,7 @@ pub fn node_distributions(
     depth: usize,
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
-    let logs = read_groups(&app, &project_id, &groups)?;
+    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
 
     distributions(&logs, &columns, &attributes, &variants, depth, scope)
 }

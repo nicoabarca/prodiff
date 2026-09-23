@@ -58,5 +58,24 @@
     "lastSent",
     "paymentAmount",
     "matricola"
+  ],
+  "groups": [
+    {
+      "name": "Not dismissed",
+      "filters": [
+        { "kind": "attribute", "column": "dismissal", "mode": "mandatory", "values": ["NIL"] }
+      ]
+    },
+    {
+      "name": "Dismissed",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "dismissal",
+          "mode": "mandatory",
+          "values": ["#", "5", "G", "3", "N", "K"]
+        }
+      ]
+    }
   ]
 }

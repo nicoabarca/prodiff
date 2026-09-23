@@ -4,13 +4,14 @@
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
 use super::{apply, timestamp_millis, Endpoint, ExcludedCases, Filter};
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
-use crate::event_log::storage::{event_log_path, projects_dir};
+use crate::event_log::storage::event_log_path;
 use crate::groups::storage::read_group;
 use polars::prelude::*;
 use std::collections::HashSet;
+use std::path::Path;
 
-pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFrame, String> {
-    let path = event_log_path(&projects_dir(app)?, project_id)?;
+pub fn read_event_log(project_dir: &Path) -> Result<DataFrame, String> {
+    let path = event_log_path(project_dir)?;
     let file = std::fs::File::open(&path).map_err(|e| e.to_string())?;
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
@@ -21,8 +22,7 @@ pub fn read_event_log(app: &tauri::AppHandle, project_id: &str) -> Result<DataFr
 ///
 /// A Group that has never been applied contributes nothing.
 fn excluded_cases(
-    app: &tauri::AppHandle,
-    project_id: &str,
+    project_dir: &Path,
     filters: &[Filter],
     columns: &[ColumnMapping],
 ) -> Result<ExcludedCases, String> {
@@ -35,7 +35,7 @@ fn excluded_cases(
         if excluded.contains_key(group_id) {
             continue;
         }
-        let ids = match read_group(app, project_id, group_id) {
+        let ids = match read_group(project_dir, group_id) {
             Ok(df) => case_ids(&df, case_col)?,
             Err(_) => HashSet::new(),
         };
@@ -47,17 +47,18 @@ fn excluded_cases(
 /// Every case id in a frame, as the display strings the seam uses everywhere.
 pub fn case_ids(df: &DataFrame, case_col: &str) -> Result<HashSet<String>, String> {
     let column = df.column(case_col).map_err(|e| e.to_string())?;
-    Ok((0..df.height()).map(|i| cell_to_string(column, i)).collect())
+    Ok((0..df.height())
+        .map(|i| cell_to_string(column, i))
+        .collect())
 }
 
 pub fn filtered(
-    app: &tauri::AppHandle,
-    project_id: &str,
+    project_dir: &Path,
     df: &DataFrame,
     filters: &[Filter],
     columns: &[ColumnMapping],
 ) -> Result<DataFrame, String> {
-    let excluded = excluded_cases(app, project_id, filters, columns)?;
+    let excluded = excluded_cases(project_dir, filters, columns)?;
     apply(df.clone().lazy(), filters, columns, &excluded)?
         .collect()
         .map_err(|e| e.to_string())
