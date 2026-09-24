@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ProDiff</title>
+    <meta name="description" content="Compare groups of cases in an event log." />
+    <style>
+      :root {
+        --bg: #fafafa;
+        --fg: #0a0a0a;
+        --muted: #737373;
+        --border: #e5e5e5;
+        color-scheme: light;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem;
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, sans-serif;
+      }
+      main {
+        width: 100%;
+        max-width: 32rem;
+        text-align: center;
+      }
+      h1 {
+        margin: 0;
+        font-size: 3rem;
+        letter-spacing: -0.03em;
+      }
+      .tagline {
+        margin: 0.5rem 0 2rem;
+        color: var(--muted);
+      }
+      .downloads {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        justify-content: center;
+      }
+      .downloads a {
+        padding: 0.75rem 1.25rem;
+        border: 1px solid var(--fg);
+        color: var(--fg);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .downloads a:first-child {
+        background: var(--fg);
+        color: var(--bg);
+      }
+      .downloads a[aria-disabled="true"] {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+      .version {
+        margin: 1rem 0 2.5rem;
+        color: var(--muted);
+        font-size: 0.875rem;
+      }
+      details {
+        text-align: left;
+        border-top: 1px solid var(--border);
+        padding: 1rem 0;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+      summary {
+        cursor: pointer;
+        color: var(--fg);
+      }
+      code {
+        font-size: 0.8125rem;
+        color: var(--fg);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>ProDiff</h1>
+      <p class="tagline">Compare groups of cases in an event log.</p>
+      <div class="downloads">
+        <a
+          id="mac"
+          href="https://github.com/nicoabarca/prodiff/releases/latest"
+          aria-disabled="true"
+          >macOS (Apple Silicon)</a
+        >
+        <a
+          id="windows"
+          href="https://github.com/nicoabarca/prodiff/releases/latest"
+          aria-disabled="true"
+          >Windows</a
+        >
+      </div>
+      <p class="version" id="version">&nbsp;</p>
+      <details>
+        <summary>Opening ProDiff for the first time</summary>
+        <p>
+          ProDiff is not signed yet, so both systems warn about it once. Updates install from inside
+          the app afterwards.
+        </p>
+        <p>
+          <strong>macOS:</strong> open the .dmg and drag ProDiff to Applications. If macOS says the
+          app is damaged or cannot be opened, run this in Terminal, then open it again:<br />
+          <code>xattr -cr /Applications/ProDiff.app</code>
+        </p>
+        <p>
+          <strong>Windows:</strong> if SmartScreen shows "Windows protected your PC", click More
+          info, then Run anyway.
+        </p>
+      </details>
+    </main>
+    <script>
+      // Draft releases are never "latest", so a release still missing a build never shows here.
+      fetch("https://api.github.com/repos/nicoabarca/prodiff/releases/latest")
+        .then((response) => (response.ok ? response.json() : Promise.reject(response.status)))
+        .then((release) => {
+          const link = (id, suffix) => {
+            const asset = release.assets.find((asset) => asset.name.endsWith(suffix));
+            if (!asset) return;
+            const anchor = document.getElementById(id);
+            anchor.href = asset.browser_download_url;
+            anchor.removeAttribute("aria-disabled");
+          };
+          link("mac", "_aarch64.dmg");
+          link("windows", "-setup.exe");
+          document.getElementById("version").textContent = release.tag_name;
+        })
+        .catch(() => {
+          for (const id of ["mac", "windows"]) {
+            document.getElementById(id).removeAttribute("aria-disabled");
+          }
+        });
+    </script>
+  </body>
+</html>
