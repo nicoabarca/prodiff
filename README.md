@@ -1,4 +1,4 @@
-# compare
+# ProDiff
 
 Desktop app built with Tauri, SvelteKit and TypeScript.
 
@@ -17,7 +17,8 @@ pnpm dev                # frontend only, in the browser
 ### Build
 
 ```bash
-pnpm tauri build            # release binary and installers in src-tauri/target/release/bundle
+pnpm tauri build            # release binary and installers in src-tauri/target/release/bundle, dev identifier
+pnpm tauri build --config src-tauri/tauri.release.conf.json   # same, with the release identifier
 pnpm tauri build --debug    # debug build in src-tauri/target/debug
 ```
 
@@ -26,11 +27,11 @@ pnpm tauri build --debug    # debug build in src-tauri/target/debug
 ```bash
 pnpm seed                                     # seed every log in scripts/seed_log/
 pnpm seed road_traffic_fine_10k               # seed one log by its slug
-pnpm seed --app-id com.nicoabarca.compare     # seed the app data of `pnpm tauri dev`
+pnpm seed --app-id com.nicoabarca.prodiff.dev # seed the app data of `pnpm tauri dev`
 pnpm seed --app-data-dir /path/to/app-data    # seed any app data directory
 ```
 
-By default the seed writes to the current branch's app data (`com.nicoabarca.compare.dev-<branch>`), which is what `pnpm dev:port` opens. Reload the app if it is open. The first run compiles the `seed-project` binary in release mode, which takes a few minutes.
+By default the seed writes to the current branch's app data (`com.nicoabarca.prodiff.dev-<branch>`), which is what `pnpm dev:port` opens. Reload the app if it is open. The first run compiles the `seed-project` binary in release mode, which takes a few minutes.
 
 Each seed log is a pair of files in `scripts/seed_log/`: `<slug>.csv` holds the Event Log and `<slug>.json` holds its manifest.
 
@@ -113,10 +114,10 @@ pnpm e2e:build                                    # force a debug e2e rebuild af
 | ----------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src-tauri/target/e2e/debug/` and `src-tauri/target/e2e/release/` | E2E binaries are built here. Debug is built when missing or on `e2e:build`; release is rebuilt on every `e2e:release`.                                                                                                        |
 | `build/` and `.svelte-kit/`                                       | Overwritten by the frontend build that runs before each e2e binary build.                                                                                                                                                     |
-| `~/Library/Application Support/com.nicoabarca.compare.e2e/`       | **Deleted at the start of every run**, before the app launches. The app recreates `compare.db` in it (and `projects/` once a spec creates a Project); all spec files in the run share them, and they stay until the next run. |
+| `~/Library/Application Support/com.nicoabarca.prodiff.e2e/`       | **Deleted at the start of every run**, before the app launches. The app recreates `prodiff.db` in it (and `projects/` once a spec creates a Project); all spec files in the run share them, and they stay until the next run. |
 | `e2e/.artifacts/<suite>-<test>.png`                               | Screenshot saved when a test fails. Never deleted by the suite; gitignored.                                                                                                                                                   |
 
-The e2e suite never touches the app data of `pnpm tauri dev` (`com.nicoabarca.compare`) or of `pnpm dev:port` (`com.nicoabarca.compare.dev-<branch>`).
+The e2e suite never touches the app data of `pnpm tauri dev` (`com.nicoabarca.prodiff.dev`) or of `pnpm dev:port` (`com.nicoabarca.prodiff.dev-<branch>`).
 
 ## Recommended IDE Setup
 
