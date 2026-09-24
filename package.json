@@ -18,7 +18,8 @@
     "tauri": "tauri",
     "dev:port": "bash scripts/dev-port.sh",
     "seed": "tsx scripts/seed.ts",
-    "db:generate": "drizzle-kit generate --name"
+    "db:generate": "drizzle-kit generate --name",
+    "release": "tsx scripts/release.ts"
   },
   "license": "MIT",
   "dependencies": {
