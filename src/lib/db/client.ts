@@ -3,12 +3,22 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import * as schema from "./schema";
 import { migrations } from "./bundled-migrations";
 import { prepareDatabaseBackup } from "./invokers/prepare-database-backup";
-import { migrate } from "./migrate";
+import { migrate, MigrationError, NewerDatabaseError } from "./migrate";
+import type { DbProblem } from "./types";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 
 let instance: Db | null = null;
 let initPromise: Promise<Db> | null = null;
+let backupPath: string | null = null;
+
+export function dbProblem(error: unknown): DbProblem {
+  if (error instanceof NewerDatabaseError) return { kind: "newer" };
+  if (error instanceof MigrationError) {
+    return { kind: "migration", message: error.message, backupPath };
+  }
+  return { kind: "other", message: String(error) };
+}
 
 /** The initialized database. `initDb()` runs once in the root layout's `load()`. */
 export function db(): Db {
@@ -31,6 +41,7 @@ export function initDb(): Promise<Db> {
           if (from === 0) return;
           const path = await prepareDatabaseBackup(from);
           await sqlite.execute(`VACUUM INTO '${path.replaceAll("'", "''")}'`);
+          backupPath = path;
         }
       );
 

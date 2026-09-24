@@ -4,8 +4,13 @@
 // See: https://v2.tauri.app/start/frontend/sveltekit/ for more info
 export const ssr = false;
 
-import { initDb } from "$lib/db/client";
+import { dbProblem, initDb } from "$lib/db/client";
 
 export async function load() {
-  await initDb();
+  try {
+    await initDb();
+    return { dbProblem: null };
+  } catch (error) {
+    return { dbProblem: dbProblem(error) };
+  }
 }
