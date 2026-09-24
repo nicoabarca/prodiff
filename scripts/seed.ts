@@ -114,7 +114,7 @@ function branchAppId(): string {
     encoding: "utf8"
   }).stdout.trim();
   if (!branch) fail("Cannot derive a development app id from a detached HEAD; pass --app-id.");
-  return `com.nicoabarca.compare.dev-${branch.replace(/[^a-zA-Z0-9]/g, "-")}`;
+  return `com.nicoabarca.prodiff.dev-${branch.replace(/[^a-zA-Z0-9]/g, "-")}`;
 }
 
 function defaultAppDataDir(appId: string): string {
@@ -170,7 +170,7 @@ function seedInput(slug: string, { available, appDataDir }: SeedContext): SeedIn
   );
   if (unsupported)
     throw new Error(`Group "${unsupported.name}" uses unsupported case_not_in_group.`);
-  const id = uuidv5(`compare:seed:${slug}`, uuidv5.URL);
+  const id = uuidv5(`prodiff:seed:${slug}`, uuidv5.URL);
   return {
     slug,
     id,
@@ -340,7 +340,7 @@ async function main() {
 
   buildSeeder();
   mkdirSync(appDataDir, { recursive: true });
-  const sqlite = new BetterSqlite(join(appDataDir, "compare.db"));
+  const sqlite = new BetterSqlite(join(appDataDir, "prodiff.db"));
   const db = drizzle(sqlite, { schema });
   await ensureSchema(async (sql) => sqlite.exec(sql));
   const failures = seedAll(slugs, { appDataDir, available, db });

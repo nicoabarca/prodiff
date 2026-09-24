@@ -4,7 +4,7 @@ export type Target = "debug" | "release";
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
-export const E2E_IDENTIFIER = "com.nicoabarca.compare.e2e";
+export const E2E_IDENTIFIER = "com.nicoabarca.prodiff.e2e";
 
 export const CARGO_TARGET_DIR = path.join(REPO_ROOT, "src-tauri/target/e2e");
 

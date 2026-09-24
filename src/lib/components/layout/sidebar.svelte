@@ -62,7 +62,7 @@
     <span
       class="font-heading text-sm font-bold tracking-tight uppercase group-data-[collapsible=icon]:hidden"
     >
-      compare
+      ProDiff
     </span>
   </div>
 {/snippet}
