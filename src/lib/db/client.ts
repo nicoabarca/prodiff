@@ -2,6 +2,7 @@ import Database from "@tauri-apps/plugin-sql";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import * as schema from "./schema";
 import { migrations } from "./bundled-migrations";
+import { prepareDatabaseBackup } from "./invokers/prepare-database-backup";
 import { migrate } from "./migrate";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
@@ -25,7 +26,12 @@ export function initDb(): Promise<Db> {
           userVersion: async () =>
             (await sqlite.select<{ user_version: number }[]>("PRAGMA user_version"))[0].user_version
         },
-        migrations
+        migrations,
+        async (from) => {
+          if (from === 0) return;
+          const path = await prepareDatabaseBackup(from);
+          await sqlite.execute(`VACUUM INTO '${path.replaceAll("'", "''")}'`);
+        }
       );
 
       instance = drizzle(
