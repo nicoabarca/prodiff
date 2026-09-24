@@ -71,3 +71,14 @@ export function isDurationPath(path: string[]): boolean {
       (key === "eventLevel" && isDurationAttribute(path[index + 1] ?? ""))
   );
 }
+
+/** The separator Rust joins a Variant's activities with in `variant_key`. */
+const VARIANT_SEPARATOR = "\u0001";
+
+/** A primitive for display: a `variantKey` reads as its activities in order. */
+export function displayPrimitive(value: unknown, path: string[]): string {
+  if (typeof value === "string" && path[path.length - 1] === "variantKey") {
+    return value.split(VARIANT_SEPARATOR).join(" → ");
+  }
+  return formatPrimitive(value);
+}

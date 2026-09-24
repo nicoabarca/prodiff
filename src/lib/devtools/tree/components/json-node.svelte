@@ -5,7 +5,7 @@
   import {
     branchPreview,
     childrenOf,
-    formatPrimitive,
+    displayPrimitive,
     isDurationPath,
     kindOf
   } from "$lib/devtools/tree/utils/inspect";
@@ -99,7 +99,7 @@
 {:else}
   <div class="flex gap-1 pl-4">
     <span class="shrink-0">{name}:</span>
-    <span class="break-all {valueClass[kind]}">{formatPrimitive(value)}</span>
+    <span class="break-all {valueClass[kind]}">{displayPrimitive(value, path)}</span>
     {#if duration}
       <span class="text-muted-foreground">({formatDuration(value as number)})</span>
     {/if}

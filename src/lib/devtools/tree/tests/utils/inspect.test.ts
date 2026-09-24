@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   branchPreview,
   childrenOf,
+  displayPrimitive,
   findNode,
   formatPrimitive,
   isDurationPath,
@@ -129,5 +130,18 @@ describe("isDurationPath", () => {
     expect(isDurationPath(["transitionTime", "test", "statistic"])).toBe(false);
     expect(isDurationPath(["eventLevel", "Cost", "summaries", "original", "mean"])).toBe(false);
     expect(isDurationPath(["caseCoverage"])).toBe(false);
+  });
+});
+
+describe("displayPrimitive", () => {
+  it("reads a variantKey as its activities in order", () => {
+    expect(displayPrimitive("Register\u0001Review\u0001Pay", ["nodes", "4", "variantKey"])).toBe(
+      "Register → Review → Pay"
+    );
+  });
+
+  it("formats any other value as JSON", () => {
+    expect(displayPrimitive("A\u0001B", ["label"])).toBe('"A\\u0001B"');
+    expect(displayPrimitive(null, ["variantKey"])).toBe("null");
   });
 });
