@@ -1,29 +1,8 @@
 import Database from "@tauri-apps/plugin-sql";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
-import { getTableConfig } from "drizzle-orm/sqlite-core";
 import * as schema from "./schema";
-
-// DDL is derived from schema.ts and run idempotently at startup.
-function createTableSql(table: Parameters<typeof getTableConfig>[0]): string {
-  const { name, columns } = getTableConfig(table);
-  const columnDefs = columns.map((column) => {
-    const parts = [column.name, column.getSQLType()];
-    if (column.primary) parts.push("PRIMARY KEY");
-    if (column.notNull) parts.push("NOT NULL");
-    return parts.join(" ");
-  });
-  return `CREATE TABLE IF NOT EXISTS ${name} (\n  ${columnDefs.join(",\n  ")}\n);`;
-}
-
-export type SqlExecute = (sql: string) => Promise<unknown>;
-
-/** Creates every table through any SQLite driver. Idempotent. */
-export async function ensureSchema(execute: SqlExecute) {
-  await execute(createTableSql(schema.projects));
-  await execute(createTableSql(schema.groups));
-  await execute(createTableSql(schema.comparisons));
-  await execute(createTableSql(schema.treeSettings));
-}
+import { migrations } from "./bundled-migrations";
+import { migrate } from "./migrate";
 
 type Db = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -40,7 +19,14 @@ export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
       const sqlite = await Database.load("sqlite:prodiff.db");
-      await ensureSchema((sql) => sqlite.execute(sql));
+      await migrate(
+        {
+          execute: (sql) => sqlite.execute(sql),
+          userVersion: async () =>
+            (await sqlite.select<{ user_version: number }[]>("PRAGMA user_version"))[0].user_version
+        },
+        migrations
+      );
 
       instance = drizzle(
         async (sql, params, method) => {

@@ -23,7 +23,7 @@ import { homedir, platform } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { v5 as uuidv5 } from "uuid";
-import { ensureSchema } from "../src/lib/db/client";
+import { journalMigrations, migrate, type Journal } from "../src/lib/db/migrate";
 import * as schema from "../src/lib/db/schema";
 import type {
   RequestColumnMapping,
@@ -331,6 +331,13 @@ function seedAll(slugs: string[], context: SeedContext) {
   return failures;
 }
 
+/** The app's migrations, read from `src/lib/db/migrations/` the way `bundled-migrations.ts` bundles them. */
+function repoMigrations() {
+  const dir = join(REPO_ROOT, "src", "lib", "db", "migrations");
+  const journal: Journal = JSON.parse(readFileSync(join(dir, "meta", "_journal.json"), "utf8"));
+  return journalMigrations(journal, (tag) => readFileSync(join(dir, `${tag}.sql`), "utf8"));
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const appDataDir = resolve(args.appDataDir ?? defaultAppDataDir(args.appId ?? branchAppId()));
@@ -342,7 +349,13 @@ async function main() {
   mkdirSync(appDataDir, { recursive: true });
   const sqlite = new BetterSqlite(join(appDataDir, "prodiff.db"));
   const db = drizzle(sqlite, { schema });
-  await ensureSchema(async (sql) => sqlite.exec(sql));
+  await migrate(
+    {
+      execute: async (sql) => sqlite.exec(sql),
+      userVersion: async () => sqlite.pragma("user_version", { simple: true }) as number
+    },
+    repoMigrations()
+  );
   const failures = seedAll(slugs, { appDataDir, available, db });
   sqlite.close();
   if (failures.length > 0) process.exit(1);
