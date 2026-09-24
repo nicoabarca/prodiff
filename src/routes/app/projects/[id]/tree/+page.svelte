@@ -113,6 +113,11 @@
             <div class="relative flex min-h-0 min-w-0 flex-1">
               <Canvas tree={built.tree} />
               <ViewLegend />
+              {#if import.meta.env.DEV}
+                {#await import("$lib/devtools/tree/components/tree-inspector.svelte") then { default: TreeInspector }}
+                  <TreeInspector tree={built.tree} />
+                {/await}
+              {/if}
               {#if built.error && !built.building}
                 <Button
                   variant="outline"

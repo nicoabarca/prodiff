@@ -40,12 +40,15 @@ src/lib/
 ├── statistics/        comparison charts, metrics table, event data table
 ├── tree/              directed tree, variants, canvas, node detail
 ├── dfg/               directly-follows graph, simplification, canvas, detail panel
-└── distributions/     per-node attribute distributions
+├── distributions/     per-node attribute distributions
+└── devtools/          dev-only inspectors, one folder per view (devtools/tree/)
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
 Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+
+`devtools` is dev-only (see `docs/adr/0009`). It may import from any domain; nothing imports it statically. Prod code reaches it only through a seam of the form `{#if import.meta.env.DEV}{#await import("$lib/devtools/…")}`, which Vite drops from `vite build` along with the chunk. A dev tool reads the state its view already holds and never adds props, callbacks or branches to prod components.
 
 **Where new code goes:**
 
