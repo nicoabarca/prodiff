@@ -22,6 +22,18 @@ pnpm tauri build --config src-tauri/tauri.release.conf.json   # same, with the r
 pnpm tauri build --debug    # debug build in src-tauri/target/debug
 ```
 
+### Release
+
+```bash
+pnpm release minor                 # or patch, major, x.y.z: bump, commit, tag, push
+git checkout v0.2.0 && pnpm release:mac   # once CI has built Windows into the draft
+gh release edit v0.2.0 --draft=false --latest   # go live
+```
+
+The tag push builds the Windows installer into a draft release (`.github/workflows/build.yml`). `pnpm release:mac` builds Apple Silicon locally, adds it to the draft's `latest.json` and uploads it. Publishing the draft is what the download page and the in-app updater see. `pnpm release:mac` needs the updater key in `~/.tauri/prodiff.key` (or `TAURI_SIGNING_PRIVATE_KEY`) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+
+The download page is `web/index.html`, deployed to GitHub Pages by `.github/workflows/pages.yml` when `web/` changes on `main`.
+
 ### Database migrations
 
 ```bash
