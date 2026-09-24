@@ -6,9 +6,9 @@
 use std::io::Read;
 use std::path::Path;
 use std::process::ExitCode;
-use tauri_test_app_lib::column_mapping::ColumnMapping;
-use tauri_test_app_lib::event_log::importer::import_event_log;
-use tauri_test_app_lib::groups::GroupFilters;
+use prodiff_lib::column_mapping::ColumnMapping;
+use prodiff_lib::event_log::importer::import_event_log;
+use prodiff_lib::groups::GroupFilters;
 
 #[derive(serde::Deserialize)]
 struct Seed {

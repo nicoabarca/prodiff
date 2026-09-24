@@ -17,6 +17,6 @@ export function target(): Target {
 }
 
 export function binaryPath(profile: Target): string {
-  const name = process.platform === "win32" ? "compare.exe" : "compare";
+  const name = process.platform === "win32" ? "prodiff.exe" : "prodiff";
   return path.join(CARGO_TARGET_DIR, profile, name);
 }
