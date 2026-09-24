@@ -19,7 +19,8 @@
     "dev:port": "bash scripts/dev-port.sh",
     "seed": "tsx scripts/seed.ts",
     "db:generate": "drizzle-kit generate --name",
-    "release": "tsx scripts/release.ts"
+    "release": "tsx scripts/release.ts",
+    "release:mac": "tsx scripts/release-mac.ts"
   },
   "license": "MIT",
   "dependencies": {
