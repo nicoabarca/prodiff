@@ -3,12 +3,12 @@
 //! each Group is `{ id, filters }`. Prints `{ eventLog, groups }` as JSON on
 //! stdout; an error goes to stderr with a non-zero exit.
 
-use std::io::Read;
-use std::path::Path;
-use std::process::ExitCode;
 use prodiff_lib::column_mapping::ColumnMapping;
 use prodiff_lib::event_log::importer::import_event_log;
 use prodiff_lib::groups::GroupFilters;
+use std::io::Read;
+use std::path::Path;
+use std::process::ExitCode;
 
 #[derive(serde::Deserialize)]
 struct Seed {
