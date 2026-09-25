@@ -2,7 +2,8 @@
   import "../app.css";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  let { children } = $props();
+  import DatabaseProblem from "$lib/db/components/database-problem.svelte";
+  let { children, data } = $props();
 </script>
 
 <!--
@@ -11,6 +12,10 @@
 -->
 <Toaster position="top-right" theme="light" richColors closeButton />
 
-<Tooltip.Provider>
-  {@render children()}
-</Tooltip.Provider>
+{#if data.dbProblem}
+  <DatabaseProblem problem={data.dbProblem} />
+{:else}
+  <Tooltip.Provider>
+    {@render children()}
+  </Tooltip.Provider>
+{/if}

@@ -1,5 +1,6 @@
 mod analysis;
 pub mod column_mapping;
+mod database;
 mod dfg;
 pub mod event_log;
 mod filters;
@@ -22,6 +23,7 @@ pub fn run() {
 
     builder
         .invoke_handler(tauri::generate_handler![
+            database::commands::prepare_database_backup,
             parsing::commands::preview_event_log,
             parsing::commands::event_log_file_size,
             parsing::commands::analyze_timestamp_columns,

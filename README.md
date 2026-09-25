@@ -22,6 +22,16 @@ pnpm tauri build --config src-tauri/tauri.release.conf.json   # same, with the r
 pnpm tauri build --debug    # debug build in src-tauri/target/debug
 ```
 
+### Database migrations
+
+```bash
+pnpm db:generate add_group_notes   # after editing src/lib/db/schema.ts
+```
+
+drizzle-kit compares `schema.ts` with its last snapshot and writes `src/lib/db/migrations/<NNNN>_<name>.sql` plus the files under `meta/`. Review the SQL and commit all of it. `pnpm drizzle-kit generate --custom --name <name>` gives an empty migration for SQL drizzle-kit cannot infer, such as reshaping JSON in a column.
+
+The app runs pending migrations at startup, and `pnpm seed` runs them before writing. Never edit or delete a migration that has shipped; add a new one.
+
 ### Seed data
 
 ```bash

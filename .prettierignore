@@ -2,3 +2,4 @@
 build
 src-tauri/target
 pnpm-lock.yaml
+src/lib/db/migrations
