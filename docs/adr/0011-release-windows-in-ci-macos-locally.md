@@ -1,0 +1,11 @@
+# Windows builds in CI, macOS builds locally, both into one draft release
+
+ProDiff ships to a small group of people on macOS and Windows, and releases are rare. The CI minutes available are few, and macOS runners cost ten times a Linux minute. The previous workflow built macOS for two architectures, Linux and Windows on every published release.
+
+A release now starts with `pnpm release`, which sets the version in every file that carries it, commits on `main`, tags and pushes. The tag starts one Windows job, and `tauri-action` creates a draft release with the NSIS installer, its updater signature and a `latest.json` holding only the Windows entry. `pnpm release:mac` is run on the tag on a Mac. It builds Apple Silicon only, adds the `darwin-aarch64` entries to that `latest.json` with the signature of its own archive, and uploads the three files. Publishing the draft by hand is the single step that makes a release visible, because GitHub's "latest release" never includes drafts. The download page and the updater both read "latest", so neither ever sees a release that is missing a platform.
+
+The app updates itself through `tauri-plugin-updater`, reading `releases/latest/download/latest.json`. The updater verifies a signature made with a key only the release owner holds, which is independent of code signing. Neither build is code-signed or notarized. The download page explains the first-launch warning on each system. After the first launch, updates are downloaded by the app, which carries no quarantine flag.
+
+`tauri.conf.json` carries the dev identifier `com.nicoabarca.prodiff.dev`. Release builds add `tauri.release.conf.json`, which sets `com.nicoabarca.prodiff` and turns on the updater artifacts. A build that forgets the flag therefore gets the dev data folder, not an installed user's data.
+
+**Consequence:** losing the updater private key means installed copies can never update themselves again; users would have to reinstall a build carrying a new public key. The key lives in a password manager and in the `TAURI_SIGNING_PRIVATE_KEY` secret. Intel Macs and Linux are unsupported until a build is added for them.

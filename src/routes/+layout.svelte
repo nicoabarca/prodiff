@@ -3,7 +3,13 @@
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import DatabaseProblem from "$lib/db/components/database-problem.svelte";
+  import { offerUpdate } from "$lib/updater/offer-update";
+  import { onMount } from "svelte";
   let { children, data } = $props();
+
+  onMount(() => {
+    if (!import.meta.env.DEV) offerUpdate();
+  });
 </script>
 
 <!--
