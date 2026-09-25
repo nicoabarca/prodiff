@@ -47,58 +47,84 @@
       body {
         margin: 0;
         min-height: 100vh;
-        display: grid;
-        place-items: center;
-        padding: 1rem;
         background: var(--background);
         color: var(--foreground);
         font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
         -webkit-font-smoothing: antialiased;
       }
+      .shell {
+        display: flex;
+        flex-direction: column;
+        width: min(66.667%, 72rem);
+        min-height: 100vh;
+        margin: 0 auto;
+        padding-bottom: 1.5rem;
+      }
+      @media (max-width: 64rem) {
+        .shell {
+          width: auto;
+          margin: 0 1rem;
+        }
+      }
+      nav {
+        display: flex;
+        align-items: center;
+        gap: 0.625rem;
+        height: 3.5rem;
+        margin-bottom: 1.5rem;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.9375rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      nav .mark {
+        width: 1.25rem;
+        height: 1.25rem;
+      }
       .hero {
         position: relative;
-        width: 100%;
-        max-width: 30rem;
-        padding: 3rem 1.5rem 2.25rem;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        flex: 1;
+        gap: 2rem;
+        min-height: 26rem;
+        padding: 3.5rem 3rem;
         overflow: hidden;
         border: 1px solid var(--border);
         background: var(--card);
-        text-align: center;
       }
       .hero::before {
         content: "";
         position: absolute;
         inset: 0;
         background:
-          radial-gradient(ellipse 80% 60% at 50% 0%, var(--glow), transparent 70%),
+          radial-gradient(ellipse 60% 70% at 15% 0%, var(--glow), transparent 70%),
+          radial-gradient(ellipse 50% 60% at 85% 100%, var(--glow), transparent 70%),
           linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
           linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
-        mask-image: linear-gradient(to bottom, black 40%, transparent);
         pointer-events: none;
       }
       .hero > * {
         position: relative;
       }
-      .mark {
-        display: block;
-        width: 2.5rem;
-        height: 2.5rem;
-        margin: 0 auto 1.25rem;
-      }
       h1 {
         margin: 0;
-        font-size: 2.25rem;
+        font-size: clamp(2.25rem, 5vw, 3.5rem);
         font-weight: 700;
-        letter-spacing: -0.035em;
+        line-height: 1.05;
+        letter-spacing: -0.04em;
       }
       .tagline {
-        margin: 0.5rem 0 2rem;
+        max-width: 28rem;
+        margin: 0.75rem 0 2rem;
         color: var(--muted-foreground);
-        font-size: 0.9375rem;
+        font-size: 1.0625rem;
+        line-height: 1.5;
       }
       .downloads {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+        display: flex;
+        flex-wrap: wrap;
         gap: 0.5rem;
       }
       .downloads a {
@@ -152,52 +178,91 @@
         font-size: 0.75rem;
         font-variant-numeric: tabular-nums;
       }
+      .hero .art {
+        width: clamp(8rem, 16vw, 13rem);
+        height: auto;
+      }
+      @media (max-width: 40rem) {
+        .hero {
+          grid-template-columns: 1fr;
+          min-height: 0;
+          padding: 2.5rem 1.5rem;
+        }
+        .hero .art {
+          display: none;
+        }
+        .downloads a {
+          flex: 1 1 100%;
+        }
+      }
     </style>
   </head>
   <body>
-    <main class="hero">
-      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
-        <rect
-          x="1"
-          y="1"
-          width="24"
-          height="24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-        />
-        <rect x="15" y="15" width="24" height="24" fill="oklch(0.457 0.24 277.023)" />
-      </svg>
-      <h1>ProDiff</h1>
-      <p class="tagline">Compare groups of cases in an event log.</p>
-      <div class="downloads">
-        <a
-          id="mac"
-          href="https://github.com/nicoabarca/prodiff/releases/latest"
-          aria-disabled="true"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.72-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.1 8.79.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.87.69 1.18-.02 1.93-1.08 2.66-2.14.84-1.23 1.18-2.42 1.2-2.48-.03-.01-2.3-.88-2.28-3.5ZM14.18 6.13c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.55 1.31-.56.64-1.05 1.68-.92 2.68.97.07 1.96-.49 2.57-1.21Z"
-            />
-          </svg>
-          macOS (Apple Silicon)
-        </a>
-        <a
-          id="windows"
-          href="https://github.com/nicoabarca/prodiff/releases/latest"
-          aria-disabled="true"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path
-              d="M3 5.1 10.4 4v7.2H3V5.1Zm8.4-1.2L21 2.5v8.7h-9.6V3.9ZM3 12.8h7.4V20L3 18.9v-6.1Zm8.4 0H21v8.7l-9.6-1.4v-7.3Z"
-            />
-          </svg>
-          Windows
-        </a>
-      </div>
-      <p class="version" id="version"></p>
-    </main>
+    <div class="shell">
+      <nav>
+        <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+          <rect
+            x="1"
+            y="1"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          />
+          <rect x="15" y="15" width="24" height="24" fill="oklch(0.457 0.24 277.023)" />
+        </svg>
+        ProDiff
+      </nav>
+      <main class="hero">
+        <div>
+          <h1>Compare groups of cases in an event log.</h1>
+          <p class="tagline">
+            Build Groups from an Event Log with filters, then compare their process trees, graphs
+            and statistics side by side.
+          </p>
+          <div class="downloads">
+            <a
+              id="mac"
+              href="https://github.com/nicoabarca/prodiff/releases/latest"
+              aria-disabled="true"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.72-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.1 8.79.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.87.69 1.18-.02 1.93-1.08 2.66-2.14.84-1.23 1.18-2.42 1.2-2.48-.03-.01-2.3-.88-2.28-3.5ZM14.18 6.13c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.55 1.31-.56.64-1.05 1.68-.92 2.68.97.07 1.96-.49 2.57-1.21Z"
+                />
+              </svg>
+              macOS (Apple Silicon)
+            </a>
+            <a
+              id="windows"
+              href="https://github.com/nicoabarca/prodiff/releases/latest"
+              aria-disabled="true"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path
+                  d="M3 5.1 10.4 4v7.2H3V5.1Zm8.4-1.2L21 2.5v8.7h-9.6V3.9ZM3 12.8h7.4V20L3 18.9v-6.1Zm8.4 0H21v8.7l-9.6-1.4v-7.3Z"
+                />
+              </svg>
+              Windows
+            </a>
+          </div>
+          <p class="version" id="version"></p>
+        </div>
+        <svg class="art" viewBox="0 0 40 40" aria-hidden="true">
+          <rect
+            x="1"
+            y="1"
+            width="24"
+            height="24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="0.5"
+          />
+          <rect x="15" y="15" width="24" height="24" fill="oklch(0.457 0.24 277.023)" />
+        </svg>
+      </main>
+    </div>
     <script>
       // Draft releases are never "latest", so a release still missing a build never shows here.
       fetch("https://api.github.com/repos/nicoabarca/prodiff/releases/latest")
