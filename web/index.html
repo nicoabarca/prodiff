@@ -5,13 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ProDiff</title>
     <meta name="description" content="Compare groups of cases in an event log." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400..700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
-        --bg: #fafafa;
-        --fg: #0a0a0a;
-        --muted: #737373;
-        --border: #e5e5e5;
+        --background: oklch(0.98 0.0045 85);
+        --foreground: oklch(0.16 0.004 85);
+        --card: oklch(1 0 0);
+        --muted-foreground: oklch(0.5 0.008 85);
+        --border: oklch(0.88 0.006 85);
+        --primary: oklch(0.457 0.24 277.023);
+        --primary-hover: oklch(0.4 0.22 277.023);
+        --primary-foreground: oklch(0.962 0.018 272.314);
+        --outline-text: var(--primary);
+        --grid: oklch(0.457 0.24 277.023 / 8%);
+        --glow: oklch(0.55 0.19 277.023 / 18%);
         color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --background: oklch(0.145 0 0);
+          --foreground: oklch(0.985 0 0);
+          --card: oklch(0.18 0 0);
+          --muted-foreground: oklch(0.708 0 0);
+          --border: oklch(1 0 0 / 10%);
+          --primary: oklch(0.51 0.23 277.023);
+          --primary-hover: oklch(0.57 0.21 277.023);
+          --outline-text: oklch(0.75 0.13 277.023);
+          --grid: oklch(0.7 0.15 277.023 / 9%);
+          --glow: oklch(0.55 0.2 277.023 / 30%);
+          color-scheme: dark;
+        }
       }
       * {
         box-sizing: border-box;
@@ -21,70 +49,125 @@
         min-height: 100vh;
         display: grid;
         place-items: center;
-        padding: 1.5rem;
-        background: var(--bg);
-        color: var(--fg);
-        font-family: ui-sans-serif, system-ui, sans-serif;
+        padding: 1rem;
+        background: var(--background);
+        color: var(--foreground);
+        font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
       }
-      main {
+      .hero {
+        position: relative;
         width: 100%;
-        max-width: 32rem;
+        max-width: 30rem;
+        padding: 3rem 1.5rem 2.25rem;
+        overflow: hidden;
+        border: 1px solid var(--border);
+        background: var(--card);
         text-align: center;
+      }
+      .hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 80% 60% at 50% 0%, var(--glow), transparent 70%),
+          linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem,
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 1.5rem 1.5rem;
+        mask-image: linear-gradient(to bottom, black 40%, transparent);
+        pointer-events: none;
+      }
+      .hero > * {
+        position: relative;
+      }
+      .mark {
+        display: block;
+        width: 2.5rem;
+        height: 2.5rem;
+        margin: 0 auto 1.25rem;
       }
       h1 {
         margin: 0;
-        font-size: 3rem;
-        letter-spacing: -0.03em;
+        font-size: 2.25rem;
+        font-weight: 700;
+        letter-spacing: -0.035em;
       }
       .tagline {
         margin: 0.5rem 0 2rem;
-        color: var(--muted);
+        color: var(--muted-foreground);
+        font-size: 0.9375rem;
       }
       .downloads {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.75rem;
-        justify-content: center;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+        gap: 0.5rem;
       }
       .downloads a {
-        padding: 0.75rem 1.25rem;
-        border: 1px solid var(--fg);
-        color: var(--fg);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        height: 2.5rem;
+        padding: 0 1rem;
+        border: 1px solid var(--primary);
+        font-size: 0.875rem;
+        font-weight: 500;
         text-decoration: none;
-        font-weight: 600;
+        transition:
+          background-color 120ms,
+          color 120ms;
       }
-      .downloads a:first-child {
-        background: var(--fg);
-        color: var(--bg);
+      .downloads svg {
+        width: 1rem;
+        height: 1rem;
+        flex: none;
+      }
+      #mac {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+      #mac:hover {
+        background: var(--primary-hover);
+        border-color: var(--primary-hover);
+      }
+      #windows {
+        background: transparent;
+        color: var(--outline-text);
+      }
+      #windows:hover {
+        background: var(--primary);
+        color: var(--primary-foreground);
+      }
+      .downloads a:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
       }
       .downloads a[aria-disabled="true"] {
         opacity: 0.4;
         pointer-events: none;
       }
       .version {
-        margin: 1rem 0 2.5rem;
-        color: var(--muted);
-        font-size: 0.875rem;
-      }
-      details {
-        text-align: left;
-        border-top: 1px solid var(--border);
-        padding: 1rem 0;
-        font-size: 0.875rem;
-        color: var(--muted);
-      }
-      summary {
-        cursor: pointer;
-        color: var(--fg);
-      }
-      code {
-        font-size: 0.8125rem;
-        color: var(--fg);
+        margin: 1rem 0 0;
+        min-height: 1rem;
+        color: var(--muted-foreground);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
       }
     </style>
   </head>
   <body>
-    <main>
+    <main class="hero">
+      <svg class="mark" viewBox="0 0 40 40" aria-hidden="true">
+        <rect
+          x="1"
+          y="1"
+          width="24"
+          height="24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        />
+        <rect x="15" y="15" width="24" height="24" fill="oklch(0.457 0.24 277.023)" />
+      </svg>
       <h1>ProDiff</h1>
       <p class="tagline">Compare groups of cases in an event log.</p>
       <div class="downloads">
@@ -92,32 +175,28 @@
           id="mac"
           href="https://github.com/nicoabarca/prodiff/releases/latest"
           aria-disabled="true"
-          >macOS (Apple Silicon)</a
         >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M16.37 12.6c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.7-3.19-1.72-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.19-1.54 2.67-.39 6.62 1.1 8.79.73 1.06 1.6 2.25 2.74 2.2 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.7.71 2.87.69 1.18-.02 1.93-1.08 2.66-2.14.84-1.23 1.18-2.42 1.2-2.48-.03-.01-2.3-.88-2.28-3.5ZM14.18 6.13c.6-.74 1.01-1.76.9-2.78-.87.04-1.93.58-2.55 1.31-.56.64-1.05 1.68-.92 2.68.97.07 1.96-.49 2.57-1.21Z"
+            />
+          </svg>
+          macOS (Apple Silicon)
+        </a>
         <a
           id="windows"
           href="https://github.com/nicoabarca/prodiff/releases/latest"
           aria-disabled="true"
-          >Windows</a
         >
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path
+              d="M3 5.1 10.4 4v7.2H3V5.1Zm8.4-1.2L21 2.5v8.7h-9.6V3.9ZM3 12.8h7.4V20L3 18.9v-6.1Zm8.4 0H21v8.7l-9.6-1.4v-7.3Z"
+            />
+          </svg>
+          Windows
+        </a>
       </div>
-      <p class="version" id="version">&nbsp;</p>
-      <details>
-        <summary>Opening ProDiff for the first time</summary>
-        <p>
-          ProDiff is not signed yet, so both systems warn about it once. Updates install from inside
-          the app afterwards.
-        </p>
-        <p>
-          <strong>macOS:</strong> open the .dmg and drag ProDiff to Applications. If macOS says the
-          app is damaged or cannot be opened, run this in Terminal, then open it again:<br />
-          <code>xattr -cr /Applications/ProDiff.app</code>
-        </p>
-        <p>
-          <strong>Windows:</strong> if SmartScreen shows "Windows protected your PC", click More
-          info, then Run anyway.
-        </p>
-      </details>
+      <p class="version" id="version"></p>
     </main>
     <script>
       // Draft releases are never "latest", so a release still missing a build never shows here.
