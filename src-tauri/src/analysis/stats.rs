@@ -207,7 +207,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
 /// Compares the Groups of one attribute at one node.
 ///
 /// Takes a collection so the shape admits N Groups, and refuses anything but
-/// two: the tests below are two-sample tests. See `docs/statistics.md`.
+/// two: the tests below are two-sample tests.
 pub fn compare(ids: &[String], groups: &[&Acc], numeric: bool) -> Option<Test> {
     let [a, b] = groups else {
         return None;
