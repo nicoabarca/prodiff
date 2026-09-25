@@ -33,7 +33,7 @@ jobs:
           workspaces: "./src-tauri -> target"
 
       - name: install frontend dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --ignore-scripts
 
       # Creates the draft release for the tag, uploads the NSIS installer, its
       # updater signature and a latest.json holding the Windows entry only.
