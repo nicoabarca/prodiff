@@ -4,7 +4,7 @@ export type Target = "debug" | "release";
 
 export const REPO_ROOT = path.resolve(import.meta.dirname, "../..");
 
-export const E2E_IDENTIFIER = "com.nicoabarca.compare.e2e";
+export const E2E_IDENTIFIER = "com.nicoabarca.prodiff.e2e";
 
 export const CARGO_TARGET_DIR = path.join(REPO_ROOT, "src-tauri/target/e2e");
 
@@ -17,6 +17,6 @@ export function target(): Target {
 }
 
 export function binaryPath(profile: Target): string {
-  const name = process.platform === "win32" ? "compare.exe" : "compare";
+  const name = process.platform === "win32" ? "prodiff.exe" : "prodiff";
   return path.join(CARGO_TARGET_DIR, profile, name);
 }

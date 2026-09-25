@@ -39,7 +39,7 @@ export function db(): Db {
 export function initDb(): Promise<Db> {
   if (!initPromise) {
     initPromise = (async () => {
-      const sqlite = await Database.load("sqlite:compare.db");
+      const sqlite = await Database.load("sqlite:prodiff.db");
       await ensureSchema((sql) => sqlite.execute(sql));
 
       instance = drizzle(
