@@ -3,7 +3,8 @@
   import type { Snippet } from "svelte";
   import type { Project } from "$lib/event-log/types";
 
-  type ProjectView = "tree" | "dfg" | "distributions" | "statistics" | "data" | "filters";
+  type ProjectView =
+    "tree" | "dfg" | "distributions" | "statistics" | "data" | "filters" | "custom-attributes";
 
   const viewLabels: Record<ProjectView, string> = {
     tree: "Directed Rooted Tree",
@@ -11,7 +12,8 @@
     distributions: "Distributions",
     statistics: "Statistics & data",
     data: "Data table",
-    filters: "Filters"
+    filters: "Filters",
+    "custom-attributes": "Custom attributes"
   };
 
   let {

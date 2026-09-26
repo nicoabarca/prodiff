@@ -10,19 +10,25 @@
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+  import SquareFunction from "@lucide/svelte/icons/square-function";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
   let { activeProject }: { activeProject: Project } = $props();
 
   const sidebar = Sidebar.useSidebar();
 
-  // In the order a project is worked through: look at the data, narrow it into
-  // groups, then compare them.
+  // In the order a project is worked through: look at the data, derive
+  // attributes from it, narrow it into groups, then compare them.
   const projectNav = $derived([
     {
       href: `/app/projects/${activeProject.id}/statistics`,
       label: "Statistics & data",
       icon: BarChart3
+    },
+    {
+      href: `/app/projects/${activeProject.id}/custom-attributes`,
+      label: "Custom attributes",
+      icon: SquareFunction
     },
     {
       href: `/app/projects/${activeProject.id}/filters`,
