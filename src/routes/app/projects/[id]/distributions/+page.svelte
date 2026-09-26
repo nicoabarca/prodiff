@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   /** Every attribute of one node, side by side, ranked by how much the Groups differ. */
   import { goto } from "$app/navigation";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -33,6 +34,7 @@
   import { selected, settings, view } from "$lib/tree/state/tree.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { attributeOptions } from "$lib/analysis/attributes";
+  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
   import ArrowLeft from "@lucide/svelte/icons/arrow-left";
@@ -89,7 +91,7 @@
     const open = new Set(
       requested.filter((card) => !charts.dismissed.includes(card.name)).map((card) => card.name)
     );
-    return attributeOptions(project.columns, project.hiddenColumns).filter(
+    return attributeOptions(project.columns, project.hiddenColumns, customColumns(project)).filter(
       (name) => !open.has(name)
     );
   });
@@ -264,7 +266,7 @@
                   class="justify-start text-xs"
                   onclick={() => addExtra(attribute)}
                 >
-                  {attribute}
+                  <AttributeName name={attribute} />
                 </Button>
               {/each}
             </Popover.Content>

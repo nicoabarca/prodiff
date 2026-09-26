@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Scope } from "$lib/distributions/types";
+import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 /**
  * One node's Distributions. `variants` is the Variant key of every visible leaf
@@ -18,7 +19,7 @@ export function nodeDistributions(
   return invoke<ResponseNodeDistributions>("node_distributions", {
     projectId: project.id,
     groups,
-    columns: project.columns,
+    columns: analysisColumns(project),
     attributes,
     variants,
     depth,

@@ -2,6 +2,7 @@ import { dfg } from "$lib/dfg/invokers/dfg";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey } from "$lib/dfg/types";
 import { attributeOptions } from "$lib/analysis/attributes";
+import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
 import type { Project } from "$lib/event-log/types";
@@ -28,7 +29,9 @@ export const selection = $state<{ attributes: string[] }>({ attributes: [] });
 
 /** The selected attributes that are still valid and visible for this project. */
 export function selectedAttributes(project: Project): string[] {
-  const available = new Set(attributeOptions(project.columns, project.hiddenColumns));
+  const available = new Set(
+    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
+  );
   return selection.attributes.filter((attribute) => available.has(attribute));
 }
 
