@@ -6,6 +6,11 @@
   import NewProjectCard from "$lib/event-log/components/new-project-card.svelte";
   import SampleProjectCard from "$lib/sample-project/components/sample-project-card.svelte";
   import { openNewSampleProject, sampleCreation } from "$lib/sample-project/state/creation.svelte";
+  import {
+    loadSampleVersion,
+    sampleOutdated,
+    sampleVersion
+  } from "$lib/sample-project/state/version.svelte";
   import { hasSampleProject } from "$lib/sample-project/utils/create";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -18,7 +23,12 @@
     goto(`/app/projects/${project.id}`);
   }
 
-  const showSampleCard = $derived(!hasSampleProject());
+  const sampleExists = $derived(hasSampleProject());
+  const updateSample = $derived(sampleExists && sampleOutdated());
+
+  $effect(() => {
+    if (!sampleVersion.loaded) loadSampleVersion();
+  });
 </script>
 
 <h1 class="font-heading px-6 pt-8 pb-2 text-3xl font-bold tracking-tight">Projects</h1>
@@ -57,8 +67,8 @@
         <ProjectCard {project} onOpen={openProject} />
       {/each}
       <NewProjectCard onclick={() => goto("/app/projects/new")} />
-      {#if showSampleCard}
-        <SampleProjectCard />
+      {#if !sampleExists || updateSample}
+        <SampleProjectCard update={updateSample} />
       {/if}
     </ul>
   </main>
