@@ -8,6 +8,13 @@ import type { Filter } from "$lib/filters/kind/filter";
  */
 export const SAMPLE_PROJECT_ID = "30fe30dc-de6c-571c-9c97-598bca4b0f83";
 
+/** The names of the Groups the Sample Project starts with, which Tours point at. */
+export const SAMPLE_GROUPS = {
+  approved: "Approved",
+  rejected: "Rejected",
+  slowCases: "Slow cases"
+} as const;
+
 /**
  * A Group the Sample Project starts with. An `applied` one is written to
  * Parquet at creation; the others start as an unapplied Filter List.
@@ -68,14 +75,14 @@ export const SAMPLE_MANIFEST: SampleManifest = {
     caseColumn("Outcome", "string")
   ],
   groups: [
-    { name: "Approved", filters: [outcome("Approved")], applied: true },
-    { name: "Rejected", filters: [outcome("Rejected")], applied: true },
+    { name: SAMPLE_GROUPS.approved, filters: [outcome("Approved")], applied: true },
+    { name: SAMPLE_GROUPS.rejected, filters: [outcome("Rejected")], applied: true },
     {
-      name: "Slow cases",
+      name: SAMPLE_GROUPS.slowCases,
       filters: [{ kind: "duration", mode: "above", min: 12, max: null }],
       applied: false
     }
   ],
-  compared: ["Approved", "Rejected"],
+  compared: [SAMPLE_GROUPS.approved, SAMPLE_GROUPS.rejected],
   treeAttributes: ["Amount", "Channel", "Loan type", "Region", TRANSITION_TIME]
 };

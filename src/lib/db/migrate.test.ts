@@ -102,6 +102,12 @@ describe("journalMigrations", () => {
     );
     const sqlite = new BetterSqlite(":memory:");
     await migrate(driver(sqlite), migrations);
-    expect(tables(sqlite)).toEqual(["comparisons", "groups", "projects", "tree_settings"]);
+    expect(tables(sqlite)).toEqual([
+      "app_settings",
+      "comparisons",
+      "groups",
+      "projects",
+      "tree_settings"
+    ]);
   });
 });

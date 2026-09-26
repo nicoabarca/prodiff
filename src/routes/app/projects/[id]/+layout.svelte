@@ -6,6 +6,7 @@
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
+  import TourLauncher from "$lib/tour/components/tour-launcher.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
@@ -35,7 +36,11 @@
 </script>
 
 {#if project}
-  <ProjectTopbar {project} projectView={view} />
+  <ProjectTopbar {project} projectView={view}>
+    {#snippet actions()}
+      <TourLauncher {project} {view} />
+    {/snippet}
+  </ProjectTopbar>
   <FilterSummaryBar {project}>
     {#snippet actions()}
       {#if !onFilters}

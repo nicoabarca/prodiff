@@ -20,21 +20,25 @@
   // groups, then compare them.
   const projectNav = $derived([
     {
+      view: "statistics",
       href: `/app/projects/${activeProject.id}/statistics`,
       label: "Statistics & data",
       icon: BarChart3
     },
     {
+      view: "filters",
       href: `/app/projects/${activeProject.id}/filters`,
       label: "Filters",
       icon: SlidersHorizontal
     },
     {
+      view: "tree",
       href: `/app/projects/${activeProject.id}/tree`,
       label: "Directed Rooted Tree",
       icon: Network
     },
     {
+      view: "dfg",
       href: `/app/projects/${activeProject.id}/dfg`,
       label: "Directly-Follows Graph",
       icon: Waypoints
@@ -114,10 +118,11 @@
     <Sidebar.Group>
       <Sidebar.GroupLabel class="truncate">{activeProject.name}</Sidebar.GroupLabel>
       <Sidebar.Menu>
-        {#each projectNav as { href, label, icon: Icon } (label)}
+        {#each projectNav as { view, href, label, icon: Icon } (label)}
           <Sidebar.MenuItem>
             <Sidebar.MenuButton
               class="cursor-pointer"
+              data-tour="nav-{view}"
               isActive={page.url.pathname === href}
               tooltipContent={label}
               onclick={() => goto(href)}
