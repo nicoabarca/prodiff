@@ -6,7 +6,7 @@
   import Split from "@lucide/svelte/icons/split";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
 
-  let { data }: { data: TreeNodeData } = $props();
+  let { id, data }: { id: string; data: TreeNodeData } = $props();
 
   // A path only one Group follows reads in that Group's accent, a shared one in
   // the Original's grey.
@@ -44,6 +44,8 @@
   <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
        resolves to nothing here. -->
   <div
+    data-tour="tree-node"
+    data-tour-key={id}
     class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-opacity {data.dimmed
       ? 'opacity-25'
       : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
