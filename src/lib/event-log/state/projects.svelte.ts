@@ -5,6 +5,7 @@ import { projects as projectsTable } from "$lib/db/schema";
 import { deleteProjectFiles } from "$lib/event-log/invokers/delete-project-files";
 import type { Project } from "$lib/event-log/types";
 import { removeGroupsForProject } from "$lib/groups/state/groups.svelte";
+import { removeCustomAttributesForProject } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 export const projects = $state<Project[]>([]);
 export const projectsLoaded = $state<{ value: boolean }>({ value: false });
@@ -35,6 +36,7 @@ export async function updateProject(id: string, changes: Partial<Project>) {
 export async function removeProject(id: string) {
   await deleteProjectFiles(id);
   await removeGroupsForProject(id);
+  await removeCustomAttributesForProject(id);
   await db().delete(projectsTable).where(eq(projectsTable.id, id));
   const index = projects.findIndex((p) => p.id === id);
   if (index !== -1) projects.splice(index, 1);
