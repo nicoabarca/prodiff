@@ -60,3 +60,19 @@ export const treeSettings = sqliteTable("tree_settings", {
     .notNull(),
   attributesChosen: integer("attributes_chosen", { mode: "boolean" }).notNull().default(false)
 });
+
+/**
+ * Custom Attributes belong to a project and are deleted with it. The row is
+ * written before the Parquet column `fx_{id}` it names; a null `emptyCount`
+ * means the column has not been written yet.
+ */
+export const customAttributes = sqliteTable("custom_attributes", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  name: text("name").notNull(),
+  formula: text("formula").notNull(),
+  position: integer("position").notNull(),
+  emptyCount: integer("empty_count"),
+  createdAt: text("created_at").notNull(),
+  editedAt: text("edited_at").notNull()
+});

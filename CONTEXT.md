@@ -23,6 +23,10 @@ _Avoid_: Pending upload, staged file
 A column in an Event Log the user has excluded from all analysis — filtering, statistics, process map derivation — not merely from display. Distinct from a column that's simply not shown; a hidden column is inert until un-hidden.
 _Avoid_: Excluded column, disabled column
 
+**Custom Attribute**:
+A user-named formula over the Event Log's visible number columns, computed for every event and written into the Event Log's Parquet as one more column, so every view, Filter and Group can read it like a column of the uploaded file. It is identified by its id, never its name: the column is `fx_{id}`, so renaming it rewrites nothing. A formula reads raw columns only, never another Custom Attribute, and a column a formula reads cannot be hidden or retyped. Edits are drafts until Apply, which writes the column into the Event Log and into every applied Group's Parquet.
+_Avoid_: Computed column, derived field, metric, formula column
+
 **Filter**:
 One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. A Filter is a definition, never a destructive edit of the Event Log.
 _Avoid_: Query, condition, rule
