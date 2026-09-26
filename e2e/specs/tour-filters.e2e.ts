@@ -7,6 +7,8 @@ describe("filters tour", () => {
   before(async () => {
     await $("button=Try the sample project").click();
     await expect(browser).toHaveUrl(expect.stringContaining("/statistics"), { wait: 30_000 });
+    await expect($(".driver-popover")).toBeDisplayed();
+    await browser.keys("Escape");
   });
 
   it("starts the first time the Filters view opens", async () => {
