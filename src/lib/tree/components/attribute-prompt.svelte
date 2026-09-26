@@ -1,5 +1,7 @@
 <script lang="ts">
   import { attributeOptions } from "$lib/analysis/attributes";
+  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -9,7 +11,9 @@
 
   let { project }: { project: Project } = $props();
 
-  const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
+  const options = $derived(
+    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
+  );
 
   let open = $state(false);
   let promptedProjectId = $state<string | null>(null);
@@ -70,7 +74,7 @@
             onCheckedChange={(checked) => toggle(attribute, checked === true)}
           />
           <span>
-            {attribute}
+            <AttributeName name={attribute} />
             <span class="text-muted-foreground">({granularity(attribute)})</span>
           </span>
         </label>

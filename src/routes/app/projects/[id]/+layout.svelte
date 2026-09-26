@@ -47,7 +47,9 @@
   });
 </script>
 
-{#if project}
+<!-- Every view sends applied Custom Attributes with its Column Mapping, so none renders before
+     they are loaded. -->
+{#if project && customAttributesLoaded.projectId === project.id}
   <ProjectTopbar {project} projectView={view} />
   <FilterSummaryBar {project}>
     {#snippet actions()}

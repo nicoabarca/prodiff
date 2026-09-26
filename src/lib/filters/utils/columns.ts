@@ -1,19 +1,29 @@
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Project } from "$lib/event-log/types";
+import {
+  analysisColumns,
+  attributeLabel
+} from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 /**
  * Which columns each filter kind may read. One home for the rule, so the kind
  * picker's availability check and the editor that reads a column agree.
  */
 
-/** Column lists are read as menus, so they are ordered by name, not by file position. */
+/**
+ * Column lists are read as menus, so they are ordered by the name the user
+ * sees, not by file position.
+ */
 function byName(columns: RequestColumnMapping[]): RequestColumnMapping[] {
-  return [...columns].sort((a, b) => a.name.localeCompare(b.name));
+  return [...columns].sort((a, b) => attributeLabel(a.name).localeCompare(attributeLabel(b.name)));
 }
 
-/** Everything the project has not hidden. Hidden columns are inert everywhere. */
+/**
+ * Everything the project has not hidden, applied Custom Attributes included.
+ * Hidden columns are inert everywhere.
+ */
 export function usableColumns(project: Project): RequestColumnMapping[] {
-  return project.columns.filter((c) => !project.hiddenColumns.includes(c.name));
+  return analysisColumns(project).filter((c) => !project.hiddenColumns.includes(c.name));
 }
 
 /** The activity column's name, or `""` when the project has none usable. */

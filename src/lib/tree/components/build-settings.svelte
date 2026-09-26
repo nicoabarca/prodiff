@@ -4,13 +4,17 @@
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { attributeOptions } from "$lib/analysis/attributes";
+  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
   import type { Project } from "$lib/event-log/types";
   import Settings2 from "@lucide/svelte/icons/settings-2";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
-  const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
+  const options = $derived(
+    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
+  );
 
   let draftAttributes = $state<string[] | null>(null);
   let saveError = $state<string | null>(null);
@@ -68,7 +72,7 @@
                 checked={displayedAttributes.includes(name)}
                 onCheckedChange={(checked) => toggle(name, checked === true)}
               />
-              <span>{name}</span>
+              <span><AttributeName {name} /></span>
             </label>
           {:else}
             <p class="text-muted-foreground text-xs">

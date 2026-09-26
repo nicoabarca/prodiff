@@ -11,15 +11,20 @@ export const TRANSITION_TIME = "Transition Time";
 
 /**
  * What the user can ask the backend to test. Hidden columns are left out. The
- * columns are ordered by name; the derived attributes come after them.
+ * columns are ordered by name; the derived attributes come after them, and the
+ * `custom` columns, in their own order, after those.
  */
-export function attributeOptions(columns: RequestColumnMapping[], hidden: string[] = []): string[] {
+export function attributeOptions(
+  columns: RequestColumnMapping[],
+  hidden: string[] = [],
+  custom: string[] = []
+): string[] {
   const mapped = columns
     .filter((c) => c.role === "other" && !hidden.includes(c.name))
     .map((c) => c.name)
     .sort((a, b) => a.localeCompare(b));
   const hasStart = columns.some((c) => c.role === "start_timestamp");
-  return [...mapped, ...(hasStart ? [ACTIVITY_DURATION] : []), TRANSITION_TIME];
+  return [...mapped, ...(hasStart ? [ACTIVITY_DURATION] : []), TRANSITION_TIME, ...custom];
 }
 
 export function isNumericAttribute(columns: RequestColumnMapping[], attribute: string): boolean {

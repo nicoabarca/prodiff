@@ -5,7 +5,11 @@ import { updateCustomAttributes } from "$lib/custom-attributes/invokers/update-c
 import type { CustomAttributeDraft } from "$lib/custom-attributes/state/drafts.svelte";
 import { whileApplying } from "$lib/custom-attributes/state/applying.svelte";
 import type { CustomAttribute } from "$lib/custom-attributes/types";
-import { customAttributeId } from "$lib/custom-attributes/utils/custom-attribute-id";
+import {
+  customAttributeColumn,
+  customAttributeId
+} from "$lib/custom-attributes/utils/custom-attribute-id";
+import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import { parseFormula } from "$lib/custom-attributes/utils/parser";
 import type { Project } from "$lib/event-log/types";
 
@@ -20,6 +24,43 @@ function byPosition(a: CustomAttribute, b: CustomAttribute): number {
 /** A Custom Attribute has its column exactly when Apply has stored its empty count. */
 export function isApplied(attribute: CustomAttribute): boolean {
   return attribute.emptyCount !== null;
+}
+
+/** The applied Custom Attributes' columns for this project, in position order. */
+export function customColumns(project: Project): string[] {
+  if (customAttributesLoaded.projectId !== project.id) return [];
+  return customAttributes.filter(isApplied).map((a) => customAttributeColumn(a.id));
+}
+
+/**
+ * The Column Mapping every analysis command is sent: the project's own columns
+ * plus one number column per applied Custom Attribute. Drafts never appear:
+ * views read the last applied formula.
+ */
+export function analysisColumns(project: Project): RequestColumnMapping[] {
+  return [
+    ...project.columns,
+    ...customColumns(project).map((name): RequestColumnMapping => ({
+      name,
+      role: "other",
+      scope: "event",
+      type: "float"
+    }))
+  ];
+}
+
+function attributeOf(name: string): CustomAttribute | undefined {
+  return customAttributes.find((a) => customAttributeColumn(a.id) === name);
+}
+
+/** Whether an attribute name is a loaded Custom Attribute's column. */
+export function isCustomAttribute(name: string): boolean {
+  return attributeOf(name) !== undefined;
+}
+
+/** What the user sees for an attribute: a Custom Attribute's name, or the name itself. */
+export function attributeLabel(name: string): string {
+  return attributeOf(name)?.name ?? name;
 }
 
 export async function loadCustomAttributes(projectId: string) {
@@ -66,18 +107,19 @@ async function patch(id: string, changes: Partial<CustomAttribute>) {
  * Writes an attribute's column into the Event Log and every applied Group, then
  * stores its empty count. The row changes first with a null count, so a failed
  * write reads as "not applied" rather than as the old figures under a new
- * formula. A change of name alone writes no file.
+ * formula. A change of name alone writes no file. Returns whether the column
+ * was written.
  */
 export async function applyCustomAttribute(
   project: Project,
   attribute: CustomAttribute,
   draft: CustomAttributeDraft,
   appliedGroupIds: string[]
-) {
+): Promise<boolean> {
   const name = draft.name.trim();
   if (isApplied(attribute) && draft.formula === attribute.formula) {
     await patch(attribute.id, { name });
-    return;
+    return false;
   }
   const parsed = parseFormula(draft.formula);
   if (!parsed.ok) throw new Error(parsed.error);
@@ -96,6 +138,7 @@ export async function applyCustomAttribute(
     )
   );
   await patch(attribute.id, { emptyCount: count.empty });
+  return true;
 }
 
 /** Drops an attribute's column from every file, then its row, then re-packs the positions. */

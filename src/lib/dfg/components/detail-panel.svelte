@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Separator } from "$lib/components/ui/separator/index.js";
   import { isDurationAttribute } from "$lib/analysis/attributes";
@@ -77,7 +78,7 @@
         {#each blocks as [name, block] (name)}
           <div class="space-y-1">
             <div class="flex items-center gap-2">
-              <span class="text-xs font-medium">{name}</span>
+              <span class="text-xs font-medium"><AttributeName {name} /></span>
               {#if block.test?.significant}
                 <Badge variant="destructive" class="text-[0.625rem]">
                   {block.test.higher

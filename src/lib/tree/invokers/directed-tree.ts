@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import type { TreeSettings } from "$lib/tree/types";
+import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 /**
  * Builds the tree from the Groups' materialized Parquet files. `groups` is
@@ -21,7 +22,7 @@ export function directedTree(
     projectId: project.id,
     groups,
     attributes: settings.attributes,
-    columns: project.columns,
+    columns: analysisColumns(project),
     variants: settings.selectedVariants.length > 0 ? settings.selectedVariants : null
   });
 }

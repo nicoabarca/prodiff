@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   /**
    * What is drawn, as opposed to what was built. Nothing here triggers a
    * rebuild, so these controls stay usable while one runs.
@@ -39,7 +40,7 @@
         groups.length > 1 ? `Cases (${groups.map((group) => group.name).join(" · ")})` : "Cases"
     },
     ...groups.map((group) => ({ value: group.id, label: `Cases: ${group.name}` })),
-    ...attributes.map((name) => ({ value: name, label: `Mean ${name}` }))
+    ...attributes.map((name) => ({ value: name, label: `Mean ${attributeLabel(name)}` }))
   ]);
 
   const focusOptions = $derived([

@@ -6,6 +6,8 @@
   import { Separator } from "$lib/components/ui/separator/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { attributeOptions } from "$lib/analysis/attributes";
+  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
   import { view } from "$lib/dfg/state/view.svelte";
   import type { Project } from "$lib/event-log/types";
@@ -13,7 +15,9 @@
 
   let { project }: { project: Project } = $props();
 
-  const options = $derived(attributeOptions(project.columns, project.hiddenColumns));
+  const options = $derived(
+    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
+  );
 
   $effect(() => {
     const available = new Set(options);
@@ -82,7 +86,9 @@
               checked={selection.attributes.includes(option)}
               onCheckedChange={() => toggle(option)}
             />
-            <Label for="dfg-attr-{option}" class="text-xs font-normal">{option}</Label>
+            <Label for="dfg-attr-{option}" class="text-xs font-normal">
+              <AttributeName name={option} />
+            </Label>
           </div>
         {/each}
       </div>

@@ -17,24 +17,29 @@
     setDraft,
     type CustomAttributeDraft
   } from "$lib/custom-attributes/state/drafts.svelte";
+  import { whileApplying } from "$lib/custom-attributes/state/applying.svelte";
   import type { CustomAttribute } from "$lib/custom-attributes/types";
   import type { Project } from "$lib/event-log/types";
   import Plus from "@lucide/svelte/icons/plus";
   import SquareFunction from "@lucide/svelte/icons/square-function";
 
   /**
-   * `appliedGroupIds` are the Groups whose Parquet must gain the column, and
-   * `blockersOf` names the Groups whose Filter Lists read an attribute. Both are
-   * passed down because Groups sit above this domain.
+   * `appliedGroupIds` are the Groups whose Parquet must gain the column,
+   * `blockersOf` names the Groups whose Filter Lists read an attribute, and
+   * `onwritten` runs after a column changes, with the project still blocked,
+   * so the Groups and views that depend on it catch up. All three are passed
+   * down because Groups and views sit above this domain.
    */
   let {
     project,
     appliedGroupIds,
-    blockersOf
+    blockersOf,
+    onwritten
   }: {
     project: Project;
     appliedGroupIds: string[];
     blockersOf: (attribute: CustomAttribute) => { id: string; name: string; color: string }[];
+    onwritten: (attribute: CustomAttribute) => Promise<void>;
   } = $props();
 
   /** Which attribute the editor is on. A null id is the attribute that does not exist yet. */
@@ -60,8 +65,14 @@
   async function apply(attribute: CustomAttribute) {
     error = null;
     try {
-      await applyCustomAttribute(project, attribute, draftOf(attribute), appliedGroupIds);
+      const draft = draftOf(attribute);
+      const written = await applyCustomAttribute(project, attribute, draft, appliedGroupIds);
       discardDraft(attribute);
+      if (written) {
+        await whileApplying(`Re-applying the groups that filter on ${draft.name}…`, () =>
+          onwritten(attribute)
+        );
+      }
     } catch (cause) {
       error = String(cause);
     }
@@ -73,6 +84,7 @@
     try {
       await removeCustomAttribute(project, attribute, appliedGroupIds);
       discardDraft(attribute);
+      await onwritten(attribute);
     } catch (cause) {
       error = String(cause);
     }

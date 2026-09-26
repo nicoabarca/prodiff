@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   /**
    * One attribute's Distribution at the selected node: vertical columns, one band
    * per value or bin, one bar per Group within it.
@@ -138,7 +140,9 @@
 <div class="bg-card border-border flex min-w-0 flex-col border">
   <div class="border-border flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2">
     <div class="flex min-w-0 flex-col gap-1">
-      <h3 class="truncate text-xs font-semibold" title={attribute}>{attribute}</h3>
+      <h3 class="truncate text-xs font-semibold" title={attributeLabel(attribute)}>
+        <AttributeName name={attribute} />
+      </h3>
       <div class="flex flex-wrap items-center gap-1.5">
         <EffectChip {test} />
         <Badge variant="secondary" class="text-[0.625rem]">{SCOPE_LABEL[scope]}</Badge>
@@ -167,7 +171,7 @@
       variant="ghost"
       size="icon"
       class="shrink-0"
-      aria-label="Remove {attribute}"
+      aria-label="Remove {attributeLabel(attribute)}"
       onclick={onRemove}
     >
       <X />
