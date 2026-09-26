@@ -7,6 +7,7 @@
   import MetricsTable from "$lib/statistics/components/metrics-table.svelte";
   import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
   import EventLogSettings from "$lib/event-log/components/event-log-settings.svelte";
+  import { readersByColumn } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 
   const project = $derived(currentProject());
@@ -47,7 +48,7 @@
       {#if error}
         <p class="border-destructive/50 text-destructive border p-4 text-sm">{error}</p>
       {/if}
-      <EventLogSettings {project} />
+      <EventLogSettings {project} readers={readersByColumn(project)} />
       <ComparisonCharts groups={shown} {stats} />
       <MetricsTable groups={shown} {stats} />
       <EventDataTable {project} groups={shown} />

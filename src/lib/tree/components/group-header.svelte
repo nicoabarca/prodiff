@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import * as Alert from "$lib/components/ui/alert/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
@@ -42,7 +43,7 @@
         {#each caseLevel as name (name)}
           <div class="border-border flex flex-col gap-1.5 border p-2.5">
             <div class="flex items-center justify-between gap-2">
-              <span class="text-xs font-semibold">{name}</span>
+              <span class="text-xs font-semibold"><AttributeName {name} /></span>
               <EffectChip test={tree.caseLevelTests[name]} />
             </div>
             <SummaryCompare

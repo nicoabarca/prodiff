@@ -3,7 +3,14 @@
   import type { CustomAttribute } from "$lib/custom-attributes/types";
   import { customAttributeColumn } from "$lib/custom-attributes/utils/custom-attribute-id";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { groups, groupsReadingColumn, isApplied } from "$lib/groups/state/groups.svelte";
+  import {
+    groups,
+    groupsReadingColumn,
+    isApplied,
+    reapplyGroupsReading
+  } from "$lib/groups/state/groups.svelte";
+  import { invalidateDfg } from "$lib/dfg/state/dfg.svelte";
+  import { invalidateTree } from "$lib/tree/state/build.svelte";
 
   const project = $derived(currentProject());
   const appliedGroupIds = $derived(groups.filter(isApplied).map((group) => group.id));
@@ -18,5 +25,14 @@
 </script>
 
 {#if project}
-  <CustomAttributesPage {project} {appliedGroupIds} {blockersOf} />
+  <CustomAttributesPage
+    {project}
+    {appliedGroupIds}
+    {blockersOf}
+    onwritten={async (attribute) => {
+      await reapplyGroupsReading(project, customAttributeColumn(attribute.id));
+      invalidateTree();
+      invalidateDfg();
+    }}
+  />
 {/if}
