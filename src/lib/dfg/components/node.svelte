@@ -54,6 +54,8 @@
   <!-- Explicit radius: the theme is square (`--radius: 0`), so `rounded-lg`
        resolves to nothing here. -->
   <div
+    data-tour="dfg-node"
+    data-tour-key={data.label}
     class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center {data.selected
       ? 'ring-ring ring-2'
       : ''}"

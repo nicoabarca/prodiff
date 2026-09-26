@@ -77,7 +77,7 @@
   });
 </script>
 
-<Card.Root class="gap-0 py-0">
+<Card.Root class="gap-0 py-0" data-tour="event-data-table">
   <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-3">
     <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Event log data</span>
     <Tabs.Root value={selectedId} onValueChange={selectGroup} class="ml-auto">

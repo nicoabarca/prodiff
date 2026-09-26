@@ -87,7 +87,12 @@
       {/if}
       <div class="ml-auto flex items-center gap-2">
         <!-- Which groups the tree measures against, and what they share. -->
-        <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          data-tour="compare-groups"
+          onclick={() => (comparing = true)}
+        >
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
         </Button>
@@ -110,7 +115,7 @@
         {#if built.tree}
           <GroupHeader tree={built.tree} />
           <div class="flex min-h-0 flex-1">
-            <div class="relative flex min-h-0 min-w-0 flex-1">
+            <div class="relative flex min-h-0 min-w-0 flex-1" data-tour="tree-canvas">
               <Canvas tree={built.tree} />
               <ViewLegend />
               {#if import.meta.env.DEV}
@@ -135,6 +140,7 @@
                     variant="outline"
                     size="sm"
                     class="bg-background/90 backdrop-blur"
+                    data-tour="open-distributions"
                     href="/app/projects/{project.id}/distributions"
                   >
                     <ChartColumn data-icon="inline-start" />

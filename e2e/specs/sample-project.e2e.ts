@@ -9,6 +9,12 @@ describe("sample project", () => {
     await expect($(`//*[normalize-space(text())='${NAME}']`)).toBeDisplayed();
   });
 
+  it("starts the Statistics tour, which Escape closes", async () => {
+    await expect($(".driver-popover-title")).toHaveText("Groups side by side");
+    await browser.keys("Escape");
+    await expect($(".driver-popover")).not.toBeExisting();
+  });
+
   it("lists it and hides the sample card while it exists", async () => {
     await $("a=Projects").click();
     await expect($(`//*[normalize-space(text())='${NAME}']`)).toBeDisplayed();

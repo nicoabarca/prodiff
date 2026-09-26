@@ -107,7 +107,10 @@
   </div>
 {/snippet}
 
-<aside class="border-border bg-sidebar flex w-[28rem] shrink-0 flex-col border-l">
+<aside
+  class="border-border bg-sidebar flex w-[28rem] shrink-0 flex-col border-l"
+  data-tour="tree-detail-panel"
+>
   {#if !node}
     <div class="flex items-center justify-end p-2">
       <Button variant="ghost" size="icon" aria-label="Hide details" onclick={onClose}>

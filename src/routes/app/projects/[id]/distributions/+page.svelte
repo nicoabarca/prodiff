@@ -148,7 +148,10 @@
 
 {#if project && tree && node}
   <div class="flex min-h-0 flex-1">
-    <aside class="border-border bg-card flex w-68 shrink-0 flex-col border-r">
+    <aside
+      class="border-border bg-card flex w-68 shrink-0 flex-col border-r"
+      data-tour="distribution-trace"
+    >
       <div class="border-border flex shrink-0 items-center gap-2 border-b px-3 py-2">
         <Button variant="ghost" size="sm" href="/app/projects/{project.id}/tree">
           <ArrowLeft data-icon="inline-start" />
@@ -194,7 +197,7 @@
         {/if}
 
         <div class="ml-auto flex flex-wrap items-center gap-2">
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2" data-tour="distribution-scope">
             <span class="text-muted-foreground text-[0.625rem] font-semibold uppercase">
               Count events from
             </span>
@@ -320,7 +323,10 @@
           </p>
         </div>
       {:else}
-        <div class="grid min-h-0 flex-1 auto-rows-min grid-cols-3 gap-3 overflow-y-auto p-3">
+        <div
+          class="grid min-h-0 flex-1 auto-rows-min grid-cols-3 gap-3 overflow-y-auto p-3"
+          data-tour="distribution-grid"
+        >
           {#each grid as card, index (card.name)}
             {#if index === firstUntested}
               <div class="col-span-full flex items-baseline gap-2 pt-1">
