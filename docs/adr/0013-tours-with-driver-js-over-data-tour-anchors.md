@@ -1,0 +1,13 @@
+# Tours with driver.js over `data-tour` anchors
+
+Each view of the Sample Project gets a Tour: a few steps that dim the page, highlight one element and explain it in a popover. We use driver.js for the overlay, the cutout and the popover. It is MIT-licensed, has no dependencies and no framework binding, and version 1.8 can wait for an element to render, which covers views that load their data after mounting. Shepherd.js and Intro.js were rejected for their AGPL licences, and the React tour libraries do not run in Svelte. Building the overlay ourselves would have meant owning scroll, resize and focus handling for a feature that is not the product.
+
+Tours live in their own domain, `src/lib/tour/`, at the top of the dependency graph: it may import any domain, and nothing imports it except the `[id]` layout, which renders the launcher in the topbar, and the Settings page. A Tour is data, one file per view under `tour/steps/`, so a Tour can be read and changed without touching the runner. The runner in `tour/state/runner.svelte.ts` is the only code that knows driver.js.
+
+Steps find their elements through `data-tour` attributes, plus `data-tour-key` where a view repeats an element, such as one Group card per Group. Selecting by class names or button text was rejected because a restyle or a copy change would silently break a Tour. The components carry the attribute as a plain string rather than importing names from `tour/`, so the dependency direction holds, and a test fails when a step names an anchor that no component renders.
+
+Most steps only need Next. An action step instead waits for the user to do the thing it describes: it hides Next, refuses the arrow keys, lets clicks through the highlight, and moves on by itself once a condition over app state holds. The Filters Tour's action step waits for Slow cases to have figures, which is what Apply writes, not for a click, so a failed Apply keeps the Tour waiting instead of moving on.
+
+A Tour starts by itself the first time its view opens on the Sample Project, and never on another Project, since its steps name the Sample Project's Groups and values. Finishing it, closing it or leaving the view marks it seen, in the `toursSeen` key of a new `app_settings` table that holds app-wide values. A button in the topbar replays the current view's Tour, and Settings can forget every Tour so they start again.
+
+**Consequence:** a new Tour is a steps file, one line in `tour/tours.ts`, and a `data-tour` attribute on each element it points at. Changing the Sample Project's data can invalidate what a Tour says, and nothing but reading the Tour catches that.

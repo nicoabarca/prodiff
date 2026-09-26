@@ -105,7 +105,7 @@
   }
 </script>
 
-<Card.Root>
+<Card.Root data-tour="group-card" data-tour-key={group.name}>
   <Card.Header>
     <Card.Title>
       <span class="flex items-center gap-2">
@@ -199,7 +199,9 @@
         {@const measured = impact(index)}
         {@const pct = retained(index)}
         <li
-          class="border-border group flex items-center gap-3 border-t px-6 py-3 {editingIndex === index
+          data-tour="filter-step"
+          class="border-border group flex items-center gap-3 border-t px-6 py-3 {editingIndex ===
+          index
             ? 'bg-muted'
             : ''}"
         >
@@ -301,6 +303,7 @@
       {/if}
       <Button
         size="sm"
+        data-tour="apply-group"
         onclick={() => onapply(group)}
         class="text-background bg-(--group-accent) hover:bg-(--group-accent) hover:opacity-90"
         style="--group-accent: {accent}"

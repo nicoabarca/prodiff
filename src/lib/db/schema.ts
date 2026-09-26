@@ -76,3 +76,9 @@ export const customAttributes = sqliteTable("custom_attributes", {
   createdAt: text("created_at").notNull(),
   editedAt: text("edited_at").notNull()
 });
+
+/** App-wide values that belong to no project, one JSON value per key. See `app-settings.ts`. */
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value", { mode: "json" }).notNull()
+});

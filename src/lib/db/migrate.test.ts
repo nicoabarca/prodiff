@@ -103,6 +103,7 @@ describe("journalMigrations", () => {
     const sqlite = new BetterSqlite(":memory:");
     await migrate(driver(sqlite), migrations);
     expect(tables(sqlite)).toEqual([
+      "app_settings",
       "comparisons",
       "custom_attributes",
       "groups",
