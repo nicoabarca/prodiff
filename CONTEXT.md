@@ -8,6 +8,14 @@ A local-first process mining desktop app (Tauri). Users upload event logs, the a
 A user-created workspace wrapping one uploaded event log — its metadata (name, upload date, column mapping, hidden columns) plus the parsed, typed data derived from it.
 _Avoid_: Workspace, analysis
 
+**Sample Project**:
+The Project the app ships with: a synthetic loan application Event Log with Groups already defined and a Comparison already chosen, so every view has something to show the first time it opens. It is created on request, never on its own, and is an ordinary Project once it exists. Creating it again replaces it.
+_Avoid_: Toy log, demo project, example project
+
+**Tour**:
+A short guided walk through one view of the Sample Project that highlights one element at a time. One Tour per view; each ends by pointing at the next view.
+_Avoid_: Tutorial, onboarding, walkthrough
+
 **Event Log**:
 The parsed, typed, tabular representation of a Project's uploaded file (CSV/XES), persisted as Parquet after column mapping is confirmed. One per Project. Never re-derived from the raw upload after creation.
 _Avoid_: Dataset, file, upload

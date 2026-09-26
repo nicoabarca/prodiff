@@ -94,6 +94,19 @@ export async function createGroup(
   return group;
 }
 
+/**
+ * Stores Groups built elsewhere, positions and figures included. A Group with
+ * `stats` must already have its Parquet.
+ */
+export async function addGroups(rows: Group[]) {
+  if (rows.length === 0) return;
+  await db().insert(groupsTable).values(rows);
+  const projectId = rows[0].projectId;
+  if (groupsLoaded.projectId !== projectId) return;
+  groups.push(...rows);
+  groups.sort(byPosition);
+}
+
 /** Persists a change and reflects it in the loaded array. */
 async function patch(id: string, changes: Partial<Group>) {
   await db()

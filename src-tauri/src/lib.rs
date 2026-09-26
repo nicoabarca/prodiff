@@ -6,6 +6,7 @@ pub mod event_log;
 mod filters;
 pub mod groups;
 mod parsing;
+mod sample_project;
 mod stats;
 mod time;
 mod tree;
@@ -32,6 +33,7 @@ pub fn run() {
             event_log::commands::create_event_log,
             event_log::commands::check_case_columns,
             event_log::commands::delete_project_files,
+            sample_project::commands::create_sample_project,
             groups::commands::apply_group,
             groups::commands::delete_group_file,
             groups::commands::applied_groups,
