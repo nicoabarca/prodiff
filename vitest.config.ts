@@ -11,7 +11,7 @@ export default defineConfig({
     // one exists, so it is set once rather than per file.
     environment: "jsdom",
     setupFiles: ["./vitest-setup.ts"],
-    include: ["src/**/*.{test,spec}.{js,ts}"]
+    include: ["src/**/*.{test,spec}.{js,ts}", "scripts/**/*.test.ts"]
   },
   // Resolve the `browser` entry point of every package, even though Vitest runs
   // in Node — this is what makes Svelte's runes compile in `*.svelte.ts` and

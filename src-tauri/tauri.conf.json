@@ -29,7 +29,8 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "resources": ["resources/sample-project/loan-applications.csv"]
   },
   "plugins": {
     "updater": {
