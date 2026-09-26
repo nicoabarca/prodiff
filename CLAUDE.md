@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `pnpm tauri dev` — run the full desktop app (spawns the frontend dev server via `beforeDevCommand` in `src-tauri/tauri.conf.json`, then opens the native window).
 - `pnpm dev:port <port>` — same, on another port (`scripts/dev-port.sh`). It derives the app identifier from the current git branch, so each branch gets its own Application Support data and two worktrees never share a SQLite database or project files.
 - `pnpm seed [slug…]` — create or reset dev Projects from `scripts/seed_log/` (`scripts/seed.ts`). Each `<slug>.csv` needs a `<slug>.json` manifest holding `{ name, columns, hiddenColumns, groups? }`, where each Group is `{ name, color?, filters }` with `filters` in the exact Filter JSON the app stores (`case_not_in_group` is not supported); with no slugs every pair is seeded. It targets the current branch's app data like `dev:port` (override with `--app-id` or `--app-data-dir`), imports and applies the Groups through the `seed-project` binary (the same `event_log::importer` and `groups::apply` the app runs; the first run compiles it in release, which takes minutes), and writes rows through `schema.ts` after running the migrations. The Project id derives from the slug, so seeding it again replaces its files and deletes its Groups, comparison and tree settings.
+- `pnpm sample:generate` — rewrite the Sample Project's Event Log, `src-tauri/resources/sample-project/loan-applications.csv`, from the seeded generator in `scripts/sample-log.ts`. Commit both; `scripts/tests/sample-log.test.ts` fails when they disagree. The rest of the Sample Project (Column Mapping, Groups, comparison, tree attributes) is `src/lib/sample-project/manifest.ts`.
 - `pnpm release <patch|minor|major|x.y.z>` — from a clean `main` matching `origin/main`, set the version in `package.json`, `Cargo.toml`, `tauri.conf.json` and `Cargo.lock`, commit, tag `v<version>` and push. The tag builds Windows into a draft release in CI. `pnpm release:mac`, run on that tag, builds Apple Silicon locally and adds it to the draft. Publishing the draft is manual. See `docs/adr/0011`.
 - `pnpm db:generate <name>` — after editing `src/lib/db/schema.ts`, write the migration for it with drizzle-kit into `src/lib/db/migrations/`. Review the SQL and commit it with `meta/`. Never edit a migration that has shipped. Add `--custom` through `pnpm drizzle-kit generate --custom --name <name>` for hand-written SQL.
 - `pnpm build` — build the frontend (`vite build`); `pnpm tauri build` builds the full desktop bundle. `tauri.conf.json` carries the dev identifier `com.nicoabarca.prodiff.dev`; a release build adds `--config src-tauri/tauri.release.conf.json` for `com.nicoabarca.prodiff`.
@@ -43,13 +44,14 @@ src/lib/
 ├── tree/              directed tree, variants, canvas, node detail
 ├── dfg/               directly-follows graph, simplification, canvas, detail panel
 ├── distributions/     per-node attribute distributions
+├── sample-project/    the bundled Sample Project: manifest and creation
 ├── updater/           startup update check and install
 └── devtools/          dev-only inspectors, one folder per view (devtools/tree/)
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree` and `sample-project → tree | groups`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
 `devtools` is dev-only (see `docs/adr/0009`). It may import from any domain; nothing imports it statically. Prod code reaches it only through a seam of the form `{#if import.meta.env.DEV}{#await import("$lib/devtools/…")}`, which Vite drops from `vite build` along with the chunk. A dev tool reads the state its view already holds and never adds props, callbacks or branches to prod components.
 
