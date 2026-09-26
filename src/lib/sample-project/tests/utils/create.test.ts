@@ -9,7 +9,8 @@ const calls = vi.hoisted(() => ({
   removeProject: vi.fn(),
   addGroups: vi.fn(),
   saveComparison: vi.fn(),
-  saveSettings: vi.fn()
+  saveSettings: vi.fn(),
+  recordSampleVersion: vi.fn()
 }));
 
 vi.mock("$lib/sample-project/invokers/create-sample-project", () => ({
@@ -23,6 +24,9 @@ vi.mock("$lib/event-log/state/projects.svelte", () => ({
 vi.mock("$lib/groups/state/groups.svelte", () => ({ addGroups: calls.addGroups }));
 vi.mock("$lib/groups/state/comparison.svelte", () => ({ saveComparison: calls.saveComparison }));
 vi.mock("$lib/tree/state/tree.svelte", () => ({ saveSettings: calls.saveSettings }));
+vi.mock("$lib/sample-project/state/version.svelte", () => ({
+  recordSampleVersion: calls.recordSampleVersion
+}));
 
 const { createSampleProject } = await import("$lib/sample-project/utils/create");
 const { SAMPLE_MANIFEST, SAMPLE_PROJECT_ID } = await import("$lib/sample-project/manifest");
@@ -92,11 +96,18 @@ describe("createSampleProject", () => {
     expect(calls.addProject).toHaveBeenCalledOnce();
   });
 
+  it("records the version it was created from, once everything else is stored", async () => {
+    await createSampleProject();
+    const recorded = calls.recordSampleVersion.mock.invocationCallOrder[0];
+    expect(recorded).toBeGreaterThan(calls.saveSettings.mock.invocationCallOrder[0]);
+  });
+
   it("writes nothing when the manifest compares a Group that is not applied", async () => {
     await expect(
       createSampleProject({ ...SAMPLE_MANIFEST, compared: ["Slow cases"] })
     ).rejects.toThrow("Slow cases");
     expect(calls.importSample).not.toHaveBeenCalled();
     expect(calls.addProject).not.toHaveBeenCalled();
+    expect(calls.recordSampleVersion).not.toHaveBeenCalled();
   });
 });

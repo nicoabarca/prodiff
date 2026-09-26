@@ -8,6 +8,12 @@ import type { Filter } from "$lib/filters/kind/filter";
  */
 export const SAMPLE_PROJECT_ID = "30fe30dc-de6c-571c-9c97-598bca4b0f83";
 
+/**
+ * The version of the Sample Project this build ships. Raise it whenever the
+ * log or this manifest changes, so an existing Sample Project offers to update.
+ */
+export const SAMPLE_VERSION = 1;
+
 /** The names of the Groups the Sample Project starts with, which Tours point at. */
 export const SAMPLE_GROUPS = {
   approved: "Approved",
