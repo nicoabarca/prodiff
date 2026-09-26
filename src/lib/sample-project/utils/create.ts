@@ -11,6 +11,7 @@ import {
   SAMPLE_PROJECT_ID,
   type SampleManifest
 } from "$lib/sample-project/manifest";
+import { recordSampleVersion } from "$lib/sample-project/state/version.svelte";
 import { saveSettings } from "$lib/tree/state/tree.svelte";
 
 /** Whether the Sample Project exists. Call inside a `$derived`. */
@@ -21,7 +22,8 @@ export function hasSampleProject(): boolean {
 /**
  * Creates the Sample Project, replacing it if it already exists: imports the
  * bundled Event Log, applies its Groups, and stores the Project, its Groups,
- * the comparison the tree opens on and the attributes the tree tests.
+ * the comparison the tree opens on, the attributes the tree tests and the
+ * version it was created from.
  */
 export async function createSampleProject(
   manifest: SampleManifest = SAMPLE_MANIFEST
@@ -81,5 +83,6 @@ export async function createSampleProject(
     selectedVariants: [],
     attributesChosen: true
   });
+  await recordSampleVersion();
   return project;
 }

@@ -5,6 +5,7 @@ import { appSettings } from "$lib/db/schema";
 /** Every key the `app_settings` table holds, with the shape of its value. */
 export interface AppSettings {
   toursSeen: string[];
+  sampleProjectVersion: number;
 }
 
 /** A stored value, or null when the key has never been written. */
