@@ -169,7 +169,7 @@
       </div>
 
       <div class="lg:h-full lg:min-h-0">
-        <Card.Root class="lg:h-full">
+        <Card.Root class="lg:h-full" data-tour="filter-editor">
           <Card.Header>
             <Card.Title>
               {editing === null

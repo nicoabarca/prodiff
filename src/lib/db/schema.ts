@@ -60,3 +60,9 @@ export const treeSettings = sqliteTable("tree_settings", {
     .notNull(),
   attributesChosen: integer("attributes_chosen", { mode: "boolean" }).notNull().default(false)
 });
+
+/** App-wide values that belong to no project, one JSON value per key. See `app-settings.ts`. */
+export const appSettings = sqliteTable("app_settings", {
+  key: text("key").primaryKey(),
+  value: text("value", { mode: "json" }).notNull()
+});
