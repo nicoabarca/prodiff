@@ -49,11 +49,15 @@
     offset = 0;
   }
 
-  // Hidden columns never reach the table.
+  // Hidden columns never reach the table, and neither do columns the Column
+  // Mapping does not name, such as Custom Attributes.
   const visible = $derived(
     (preview?.columns ?? [])
       .map((name, index) => ({ name, index }))
-      .filter(({ name }) => !project.hiddenColumns.includes(name))
+      .filter(
+        ({ name }) =>
+          !project.hiddenColumns.includes(name) && project.columns.some((c) => c.name === name)
+      )
   );
 
   $effect(() => {
