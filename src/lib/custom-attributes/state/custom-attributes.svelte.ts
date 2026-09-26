@@ -10,7 +10,9 @@ import {
   customAttributeId
 } from "$lib/custom-attributes/utils/custom-attribute-id";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
+import { draftOf } from "$lib/custom-attributes/state/drafts.svelte";
 import { parseFormula } from "$lib/custom-attributes/utils/parser";
+import { referencedColumns } from "$lib/custom-attributes/utils/validate";
 import type { Project } from "$lib/event-log/types";
 
 /** The loaded project's Custom Attributes, in position order. */
@@ -61,6 +63,27 @@ export function isCustomAttribute(name: string): boolean {
 /** What the user sees for an attribute: a Custom Attribute's name, or the name itself. */
 export function attributeLabel(name: string): string {
   return attributeOf(name)?.name ?? name;
+}
+
+/**
+ * The names of the Custom Attributes that read each column, by column. Both the
+ * applied formula and an unapplied draft count: either would break if the
+ * column were hidden or retyped under it.
+ */
+export function readersByColumn(project: Project): Record<string, string[]> {
+  if (customAttributesLoaded.projectId !== project.id) return {};
+  const readers: Record<string, string[]> = {};
+  for (const attribute of customAttributes) {
+    const draft = draftOf(attribute);
+    const columns = new Set(
+      [attribute.formula, draft.formula].flatMap((text) => {
+        const parsed = parseFormula(text);
+        return parsed.ok ? referencedColumns(parsed.formula) : [];
+      })
+    );
+    for (const column of columns) (readers[column] ??= []).push(draft.name);
+  }
+  return readers;
 }
 
 export async function loadCustomAttributes(projectId: string) {
