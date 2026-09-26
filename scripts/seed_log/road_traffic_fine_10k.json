@@ -47,17 +47,19 @@
   "hiddenColumns": [
     "Variant",
     "Variant index",
-    "amount",
     "dismissal",
     "vehicleClass",
     "lifecycle:transition",
     "article",
-    "points",
     "expense",
     "notificationType",
     "lastSent",
     "paymentAmount",
     "matricola"
+  ],
+  "customAttributes": [
+    { "name": "Points per 100 amount", "formula": "[points] / [amount] * 100" },
+    { "name": "Paid share", "formula": "[totalPaymentAmount] / [amount]" }
   ],
   "groups": [
     {

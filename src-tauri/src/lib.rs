@@ -1,6 +1,6 @@
 mod analysis;
 pub mod column_mapping;
-mod custom_attributes;
+pub mod custom_attributes;
 mod database;
 mod dfg;
 pub mod event_log;
