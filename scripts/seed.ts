@@ -4,10 +4,14 @@
  *   pnpm seed [slug…] [--app-id <id> | --app-data-dir <dir>]
  *
  * Each `<slug>.csv` is paired with a `<slug>.json` manifest holding
- * `{ name, columns, hiddenColumns, groups? }`. With no slugs, every pair is
+ * `{ name, columns, hiddenColumns, customAttributes?, groups? }`. With no slugs, every pair is
  * seeded. The Project id is derived from the slug, so seeding a slug again
- * resets that Project: its files are replaced and its Groups, comparison and
- * tree settings are deleted.
+ * resets that Project: its files are replaced and its Custom Attributes,
+ * Groups, comparison and tree settings are deleted.
+ *
+ * Each entry of `customAttributes` is `{ name, formula }`, with the formula in
+ * the text the app's editor writes. Their ids are generated on every run, so a
+ * manifest Group cannot filter on one.
  *
  * Each entry of `groups` is `{ name, color?, filters }`, where `filters` is a
  * Filter List in the exact JSON the app stores. The Groups are applied in array
@@ -34,6 +38,14 @@ import { defaultColor } from "../src/lib/groups/colors";
 import type { ResponseEventLogStats } from "../src/lib/groups/invokers/types";
 import type { Group } from "../src/lib/groups/types";
 import { groupId } from "../src/lib/groups/utils/group-id";
+import type {
+  RequestCustomAttribute,
+  ResponseEmptyCount
+} from "../src/lib/custom-attributes/invokers/types";
+import type { CustomAttribute } from "../src/lib/custom-attributes/types";
+import { customAttributeId } from "../src/lib/custom-attributes/utils/custom-attribute-id";
+import { parseFormula } from "../src/lib/custom-attributes/utils/parser";
+import { formulaColumnError, nameError } from "../src/lib/custom-attributes/utils/validate";
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const SEED_LOG_DIR = join(REPO_ROOT, "scripts", "seed_log");
@@ -50,15 +62,21 @@ type ManifestGroup = Pick<Group, "name" | "filters"> & Partial<Pick<Group, "colo
 
 type SeedGroup = ManifestGroup & Pick<Group, "id">;
 
+type ManifestCustomAttribute = Pick<CustomAttribute, "name" | "formula">;
+
+type SeedCustomAttribute = RequestCustomAttribute & { name: string; text: string };
+
 interface Manifest {
   name: string;
   columns: RequestColumnMapping[];
   hiddenColumns: string[];
+  customAttributes?: ManifestCustomAttribute[];
   groups?: ManifestGroup[];
 }
 
-interface ImportWithGroups {
+interface Seeded {
   eventLog: ResponseCreateEventLog;
+  customAttributes: ResponseEmptyCount[];
   groups: ResponseEventLogStats[];
 }
 
@@ -68,6 +86,7 @@ interface SeedInput {
   csvPath: string;
   projectDir: string;
   manifest: Manifest;
+  customAttributes: SeedCustomAttribute[];
   groups: SeedGroup[];
 }
 
@@ -143,20 +162,24 @@ function buildSeeder() {
   if (build.status !== 0) fail("Building seed-project failed.");
 }
 
-/** Imports the Event Log into `projectDir` and applies `groups` to it, in one pass. */
+/**
+ * Imports the Event Log into `projectDir`, writes its Custom Attributes and
+ * applies `groups` to it, in one pass.
+ */
 function seedProject(
   projectDir: string,
   csvPath: string,
   columns: RequestColumnMapping[],
+  customAttributes: RequestCustomAttribute[],
   groups: Pick<Group, "id" | "filters">[]
 ) {
   const run = spawnSync(SEED_BIN, [projectDir, csvPath], {
-    input: JSON.stringify({ columns, groups }),
+    input: JSON.stringify({ columns, customAttributes, groups }),
     encoding: "utf8",
     maxBuffer: 16 * 1024 * 1024
   });
   if (run.status !== 0) throw new Error(run.stderr.trim() || `exited with ${run.status}`);
-  return JSON.parse(run.stdout) as ImportWithGroups;
+  return JSON.parse(run.stdout) as Seeded;
 }
 
 function seedInput(slug: string, { available, appDataDir }: SeedContext): SeedInput {
@@ -171,12 +194,34 @@ function seedInput(slug: string, { available, appDataDir }: SeedContext): SeedIn
   if (unsupported)
     throw new Error(`Group "${unsupported.name}" uses unsupported case_not_in_group.`);
   const id = uuidv5(`prodiff:seed:${slug}`, uuidv5.URL);
+  const scope = { id, columns: manifest.columns, hiddenColumns: manifest.hiddenColumns } as Project;
+  const customAttributes: SeedCustomAttribute[] = [];
+  for (const attribute of manifest.customAttributes ?? []) {
+    const parsed = parseFormula(attribute.formula);
+    const problem =
+      nameError(
+        attribute.name,
+        scope,
+        customAttributes.map(({ id, name }) => ({ id, name }) as CustomAttribute),
+        null
+      ) ?? (parsed.ok ? formulaColumnError(parsed.formula, scope) : parsed.error);
+    if (problem || !parsed.ok) {
+      throw new Error(`Custom attribute "${attribute.name}": ${problem}.`);
+    }
+    customAttributes.push({
+      id: customAttributeId(),
+      name: attribute.name,
+      text: attribute.formula,
+      formula: parsed.formula
+    });
+  }
   return {
     slug,
     id,
     csvPath,
     projectDir: join(appDataDir, "projects", id),
     manifest,
+    customAttributes,
     groups: (manifest.groups ?? []).map((group) => ({ ...group, id: groupId() }))
   };
 }
@@ -238,6 +283,20 @@ function seededProject(input: SeedInput, result: ResponseCreateEventLog): Projec
   };
 }
 
+function seededCustomAttributes(input: SeedInput, counts: ResponseEmptyCount[]): CustomAttribute[] {
+  const now = new Date().toISOString();
+  return input.customAttributes.map((attribute, position) => ({
+    id: attribute.id,
+    projectId: input.id,
+    name: attribute.name,
+    formula: attribute.text,
+    position,
+    emptyCount: counts.find((count) => count.id === attribute.id)?.empty ?? null,
+    createdAt: now,
+    editedAt: now
+  }));
+}
+
 function seededGroups(input: SeedInput, stats: ResponseEventLogStats[]): Group[] {
   const now = new Date().toISOString();
   return input.groups.map((group, position) => ({
@@ -254,17 +313,20 @@ function seededGroups(input: SeedInput, stats: ResponseEventLogStats[]): Group[]
 }
 
 /**
- * Writes the Project and its Groups, then runs `placeFiles` in the same
- * transaction, so a failed write leaves the previous files in place.
+ * Writes the Project, its Custom Attributes and its Groups, then runs
+ * `placeFiles` in the same transaction, so a failed write leaves the previous
+ * files in place.
  */
 function persistSeed(
   db: BetterSQLite3Database<typeof schema>,
   project: Project,
+  customAttributes: CustomAttribute[],
   groups: Group[],
   placeFiles: () => void
 ) {
   const { id, ...changes } = project;
   db.transaction((tx) => {
+    tx.delete(schema.customAttributes).where(eq(schema.customAttributes.projectId, id)).run();
     tx.delete(schema.groups).where(eq(schema.groups.projectId, id)).run();
     tx.delete(schema.comparisons).where(eq(schema.comparisons.projectId, id)).run();
     tx.delete(schema.treeSettings).where(eq(schema.treeSettings.projectId, id)).run();
@@ -272,6 +334,9 @@ function persistSeed(
       .values(project)
       .onConflictDoUpdate({ target: schema.projects.id, set: changes })
       .run();
+    if (customAttributes.length > 0) {
+      tx.insert(schema.customAttributes).values(customAttributes).run();
+    }
     if (groups.length > 0) tx.insert(schema.groups).values(groups).run();
     placeFiles();
   });
@@ -282,12 +347,19 @@ function seedSlug(slug: string, context: SeedContext) {
   const staging = siblingDir(input.projectDir, "staging");
   rmSync(staging, { recursive: true, force: true });
   try {
-    const imported = seedProject(staging, input.csvPath, input.manifest.columns, input.groups);
+    const imported = seedProject(
+      staging,
+      input.csvPath,
+      input.manifest.columns,
+      input.customAttributes.map(({ id, formula }) => ({ id, formula })),
+      input.groups
+    );
     const project = seededProject(input, imported.eventLog);
+    const customAttributes = seededCustomAttributes(input, imported.customAttributes);
     const groups = seededGroups(input, imported.groups);
     let previous: string | null | undefined;
     try {
-      persistSeed(context.db, project, groups, () => {
+      persistSeed(context.db, project, customAttributes, groups, () => {
         previous = swapIntoPlace(staging, input.projectDir);
       });
     } catch (error) {
@@ -303,7 +375,7 @@ function seedSlug(slug: string, context: SeedContext) {
       throw error;
     }
     discardPrevious(previous ?? null);
-    return { project, groups };
+    return { project, customAttributes, groups };
   } finally {
     rmSync(staging, { recursive: true, force: true });
   }
@@ -314,12 +386,12 @@ function seedAll(slugs: string[], context: SeedContext) {
   console.log(`App data: ${context.appDataDir}`);
   for (const slug of slugs) {
     try {
-      const { project, groups } = seedSlug(slug, context);
+      const { project, customAttributes, groups } = seedSlug(slug, context);
 
       console.log(
         `seeded  ${slug}: ${project.name} (${project.id}), ` +
           `${project.cases.toLocaleString("en")} cases, ${project.events.toLocaleString("en")} events, ` +
-          `${groups.length} Groups`
+          `${customAttributes.length} Custom Attributes, ${groups.length} Groups`
       );
     } catch (error) {
       failures.push(slug);
