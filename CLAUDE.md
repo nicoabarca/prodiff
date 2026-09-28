@@ -45,6 +45,7 @@ src/lib/
 ├── dfg/               directly-follows graph, simplification, canvas, detail panel
 ├── distributions/     per-node attribute distributions
 ├── sample-project/    the bundled Sample Project: manifest and creation
+├── home/              the Projects list, its cards and the first-run screen
 ├── tour/              Tours of the Sample Project: steps per view, driver.js runner
 ├── updater/           startup update check and install
 └── devtools/          dev-only inspectors, one folder per view (devtools/tree/)
@@ -53,6 +54,8 @@ each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
 Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree` and `sample-project → tree | groups`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+
+`home` sits above `event-log`, `filters`, `groups` and `sample-project`, and only the Projects route imports it. The boot screen shown while the database opens and migrates is `db/components/boot-screen.svelte`, driven by the root layout.
 
 `tour` sits above every domain (see `docs/adr/0013`). It may import any of them; only the `[id]` layout and the Settings page import it. A step points at an element through a `data-tour` attribute, plus `data-tour-key` when the element repeats, written as a plain string in the component. Never select a Tour target by class or text, and keep the attribute when moving the element.
 

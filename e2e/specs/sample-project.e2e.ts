@@ -3,14 +3,16 @@ import { $, browser, expect } from "@wdio/globals";
 const NAME = "Loan applications (sample)";
 
 describe("sample project", () => {
-  it("creates the Sample Project from the empty state and opens it", async () => {
-    await $("button=Try the sample project").click();
+  it("creates the Sample Project from the first-run screen and opens it", async () => {
+    await $("button*=sample").click();
     await expect(browser).toHaveUrl(expect.stringContaining("/statistics"), { wait: 30_000 });
     await expect($(`//*[normalize-space(text())='${NAME}']`)).toBeDisplayed();
   });
 
-  it("starts the Statistics tour, which Escape closes", async () => {
+  it("starts the Statistics tour, which Next steps through and Escape closes", async () => {
     await expect($(".driver-popover-title")).toHaveText("Groups side by side");
+    await $(".driver-popover-next-btn").click();
+    await expect($(".driver-popover-title")).toHaveText("The figures");
     await browser.keys("Escape");
     await expect($(".driver-popover")).not.toBeExisting();
   });

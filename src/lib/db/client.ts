@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import * as schema from "./schema";
 import { migrations } from "./bundled-migrations";
 import { prepareDatabaseBackup } from "./invokers/prepare-database-backup";
+import { boot } from "./state/boot.svelte";
 import { migrate, MigrationError, NewerDatabaseError } from "./migrate";
 import type { DbProblem } from "./types";
 
@@ -20,9 +21,9 @@ export function dbProblem(error: unknown): DbProblem {
   return { kind: "other", message: String(error) };
 }
 
-/** The initialized database. `initDb()` runs once in the root layout's `load()`. */
+/** The initialized database. `initDb()` runs once when the root layout mounts. */
 export function db(): Db {
-  if (!instance) throw new Error("db not initialized — initDb() runs in +layout.ts load()");
+  if (!instance) throw new Error("db not initialized: initDb() runs when +layout.svelte mounts");
   return instance;
 }
 
@@ -38,10 +39,15 @@ export function initDb(): Promise<Db> {
         },
         migrations,
         async (from) => {
+          boot.stage = "migrating";
+          boot.migrations = { done: 0, pending: migrations.length - from };
           if (from === 0) return;
           const path = await prepareDatabaseBackup(from);
           await sqlite.execute(`VACUUM INTO '${path.replaceAll("'", "''")}'`);
           backupPath = path;
+        },
+        (done, pending) => {
+          boot.migrations = { done, pending };
         }
       );
 

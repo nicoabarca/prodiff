@@ -3,6 +3,7 @@ import { page } from "$app/state";
 import { db } from "$lib/db/client";
 import { projects as projectsTable } from "$lib/db/schema";
 import { deleteProjectFiles } from "$lib/event-log/invokers/delete-project-files";
+import { forgetOpened, loadOpenedAt } from "$lib/event-log/state/opened.svelte";
 import type { Project } from "$lib/event-log/types";
 import { removeGroupsForProject } from "$lib/groups/state/groups.svelte";
 import { removeCustomAttributesForProject } from "$lib/custom-attributes/state/custom-attributes.svelte";
@@ -18,6 +19,7 @@ export function currentProject(): Project | null {
 export async function loadProjects() {
   const rows = await db().select().from(projectsTable).orderBy(projectsTable.createdAt);
   projects.splice(0, projects.length, ...rows.reverse());
+  await loadOpenedAt();
   projectsLoaded.value = true;
 }
 
@@ -37,6 +39,7 @@ export async function removeProject(id: string) {
   await deleteProjectFiles(id);
   await removeGroupsForProject(id);
   await removeCustomAttributesForProject(id);
+  await forgetOpened(id);
   await db().delete(projectsTable).where(eq(projectsTable.id, id));
   const index = projects.findIndex((p) => p.id === id);
   if (index !== -1) projects.splice(index, 1);

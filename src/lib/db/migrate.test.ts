@@ -50,6 +50,16 @@ describe("migrate", () => {
     expect(before).toHaveBeenCalledExactlyOnceWith(1);
   });
 
+  it("reports each pending migration as it runs", async () => {
+    const sqlite = new BetterSqlite(":memory:");
+    const migrated = vi.fn();
+    await migrate(driver(sqlite), [createA, createB], undefined, migrated);
+    expect(migrated.mock.calls).toEqual([
+      [1, 2],
+      [2, 2]
+    ]);
+  });
+
   it("skips the hook when nothing is pending", async () => {
     const sqlite = new BetterSqlite(":memory:");
     await migrate(driver(sqlite), [createA]);

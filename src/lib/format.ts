@@ -4,6 +4,16 @@ export function formatNumber(value: number): string {
   return value.toLocaleString();
 }
 
+/** A size in bytes in the largest unit that keeps it above one ("1.9 MB"). */
+export function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`;
+  const units = ["KB", "MB", "GB"];
+  const unit = Math.min(Math.floor(Math.log(size) / Math.log(1024)) - 1, units.length - 1);
+  return `${(size / 1024 ** (unit + 1)).toLocaleString(undefined, {
+    maximumFractionDigits: 1
+  })} ${units[unit]}`;
+}
+
 export function formatDecimal(value: number, digits = 2): string {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: digits,

@@ -6,6 +6,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { cn } from "$lib/utils";
   import type { Project } from "$lib/event-log/types";
+  import Logo from "$lib/components/layout/logo.svelte";
   import Network from "@lucide/svelte/icons/network";
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
@@ -59,13 +60,11 @@
   <div class="flex items-center gap-2">
     <div
       class={cn(
-        "bg-sidebar-primary text-sidebar-primary-foreground group/logo flex size-7 shrink-0 items-center justify-center",
-        hoverable
-          ? "hover:text-sidebar-foreground cursor-pointer hover:bg-transparent"
-          : "cursor-default"
+        "text-sidebar-foreground group/logo flex size-7 shrink-0 items-center justify-center",
+        hoverable ? "cursor-pointer" : "cursor-default"
       )}
     >
-      <Network class={cn("size-4", hoverable && "group-hover/logo:hidden")} aria-hidden="true" />
+      <Logo class={cn(hoverable && "group-hover/logo:hidden")} />
       {#if hoverable}
         <PanelLeft class="hidden size-4 group-hover/logo:block" aria-hidden="true" />
       {/if}

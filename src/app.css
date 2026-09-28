@@ -518,6 +518,8 @@
   border-color: var(--primary);
 }
 
-.driver-popover.prodiff-tour .driver-popover-navigation-btns .driver-popover-next-btn:hover {
-  opacity: 0.9;
+.driver-popover.prodiff-tour .driver-popover-navigation-btns .driver-popover-next-btn:hover,
+.driver-popover.prodiff-tour .driver-popover-navigation-btns .driver-popover-next-btn:focus {
+  background: color-mix(in oklab, var(--primary) 90%, black);
+  color: var(--primary-foreground);
 }

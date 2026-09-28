@@ -73,12 +73,14 @@ export function migrationScript(migration: Migration): string {
 /**
  * Runs every migration above the database's `user_version`, in order.
  * `beforeMigrating` runs once, with the version the database starts at, only
- * when something is pending. Returns the version the database ends at.
+ * when something is pending. `onMigrated` runs after each one with how many of
+ * the pending migrations have run. Returns the version the database ends at.
  */
 export async function migrate(
   driver: MigrationDriver,
   migrations: Migration[],
-  beforeMigrating?: (from: number) => Promise<void>
+  beforeMigrating?: (from: number) => Promise<void>,
+  onMigrated?: (done: number, pending: number) => void
 ): Promise<number> {
   const known = migrations.length;
   const from = await driver.userVersion();
@@ -87,13 +89,14 @@ export async function migrate(
   if (pending.length === 0) return from;
 
   await beforeMigrating?.(from);
-  for (const migration of pending) {
+  for (const [index, migration] of pending.entries()) {
     try {
       await driver.execute(migrationScript(migration));
     } catch (cause) {
       await driver.execute("ROLLBACK").catch(() => {});
       throw new MigrationError(migration, cause);
     }
+    onMigrated?.(index + 1, pending.length);
   }
   return known;
 }
