@@ -12,22 +12,17 @@
   } from "$lib/tree/state/build.svelte";
   import { loadSettings, selected, settings, variants } from "$lib/tree/state/tree.svelte";
   import { comparison, comparedGroups, loadComparison } from "$lib/groups/state/comparison.svelte";
-  import BuildSettings from "$lib/tree/components/build-settings.svelte";
   import AttributePrompt from "$lib/tree/components/attribute-prompt.svelte";
   import Canvas from "$lib/tree/components/canvas.svelte";
-  import CompareDialog from "$lib/groups/components/compare-dialog.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
-  import GroupHeader from "$lib/tree/components/group-header.svelte";
+  import CaseStrip from "$lib/tree/components/case-strip.svelte";
+  import TreeToolbar from "$lib/tree/components/tree-toolbar.svelte";
   import VariantPanel from "$lib/tree/components/variant-panel.svelte";
-  import VariantSummary from "$lib/tree/components/variant-summary.svelte";
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
-  import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
-  import ChartColumn from "@lucide/svelte/icons/chart-column";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Network from "@lucide/svelte/icons/network";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
-  import GitCompare from "@lucide/svelte/icons/git-compare";
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 
   const project = $derived(currentProject());
@@ -76,35 +71,19 @@
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      <VariantSummary
-        tree={built.tree}
-        open={variantsOpen}
-        onToggle={() => (variantsOpen = !variantsOpen)}
-      />
-      {#if built.error}
-        <p class="text-destructive truncate text-xs">{built.error}</p>
-      {/if}
-      <div class="ml-auto flex items-center gap-2">
-        <!-- Which groups the tree measures against, and what they share. -->
-        <Button
-          variant="outline"
-          size="sm"
-          data-tour="compare-groups"
-          onclick={() => (comparing = true)}
-        >
-          <GitCompare data-icon="inline-start" />
-          {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
-        </Button>
-        <BuildSettings {project} bind:open={buildSettingsOpen} />
-        {#if built.tree}
-          <VisualizationSettings tree={built.tree} />
-        {/if}
-      </div>
-    </div>
-
-    <CompareDialog {project} bind:open={comparing} />
+    <TreeToolbar
+      {project}
+      tree={built.tree}
+      error={built.error}
+      bind:variantsOpen
+      bind:buildSettingsOpen
+      bind:comparing
+    />
     <AttributePrompt {project} />
+
+    {#if built.tree}
+      <CaseStrip tree={built.tree} />
+    {/if}
 
     <div class="flex min-h-0 flex-1">
       {#if built.tree && variantsOpen}
@@ -113,7 +92,6 @@
 
       <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {#if built.tree}
-          <GroupHeader tree={built.tree} />
           <div class="flex min-h-0 flex-1">
             <div class="relative flex min-h-0 min-w-0 flex-1" data-tour="tree-canvas">
               <Canvas tree={built.tree} />
@@ -135,35 +113,25 @@
                 </Button>
               {/if}
               {#if selected.id !== null}
-                <div class="absolute top-3 right-3 z-10 flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="bg-background/90 backdrop-blur"
-                    data-tour="open-distributions"
-                    href="/app/projects/{project.id}/distributions"
-                  >
-                    <ChartColumn data-icon="inline-start" />
-                    Distributions
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="bg-background/90 backdrop-blur"
-                    aria-pressed={panelOpen}
-                    onclick={() => (panelOpen = !panelOpen)}
-                  >
-                    <PanelRight data-icon="inline-start" />
-                    {panelOpen ? "Hide" : "Show"} differences panel
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
+                  aria-pressed={panelOpen}
+                  onclick={() => (panelOpen = !panelOpen)}
+                >
+                  <PanelRight data-icon="inline-start" />
+                  {panelOpen ? "Hide" : "Show"} differences panel
+                </Button>
               {/if}
             </div>
             {#if panelOpen}
               <DetailPanel
                 tree={built.tree}
                 nodeId={selected.id}
+                distributionsHref="/app/projects/{project.id}/distributions"
                 onClose={() => (selected.id = null)}
+                onCompare={() => (comparing = true)}
                 onOpenBuildSettings={() => (buildSettingsOpen = true)}
               />
             {/if}

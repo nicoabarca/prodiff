@@ -146,7 +146,7 @@
     </Sidebar.Group>
   </Sidebar.Content>
 
-  <Sidebar.Separator />
+  <Sidebar.Separator class="data-[orientation=horizontal]:w-auto" />
   <Sidebar.Footer>
     <Sidebar.Menu>
       <Sidebar.MenuItem>
