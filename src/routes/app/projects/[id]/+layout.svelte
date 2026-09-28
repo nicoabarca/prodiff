@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { untrack } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
   import { Button } from "$lib/components/ui/button/index.js";
   import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
+  import { markOpened } from "$lib/event-log/state/opened.svelte";
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
@@ -34,6 +36,12 @@
 
   $effect(() => {
     if (!project && projectsLoaded.value) goto("/app/projects");
+  });
+
+  const projectId = $derived(project?.id ?? null);
+  $effect(() => {
+    const id = projectId;
+    if (id) untrack(() => markOpened(id));
   });
 
   // Groups are project-scoped, so they reload when the addressed project changes.

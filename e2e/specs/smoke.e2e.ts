@@ -5,9 +5,7 @@ describe("smoke", () => {
     await expect(browser).toHaveUrl(expect.stringContaining("/app/projects"));
   });
 
-  it("shows the empty state with no Projects", async () => {
-    await expect($("h1=Projects")).toBeDisplayed();
-    await expect($("//*[normalize-space(text())='No projects']")).toBeDisplayed();
-    await expect($("button=New project")).toBeDisplayed();
+  it("offers the sample project with no Projects", async () => {
+    await expect($("button*=sample")).toBeDisplayed();
   });
 });

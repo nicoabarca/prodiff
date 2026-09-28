@@ -6,6 +6,8 @@ import { appSettings } from "$lib/db/schema";
 export interface AppSettings {
   toursSeen: string[];
   sampleProjectVersion: number;
+  projectsOpenedAt: Record<string, string>;
+  welcomed: boolean;
 }
 
 /** A stored value, or null when the key has never been written. */

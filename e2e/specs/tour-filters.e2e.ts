@@ -5,7 +5,7 @@ const popoverTitle = () => $(".driver-popover-title");
 
 describe("filters tour", () => {
   before(async () => {
-    await $("button=Try the sample project").click();
+    await $("button*=sample").click();
     await expect(browser).toHaveUrl(expect.stringContaining("/statistics"), { wait: 30_000 });
     await expect($(".driver-popover")).toBeDisplayed();
     await browser.keys("Escape");

@@ -24,6 +24,7 @@
   } from "$lib/event-log/invokers/types";
   import { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
   import { CaseColumnChecks } from "$lib/event-log/state/case-columns.svelte";
+  import { takePendingUpload } from "$lib/event-log/state/pending-upload.svelte";
   import WizardSteps from "$lib/event-log/components/wizard-steps.svelte";
   import UploadStep from "$lib/event-log/components/stepper/upload-step.svelte";
   import MapColumnsStep from "$lib/event-log/components/stepper/map-columns-step.svelte";
@@ -89,6 +90,9 @@
       });
     step = 2;
   }
+
+  const pending = takePendingUpload();
+  if (pending) acceptUpload(pending.filePath, pending.fileName);
 
   function backToUpload() {
     filePath = null;
