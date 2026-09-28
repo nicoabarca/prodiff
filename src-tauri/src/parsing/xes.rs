@@ -14,6 +14,7 @@
 //! trace has no name. Timestamps keep the wall-clock time the file writes and
 //! drop its offset, as the CSV reader does.
 
+use crate::column_mapping::ColumnRole;
 use crate::time::millis_to_iso;
 use polars::prelude::*;
 use process_mining::core::event_data::case_centric::xes::{stream_xes_from_path, XESImportOptions};
@@ -35,6 +36,19 @@ const INSTANCE_KEY: &str = "concept:instance";
 pub(crate) fn is_xes_path(path: &str) -> bool {
     let lower = path.to_ascii_lowercase();
     lower.ends_with(".xes") || lower.ends_with(".xes.gz")
+}
+
+/// The role an XES column carries by the standard's own names, and whether its
+/// value belongs to the case: trace attributes do, by construction.
+pub(crate) fn suggested_mapping(column: &str) -> (ColumnRole, bool) {
+    let role = match column {
+        CASE_ID_COLUMN => ColumnRole::CaseId,
+        ACTIVITY_COLUMN => ColumnRole::ActivityName,
+        START_TIMESTAMP_COLUMN => ColumnRole::StartTimestamp,
+        COMPLETE_TIMESTAMP_COLUMN => ColumnRole::CompleteTimestamp,
+        _ => ColumnRole::Other,
+    };
+    (role, column.starts_with(TRACE_PREFIX))
 }
 
 /// Reads at most `n_rows` rows when given, all of them otherwise.
@@ -592,6 +606,31 @@ mod tests {
     fn a_file_that_is_not_xes_fails() {
         let file = Scratch::new("log.xes", b"Case,Activity\n1,A\n");
         assert!(read_xes(file.path(), None).is_err());
+    }
+
+    #[test]
+    fn standard_columns_suggest_their_role_and_trace_attributes_the_case() {
+        assert_eq!(
+            suggested_mapping(CASE_ID_COLUMN),
+            (ColumnRole::CaseId, true)
+        );
+        assert_eq!(
+            suggested_mapping(ACTIVITY_COLUMN),
+            (ColumnRole::ActivityName, false)
+        );
+        assert_eq!(
+            suggested_mapping(START_TIMESTAMP_COLUMN),
+            (ColumnRole::StartTimestamp, false)
+        );
+        assert_eq!(
+            suggested_mapping(COMPLETE_TIMESTAMP_COLUMN),
+            (ColumnRole::CompleteTimestamp, false)
+        );
+        assert_eq!(suggested_mapping("case:region"), (ColumnRole::Other, true));
+        assert_eq!(
+            suggested_mapping("org:resource"),
+            (ColumnRole::Other, false)
+        );
     }
 
     #[test]

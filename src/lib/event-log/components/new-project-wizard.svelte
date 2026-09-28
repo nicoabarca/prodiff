@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { goto } from "$app/navigation";
   import { createProject } from "$lib/event-log/utils/create";
   import { fetchEventLogPreview } from "$lib/event-log/invokers/preview-event-log";
+  import { discardEventLogDraft } from "$lib/event-log/invokers/discard-event-log-draft";
   import {
     requiredRoles,
     emptyAssignments,
@@ -20,6 +22,7 @@
     CaseResolution,
     ColumnScope,
     RequestColumnMapping,
+    ResponseEventLogPreview,
     ColumnType
   } from "$lib/event-log/invokers/types";
   import { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
@@ -70,6 +73,31 @@
     columns.some(({ name }) => !roleByColumn[name] && visibleColumns.has(name))
   );
 
+  /** Takes the roles and scopes the file states, as XES does, as the starting mapping. */
+  function applySuggestions(previewColumns: ResponseEventLogPreview["columns"]) {
+    if (previewColumns.every(({ suggested }) => suggested === null)) return;
+
+    const nextAssignments = emptyAssignments();
+    const kept = new Set<string>();
+    const scopes: Record<string, ColumnScope> = {};
+    for (const { name, suggested: suggestion } of previewColumns) {
+      if (!suggestion) continue;
+      if (suggestion.role === "other") kept.add(name);
+      else nextAssignments[suggestion.role] = name;
+      if (suggestion.scope === "case") scopes[name] = "case";
+    }
+    assignments = nextAssignments;
+    visibleColumns = kept;
+    columnScope = scopes;
+    activeRole = requiredRoles.find((role) => nextAssignments[role] === null) ?? "other";
+  }
+
+  function discardDraft(path: string | null) {
+    if (path) discardEventLogDraft(path).catch(() => {});
+  }
+
+  onDestroy(() => discardDraft(filePath));
+
   function acceptUpload(path: string, name: string) {
     filePath = path;
     fileName = name;
@@ -82,6 +110,7 @@
         columns = preview.columns;
         rows = preview.rows;
         timestampFormats.seed(preview.columns, preview.rows);
+        applySuggestions(preview.columns);
       })
       .catch((err) => {
         if (filePath !== path) return;
@@ -91,6 +120,7 @@
   }
 
   function backToUpload() {
+    discardDraft(filePath);
     filePath = null;
     fileName = null;
     columns = [];

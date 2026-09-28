@@ -1,7 +1,6 @@
 //! Full-column timestamp inspection for the mapping step.
 
 use crate::column_mapping::to_polars_format;
-use crate::parsing::read_event_log;
 use polars::prelude::*;
 
 #[derive(serde::Serialize)]
@@ -45,11 +44,10 @@ fn parsed(column: &str, pattern: &str) -> Expr {
 }
 
 pub fn analyze(
-    path: &str,
+    df: &DataFrame,
     columns: &[String],
     patterns: &[String],
 ) -> Result<Vec<TimestampColumnReport>, String> {
-    let df = read_event_log(path, None)?;
     let rows = df.height();
 
     columns
@@ -59,7 +57,7 @@ pub fn analyze(
                 .map(|c| c.dtype() == &DataType::String)
                 .unwrap_or(false)
         })
-        .map(|name| analyze_column(&df, name, rows, patterns))
+        .map(|name| analyze_column(df, name, rows, patterns))
         .collect()
 }
 
@@ -178,7 +176,9 @@ mod tests {
         write(&path, body).expect("temp file");
         let patterns: Vec<String> = CATALOG.iter().map(|p| p.to_string()).collect();
         let columns: Vec<String> = columns.iter().map(|c| c.to_string()).collect();
-        analyze(path.to_str().expect("utf-8 path"), &columns, &patterns).expect("analysis")
+        let df =
+            crate::parsing::read_event_log(path.to_str().expect("utf-8 path"), None).expect("csv");
+        analyze(&df, &columns, &patterns).expect("analysis")
     }
 
     #[test]

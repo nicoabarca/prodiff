@@ -274,6 +274,18 @@ pub fn import_event_log(
     groups: &[GroupFilters],
 ) -> Result<ImportWithGroups, String> {
     let df = read_event_log(source_path, None)?;
+    import_frame(project_dir, source_path, df, columns, groups)
+}
+
+/// [`import_event_log`] for an upload already read into `df`. `source_path` is
+/// the raw upload, kept as the original.
+pub(crate) fn import_frame(
+    project_dir: &Path,
+    source_path: &str,
+    df: DataFrame,
+    columns: &[ColumnMapping],
+    groups: &[GroupFilters],
+) -> Result<ImportWithGroups, String> {
     let header: Vec<String> = df
         .get_column_names()
         .into_iter()

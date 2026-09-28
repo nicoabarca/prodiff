@@ -28,9 +28,12 @@
     })} ${units[unit]}`;
   }
 
+  const ACCEPTED_EXTENSIONS = [".csv", ".xes", ".xes.gz"];
+
   async function acceptFile(path: string) {
-    if (!path.toLowerCase().endsWith(".csv")) {
-      dropError = "Only CSV event logs are supported.";
+    const lower = path.toLowerCase();
+    if (!ACCEPTED_EXTENSIONS.some((extension) => lower.endsWith(extension))) {
+      dropError = "Only CSV and XES event logs are supported.";
       return;
     }
 
@@ -50,7 +53,7 @@
   async function chooseFile() {
     const path = await open({
       multiple: false,
-      filters: [{ name: "Event log", extensions: ["csv"] }]
+      filters: [{ name: "Event log", extensions: ["csv", "xes", "gz"] }]
     });
     if (path) acceptFile(path);
   }
@@ -128,7 +131,7 @@
     <Empty.Header>
       <Empty.Media variant="icon"><UploadCloud /></Empty.Media>
       <Empty.Title>{hovering ? "Drop to upload" : "Drag and drop your event log"}</Empty.Title>
-      <Empty.Description>CSV</Empty.Description>
+      <Empty.Description>CSV, XES or XES.GZ</Empty.Description>
     </Empty.Header>
     <Empty.Content>
       <Button onclick={chooseFile}>
