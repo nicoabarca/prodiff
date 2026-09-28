@@ -61,6 +61,7 @@
 
     open = false;
     exporting = true;
+    const id = toast.loading(`Exporting ${chosen.label} image`);
     try {
       await settle();
       const bounds = flow.getNodesBounds(flow.getNodes());
@@ -68,9 +69,9 @@
       const background = getComputedStyle(document.body).backgroundColor;
       const bytes = await capture(viewport, format, placed, background);
       await writeFile(path, bytes);
-      toast.success("Image saved", { description: path });
+      toast.success("Image saved", { id, description: path });
     } catch (error) {
-      toast.error("Could not save the image", { description: String(error) });
+      toast.error("Could not save the image", { id, description: String(error) });
     } finally {
       exporting = false;
     }
