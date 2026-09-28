@@ -1,6 +1,7 @@
 <script lang="ts">
   import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
+  import ExportImage from "$lib/components/flow-export/export-image.svelte";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
   import RoutedEdge from "$lib/dfg/components/edge.svelte";
@@ -137,6 +138,8 @@
     nodes = flow.nodes;
     edges = flow.edges;
   });
+
+  let exporting = $state(false);
 </script>
 
 <div class="relative min-h-0 flex-1 {stale ? 'opacity-60' : ''}">
@@ -154,12 +157,14 @@
     minZoom={0.05}
     nodesDraggable={false}
     elementsSelectable={false}
-    onlyRenderVisibleElements
+    onlyRenderVisibleElements={!exporting}
     onnodeclick={({ node }) => (selected.id = Number(node.id))}
     onpaneclick={() => (selected.id = null)}
   >
     <Background />
-    <Controls showLock={false} />
+    <Controls showLock={false}>
+      <ExportImage name="directly-follows-graph" bind:exporting />
+    </Controls>
   </SvelteFlow>
 
   <SimplificationControls {simplified} />

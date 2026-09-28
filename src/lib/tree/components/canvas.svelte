@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
+  import ExportImage from "$lib/components/flow-export/export-image.svelte";
   import ActivityNode from "$lib/tree/components/node.svelte";
   import ViewportAnchor, {
     type ViewportAnchorState
@@ -214,6 +215,8 @@
     renderedNodes = flow.nodes;
     renderedEdges = flow.edges;
   });
+
+  let exporting = $state(false);
 </script>
 
 <div class="relative min-h-0 flex-1" bind:this={pane}>
@@ -225,7 +228,7 @@
     minZoom={0.05}
     nodesDraggable={false}
     elementsSelectable={false}
-    onlyRenderVisibleElements
+    onlyRenderVisibleElements={!exporting}
     onnodeclick={({ node }) => {
       if (node.data.ghost) return;
       selected.id = node.data.nodeId as number;
@@ -236,7 +239,9 @@
   >
     <ViewportAnchor {anchor} {pane} />
     <Background />
-    <Controls showLock={false} />
+    <Controls showLock={false}>
+      <ExportImage name="tree" bind:exporting />
+    </Controls>
   </SvelteFlow>
 
   {#if built.building}
