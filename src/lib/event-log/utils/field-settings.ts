@@ -62,6 +62,9 @@ export function inferExtraFieldType(dtype: ColumnType): ExtraFieldType {
     case "integer":
     case "float":
       return "number";
+    case "date":
+    case "datetime":
+      return "datetime";
     default:
       return "string";
   }

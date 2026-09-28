@@ -97,7 +97,9 @@
   }
 
   const temporalFields = $derived(
-    fieldRows.filter(({ name, dtype }) => typeFor(name, dtype) === "datetime")
+    fieldRows.filter(
+      ({ name, dtype }) => typeFor(name, dtype) === "datetime" && !timestampFormats.isTyped(name)
+    )
   );
 
   const sharedFormat = $derived.by(() => {
