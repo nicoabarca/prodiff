@@ -28,7 +28,7 @@
   ];
 </script>
 
-<Card.Root class="gap-0 py-0">
+<Card.Root class="gap-0 py-0" data-tour="metrics-table">
   <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b px-4 py-3">
     <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Metrics</span>
     <span class="text-muted-foreground text-xs">The event log against every group.</span>

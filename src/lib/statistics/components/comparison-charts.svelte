@@ -83,7 +83,7 @@
   }
 </script>
 
-<Card.Root class="gap-0 py-0">
+<Card.Root class="gap-0 py-0" data-tour="comparison-charts">
   <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1 border-b px-4 py-3">
     <span class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">Comparison charts</span>
     <span class="text-muted-foreground text-xs"> Visual read of each metric across groups. </span>

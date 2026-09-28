@@ -1,5 +1,5 @@
 /** The views a Tour exists for. */
-export type TourId = "filters";
+export type TourId = "statistics" | "filters" | "tree" | "distributions" | "dfg";
 
 /**
  * One element a step points at: the element carrying `data-tour={anchor}`, and

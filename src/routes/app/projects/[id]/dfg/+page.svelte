@@ -62,7 +62,12 @@
       {/if}
 
       <div class="ml-auto flex items-center gap-2">
-        <Button variant="outline" size="sm" onclick={() => (comparing = true)}>
+        <Button
+          variant="outline"
+          size="sm"
+          data-tour="compare-groups"
+          onclick={() => (comparing = true)}
+        >
           <GitCompare data-icon="inline-start" />
           {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
         </Button>
@@ -92,7 +97,10 @@
           {/if}
         </div>
         {#if panelOpen}
-          <div class="border-border bg-background w-80 shrink-0 border-l">
+          <div
+            class="border-border bg-background w-80 shrink-0 border-l"
+            data-tour="dfg-detail-panel"
+          >
             <DetailPanel graph={built.graph} {simplified} groups={graphGroupsForView} />
           </div>
         {/if}

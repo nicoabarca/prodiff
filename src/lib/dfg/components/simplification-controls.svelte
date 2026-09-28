@@ -18,6 +18,7 @@
 </script>
 
 <div
+  data-tour="simplification-controls"
   class="border-border bg-background/90 absolute top-4 right-4 z-10 flex gap-5 rounded-[0.5rem] border px-4 py-3 backdrop-blur"
 >
   <div class="flex w-20 flex-col items-center gap-2">
