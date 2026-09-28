@@ -1,5 +1,6 @@
 mod analysis;
 pub mod column_mapping;
+mod custom_attributes;
 mod database;
 mod dfg;
 pub mod event_log;
@@ -45,7 +46,9 @@ pub fn run() {
             tree::commands::directed_tree,
             tree::commands::list_variants,
             tree::commands::node_distributions,
-            dfg::commands::dfg
+            dfg::commands::dfg,
+            custom_attributes::commands::update_custom_attributes,
+            custom_attributes::commands::custom_attribute_impact
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
