@@ -137,6 +137,48 @@ export function groupsReadingColumn(column: string): Group[] {
   );
 }
 
+/**
+ * Runs again the Filter List of every applied Group that reads this column, and
+ * of every applied Group that excludes one of those, so their cases follow the
+ * column's new values. A Group runs after every Group it excludes.
+ */
+export async function reapplyGroupsReading(project: Project, column: string): Promise<Group[]> {
+  const excludes = (group: Group, ids: Set<string>) =>
+    group.filters.some((f) => f.kind === "case_not_in_group" && ids.has(f.groupId));
+
+  const affected = new Set(
+    groups
+      .filter((g) => isApplied(g) && g.filters.some((f) => filterColumn(f) === column))
+      .map((g) => g.id)
+  );
+  for (let grew = true; grew;) {
+    grew = false;
+    for (const group of groups) {
+      if (!affected.has(group.id) && isApplied(group) && excludes(group, affected)) {
+        affected.add(group.id);
+        grew = true;
+      }
+    }
+  }
+
+  const ordered: Group[] = [];
+  const placed = new Set<string>();
+  for (let progressed = true; progressed && ordered.length < affected.size;) {
+    progressed = false;
+    for (const group of groups) {
+      if (!affected.has(group.id) || placed.has(group.id)) continue;
+      const waiting = new Set([...affected].filter((id) => !placed.has(id) && id !== group.id));
+      if (excludes(group, waiting)) continue;
+      ordered.push(group);
+      placed.add(group.id);
+      progressed = true;
+    }
+  }
+
+  for (const group of ordered) await applyGroup(project, group, group.filters);
+  return ordered;
+}
+
 /** Deletes a Group and everything that excludes it, then re-packs the positions. */
 export async function removeGroup(id: string) {
   const group = groups.find((g) => g.id === id);

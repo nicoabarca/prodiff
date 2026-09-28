@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { view } from "$lib/tree/state/tree.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
@@ -13,7 +14,7 @@
   const secondaryLabel = $derived(
     view.secondary === "cases"
       ? `Cases (${groups.map((group) => group.name).join(" · ")})`
-      : (named(view.secondary) ?? `Mean ${view.secondary}`)
+      : (named(view.secondary) ?? `Mean ${attributeLabel(view.secondary)}`)
   );
 
   const focusLabel = $derived(

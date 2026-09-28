@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { Project } from "$lib/event-log/types";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
+import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 /** Runs a Group's Filter List, writes the result as Parquet and returns its figures. */
 export function applyGroup(
@@ -13,6 +14,6 @@ export function applyGroup(
     projectId: project.id,
     groupId,
     filters,
-    columns: project.columns
+    columns: analysisColumns(project)
   });
 }

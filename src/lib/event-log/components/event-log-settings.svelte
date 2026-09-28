@@ -4,7 +4,8 @@
    * column its visibility, scope, case resolution and data type.
    *
    * Required columns (case id, activity, timestamps) are shown but locked, as in
-   * `requiredFieldSettings`.
+   * `requiredFieldSettings`. A column in `readers` is read by the Custom
+   * Attributes it names, so it can be neither hidden nor retyped.
    */
   import { untrack } from "svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -40,7 +41,8 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Settings2 from "@lucide/svelte/icons/settings-2";
 
-  let { project }: { project: Project } = $props();
+  let { project, readers = {} }: { project: Project; readers?: Record<string, string[]> } =
+    $props();
 
   let open = $state(false);
 
@@ -151,17 +153,27 @@
           <Table.Body>
             {#each project.columns as column (column.name)}
               {@const locked = required.has(column.name)}
+              {@const readBy = readers[column.name] ?? []}
               {@const type = inferExtraFieldType(column.type)}
               <Table.Row class="hover:bg-primary/5">
                 <Table.Cell>
                   <Checkbox
                     checked={!project.hiddenColumns.includes(column.name)}
-                    disabled={locked}
+                    disabled={locked || readBy.length > 0}
                     aria-label="Show {column.name}"
                     onCheckedChange={(checked) => toggleVisible(column.name, checked === true)}
                   />
                 </Table.Cell>
-                <Table.Cell class="font-mono text-xs">{column.name}</Table.Cell>
+                <Table.Cell>
+                  <span class="font-mono text-xs">{column.name}</span>
+                  {#if readBy.length > 0}
+                    <p class="text-muted-foreground text-[0.625rem]">
+                      Read by {readBy.join(", ")}. Edit {readBy.length === 1
+                        ? "that formula"
+                        : "those formulas"} to hide or retype it.
+                    </p>
+                  {/if}
+                </Table.Cell>
                 <Table.Cell>
                   {#if locked}
                     <Badge variant="secondary">
@@ -214,7 +226,7 @@
                     onValueChange={(value) =>
                       setColumn(column.name, { type: value as ExtraFieldType })}
                   >
-                    <Select.Trigger size="sm" class="w-28" disabled={locked}>
+                    <Select.Trigger size="sm" class="w-28" disabled={locked || readBy.length > 0}>
                       {EXTRA_FIELD_TYPE_LABELS[type]}
                     </Select.Trigger>
                     <Select.Content>

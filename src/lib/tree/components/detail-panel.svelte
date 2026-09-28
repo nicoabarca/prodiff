@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
@@ -80,7 +82,9 @@
 {#snippet attribute(name: string, block: AttributeBlock)}
   <div class="border-border flex flex-col gap-2 border-b px-4 py-3.5">
     <div class="flex items-center justify-between gap-2">
-      <h3 class="truncate text-xs font-semibold" title={name}>{name}</h3>
+      <h3 class="truncate text-xs font-semibold" title={attributeLabel(name)}>
+        <AttributeName {name} />
+      </h3>
       <EffectChip test={block.test} />
     </div>
 

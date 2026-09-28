@@ -10,6 +10,8 @@
   import { groupPreview } from "$lib/groups/invokers/group-preview";
   import type { ResponsePreviewTable } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
+  import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Select from "$lib/components/ui/select/index.js";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
@@ -49,15 +51,13 @@
     offset = 0;
   }
 
-  // Hidden columns never reach the table, and neither do columns the Column
-  // Mapping does not name, such as Custom Attributes.
+  // Hidden columns never reach the table, and neither does a column no applied
+  // Custom Attribute or Column Mapping entry names.
+  const known = $derived(new Set(analysisColumns(project).map((c) => c.name)));
   const visible = $derived(
     (preview?.columns ?? [])
       .map((name, index) => ({ name, index }))
-      .filter(
-        ({ name }) =>
-          !project.hiddenColumns.includes(name) && project.columns.some((c) => c.name === name)
-      )
+      .filter(({ name }) => !project.hiddenColumns.includes(name) && known.has(name))
   );
 
   $effect(() => {
@@ -134,7 +134,7 @@
               <Table.Head
                 class="bg-sidebar text-muted-foreground sticky top-0 h-auto px-3 py-2 text-[0.625rem] font-bold tracking-[0.06em] whitespace-nowrap uppercase"
               >
-                {column.name}
+                <AttributeName name={column.name} />
               </Table.Head>
             {/each}
           </Table.Row>

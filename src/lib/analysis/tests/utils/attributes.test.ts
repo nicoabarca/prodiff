@@ -1,10 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import {
-  ACTIVITY_DURATION,
-  attributeOptions,
-  TRANSITION_TIME
-} from "$lib/analysis/attributes";
+import { ACTIVITY_DURATION, attributeOptions, TRANSITION_TIME } from "$lib/analysis/attributes";
 
 function column(name: string, overrides: Partial<RequestColumnMapping> = {}): RequestColumnMapping {
   return { name, type: "string", role: "other", granularity: "event", ...overrides };
@@ -32,6 +28,14 @@ describe("attributeOptions", () => {
   it("leaves out Activity Duration without a start timestamp", () => {
     const noStart = columns.filter((c) => c.role !== "start_timestamp");
     expect(attributeOptions(noStart)).toEqual(["Amount", "beta", "zone", TRANSITION_TIME]);
+  });
+
+  it("puts custom attributes after the derived ones, in the order given", () => {
+    expect(attributeOptions(columns, [], ["fx_b", "fx_a"]).slice(-3)).toEqual([
+      TRANSITION_TIME,
+      "fx_b",
+      "fx_a"
+    ]);
   });
 
   it("leaves hidden columns out", () => {
