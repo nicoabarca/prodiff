@@ -10,9 +10,9 @@ describe("sample project", () => {
   });
 
   it("starts the Statistics tour, which Next steps through and Escape closes", async () => {
-    await expect($(".driver-popover-title")).toHaveText("Groups side by side");
+    await expect($(".driver-popover-title")).toHaveText("Two sides");
     await $(".driver-popover-next-btn").click();
-    await expect($(".driver-popover-title")).toHaveText("The figures");
+    await expect($(".driver-popover-title")).toHaveText("One question per pane");
     await browser.keys("Escape");
     await expect($(".driver-popover")).not.toBeExisting();
   });

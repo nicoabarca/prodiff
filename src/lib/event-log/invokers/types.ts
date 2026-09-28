@@ -100,3 +100,10 @@ export interface ResponseCreateEventLog {
   originalPath: string;
   eventLogPath: string;
 }
+
+/** Mirrors `ColumnProfile`. `filled` is the share of events with a value, 0 to 1. */
+export interface ResponseColumnProfile {
+  name: string;
+  sample: string[];
+  filled: number;
+}

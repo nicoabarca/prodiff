@@ -2,21 +2,21 @@ import type { TourStep } from "$lib/tour/types";
 
 export const statisticsTour: TourStep[] = [
   {
-    target: [{ anchor: "comparison-charts" }],
-    title: "Groups side by side",
-    body: "Each Group is summarized next to the whole event log: how many cases it holds, how many variants they follow and how long they take.",
+    target: [{ anchor: "statistics-compare" }],
+    title: "Two sides",
+    body: "Pick the two sides to compare: the whole event log or any applied Group. Every figure below reads the second against the first.",
     side: "bottom"
   },
   {
-    target: [{ anchor: "metrics-table" }],
-    title: "The figures",
-    body: "The same figures as a table. Compare how long Approved and Rejected applications take from start to end.",
-    side: "top"
+    target: [{ anchor: "statistics-panes" }],
+    title: "One question per pane",
+    body: "Overview ranks the biggest differences. The other panes answer one question each: how long cases take, which activities they touch, which attributes differ and which paths they follow.",
+    side: "right"
   },
   {
-    target: [{ anchor: "event-data-table" }],
+    target: [{ anchor: "statistics-data" }],
     title: "The events",
-    body: "Every event of the log, one row each, with the columns of the uploaded file.",
+    body: "Every event of the log, one row each, a pull away. Which columns show is set in the Event log view.",
     side: "top"
   },
   {

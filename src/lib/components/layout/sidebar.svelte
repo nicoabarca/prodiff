@@ -5,39 +5,29 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { cn } from "$lib/utils";
+  import type { Snippet } from "svelte";
   import type { Project } from "$lib/event-log/types";
   import Logo from "$lib/components/layout/logo.svelte";
   import Network from "@lucide/svelte/icons/network";
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
+  import Database from "@lucide/svelte/icons/database";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
   import SquareFunction from "@lucide/svelte/icons/square-function";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
-  let { activeProject }: { activeProject: Project } = $props();
+  let { activeProject, help }: { activeProject: Project; help?: Snippet } = $props();
 
   const sidebar = Sidebar.useSidebar();
 
-  // In the order a project is worked through: look at the data, derive
-  // attributes from it, narrow it into groups, then compare them.
+  // The comparison views first, then what shapes them: the Groups being
+  // compared and the attributes derived for them.
   const projectNav = $derived([
     {
       view: "statistics",
       href: `/app/projects/${activeProject.id}/statistics`,
       label: "Statistics & data",
       icon: BarChart3
-    },
-    {
-      view: "custom-attributes",
-      href: `/app/projects/${activeProject.id}/custom-attributes`,
-      label: "Custom attributes",
-      icon: SquareFunction
-    },
-    {
-      view: "filters",
-      href: `/app/projects/${activeProject.id}/filters`,
-      label: "Filters",
-      icon: SlidersHorizontal
     },
     {
       view: "tree",
@@ -50,8 +40,22 @@
       href: `/app/projects/${activeProject.id}/dfg`,
       label: "Directly-Follows Graph",
       icon: Waypoints
+    },
+    {
+      view: "filters",
+      href: `/app/projects/${activeProject.id}/filters`,
+      label: "Filters",
+      icon: SlidersHorizontal
+    },
+    {
+      view: "custom-attributes",
+      href: `/app/projects/${activeProject.id}/custom-attributes`,
+      label: "Custom attributes",
+      icon: SquareFunction
     }
   ]);
+
+  const eventLogHref = $derived(`/app/projects/${activeProject.id}/event-log`);
 
   const collapsed = $derived(!sidebar.open);
 </script>
@@ -141,4 +145,27 @@
       </Sidebar.Menu>
     </Sidebar.Group>
   </Sidebar.Content>
+
+  <Sidebar.Separator />
+  <Sidebar.Footer>
+    <Sidebar.Menu>
+      <Sidebar.MenuItem>
+        <Sidebar.MenuButton
+          class="cursor-pointer"
+          data-tour="nav-event-log"
+          isActive={page.url.pathname === eventLogHref}
+          tooltipContent="Event log"
+          onclick={() => goto(eventLogHref)}
+        >
+          <Database />
+          <span>Event log</span>
+        </Sidebar.MenuButton>
+      </Sidebar.MenuItem>
+      {#if help}
+        <Sidebar.MenuItem>
+          {@render help()}
+        </Sidebar.MenuItem>
+      {/if}
+    </Sidebar.Menu>
+  </Sidebar.Footer>
 </Sidebar.Root>
