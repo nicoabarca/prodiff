@@ -4,13 +4,20 @@
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import { formatSigned, isGap, share } from "$lib/statistics/utils/change";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
+  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import VariantPath from "$lib/components/variant-path/variant-path.svelte";
+  import { Button } from "$lib/components/ui/button/index.js";
 
   let { groups, comparison }: { groups: Group[]; comparison: ResponseGroupComparison } = $props();
 
-  /** Rows drawn at most. */
-  const SHOWN = 50;
+  /** Rows added per step of "Show more". */
+  const PAGE = 50;
 
   let filter = $state<string>("all");
+  let shown = $derived.by(() => {
+    void filter;
+    return PAGE;
+  });
 
   const pair = $derived(groups.length === 2);
   const census = $derived(comparison.variantCensus);
@@ -39,9 +46,8 @@
       return present.length === 1 && present[0].id === filter;
     })
   );
-  const total = $derived(options.find((option) => option.value === filter)?.count ?? 0);
   const rows = $derived(
-    matching.slice(0, SHOWN).map((row, index) => {
+    matching.slice(0, shown).map((row, index) => {
       const values = groups.map((group) => share(row.cases[group.id] ?? 0, cases[group.id] ?? 0));
       const present = groups.map((group) => (row.cases[group.id] ?? 0) > 0);
       return {
@@ -55,7 +61,6 @@
     })
   );
   const emptyGroup = $derived(groups.find((group) => group.id === filter) ?? null);
-  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">
@@ -89,17 +94,9 @@
   {#each rows as row (row.key)}
     {@const only = pair && row.present.filter(Boolean).length === 1}
     {@const gap = isGap(row.delta)}
-    <div class="flex items-center gap-3 border-t px-4.5 py-2 {gap ? 'bg-destructive/5' : ''}">
+    <div class="flex items-center gap-3 border-t px-4.5 py-1 {gap ? 'bg-destructive/5' : ''}">
       <span class="text-muted-foreground w-6 shrink-0 font-mono text-[0.6875rem]">{row.rank}</span>
-      <span class="flex min-w-0 flex-1 flex-wrap items-center gap-0.75">
-        {#each row.activities as step, index (index)}
-          <span
-            class="bg-muted text-foreground/85 inline-flex h-4.5 items-center px-1.5 text-[0.625rem]"
-          >
-            {step}
-          </span>
-        {/each}
-      </span>
+      <VariantPath activities={row.activities} class="flex-1" />
       {#each groups as group, index (group.id)}
         <span
           class="w-20 shrink-0 text-right font-mono text-xs {index === 0 && pair
@@ -135,7 +132,19 @@
       {/if}
     </div>
   {/each}
-  <div class="text-muted-foreground border-t px-4.5 py-2.5 text-[0.6875rem]">
-    Showing {formatNumber(rows.length)} of {formatNumber(total)} variants, most cases first
+  <div
+    class="text-muted-foreground flex items-center gap-2 border-t px-4.5 py-2.5 text-[0.6875rem]"
+  >
+    Showing {formatNumber(rows.length)} of {formatNumber(matching.length)} variants, most cases first
+    {#if rows.length < matching.length}
+      <span class="ml-auto flex gap-1.5">
+        <Button variant="outline" size="xs" onclick={() => (shown += PAGE)}>
+          Show {formatNumber(Math.min(PAGE, matching.length - rows.length))} more
+        </Button>
+        <Button variant="ghost" size="xs" onclick={() => (shown = matching.length)}>
+          Show all
+        </Button>
+      </span>
+    {/if}
   </div>
 </div>

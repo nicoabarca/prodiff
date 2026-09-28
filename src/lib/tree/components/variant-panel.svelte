@@ -27,6 +27,10 @@
   import { visibleNodes } from "$lib/tree/utils/tree";
   import { variantCases, variantsCovering } from "$lib/tree/utils/variants";
   import VariantRow from "$lib/tree/components/variant-row.svelte";
+  import VariantVenn, {
+    type VennRegion,
+    type VennState
+  } from "$lib/components/variant-venn/variant-venn.svelte";
   import type { Project } from "$lib/event-log/types";
   import Minus from "@lucide/svelte/icons/minus";
   import Plus from "@lucide/svelte/icons/plus";
@@ -112,27 +116,40 @@
 
   const rows = $derived(variants.rows.filter((row) => matches(row, shown)));
 
-  /** The Variants each select action stages: every one, the ones a Group holds
-      cases on, or the ones every Group holds cases on. Membership, not
-      exclusivity: a Variant both Groups hold stages under either of them. */
-  const selectors = $derived([
-    { id: "all", label: "All", ink: "var(--foreground)", keys: variants.rows.map((row) => row.key) },
-    ...columns.map((group) => ({
-      id: group.id,
-      label: group.name,
-      ink: accents[group.id],
-      keys: variants.rows.filter((row) => holds(row, group.id)).map((row) => row.key)
-    })),
-    {
-      id: "shared",
-      label: "Shared",
-      ink: "var(--muted-foreground)",
-      keys: variants.rows.filter((row) => matches(row, "shared")).map((row) => row.key)
-    }
-  ]);
+  const allKeys = $derived(variants.rows.map((row) => row.key));
 
-  /** The Original alone has nothing to pick between. */
-  const selectActions = $derived(columns.length > 1 ? selectors : selectors.slice(0, 1));
+  /** The two Groups the Venn draws, when there are two to draw. */
+  const pair = $derived(columns.length > 1 ? [columns[0], columns[1]] : null);
+
+  /** Each Venn region's Variants: only the first Group, both, only the second. */
+  const regionKeys = $derived.by((): Record<VennRegion, string[]> => {
+    if (!pair) return { left: [], shared: [], right: [] };
+    const keysOf = (filter: string) =>
+      variants.rows.filter((row) => matches(row, filter)).map((row) => row.key);
+    return { left: keysOf(pair[0].id), shared: keysOf("shared"), right: keysOf(pair[1].id) };
+  });
+
+  const regions = $derived.by(() => {
+    const of = (keys: string[]): { count: number; state: VennState } => {
+      const held = keys.filter((key) => staged.has(key)).length;
+      const state = held === 0 ? "off" : held === keys.length ? "on" : "mixed";
+      return { count: keys.length, state };
+    };
+    return {
+      left: of(regionKeys.left),
+      shared: of(regionKeys.shared),
+      right: of(regionKeys.right)
+    };
+  });
+
+  /** A fully staged region unstages; any other stages all of it, keeping the rest. */
+  function toggleRegion(region: VennRegion) {
+    const keys = regionKeys[region];
+    const next = new Set(staged);
+    if (regions[region].state === "on") for (const key of keys) next.delete(key);
+    else for (const key of keys) next.add(key);
+    setStaged(next);
+  }
 
   // A Group that leaves the comparison takes its filter with it.
   $effect(() => {
@@ -254,16 +271,22 @@
     <div class="flex shrink-0 flex-col gap-2 border-b px-3 py-2.5">
       <div class="flex flex-wrap items-center gap-1.5">
         <span class="text-muted-foreground text-[0.625rem] tracking-wide uppercase">Select</span>
-        {#each selectActions as action (action.id)}
+        {#if pair}
+          <VariantVenn
+            left={{ label: pair[0].name, color: accents[pair[0].id] }}
+            right={{ label: pair[1].name, color: accents[pair[1].id] }}
+            {regions}
+            onToggle={toggleRegion}
+          />
+        {:else}
           <button
             type="button"
-            class="border-border hover:bg-accent flex h-6 max-w-32 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem]"
-            style="color:{action.ink}"
-            onclick={() => setStaged(action.keys)}
+            class="border-border hover:bg-accent flex h-6 cursor-pointer items-center border px-2 text-[0.6875rem]"
+            onclick={() => setStaged(allKeys)}
           >
-            <span class="truncate">{action.label}</span>
+            All
           </button>
-        {/each}
+        {/if}
         <Button
           size="sm"
           variant="ghost"

@@ -3,6 +3,7 @@
    * One Variant, on two lines: its full trace above, what each Group brings to it
    * below. The box stages it and the eye lights its path on the canvas.
    */
+  import VariantPath from "$lib/components/variant-path/variant-path.svelte";
   import { formatNumber } from "$lib/format";
   import Check from "@lucide/svelte/icons/check";
   import Eye from "@lucide/svelte/icons/eye";
@@ -34,15 +35,6 @@
     onToggle: () => void;
     onHighlight: () => void;
   } = $props();
-
-  /** The notch each chevron cuts into the chip behind it. */
-  const NOTCH = "0.5rem";
-
-  /** A flat left edge opens the trace; every chip after it is notched. */
-  function chevron(step: number): string {
-    const tail = step === 0 ? "" : `, ${NOTCH} 50%`;
-    return `polygon(0 0, calc(100% - ${NOTCH}) 0, 100% 50%, calc(100% - ${NOTCH}) 100%, 0 100%${tail})`;
-  }
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "";
@@ -80,27 +72,7 @@
     </span>
 
     <div class="flex min-w-0 flex-1 flex-col gap-1">
-      <span
-        class="thin-scrollbars flex h-10 w-full min-w-0 items-center overflow-x-auto overflow-y-hidden overscroll-x-contain py-1"
-        title={row.activities.join(" → ")}
-      >
-        {#each row.activities as activity, step (step)}
-          <span
-            class="bg-muted-foreground/45 -mr-1 max-w-32 shrink-0 p-px"
-            style="clip-path:{chevron(step)}"
-          >
-            <span
-              class="bg-secondary text-secondary-foreground block truncate py-1 pr-4 text-[0.6875rem] leading-tight {step ===
-              0
-                ? 'pl-2.5'
-                : 'pl-4'}"
-              style="clip-path:{chevron(step)}"
-            >
-              {activity}
-            </span>
-          </span>
-        {/each}
-      </span>
+      <VariantPath activities={row.activities} />
 
       <span class="flex items-center gap-2">
         {#if onTree}

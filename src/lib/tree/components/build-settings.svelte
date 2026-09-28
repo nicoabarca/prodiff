@@ -1,14 +1,17 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import { attributeOptions } from "$lib/analysis/attributes";
-  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import {
+    attributeLabel,
+    customColumns
+  } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
   import type { Project } from "$lib/event-log/types";
-  import Settings2 from "@lucide/svelte/icons/settings-2";
+  import SettingField from "$lib/tree/components/setting-field.svelte";
+  import FlaskConical from "@lucide/svelte/icons/flask-conical";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
@@ -20,6 +23,14 @@
   let saveError = $state<string | null>(null);
 
   const displayedAttributes = $derived(draftAttributes ?? settings.value.attributes);
+
+  /** The first few attributes by name, the rest as a count. */
+  const attributeList = $derived.by(() => {
+    const SHOWN = 3;
+    const names = displayedAttributes.slice(0, SHOWN).map(attributeLabel).join(", ");
+    const more = displayedAttributes.length - SHOWN;
+    return more > 0 ? `${names} +${more}` : names;
+  });
 
   function toggle(name: string, on: boolean) {
     saveError = null;
@@ -50,15 +61,20 @@
 <Popover.Root bind:open>
   <Popover.Trigger>
     {#snippet child({ props })}
-      <Button {...props} variant="outline" size="sm">
-        <Settings2 data-icon="inline-start" />
-        Build settings
+      <SettingField
+        {...props}
+        icon={FlaskConical}
+        caption="Attributes tested · rebuilds tree"
+        {open}
+        class="shrink"
+      >
         {#if displayedAttributes.length > 0}
-          <span class="text-muted-foreground ml-1 font-mono text-[0.6875rem]">
-            {displayedAttributes.length}
-          </span>
+          {displayedAttributes.length}
+          <span class="text-muted-foreground min-w-0 truncate font-normal">{attributeList}</span>
+        {:else}
+          None
         {/if}
-      </Button>
+      </SettingField>
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="w-80">

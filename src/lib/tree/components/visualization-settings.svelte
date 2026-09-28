@@ -5,6 +5,7 @@
    * rebuild, so these controls stay usable while one runs.
    */
   import { Button } from "$lib/components/ui/button/index.js";
+  import SettingField from "$lib/tree/components/setting-field.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -21,6 +22,8 @@
   import Eye from "@lucide/svelte/icons/eye";
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
+
+  let open = $state(false);
 
   // Every node carries a block per attribute built, empty ones included, so the
   // root is enough to know what the tree can show.
@@ -43,6 +46,14 @@
     ...attributes.map((name) => ({ value: name, label: `Mean ${attributeLabel(name)}` }))
   ]);
 
+  /** What the node face shows, in the toolbar's few words. */
+  const secondaryLabel = $derived.by(() => {
+    if (view.secondary === "cases") return "Cases";
+    const group = groups.find((g) => g.id === view.secondary);
+    if (group) return `Cases: ${group.name}`;
+    return `Mean ${attributeLabel(view.secondary)}`;
+  });
+
   const focusOptions = $derived([
     { value: "all", label: "All nodes" },
     ...groups.map((group) => ({ value: group.id, label: `${group.name} only` })),
@@ -62,13 +73,21 @@
   });
 </script>
 
-<Popover.Root>
+<Popover.Root bind:open>
   <Popover.Trigger>
     {#snippet child({ props })}
-      <Button {...props} variant="outline" size="sm">
-        <Eye data-icon="inline-start" />
-        Visualization settings
-      </Button>
+      <SettingField
+        {...props}
+        icon={Eye}
+        caption="Display · no rebuild"
+        {open}
+        class="shrink-0 border-r-0 border-l pr-4"
+      >
+        {secondaryLabel}
+        <span class="text-muted-foreground font-normal">
+          · edge times {view.edgeLabels && hasTransitionTime ? "on" : "off"}
+        </span>
+      </SettingField>
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="w-80">
@@ -128,8 +147,8 @@
 
       <Tooltip.Root>
         <Tooltip.Trigger>
-          <span class="block">
-            <label class="flex items-start gap-2 text-xs">
+          {#snippet child({ props })}
+            <label {...props} class="flex items-start gap-2 text-xs">
               <Checkbox
                 checked={view.significantOnly}
                 disabled={!hasAttributes}
@@ -142,7 +161,7 @@
                 </span>
               </span>
             </label>
-          </span>
+          {/snippet}
         </Tooltip.Trigger>
         {#if !hasAttributes}
           <Tooltip.Content>Build with at least one attribute to use this filter.</Tooltip.Content>
