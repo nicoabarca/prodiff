@@ -26,11 +26,13 @@ function driveStep(step: TourStep): DriveStep {
       align: "start",
       showButtons: until ? ["previous", "close"] : ["next", "previous", "close"],
       // The arrow keys call this too, so an action step cannot be skipped past.
-      onNextClick: until
-        ? (_element, _step, { driver }) => {
-            if (until()) driver.moveNext();
-          }
-        : undefined
+      // driver.js spreads this object over its own defaults, so a present but
+      // undefined `onNextClick` would erase the default and make Next do nothing.
+      ...(until && {
+        onNextClick: (_element, _step, { driver }) => {
+          if (until()) driver.moveNext();
+        }
+      })
     }
   };
 }
