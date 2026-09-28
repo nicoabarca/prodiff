@@ -15,6 +15,7 @@
     "e2e": "wdio run e2e/wdio.conf.ts",
     "e2e:release": "E2E_TARGET=release wdio run e2e/wdio.conf.ts",
     "e2e:build": "node e2e/helpers/build.ts",
+    "demo:record": "wdio run e2e/demo/wdio.demo.conf.ts",
     "tauri": "tauri",
     "dev:port": "bash scripts/dev-port.sh",
     "seed": "tsx scripts/seed.ts",
