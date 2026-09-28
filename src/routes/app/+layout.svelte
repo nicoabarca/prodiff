@@ -1,35 +1,9 @@
 <script lang="ts">
-  import { page } from "$app/state";
-  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
-  import AppSidebar from "$lib/components/layout/sidebar.svelte";
-  import { projects } from "$lib/event-log/state/projects.svelte";
-
   let { children } = $props();
-
-  // Collapsed to the icon rail on load. Toggling persists in a cookie, so this
-  // only decides the first visit.
-  let sidebarOpen = $state(false);
-
-  const activeProject = $derived(
-    page.params.id ? (projects.find((p) => p.id === page.params.id) ?? null) : null
-  );
 </script>
 
 <div class="h-screen overflow-hidden">
-  {#if activeProject}
-    <Sidebar.Provider
-      bind:open={sidebarOpen}
-      class="h-full min-h-0"
-      style="--sidebar-width: 12.5rem;"
-    >
-      <AppSidebar {activeProject} />
-      <Sidebar.Inset class="min-h-0">
-        {@render children()}
-      </Sidebar.Inset>
-    </Sidebar.Provider>
-  {:else}
-    <div class="flex h-full min-h-0 flex-col">
-      {@render children()}
-    </div>
-  {/if}
+  <div class="flex h-full min-h-0 flex-col">
+    {@render children()}
+  </div>
 </div>

@@ -63,6 +63,7 @@
   const tailFrom = $derived(figures[tailGroup.id]?.durationP90 ?? null);
   const tailDelta = $derived(rows.find((row) => row.label === "P90")?.delta ?? null);
   const test = $derived(comparison.durationTest);
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">
@@ -101,7 +102,7 @@
     <ColumnHead>
       <span class="w-30 shrink-0">Percentile</span>
       {#each groups as group (group.id)}
-        <span class="w-28 shrink-0 truncate text-right">{group.name}</span>
+        <span class="flex w-28 shrink-0 justify-end"><GroupName {group} /></span>
       {/each}
       {#if pair}
         <span class="w-20 shrink-0 text-right">Change</span>
@@ -140,9 +141,10 @@
     <div class="flex flex-wrap items-center gap-2.5 border-t px-4.5 py-3">
       {#if pair && tailDelta !== null && Math.abs(tailDelta) >= 0.05}
         <span class="text-muted-foreground text-xs">
-          {tailGroup.name}'s slowest 10% take {Math.abs(tailDelta).toFixed(1)}% {tailDelta > 0
+          <GroupName group={tailGroup} />'s slowest 10% take {Math.abs(tailDelta).toFixed(1)}% {tailDelta >
+          0
             ? "longer"
-            : "less time"} than {groups[0].name}'s.
+            : "less time"} than <GroupName group={groups[0]} />'s.
         </span>
       {/if}
       <Button
@@ -152,7 +154,7 @@
         onclick={() => ontail(tailGroup, tailFrom)}
       >
         <Table2 data-icon="inline-start" />
-        Show {tailGroup.name} cases above P90
+        Show <GroupName group={tailGroup} /> cases above P90
       </Button>
     </div>
   {/if}

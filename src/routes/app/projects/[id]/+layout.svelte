@@ -6,6 +6,8 @@
   import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
   import { markOpened } from "$lib/event-log/state/opened.svelte";
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
+  import * as Sidebar from "$lib/components/ui/sidebar/index.js";
+  import AppSidebar from "$lib/components/layout/sidebar.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
   import ApplyingOverlay from "$lib/custom-attributes/components/applying-overlay.svelte";
@@ -13,10 +15,15 @@
     customAttributesLoaded,
     loadCustomAttributes
   } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import TourButton from "$lib/tour/components/tour-button.svelte";
   import TourLauncher from "$lib/tour/components/tour-launcher.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
+
+  // Collapsed to the icon rail on load. Toggling persists in a cookie, so this
+  // only decides the first visit.
+  let sidebarOpen = $state(false);
 
   const project = $derived(currentProject());
   const onFilters = $derived(page.url.pathname.endsWith("/filters"));
@@ -61,21 +68,31 @@
 <!-- Every view sends applied Custom Attributes with its Column Mapping, so none renders before
      they are loaded. -->
 {#if project && customAttributesLoaded.projectId === project.id}
-  <ProjectTopbar {project} projectView={view}>
-    {#snippet actions()}
+  <Sidebar.Provider
+    bind:open={sidebarOpen}
+    class="h-full min-h-0"
+    style="--sidebar-width: 12.5rem;"
+  >
+    <AppSidebar activeProject={project}>
+      {#snippet help()}
+        <TourButton {project} {view} />
+      {/snippet}
+    </AppSidebar>
+    <Sidebar.Inset class="min-h-0">
+      <ProjectTopbar {project} projectView={view} />
+      <FilterSummaryBar {project}>
+        {#snippet actions()}
+          {#if !onFilters}
+            <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">
+              <SlidersHorizontal data-icon="inline-start" />
+              Edit filters
+            </Button>
+          {/if}
+        {/snippet}
+      </FilterSummaryBar>
+      {@render children()}
+      <ApplyingOverlay />
       <TourLauncher {project} {view} />
-    {/snippet}
-  </ProjectTopbar>
-  <FilterSummaryBar {project}>
-    {#snippet actions()}
-      {#if !onFilters}
-        <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">
-          <SlidersHorizontal data-icon="inline-start" />
-          Edit filters
-        </Button>
-      {/if}
-    {/snippet}
-  </FilterSummaryBar>
-  {@render children()}
-  <ApplyingOverlay />
+    </Sidebar.Inset>
+  </Sidebar.Provider>
 {/if}

@@ -18,14 +18,15 @@
     Object.fromEntries(comparison.groups.map((figure) => [figure.id, figure.cases]))
   );
   const options = $derived([
-    { value: "all", label: "All", count: census.total },
+    { value: "all", label: "All", count: census.total, group: null as Group | null },
     ...(pair
       ? [
-          { value: "both", label: "In both", count: census.shared },
+          { value: "both", label: "In both", count: census.shared, group: null },
           ...groups.map((group) => ({
             value: group.id,
-            label: `Only in ${group.name}`,
-            count: census.only[group.id] ?? 0
+            label: "Only in",
+            count: census.only[group.id] ?? 0,
+            group
           }))
         ]
       : [])
@@ -54,6 +55,7 @@
     })
   );
   const emptyGroup = $derived(groups.find((group) => group.id === filter) ?? null);
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">
@@ -69,6 +71,7 @@
         onclick={() => (filter = option.value)}
       >
         {option.label}
+        {#if option.group}<GroupName group={option.group} />{/if}
         <span class="text-muted-foreground font-mono">{formatNumber(option.count)}</span>
       </button>
     {/each}
@@ -77,7 +80,7 @@
     <span class="w-6 shrink-0">#</span>
     <span class="min-w-0 flex-1">Path</span>
     {#each groups as group (group.id)}
-      <span class="w-20 shrink-0 truncate text-right">{group.name}</span>
+      <span class="flex w-20 shrink-0 justify-end"><GroupName {group} /></span>
     {/each}
     {#if pair}
       <span class="w-16 shrink-0 text-right">Δ pp</span>
@@ -123,11 +126,11 @@
   {:else}
     <div class="flex flex-col gap-1 border-t px-4.5 py-7">
       <span class="text-[0.8125rem] font-semibold">
-        No variants {emptyGroup ? `only in ${emptyGroup.name}` : "here"}
+        No variants {#if emptyGroup}only in <GroupName group={emptyGroup} />{:else}here{/if}
       </span>
       {#if emptyGroup}
         <span class="text-muted-foreground max-w-[60ch] text-xs text-pretty">
-          Every path {emptyGroup.name} follows also appears in the other group.
+          Every path <GroupName group={emptyGroup} /> follows also appears in the other group.
         </span>
       {/if}
     </div>

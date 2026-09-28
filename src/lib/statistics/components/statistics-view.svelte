@@ -172,54 +172,68 @@
     ];
   });
 
-  /** One sentence per pane answering what it is for, from the figures on screen. */
-  const answer = $derived.by(() => {
-    if (!comparison) return "";
+  /**
+   * One sentence per pane answering what it is for, from the figures on screen.
+   * A Group in it is drawn with its colour.
+   */
+  const answer = $derived.by((): (string | Group)[] => {
+    if (!comparison) return [];
     const [a, b] = groups;
     if (!b) {
       return {
-        overview: `The core figures of ${a.name}. Pick a second group to compare.`,
-        duration: `How long the cases of ${a.name} take, start to end.`,
-        activities: `How often each activity occurs in ${a.name}.`,
-        attributes: `How the attribute columns are distributed in ${a.name}.`,
-        variants: `The paths the cases of ${a.name} follow.`
+        overview: ["The core figures of ", a, ". Pick a second group to compare."],
+        duration: ["How long the cases of ", a, " take, start to end."],
+        activities: ["How often each activity occurs in ", a, "."],
+        attributes: ["How the attribute columns are distributed in ", a, "."],
+        variants: ["The paths the cases of ", a, " follow."]
       }[pane];
     }
     if (pane === "overview") {
       const top = biggestDifferences(comparison, ids, 1)[0];
       return top
-        ? `${b.name} differs most in ${top.what} (${top.label}, ${top.measure}).`
-        : `No activity, attribute value or variant differs by 5 pp or more.`;
+        ? [b, ` differs most in ${top.what} (${top.label}, ${top.measure}).`]
+        : ["No activity, attribute value or variant differs by 5 pp or more."];
     }
     if (pane === "duration") {
       const [fa, fb] = ids.map((id) => comparison?.groups.find((g) => g.id === id)?.duration);
-      if (!fa || !fb) return "One of the groups has no cases.";
+      if (!fa || !fb) return ["One of the groups has no cases."];
       const delta = percentChange(fa.median, fb.median);
       const gap = fb.median - fa.median;
       const test = comparison.durationTest;
       const verdict = test ? (test.significant ? "significant" : "not significant") : "untested";
       return Math.abs(gap) < 1000
-        ? `Median case duration is the same in both (${verdict}).`
-        : `Median is ${formatDuration(Math.abs(gap))} ${gap > 0 ? "longer" : "shorter"} in ${b.name} (${formatSigned(delta, 1, "%")}, ${verdict}).`;
+        ? [`Median case duration is the same in both (${verdict}).`]
+        : [
+            `Median is ${formatDuration(Math.abs(gap))} ${gap > 0 ? "longer" : "shorter"} in `,
+            b,
+            ` (${formatSigned(delta, 1, "%")}, ${verdict}).`
+          ];
     }
     if (pane === "activities") {
       const top = activityFigures(comparison, ids, "share")[0];
       return top && isGap(top.delta)
-        ? `${b.name} ${(top.delta ?? 0) > 0 ? "reaches" : "skips"} ${top.name} more often: ${formatSigned(top.delta, 1, " pp")} of cases.`
-        : "Every activity reaches about the same share of cases in both.";
+        ? [
+            b,
+            ` ${(top.delta ?? 0) > 0 ? "reaches" : "skips"} ${top.name} more often: ${formatSigned(top.delta, 1, " pp")} of cases.`
+          ]
+        : ["Every activity reaches about the same share of cases in both."];
     }
     if (pane === "attributes") {
       const top = [...comparison.attributes]
         .filter((row) => row.test?.significant)
         .sort((x, y) => (y.test?.effectSize ?? 0) - (x.test?.effectSize ?? 0))[0];
       return top
-        ? `${attributeLabel(top.name)} differs most between the two.`
-        : "No attribute column differs significantly.";
+        ? [`${attributeLabel(top.name)} differs most between the two.`]
+        : ["No attribute column differs significantly."];
     }
     const census = comparison.variantCensus;
-    return `${formatNumber(census.shared)} of ${formatNumber(census.total)} variants appear in both; ${groups
-      .map((group) => `${formatNumber(census.only[group.id] ?? 0)} only in ${group.name}`)
-      .join(", ")}.`;
+    return [
+      `${formatNumber(census.shared)} of ${formatNumber(census.total)} variants appear in both; ${formatNumber(census.only[a.id] ?? 0)} only in `,
+      a,
+      `, ${formatNumber(census.only[b.id] ?? 0)} only in `,
+      b,
+      "."
+    ];
   });
 
   const title = $derived(tabs.find((tab) => tab.id === pane)?.title ?? "");
@@ -236,6 +250,7 @@
     return { range: `${formatDay(start)} → ${formatDay(end)}`, covered };
   });
   const a = $derived(stats[ids[0]]);
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="relative flex min-h-0 flex-1 flex-col">
@@ -285,7 +300,8 @@
           <span class="text-foreground block font-mono">{timespan.range}</span>
           {#if timespan.covered !== null}
             <span class="block font-mono">
-              {groups[1].name} covers {Math.min(timespan.covered, 100).toFixed(0)}% of it
+              <GroupName group={groups[1]} /> covers {Math.min(timespan.covered, 100).toFixed(0)}%
+              of it
             </span>
           {/if}
         </div>
@@ -300,7 +316,12 @@
         <div class="flex min-w-64 flex-1 flex-col gap-0.75">
           <span class="text-[0.9375rem] font-semibold">{title}</span>
           {#if comparison}
-            <span class="text-foreground/70 text-xs text-pretty">{answer}</span>
+            <span class="text-foreground/70 text-xs text-pretty">
+              {#each answer as part, index (index)}{#if typeof part === "string"}{part}{:else}<GroupName
+                    group={part}
+                    class="text-foreground font-medium"
+                  />{/if}{/each}
+            </span>
           {:else}
             <Skeleton class="h-3.5 w-80" />
           {/if}

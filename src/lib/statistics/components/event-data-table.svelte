@@ -96,16 +96,13 @@
       stale = true;
     };
   });
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col" data-tour="event-data-table">
   <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2.5">
     {#if narrowed}
-      <span class="inline-flex items-center gap-1.5 text-xs font-semibold">
-        <span class="size-2" style="background:{colorVar(narrowed.group.color)}" aria-hidden="true"
-        ></span>
-        {narrowed.group.name}
-      </span>
+      <GroupName group={narrowed.group} class="text-xs font-semibold" />
       <span class="text-muted-foreground font-mono text-[0.6875rem]">{narrowed.label}</span>
     {:else}
       <div class="inline-flex border" role="group" aria-label="Group">
@@ -192,7 +189,7 @@
     <span class="text-xs">
       {#if preview}
         Rows {formatNumber(firstRow)}&ndash;{formatNumber(lastRow)} of {formatNumber(total)} in
-        {selected?.name}
+        {#if selected}<GroupName group={selected} />{/if}
       {/if}
     </span>
     <div class="ml-auto flex items-center gap-2">

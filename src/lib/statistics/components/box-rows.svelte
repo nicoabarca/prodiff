@@ -27,13 +27,14 @@
   const at = (value: number) => `${axis.position(value) * 100}%`;
   const span = (from: number, to: number) =>
     `${Math.max(0, axis.position(to) - axis.position(from)) * 100}%`;
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="flex flex-col gap-2.5">
   {#each groups as group (group.id)}
     {@const box = boxes[group.id]}
     <div class="flex items-center gap-4">
-      <span class="w-24 shrink-0 truncate text-right text-xs">{group.name}</span>
+      <span class="flex w-24 shrink-0 justify-end text-xs"><GroupName {group} /></span>
       <span class="relative mr-6 h-10.5 min-w-0 flex-1">
         {#if box}
           <span

@@ -46,6 +46,7 @@
   const size = $derived(a && b ? share(b.cases, a.cases) : null);
 
   const half = (delta: number) => Math.min(Math.abs(delta) / FULL_SCALE, 1) * 36;
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="flex flex-col">
@@ -61,7 +62,8 @@
         ></span>
       </span>
       <span class="text-xs">
-        {groups[1].name} holds <strong>{size.toFixed(1)}%</strong> as many cases as {groups[0].name}
+        <GroupName group={groups[1]} /> holds <strong>{size.toFixed(1)}%</strong> as many cases as
+        <GroupName group={groups[0]} />
       </span>
       <span class="text-muted-foreground ml-auto font-mono text-[0.6875rem]">
         {formatNumber(b.cases)} / {formatNumber(a.cases)} cases · {formatNumber(b.events)} /
@@ -72,12 +74,12 @@
 
   <div class="bg-card pt-2.5 pb-1">
     <ColumnHead class="bg-card! pt-0">
-      <span class="w-44 shrink-0">Metric</span>
+      <span class="min-w-44 flex-1">Metric</span>
       {#each groups as group (group.id)}
-        <span class="w-20 shrink-0 truncate text-right">{group.name}</span>
+        <span class="flex w-28 shrink-0 justify-end"><GroupName {group} /></span>
       {/each}
       {#if pair}
-        <span class="flex-1 text-center">lower ← change → higher</span>
+        <span class="w-72 shrink-0 text-center">lower ← change → higher</span>
         <span class="w-3.5 shrink-0"></span>
       {/if}
     </ColumnHead>
@@ -88,7 +90,7 @@
         class="hover:bg-muted/60 flex w-full cursor-pointer items-center gap-3 border-t px-4.5 py-2 text-left"
         onclick={() => onpane(metric.pane)}
       >
-        <span class="w-44 shrink-0 text-xs">
+        <span class="min-w-44 flex-1 text-xs">
           {metric.label}
           {#if metric.unit}
             <span class="text-muted-foreground ml-1.5 text-[0.625rem]">{metric.unit}</span>
@@ -96,7 +98,7 @@
         </span>
         {#each groups as group, index (group.id)}
           <span
-            class="w-20 shrink-0 text-right font-mono {index === 0 && pair
+            class="w-28 shrink-0 text-right font-mono {index === 0 && pair
               ? 'text-muted-foreground text-xs'
               : 'text-[0.8125rem] font-semibold'}"
           >
@@ -104,7 +106,7 @@
           </span>
         {/each}
         {#if pair}
-          <span class="relative h-5 min-w-44 flex-1" aria-hidden="true">
+          <span class="relative h-5 w-72 shrink-0" aria-hidden="true">
             <span class="bg-border absolute inset-y-0 left-1/2 w-px"></span>
             {#if delta !== null && Math.abs(delta) >= 0.05}
               <span

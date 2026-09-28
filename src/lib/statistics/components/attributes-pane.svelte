@@ -2,7 +2,7 @@
   import { formatDecimal } from "$lib/format";
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
-  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { linearAxis } from "$lib/statistics/utils/axis";
   import { effectLabel, formatP, formatSigned, isGap } from "$lib/statistics/utils/change";
   import { valueShares } from "$lib/statistics/utils/figures";
@@ -55,6 +55,7 @@
   });
   const formatValue = (value: number) =>
     Number.isInteger(value) ? String(value) : formatDecimal(value);
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">
@@ -74,10 +75,10 @@
     </p>
   {:else}
     <ColumnHead>
-      <span class="w-32 shrink-0">Column</span>
+      <span class="min-w-0 flex-1">Column</span>
       <span class="w-36 shrink-0">Type</span>
-      <span class="min-w-0 flex-1">Effect size</span>
-      <span class="w-64 shrink-0">Test</span>
+      <span class="w-52 shrink-0">Effect size</span>
+      <span class="w-44 shrink-0">Test</span>
       <span class="w-28 shrink-0 text-right">Result</span>
     </ColumnHead>
     {#each ranked as row (row.name)}
@@ -90,17 +91,17 @@
           : 'border-l-transparent'}"
         onclick={() => (chosen = row.name)}
       >
-        <span class="w-32 shrink-0 truncate font-mono text-xs font-semibold">
-          {attributeLabel(row.name)}
+        <span class="min-w-0 flex-1 truncate font-mono text-xs font-semibold">
+          <AttributeName name={row.name} />
         </span>
         <span class="text-muted-foreground w-36 shrink-0 truncate text-[0.6875rem]">
           {Object.values(row.summaries).some((s) => s.type === "numerical")
             ? "Numeric"
             : "Categorical"} · {row.scope}
         </span>
-        <span class="flex min-w-0 flex-1 items-center gap-2">
+        <span class="flex w-52 shrink-0 items-center gap-2">
           {#if test}
-            <span class="bg-muted relative h-1.5 flex-1">
+            <span class="bg-muted relative h-1.5 w-20 shrink-0">
               <span
                 class="absolute inset-y-0 left-0 {test.significant
                   ? 'bg-destructive'
@@ -108,15 +109,17 @@
                 style="width:{Math.min(test.effectSize / FULL_EFFECT, 1) * 100}%"
               ></span>
             </span>
-            <span class="text-muted-foreground w-18 shrink-0 text-[0.6875rem]">
+            <span class="w-9 shrink-0 text-right font-mono text-[0.6875rem]">
+              {test.effectSize.toFixed(2)}
+            </span>
+            <span class="text-muted-foreground truncate text-[0.6875rem]">
               {effectLabel(test.effectSize)}
             </span>
           {/if}
         </span>
-        <span class="text-muted-foreground w-64 shrink-0 truncate font-mono text-[0.6875rem]">
+        <span class="text-muted-foreground w-44 shrink-0 truncate font-mono text-[0.6875rem]">
           {#if test}
-            {test.test === "chi2" ? "χ² · V" : "Mann–Whitney · r"} = {test.effectSize.toFixed(2)} · p
-            {formatP(test.pValue)}
+            {test.test === "chi2" ? "χ² · V" : "Mann–Whitney · r"} · p {formatP(test.pValue)}
           {:else}
             {pair ? "Too few values" : "One group"}
           {/if}
@@ -133,7 +136,7 @@
 
     {#if selected}
       <div class="flex flex-wrap items-baseline gap-2.5 border-t px-4.5 pt-4 pb-2">
-        <span class="font-mono text-xs font-bold">{attributeLabel(selected.name)}</span>
+        <span class="font-mono text-xs font-bold"><AttributeName name={selected.name} /></span>
         <span class="text-muted-foreground text-xs">
           {numeric
             ? "Distribution per group"
@@ -151,7 +154,7 @@
           <span class="w-36 shrink-0">Value</span>
           <span class="min-w-0 flex-1">Share</span>
           {#each groups as group (group.id)}
-            <span class="w-20 shrink-0 truncate text-right">{group.name}</span>
+            <span class="flex w-20 shrink-0 justify-end"><GroupName {group} /></span>
           {/each}
           {#if pair}
             <span class="w-16 shrink-0 text-right">Δ pp</span>

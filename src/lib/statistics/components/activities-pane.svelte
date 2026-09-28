@@ -58,6 +58,7 @@
       })
     }))
   );
+  import GroupName from "$lib/statistics/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">
@@ -71,10 +72,10 @@
     {/if}
   </div>
   <ColumnHead>
-    <span class="min-w-0 flex-1">Activity</span>
-    <span class="w-48 shrink-0">{ACTIVITY_MEASURE_LABELS[measure]}</span>
+    <span class="w-56 shrink-0">Activity</span>
+    <span class="min-w-0 flex-1">{ACTIVITY_MEASURE_LABELS[measure]}</span>
     {#each groups as group (group.id)}
-      <span class="w-20 shrink-0 truncate text-right">{group.name}</span>
+      <span class="flex w-20 shrink-0 justify-end"><GroupName {group} /></span>
     {/each}
     {#if pair}
       <span class="w-16 shrink-0 text-right">Δ {unit}</span>
@@ -84,12 +85,12 @@
     {@const gap = isGap(figure.delta)}
     <div class="flex items-center gap-3 border-t px-4.5 py-1.75 {gap ? 'bg-destructive/5' : ''}">
       <span
-        class="min-w-0 flex-1 truncate text-xs {gap ? 'text-foreground' : 'text-foreground/75'}"
+        class="w-56 shrink-0 truncate text-xs {gap ? 'text-foreground' : 'text-foreground/75'}"
         title={figure.name}
       >
         {figure.name}
       </span>
-      <span class="w-48 shrink-0"><PairBars {groups} values={figure.values} {max} /></span>
+      <span class="min-w-0 flex-1"><PairBars {groups} values={figure.values} {max} /></span>
       {#each groups as group, index (group.id)}
         <span
           class="w-20 shrink-0 text-right font-mono text-xs {index === 0 && pair
@@ -118,9 +119,9 @@
         </span>
         {#each endpoint.byGroup as entry (entry.group.id)}
           <span class="flex items-baseline gap-2.5">
-            <span class="min-w-0 flex-1 truncate text-xs font-semibold">{entry.name}</span>
+            <span class="w-56 shrink-0 truncate text-xs font-semibold">{entry.name}</span>
             <span class="text-muted-foreground font-mono text-[0.6875rem]">
-              {entry.group.name} · {entry.share.toFixed(0)}%{entry.distinct > 1
+              <GroupName group={entry.group} /> · {entry.share.toFixed(0)}%{entry.distinct > 1
                 ? ` · ${entry.distinct} distinct`
                 : ""}
             </span>
