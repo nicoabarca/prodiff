@@ -455,3 +455,69 @@
 [data-slot="button"]:disabled {
   --tw-shadow: 0 0 #0000;
 }
+
+/*
+ * Tour popovers (driver.js), restyled onto the theme tokens. driver.js sets its
+ * own colours and radii, so each rule here overrides one of them.
+ */
+.driver-popover.prodiff-tour {
+  background: var(--popover);
+  color: var(--popover-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 0.5rem 1.5rem rgb(0 0 0 / 0.12);
+  font-family: var(--font-sans);
+  max-width: 20rem;
+  padding: 1rem;
+}
+
+.driver-popover.prodiff-tour .driver-popover-title {
+  font-family: var(--font-heading);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.driver-popover.prodiff-tour .driver-popover-description {
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+.driver-popover.prodiff-tour .driver-popover-progress-text {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.driver-popover.prodiff-tour .driver-popover-close-btn {
+  color: var(--muted-foreground);
+}
+
+.driver-popover.prodiff-tour .driver-popover-close-btn:hover {
+  color: var(--foreground);
+}
+
+.driver-popover.prodiff-tour .driver-popover-navigation-btns button {
+  background: var(--background);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.3125rem 0.625rem;
+  text-shadow: none;
+}
+
+.driver-popover.prodiff-tour .driver-popover-navigation-btns button:hover {
+  background: var(--muted);
+}
+
+.driver-popover.prodiff-tour .driver-popover-navigation-btns .driver-popover-next-btn {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+}
+
+.driver-popover.prodiff-tour .driver-popover-navigation-btns .driver-popover-next-btn:hover {
+  opacity: 0.9;
+}

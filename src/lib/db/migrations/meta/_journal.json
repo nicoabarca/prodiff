@@ -15,6 +15,13 @@
       "when": 1790457730440,
       "tag": "0001_custom_attributes",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1790608748843,
+      "tag": "0002_app_settings",
+      "breakpoints": true
     }
   ]
 }

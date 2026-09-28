@@ -11,6 +11,7 @@
     customAttributesLoaded,
     loadCustomAttributes
   } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import TourLauncher from "$lib/tour/components/tour-launcher.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
@@ -50,7 +51,11 @@
 <!-- Every view sends applied Custom Attributes with its Column Mapping, so none renders before
      they are loaded. -->
 {#if project && customAttributesLoaded.projectId === project.id}
-  <ProjectTopbar {project} projectView={view} />
+  <ProjectTopbar {project} projectView={view}>
+    {#snippet actions()}
+      <TourLauncher {project} {view} />
+    {/snippet}
+  </ProjectTopbar>
   <FilterSummaryBar {project}>
     {#snippet actions()}
       {#if !onFilters}
