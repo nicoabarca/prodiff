@@ -12,8 +12,22 @@
   import { customAttributes } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import type { CustomAttributeDraft } from "$lib/custom-attributes/state/drafts.svelte";
   import type { CustomAttribute } from "$lib/custom-attributes/types";
+  import BlockPalette from "$lib/custom-attributes/components/block-palette.svelte";
+  import FormulaBlocks from "$lib/custom-attributes/components/formula-blocks.svelte";
+  import {
+    fromBlocks,
+    insertAt,
+    insertParentheses,
+    toBlocks,
+    type Block,
+    type BlockEdit
+  } from "$lib/custom-attributes/utils/blocks";
   import { parseFormula } from "$lib/custom-attributes/utils/parser";
-  import { formulaColumnError, nameError } from "$lib/custom-attributes/utils/validate";
+  import {
+    formulaColumnError,
+    nameError,
+    operandColumns
+  } from "$lib/custom-attributes/utils/validate";
   import type { Project } from "$lib/event-log/types";
   import { formatNumber } from "$lib/format";
 
@@ -38,6 +52,33 @@
   const initial = untrack(() => draft);
   let name = $state(initial.name);
   let text = $state(initial.formula);
+
+  /**
+   * The text is the formula; the blocks are its tokens. Text that does not
+   * tokenize can only be edited as text, so the editor opens on text then.
+   */
+  const blocks = $derived(toBlocks(text));
+  let editingText = $state(toBlocks(initial.formula) === null);
+  let caret = $state(toBlocks(initial.formula)?.length ?? 0);
+  const blockEdit = $derived<BlockEdit | null>(
+    blocks ? { blocks, caret: Math.min(caret, blocks.length) } : null
+  );
+  const columns = $derived(operandColumns(project).map((c) => c.name));
+
+  function changeBlocks(next: BlockEdit) {
+    text = fromBlocks(next.blocks);
+    caret = next.caret;
+  }
+
+  function insertBlocks(inserted: Block[]) {
+    if (blockEdit) changeBlocks(insertAt(blockEdit, inserted));
+  }
+
+  function finishText() {
+    if (!blocks) return;
+    caret = blocks.length;
+    editingText = false;
+  }
 
   const nameProblem = $derived(nameError(name, project, customAttributes, attribute?.id ?? null));
   const parsed = $derived(parseFormula(text));
@@ -104,24 +145,62 @@
   </Field.Field>
 
   <Field.Field data-invalid={text !== "" && formulaProblem ? true : undefined}>
-    <Field.FieldLabel for="custom-attribute-formula">Formula</Field.FieldLabel>
-    <Input
-      id="custom-attribute-formula"
-      bind:value={text}
-      placeholder="[expense] / [points]"
-      class="font-mono"
-      spellcheck={false}
-      autocomplete="off"
-    />
+    <div class="flex items-center justify-between gap-2">
+      <Field.FieldLabel for="custom-attribute-formula">Formula</Field.FieldLabel>
+      {#if editingText}
+        <Button
+          variant="ghost"
+          size="sm"
+          class="h-6 text-xs"
+          disabled={blocks === null}
+          title={blocks === null ? "Fix the formula to edit it as blocks" : undefined}
+          onclick={finishText}
+        >
+          Done
+        </Button>
+      {:else}
+        <Button variant="ghost" size="sm" class="h-6 text-xs" onclick={() => (editingText = true)}>
+          Edit as text
+        </Button>
+      {/if}
+    </div>
+    {#if editingText || !blockEdit}
+      <Input
+        id="custom-attribute-formula"
+        bind:value={text}
+        placeholder="[expense] / [points]"
+        class="font-mono"
+        spellcheck={false}
+        autocomplete="off"
+      />
+    {:else}
+      <FormulaBlocks edit={blockEdit} onchange={changeBlocks} />
+      {#if text !== ""}
+        <p class="text-muted-foreground font-mono text-xs break-all">{text}</p>
+      {/if}
+    {/if}
     {#if text !== "" && formulaProblem}
       <Field.FieldError>{formulaProblem}</Field.FieldError>
     {:else}
       <Field.FieldDescription>
-        Put number columns in brackets and combine them with + - * / and parentheses. A missing
-        value or a division by zero reads as empty, not as an error.
+        {editingText
+          ? "Put number columns in brackets and combine them with + - * / and parentheses."
+          : "Click a block to insert it at the caret. Arrow keys move the caret, Backspace removes the block before it."}
+        A missing value or a division by zero reads as empty, not as an error.
       </Field.FieldDescription>
     {/if}
   </Field.Field>
+
+  {#if !editingText && blockEdit}
+    <Field.Field>
+      <Field.FieldLabel>Building blocks</Field.FieldLabel>
+      <BlockPalette
+        {columns}
+        oninsert={insertBlocks}
+        onparentheses={() => blockEdit && changeBlocks(insertParentheses(blockEdit))}
+      />
+    </Field.Field>
+  {/if}
 
   {#if formula}
     <Field.FieldSeparator />
