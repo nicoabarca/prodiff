@@ -6,6 +6,11 @@
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
   import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
+  import ApplyingOverlay from "$lib/custom-attributes/components/applying-overlay.svelte";
+  import {
+    customAttributesLoaded,
+    loadCustomAttributes
+  } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
@@ -21,7 +26,9 @@
           ? "dfg"
           : page.url.pathname.endsWith("/distributions")
             ? "distributions"
-            : "statistics"
+            : page.url.pathname.endsWith("/custom-attributes")
+              ? "custom-attributes"
+              : "statistics"
   );
 
   $effect(() => {
@@ -31,6 +38,12 @@
   // Groups are project-scoped, so they reload when the addressed project changes.
   $effect(() => {
     if (project && groupsLoaded.projectId !== project.id) loadGroups(project.id);
+  });
+
+  $effect(() => {
+    if (project && customAttributesLoaded.projectId !== project.id) {
+      loadCustomAttributes(project.id);
+    }
   });
 </script>
 
@@ -47,4 +60,5 @@
     {/snippet}
   </FilterSummaryBar>
   {@render children()}
+  <ApplyingOverlay />
 {/if}

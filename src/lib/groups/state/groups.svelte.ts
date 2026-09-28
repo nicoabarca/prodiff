@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { groups as groupsTable } from "$lib/db/schema";
 import type { Project } from "$lib/event-log/types";
-import type { Filter } from "$lib/filters/kind/filter";
+import { filterColumn, type Filter } from "$lib/filters/kind/filter";
 import { filtersKey } from "$lib/filters/utils/key";
 import { appliedGroups } from "$lib/groups/invokers/applied-groups";
 import { applyGroup as applyGroupFile } from "$lib/groups/invokers/apply-group";
@@ -14,6 +14,7 @@ import type { ResponseEventLogStats, ResponseFilterStep } from "$lib/groups/invo
 import { defaultColor, ORIGINAL_COLOR } from "$lib/groups/colors";
 import { ORIGINAL_ID, ORIGINAL_NAME, type Group } from "$lib/groups/types";
 import { groupId } from "$lib/groups/utils/group-id";
+import { draftOf } from "$lib/groups/state/drafts.svelte";
 
 /** The loaded project's Groups, in position order. The Original is not one of them. */
 export const groups = $state<Group[]>([]);
@@ -126,6 +127,13 @@ export function dependentsOf(group: Group): Group[] {
     other.filters.some(
       (filter) => filter.kind === "case_not_in_group" && filter.groupId === group.id
     )
+  );
+}
+
+/** Groups whose Filter List, applied or draft, reads this column. */
+export function groupsReadingColumn(column: string): Group[] {
+  return groups.filter((group) =>
+    [...group.filters, ...draftOf(group)].some((filter) => filterColumn(filter) === column)
   );
 }
 
