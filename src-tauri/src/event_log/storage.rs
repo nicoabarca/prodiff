@@ -22,8 +22,12 @@ pub(crate) fn project_dir_for_app(
     Ok(project_dir(&projects_dir(app)?, project_id))
 }
 
-/// The file name the raw upload is copied to: `original.{extension}`.
+/// The file name the raw upload is copied to: `original.{extension}`, where a
+/// gzipped XES keeps both extensions.
 pub(crate) fn original_file_name(source_path: &str) -> String {
+    if source_path.to_ascii_lowercase().ends_with(".xes.gz") {
+        return "original.xes.gz".to_string();
+    }
     let extension = Path::new(source_path)
         .extension()
         .and_then(|e| e.to_str())

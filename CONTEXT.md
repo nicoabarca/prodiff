@@ -24,8 +24,16 @@ _Avoid_: Dataset, file, upload
 The user-confirmed correspondence between an uploaded file's raw columns and the fields process mining requires (case ID, activity, timestamp). Captured once, at project creation, before the Event Log is persisted. Every column of the file appears in it; those with no process-mining meaning carry the role `other`.
 
 **Project Draft**:
-An uploaded file that has been chosen but whose Column Mapping is not yet confirmed. It has no Project and no Event Log — abandoning the flow leaves nothing behind.
+An uploaded file that has been chosen but whose Column Mapping is not yet confirmed. It has no Project and no Event Log — abandoning the flow leaves nothing behind. An XES Project Draft is read once into a Draft Parquet, which is discarded with the draft.
 _Avoid_: Pending upload, staged file
+
+**Draft Parquet**:
+An XES upload converted to Parquet the first time its Project Draft reads it, so the mapping step and the import read it without parsing XML again. It is keyed by the upload's path, size and modification time, lives under `{app_data}/drafts/`, and never outlives the app session. A CSV Project Draft has none.
+_Avoid_: Cache, staged file
+
+**Activity Instance**:
+One row of an Event Log read from XES: a `complete` event paired with the `start` event of the same activity (and `concept:instance`) before it in its trace, so the row carries both a start and a complete timestamp.
+_Avoid_: Paired event, interval
 
 **Hidden Column**:
 A column in an Event Log the user has excluded from all analysis — filtering, statistics, process map derivation — not merely from display. Distinct from a column that's simply not shown; a hidden column is inert until un-hidden.

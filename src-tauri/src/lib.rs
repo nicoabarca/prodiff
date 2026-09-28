@@ -26,11 +26,17 @@ pub fn run() {
     let builder = builder.plugin(tauri_plugin_wdio_webdriver::init());
 
     builder
+        .setup(|app| {
+            let drafts = parsing::draft::drafts_dir(app.handle())?;
+            parsing::draft::clear(&drafts)?;
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             database::commands::prepare_database_backup,
             parsing::commands::preview_event_log,
             parsing::commands::event_log_file_size,
             parsing::commands::analyze_timestamp_columns,
+            parsing::commands::discard_event_log_draft,
             event_log::commands::create_event_log,
             event_log::commands::check_case_columns,
             event_log::commands::delete_project_files,

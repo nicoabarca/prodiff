@@ -1,0 +1,15 @@
+# Read XES into the same Event Log
+
+A Project could only be created from a CSV. XES (and gzipped XES) is the standard exchange format for event logs, and it states what the Column Mapping otherwise asks for: which attribute is the case id, the activity and the timestamp, and which attributes belong to the case rather than the event. We support it by reading XES into the same one-row-per-event table a CSV is read into, so the Column Mapping, the Parquet layout, Groups, Filters and every view are unchanged. Nothing after `parsing::read_event_log` knows which format a Project came from.
+
+The reader is `parsing::xes`, built on the `process_mining` crate's streaming XES parser without its `dataframes` feature, which pins an older Polars. The table it builds follows the pm4py naming convention: trace attributes are prefixed `case:`, so the case id is `case:concept:name`; a trace without a name is identified by its position in the file.
+
+**Lifecycle transitions are paired.** The app models one row per activity with an optional start timestamp, while XES records `start` and `complete` as separate events. The reader pairs each `complete` with the earliest open `start` of the same activity and `concept:instance` in its trace and writes one row carrying both times. An event without a transition is a complete. Starts never completed and every other transition are dropped. Keeping the transitions as separate rows was rejected: every count, Variant and duration would double-count activities with a start.
+
+**Timestamps are wall-clock time.** An Event Log timestamp carries no zone: it is the time the file writes, stored as a zone-less Datetime and read in UTC by the frontend. The CSV reader already drops an offset, so the XES reader does too. Normalizing to UTC was rejected: displayed times would stop matching the file, and a CSV without offsets has nothing to normalize from. The cost is that a duration spanning an offset change (a DST switch, or events from two zones) is off by the difference.
+
+**An XES Project Draft is read once.** Parsing XML is far slower than reading a CSV, and the mapping step reads the whole file several times (preview, timestamp check, case-column check, import). The first read writes a Draft Parquet under `{app_data}/drafts/`, keyed by the upload's path, size and modification time, and every later read of that Project Draft reads it. The wizard discards it when the draft is abandoned or imported, and the app clears the directory at startup. A CSV gets no Draft Parquet: its column types are not settled until the user declares them, so a typed Parquet would bake in Polars' guesses, and the CSV reader is fast enough to read again.
+
+The preview suggests a role and scope for every XES column, and the wizard starts from that mapping instead of an empty one. A column the file already stores as a timestamp has no pattern to pick, so the timestamp format step skips it.
+
+**Consequence:** the original upload is still kept in the project directory (ADR 0002), as `original.xes` or `original.xes.gz`.

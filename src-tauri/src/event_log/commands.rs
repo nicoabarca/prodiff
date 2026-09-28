@@ -1,33 +1,51 @@
 use super::importer::{
-    case_column_violations, import_event_log, CaseColumnViolation, CreateEventLogResult,
+    case_column_violations, import_frame, CaseColumnViolation, CreateEventLogResult,
 };
 use super::storage::{delete_project_dir, project_dir_for_app, projects_dir};
 use crate::column_mapping::ColumnMapping;
-use crate::parsing::read_csv;
+use crate::parsing::commands::off_main_thread;
+use crate::parsing::draft::{drafts_dir, read_upload};
+use std::path::Path;
 
 #[tauri::command]
-pub fn create_event_log(
+pub async fn create_event_log(
     app: tauri::AppHandle,
     project_id: String,
     source_path: String,
     columns: Vec<ColumnMapping>,
 ) -> Result<CreateEventLogResult, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    import_event_log(&dir, &source_path, &columns, &[]).map(|imported| imported.event_log)
+    let drafts = drafts_dir(&app)?;
+    off_main_thread(move || {
+        let df = read_upload(&drafts, &source_path, None, &mut |_, _| {})?;
+        import_frame(&dir, &source_path, df, &columns, &[]).map(|imported| imported.event_log)
+    })
+    .await
 }
 
 /// Only the violating columns come back.
 #[tauri::command]
-pub fn check_case_columns(
+pub async fn check_case_columns(
+    app: tauri::AppHandle,
     source_path: String,
     case_column: String,
     columns: Vec<String>,
 ) -> Result<Vec<CaseColumnViolation>, String> {
+    let drafts = drafts_dir(&app)?;
+    off_main_thread(move || violations(&drafts, &source_path, &case_column, &columns)).await
+}
+
+fn violations(
+    drafts_dir: &Path,
+    source_path: &str,
+    case_column: &str,
+    columns: &[String],
+) -> Result<Vec<CaseColumnViolation>, String> {
     if columns.is_empty() {
         return Ok(Vec::new());
     }
-    let df = read_csv(&source_path, None).map_err(|e| e.to_string())?;
-    case_column_violations(&df, &case_column, &columns)
+    let df = read_upload(drafts_dir, source_path, None, &mut |_, _| {})?;
+    case_column_violations(&df, case_column, columns)
 }
 
 #[tauri::command]
@@ -41,10 +59,8 @@ mod tests {
 
     #[test]
     fn checking_no_columns_reads_nothing() {
-        assert!(
-            check_case_columns("nowhere.csv".into(), "case".into(), Vec::new())
-                .unwrap()
-                .is_empty()
-        );
+        assert!(violations(Path::new("drafts"), "nowhere.csv", "case", &[])
+            .unwrap()
+            .is_empty());
     }
 }

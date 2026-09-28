@@ -7,7 +7,7 @@ use crate::column_mapping::{
     ColumnType,
 };
 use crate::groups::{self, GroupFilters};
-use crate::parsing::{column_to_strings, read_csv};
+use crate::parsing::{column_to_strings, read_event_log};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -273,7 +273,19 @@ pub fn import_event_log(
     columns: &[ColumnMapping],
     groups: &[GroupFilters],
 ) -> Result<ImportWithGroups, String> {
-    let df = read_csv(source_path, None).map_err(|e| e.to_string())?;
+    let df = read_event_log(source_path, None)?;
+    import_frame(project_dir, source_path, df, columns, groups)
+}
+
+/// [`import_event_log`] for an upload already read into `df`. `source_path` is
+/// the raw upload, kept as the original.
+pub(crate) fn import_frame(
+    project_dir: &Path,
+    source_path: &str,
+    df: DataFrame,
+    columns: &[ColumnMapping],
+    groups: &[GroupFilters],
+) -> Result<ImportWithGroups, String> {
     let header: Vec<String> = df
         .get_column_names()
         .into_iter()
@@ -743,6 +755,52 @@ B7,Payment,2006-09-10 14:30,C
             ["Create Fine", "Send Fine", "Create Fine", "Payment"]
         );
         assert!(!staging_dir(&project).exists());
+    }
+
+    const PAIRED_XES: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
+<log xes.version="1.0">
+  <trace>
+    <string key="concept:name" value="A1"/>
+    <event><string key="concept:name" value="Review"/><string key="lifecycle:transition" value="start"/><date key="time:timestamp" value="2006-07-23T18:00:00.000+01:00"/></event>
+    <event><string key="concept:name" value="Review"/><string key="lifecycle:transition" value="complete"/><date key="time:timestamp" value="2006-07-23T19:00:00.000+01:00"/><int key="amount" value="40"/></event>
+  </trace>
+</log>"#;
+
+    const PAIRED_XES_COLUMNS: &str = r#"[
+      {"name":"case:concept:name","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+      {"name":"concept:name","role":"activity_name","type":"string","scope":"event"},
+      {"name":"start_timestamp","role":"start_timestamp","type":"datetime","scope":"event","timestampFormat":null},
+      {"name":"time:timestamp","role":"complete_timestamp","type":"datetime","scope":"event","timestampFormat":null},
+      {"name":"amount","role":"other","type":"integer","scope":"event"}
+    ]"#;
+
+    #[test]
+    fn an_xes_import_writes_one_row_per_activity_instance() {
+        let scratch = Scratch::new("xes");
+        let source = scratch.0.join("log.xes");
+        fs::write(&source, PAIRED_XES).unwrap();
+        let project = scratch.project();
+        let columns: Vec<ColumnMapping> = serde_json::from_str(PAIRED_XES_COLUMNS).unwrap();
+
+        let result = import_event_log(&project, source.to_str().unwrap(), &columns, &[])
+            .unwrap()
+            .event_log;
+
+        assert_eq!(result.stats.events, 1);
+        assert_eq!(
+            PathBuf::from(&result.original_path),
+            project.join("original.xes")
+        );
+        let file = fs::File::open(&result.event_log_path).unwrap();
+        let written = ParquetReader::new(file).finish().unwrap();
+        assert_eq!(
+            millis(&written, "start_timestamp"),
+            [Some(1_153_677_600_000)]
+        );
+        assert_eq!(
+            millis(&written, "time:timestamp"),
+            [Some(1_153_681_200_000)]
+        );
     }
 
     #[test]

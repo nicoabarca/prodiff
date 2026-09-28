@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { goto } from "$app/navigation";
   import { createProject } from "$lib/event-log/utils/create";
   import { fetchEventLogPreview } from "$lib/event-log/invokers/preview-event-log";
+  import { discardEventLogDraft } from "$lib/event-log/invokers/discard-event-log-draft";
   import {
     requiredRoles,
     emptyAssignments,
@@ -20,6 +22,8 @@
     CaseResolution,
     ColumnScope,
     RequestColumnMapping,
+    ReadProgress,
+    ResponseEventLogPreview,
     ColumnType
   } from "$lib/event-log/invokers/types";
   import { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
@@ -31,6 +35,7 @@
   import ReviewStep from "$lib/event-log/components/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Progress } from "$lib/components/ui/progress/index.js";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   let step = $state<1 | 2 | 3 | 4>(1);
@@ -40,6 +45,7 @@
   let columns = $state<{ name: string; dtype: ColumnType }[]>([]);
   let rows = $state<string[][]>([]);
   let loadError = $state<string | null>(null);
+  let readProgress = $state<ReadProgress | null>(null);
 
   let assignments = $state<Record<AssignableRole, string | null>>(emptyAssignments());
   let activeRole = $state<ColumnPick | null>("case_id");
@@ -62,6 +68,12 @@
     return map;
   });
 
+  const isXes = $derived(/\.xes(\.gz)?$/i.test(fileName ?? ""));
+
+  const readPercent = $derived(
+    readProgress ? Math.floor((readProgress.read / Math.max(readProgress.total, 1)) * 100) : null
+  );
+
   const allMapped = $derived(requiredRoles.every((r) => assignments[r] !== null));
 
   // With no extra columns kept there is nothing to configure, so the field
@@ -70,18 +82,47 @@
     columns.some(({ name }) => !roleByColumn[name] && visibleColumns.has(name))
   );
 
+  /** Takes the roles and scopes the file states, as XES does, as the starting mapping. */
+  function applySuggestions(previewColumns: ResponseEventLogPreview["columns"]) {
+    if (previewColumns.every(({ suggested }) => suggested === null)) return;
+
+    const nextAssignments = emptyAssignments();
+    const kept = new Set<string>();
+    const scopes: Record<string, ColumnScope> = {};
+    for (const { name, suggested: suggestion } of previewColumns) {
+      if (!suggestion) continue;
+      if (suggestion.role === "other") kept.add(name);
+      else nextAssignments[suggestion.role] = name;
+      if (suggestion.scope === "case") scopes[name] = "case";
+    }
+    assignments = nextAssignments;
+    visibleColumns = kept;
+    columnScope = scopes;
+    activeRole = requiredRoles.find((role) => nextAssignments[role] === null) ?? "other";
+  }
+
+  function discardDraft(path: string | null) {
+    if (path) discardEventLogDraft(path).catch(() => {});
+  }
+
+  onDestroy(() => discardDraft(filePath));
+
   function acceptUpload(path: string, name: string) {
     filePath = path;
     fileName = name;
     loadError = null;
+    readProgress = null;
     columns = [];
     rows = [];
-    fetchEventLogPreview(path)
+    fetchEventLogPreview(path, (progress) => {
+      if (filePath === path) readProgress = progress;
+    })
       .then((preview) => {
         if (filePath !== path) return; // a newer upload started before this one resolved
         columns = preview.columns;
         rows = preview.rows;
         timestampFormats.seed(preview.columns, preview.rows);
+        applySuggestions(preview.columns);
       })
       .catch((err) => {
         if (filePath !== path) return;
@@ -91,11 +132,13 @@
   }
 
   function backToUpload() {
+    discardDraft(filePath);
     filePath = null;
     fileName = null;
     columns = [];
     rows = [];
     loadError = null;
+    readProgress = null;
     assignments = emptyAssignments();
     activeRole = "case_id";
     visibleColumns = new Set();
@@ -204,7 +247,19 @@
       {:else if columns.length === 0}
         <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3">
           <LoaderCircle class="size-6 animate-spin" aria-hidden="true" />
-          <p class="text-sm">Reading <span class="font-mono">{fileName}</span>…</p>
+          <p class="text-sm">
+            {readPercent === 100 ? "Preparing" : "Reading"}
+            <span class="font-mono">{fileName}</span>…
+            {#if readPercent !== null && readPercent < 100}{readPercent}%{/if}
+          </p>
+          {#if readPercent !== null}
+            <Progress value={readPercent} class="w-64" aria-label="Share of the file read" />
+          {/if}
+          {#if isXes}
+            <p class="max-w-sm text-center text-xs text-pretty">
+              XES files are converted once before mapping. A large log can take a few minutes.
+            </p>
+          {/if}
         </div>
       {:else}
         <MapColumnsStep

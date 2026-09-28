@@ -5,7 +5,7 @@ import type { Project, ProjectDraft } from "$lib/event-log/types";
 import { validateColumnMapping } from "$lib/event-log/utils/column-mapping";
 
 function deriveProjectName(fileName: string): string {
-  const stem = fileName.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ");
+  const stem = fileName.replace(/\.xes\.gz$|\.[^.]+$/i, "").replace(/[_-]+/g, " ");
   return stem.charAt(0).toUpperCase() + stem.slice(1);
 }
 

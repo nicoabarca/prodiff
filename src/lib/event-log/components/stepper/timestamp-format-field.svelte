@@ -24,7 +24,9 @@
 </script>
 
 <div class="flex shrink-0 items-center justify-end gap-1.5">
-  {#if formats.isChecking(column)}
+  {#if formats.isTyped(column)}
+    <span class="text-muted-foreground text-xs whitespace-nowrap">Read from the file</span>
+  {:else if formats.isChecking(column)}
     <LoaderCircle
       class="text-muted-foreground size-4 shrink-0 animate-spin"
       aria-label="Counting the rows this format reads"
@@ -34,14 +36,16 @@
   {:else}
     <span class="text-muted-foreground text-xs whitespace-nowrap">No format found</span>
   {/if}
-  <Button
-    variant="ghost"
-    size="icon-sm"
-    onclick={() => (open = true)}
-    aria-label="Set the timestamp pattern for {column}"
-  >
-    <Settings />
-  </Button>
+  {#if !formats.isTyped(column)}
+    <Button
+      variant="ghost"
+      size="icon-sm"
+      onclick={() => (open = true)}
+      aria-label="Set the timestamp pattern for {column}"
+    >
+      <Settings />
+    </Button>
+  {/if}
 </div>
 
 <TimestampFormatDialog

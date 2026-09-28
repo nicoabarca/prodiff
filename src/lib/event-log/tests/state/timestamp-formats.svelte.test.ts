@@ -69,4 +69,43 @@ describe("TimestampFormats", () => {
 
     expect(formats.patterns.start).toBe("DD/MM/YYYY");
   });
+
+  it("leaves a column the file stores as a timestamp without a pattern or a check", async () => {
+    vi.useFakeTimers();
+    const analyze = vi.fn().mockResolvedValue([]);
+    const formats = new TimestampFormats({ analyze, debounce: 0 });
+    formats.seed(
+      [
+        { name: "time:timestamp", dtype: "datetime" },
+        { name: "due", dtype: "string" }
+      ],
+      [["2024-03-15 09:00:00", "15/03/2024"]]
+    );
+
+    formats.sync("log.xes", [
+      { column: "time:timestamp", pattern: null },
+      { column: "due", pattern: "DD/MM/YYYY" }
+    ]);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(formats.isTyped("time:timestamp")).toBe(true);
+    expect(formats.patterns["time:timestamp"]).toBeUndefined();
+    expect(formats.isUnresolved("time:timestamp", "")).toBe(false);
+    expect(analyze.mock.calls[0][1]).toEqual(["due"]);
+  });
+
+  it("applies a shared pattern only to columns that need one", () => {
+    const formats = new TimestampFormats({ analyze: vi.fn() });
+    formats.seed(
+      [
+        { name: "time:timestamp", dtype: "datetime" },
+        { name: "due", dtype: "string" }
+      ],
+      []
+    );
+
+    formats.applyTo(["time:timestamp", "due"], "DD/MM/YYYY");
+
+    expect(formats.patterns).toEqual({ due: "DD/MM/YYYY" });
+  });
 });

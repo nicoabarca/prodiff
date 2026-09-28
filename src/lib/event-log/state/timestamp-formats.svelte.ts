@@ -13,6 +13,7 @@ import {
   inferFormat,
   type FormatInference
 } from "$lib/event-log/utils/timestamp-format";
+import { isTemporal } from "$lib/event-log/utils/field-settings";
 
 export interface TimestampDeclaration {
   column: string;
@@ -63,6 +64,7 @@ export class TimestampFormats {
   #notifications: Notifications;
   #debounce: number;
   #columns: { name: string; dtype: ColumnType }[] = [];
+  #typed = new Set<string>();
   #rows: string[][] = [];
   #checked = new Map<string, string>();
   #chosen = new Set<string>();
@@ -82,9 +84,12 @@ export class TimestampFormats {
     this.#columns = columns;
     this.#rows = rows;
 
+    this.#typed = new Set(columns.filter(({ dtype }) => isTemporal(dtype)).map(({ name }) => name));
+
     const inference: Record<string, FormatInference> = {};
     const patterns: Record<string, string> = {};
     columns.forEach((column, index) => {
+      if (this.#typed.has(column.name)) return;
       const result = inferFormat(rows.map((row) => row[index] ?? ""));
       inference[column.name] = result;
       if (result.pattern) patterns[column.name] = result.pattern;
@@ -97,6 +102,7 @@ export class TimestampFormats {
     clearTimeout(this.#timer);
     this.#generation += 1;
     this.#columns = [];
+    this.#typed = new Set();
     this.#rows = [];
     this.#checked.clear();
     this.#chosen.clear();
@@ -121,7 +127,7 @@ export class TimestampFormats {
 
   applyTo(columns: string[], pattern: string) {
     const patterns = { ...this.patterns };
-    for (const column of columns) {
+    for (const column of columns.filter((name) => !this.#typed.has(name))) {
       patterns[column] = pattern;
       this.#chosen.add(column);
     }
@@ -129,16 +135,23 @@ export class TimestampFormats {
     this.#lastChosen = pattern;
   }
 
+  /** A column the file already stores as a timestamp: it has no pattern to pick. */
+  isTyped(column: string): boolean {
+    return this.#typed.has(column);
+  }
+
   isChecking(column: string): boolean {
     return this.checkingColumns.includes(column);
   }
 
   isUnresolved(column: string, pattern: string): boolean {
+    if (this.#typed.has(column)) return false;
     return patternUnresolved(pattern, this.checks[column]);
   }
 
-  sync(path: string | null, declarations: TimestampDeclaration[]) {
+  sync(path: string | null, all: TimestampDeclaration[]) {
     if (!path) return;
+    const declarations = all.filter(({ column }) => !this.#typed.has(column));
 
     if (this.#lastChosen) {
       const patterns = { ...this.patterns };

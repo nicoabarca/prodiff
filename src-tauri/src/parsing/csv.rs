@@ -59,6 +59,8 @@ pub(crate) fn dtype_label(dtype: &DataType) -> &'static str {
         | DataType::UInt32
         | DataType::UInt64 => "integer",
         DataType::Float32 | DataType::Float64 => "float",
+        DataType::Date => "date",
+        DataType::Datetime(..) => "datetime",
         _ => "string",
     }
 }

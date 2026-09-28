@@ -6,7 +6,7 @@ mod format;
 
 pub use format::to_polars_format;
 
-#[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ColumnRole {
     CaseId,
