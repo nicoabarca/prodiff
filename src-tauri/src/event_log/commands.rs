@@ -64,3 +64,18 @@ mod tests {
             .is_empty());
     }
 }
+
+/// A few values and the fill rate of each named column of the stored Event Log.
+#[tauri::command]
+pub async fn column_profiles(
+    app: tauri::AppHandle,
+    project_id: String,
+    columns: Vec<String>,
+) -> Result<Vec<super::profile::ColumnProfile>, String> {
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let df = crate::filters::queries::read_event_log(&dir)?;
+        super::profile::profiles(&df, &columns)
+    })
+    .await
+}

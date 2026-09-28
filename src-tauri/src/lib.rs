@@ -8,6 +8,7 @@ mod filters;
 pub mod groups;
 mod parsing;
 mod sample_project;
+mod statistics;
 mod stats;
 mod time;
 mod tree;
@@ -40,6 +41,7 @@ pub fn run() {
             event_log::commands::create_event_log,
             event_log::commands::check_case_columns,
             event_log::commands::delete_project_files,
+            event_log::commands::column_profiles,
             sample_project::commands::create_sample_project,
             groups::commands::apply_group,
             groups::commands::delete_group_file,
@@ -51,6 +53,7 @@ pub fn run() {
             filters::commands::distinct_values,
             filters::commands::duration_histogram,
             filters::commands::daily_case_load,
+            statistics::commands::group_comparison,
             tree::commands::directed_tree,
             tree::commands::list_variants,
             tree::commands::node_distributions,

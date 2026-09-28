@@ -10,6 +10,7 @@
   import Network from "@lucide/svelte/icons/network";
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
+  import Database from "@lucide/svelte/icons/database";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
   import SquareFunction from "@lucide/svelte/icons/square-function";
   import Waypoints from "@lucide/svelte/icons/waypoints";
@@ -21,6 +22,12 @@
   // In the order a project is worked through: look at the data, derive
   // attributes from it, narrow it into groups, then compare them.
   const projectNav = $derived([
+    {
+      view: "event-log",
+      href: `/app/projects/${activeProject.id}/event-log`,
+      label: "Event log",
+      icon: Database
+    },
     {
       view: "statistics",
       href: `/app/projects/${activeProject.id}/statistics`,

@@ -31,7 +31,9 @@
             ? "distributions"
             : page.url.pathname.endsWith("/custom-attributes")
               ? "custom-attributes"
-              : "statistics"
+              : page.url.pathname.endsWith("/event-log")
+                ? "event-log"
+                : "statistics"
   );
 
   $effect(() => {
