@@ -15,8 +15,6 @@ use std::collections::HashMap;
 /// How many categories of one attribute ship per Group at most, biggest first
 /// by pooled count. `Summary::Categorical.n` still counts every value.
 const SHIP_VALUES: usize = 20;
-/// How many Variants ship at most, most cases first. The census counts all.
-const SHIP_VARIANTS: usize = 500;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -38,8 +36,8 @@ pub struct VariantRow {
     pub cases: HashMap<String, i64>,
 }
 
-/// Every Variant counted, including those past `SHIP_VARIANTS`. `only` holds, per
-/// Group, the Variants no other Group follows.
+/// Every Variant counted. `only` holds, per Group, the Variants no other Group
+/// follows.
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct VariantCensus {
@@ -353,7 +351,6 @@ fn variant_rows(passes: &[GroupPass]) -> (Vec<VariantRow>, VariantCensus) {
             .cmp(&total(a))
             .then_with(|| a.activities.cmp(&b.activities))
     });
-    rows.truncate(SHIP_VARIANTS);
     (rows, census)
 }
 

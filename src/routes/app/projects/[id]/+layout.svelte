@@ -78,7 +78,7 @@
         <TourButton {project} {view} />
       {/snippet}
     </AppSidebar>
-    <Sidebar.Inset class="min-h-0">
+    <Sidebar.Inset class="min-h-0 min-w-0">
       <ProjectTopbar {project} projectView={view} />
       <FilterSummaryBar {project}>
         {#snippet actions()}

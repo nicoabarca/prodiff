@@ -14,7 +14,7 @@ export interface ResponseGroupComparison {
   hasActivityDuration: boolean;
 }
 
-/** One Variant: its activities in order, and its cases per Group. Most cases first, 500 at most. */
+/** One Variant: its activities in order, and its cases per Group. Most cases first. */
 export interface VariantRow {
   activities: string[];
   cases: Record<string, number>;
