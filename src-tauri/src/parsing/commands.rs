@@ -1,4 +1,4 @@
-use super::{analyze, column_to_strings, dtype_label, read_csv, TimestampColumnReport};
+use super::{analyze, column_to_strings, dtype_label, read_event_log, TimestampColumnReport};
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,7 +17,7 @@ pub struct EventLogPreview {
 #[tauri::command]
 pub fn preview_event_log(path: String) -> Result<EventLogPreview, String> {
     let preview_rows = 300;
-    let df = read_csv(&path, Some(preview_rows)).map_err(|e| e.to_string())?;
+    let df = read_event_log(&path, Some(preview_rows))?;
 
     let columns: Vec<ColumnPreview> = df
         .get_column_names()

@@ -1,7 +1,7 @@
 //! Full-column timestamp inspection for the mapping step.
 
 use crate::column_mapping::to_polars_format;
-use crate::parsing::read_csv;
+use crate::parsing::read_event_log;
 use polars::prelude::*;
 
 #[derive(serde::Serialize)]
@@ -49,7 +49,7 @@ pub fn analyze(
     columns: &[String],
     patterns: &[String],
 ) -> Result<Vec<TimestampColumnReport>, String> {
-    let df = read_csv(path, None).map_err(|e| e.to_string())?;
+    let df = read_event_log(path, None)?;
     let rows = df.height();
 
     columns

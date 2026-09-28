@@ -3,7 +3,7 @@ use super::importer::{
 };
 use super::storage::{delete_project_dir, project_dir_for_app, projects_dir};
 use crate::column_mapping::ColumnMapping;
-use crate::parsing::read_csv;
+use crate::parsing::read_event_log;
 
 #[tauri::command]
 pub fn create_event_log(
@@ -26,7 +26,7 @@ pub fn check_case_columns(
     if columns.is_empty() {
         return Ok(Vec::new());
     }
-    let df = read_csv(&source_path, None).map_err(|e| e.to_string())?;
+    let df = read_event_log(&source_path, None)?;
     case_column_violations(&df, &case_column, &columns)
 }
 
