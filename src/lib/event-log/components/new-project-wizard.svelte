@@ -22,6 +22,7 @@
     CaseResolution,
     ColumnScope,
     RequestColumnMapping,
+    ReadProgress,
     ResponseEventLogPreview,
     ColumnType
   } from "$lib/event-log/invokers/types";
@@ -34,6 +35,7 @@
   import ReviewStep from "$lib/event-log/components/stepper/review-step.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
+  import { Progress } from "$lib/components/ui/progress/index.js";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   let step = $state<1 | 2 | 3 | 4>(1);
@@ -43,6 +45,7 @@
   let columns = $state<{ name: string; dtype: ColumnType }[]>([]);
   let rows = $state<string[][]>([]);
   let loadError = $state<string | null>(null);
+  let readProgress = $state<ReadProgress | null>(null);
 
   let assignments = $state<Record<AssignableRole, string | null>>(emptyAssignments());
   let activeRole = $state<ColumnPick | null>("case_id");
@@ -64,6 +67,12 @@
     }
     return map;
   });
+
+  const isXes = $derived(/\.xes(\.gz)?$/i.test(fileName ?? ""));
+
+  const readPercent = $derived(
+    readProgress ? Math.floor((readProgress.read / Math.max(readProgress.total, 1)) * 100) : null
+  );
 
   const allMapped = $derived(requiredRoles.every((r) => assignments[r] !== null));
 
@@ -102,9 +111,12 @@
     filePath = path;
     fileName = name;
     loadError = null;
+    readProgress = null;
     columns = [];
     rows = [];
-    fetchEventLogPreview(path)
+    fetchEventLogPreview(path, (progress) => {
+      if (filePath === path) readProgress = progress;
+    })
       .then((preview) => {
         if (filePath !== path) return; // a newer upload started before this one resolved
         columns = preview.columns;
@@ -126,6 +138,7 @@
     columns = [];
     rows = [];
     loadError = null;
+    readProgress = null;
     assignments = emptyAssignments();
     activeRole = "case_id";
     visibleColumns = new Set();
@@ -234,7 +247,19 @@
       {:else if columns.length === 0}
         <div class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-3">
           <LoaderCircle class="size-6 animate-spin" aria-hidden="true" />
-          <p class="text-sm">Reading <span class="font-mono">{fileName}</span>…</p>
+          <p class="text-sm">
+            {readPercent === 100 ? "Preparing" : "Reading"}
+            <span class="font-mono">{fileName}</span>…
+            {#if readPercent !== null && readPercent < 100}{readPercent}%{/if}
+          </p>
+          {#if readPercent !== null}
+            <Progress value={readPercent} class="w-64" aria-label="Share of the file read" />
+          {/if}
+          {#if isXes}
+            <p class="max-w-sm text-center text-xs text-pretty">
+              XES files are converted once before mapping. A large log can take a few minutes.
+            </p>
+          {/if}
         </div>
       {:else}
         <MapColumnsStep

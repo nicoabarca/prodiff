@@ -17,11 +17,15 @@
 use crate::column_mapping::ColumnRole;
 use crate::time::millis_to_iso;
 use polars::prelude::*;
-use process_mining::core::event_data::case_centric::xes::{stream_xes_from_path, XESImportOptions};
+use process_mining::core::event_data::case_centric::xes::{stream_xes_bufread, XESImportOptions};
 use process_mining::core::event_data::case_centric::{
     Attribute, AttributeValue, Attributes, Event,
 };
 use std::collections::{HashMap, VecDeque};
+use std::fs::File;
+use std::io::{BufReader, Read};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 pub(crate) const CASE_ID_COLUMN: &str = "case:concept:name";
 pub(crate) const ACTIVITY_COLUMN: &str = "concept:name";
@@ -51,19 +55,54 @@ pub(crate) fn suggested_mapping(column: &str) -> (ColumnRole, bool) {
     (role, column.starts_with(TRACE_PREFIX))
 }
 
-/// Reads at most `n_rows` rows when given, all of them otherwise.
-pub(crate) fn read_xes(path: &str, n_rows: Option<usize>) -> Result<DataFrame, String> {
+/// A reader that counts the bytes read through it.
+struct Counted<R> {
+    inner: R,
+    read: Arc<AtomicU64>,
+}
+
+impl<R: Read> Read for Counted<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let n = self.inner.read(buf)?;
+        self.read.fetch_add(n as u64, Ordering::Relaxed);
+        Ok(n)
+    }
+}
+
+/// Reads at most `n_rows` rows when given, all of them otherwise. `progress`
+/// receives the bytes of the file read so far and the file's size, at most once
+/// per percent. For a gzipped file those are compressed bytes.
+pub(crate) fn read_xes(
+    path: &str,
+    n_rows: Option<usize>,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<DataFrame, String> {
     let options = XESImportOptions {
         sort_events_with_timestamp_key: Some(COMPLETE_TIMESTAMP_COLUMN.to_string()),
         verbose: false,
         ..Default::default()
     };
-    let (mut traces, _) = stream_xes_from_path(path, options)
+    let file = File::open(path).map_err(|e| e.to_string())?;
+    let total = file.metadata().map_err(|e| e.to_string())?.len();
+    let read = Arc::new(AtomicU64::new(0));
+    let input = BufReader::new(Counted {
+        inner: file,
+        read: Arc::clone(&read),
+    });
+    let gzipped = path.to_ascii_lowercase().ends_with(".gz");
+    let (mut traces, _) = stream_xes_bufread(input, gzipped, options)
         .map_err(|cause| format!("The XES file cannot be read: {cause:?}"))?;
 
     let mut table = Table::new();
     let limit = n_rows.unwrap_or(usize::MAX);
+    let mut reported = None;
     'traces: for (index, trace) in (&mut traces).enumerate() {
+        let so_far = read.load(Ordering::Relaxed);
+        let percent = so_far * 100 / total.max(1);
+        if reported != Some(percent) {
+            reported = Some(percent);
+            progress(so_far, total);
+        }
         let mut open: HashMap<(String, String), VecDeque<Option<i64>>> = HashMap::new();
         for event in &trace.events {
             let key = instance_key(event);
@@ -86,6 +125,7 @@ pub(crate) fn read_xes(path: &str, n_rows: Option<usize>) -> Result<DataFrame, S
     if let Some(cause) = traces.check_for_errors() {
         return Err(format!("The XES file cannot be read: {cause:?}"));
     }
+    progress(read.load(Ordering::Relaxed), total);
     table.finish()
 }
 
@@ -363,7 +403,7 @@ mod tests {
 
     fn read(xes: &str) -> DataFrame {
         let file = Scratch::new("log.xes", xes.as_bytes());
-        read_xes(file.path(), None).unwrap()
+        read_xes(file.path(), None, &mut |_, _| {}).unwrap()
     }
 
     fn strings(df: &DataFrame, name: &str) -> Vec<String> {
@@ -581,7 +621,7 @@ mod tests {
                 event("C", None, "2024-03-15T11:00:00", ""),
             ));
             let file = Scratch::new("log.xes", xes.as_bytes());
-            read_xes(file.path(), Some(2)).unwrap()
+            read_xes(file.path(), Some(2), &mut |_, _| {}).unwrap()
         };
 
         assert_eq!(strings(&df, ACTIVITY_COLUMN), ["A", "B"]);
@@ -597,15 +637,41 @@ mod tests {
         encoder.write_all(xes.as_bytes()).unwrap();
         let file = Scratch::new("log.xes.gz", &encoder.finish().unwrap());
 
-        let df = read_xes(file.path(), None).unwrap();
+        let df = read_xes(file.path(), None, &mut |_, _| {}).unwrap();
 
         assert_eq!(strings(&df, CASE_ID_COLUMN), ["c1"]);
     }
 
     #[test]
+    fn progress_climbs_to_the_whole_file() {
+        let traces: String = (0..200)
+            .map(|i| {
+                format!(
+                    r#"<trace><string key="concept:name" value="c{i}"/>{}</trace>"#,
+                    event("Submit", None, "2024-03-15T09:00:00", "")
+                )
+            })
+            .collect();
+        let xes = log(&traces);
+        let file = Scratch::new("log.xes", xes.as_bytes());
+        let mut reports = Vec::new();
+
+        read_xes(file.path(), None, &mut |read, total| {
+            reports.push((read, total))
+        })
+        .unwrap();
+
+        let size = xes.len() as u64;
+        assert!(reports.len() > 1);
+        assert!(reports.windows(2).all(|pair| pair[0].0 <= pair[1].0));
+        assert!(reports.iter().all(|&(_, total)| total == size));
+        assert_eq!(reports.last(), Some(&(size, size)));
+    }
+
+    #[test]
     fn a_file_that_is_not_xes_fails() {
         let file = Scratch::new("log.xes", b"Case,Activity\n1,A\n");
-        assert!(read_xes(file.path(), None).is_err());
+        assert!(read_xes(file.path(), None, &mut |_, _| {}).is_err());
     }
 
     #[test]

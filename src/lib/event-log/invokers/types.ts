@@ -54,6 +54,12 @@ export interface ResponseCaseColumnViolation {
   exampleValues: string[];
 }
 
+/** How much of an upload has been read, in bytes of the file. */
+export interface ReadProgress {
+  read: number;
+  total: number;
+}
+
 /** The mapping a file states for one of its columns, where its format states one. */
 export interface ColumnSuggestion {
   role: ColumnRole;

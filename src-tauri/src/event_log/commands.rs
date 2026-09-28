@@ -3,30 +3,36 @@ use super::importer::{
 };
 use super::storage::{delete_project_dir, project_dir_for_app, projects_dir};
 use crate::column_mapping::ColumnMapping;
+use crate::parsing::commands::off_main_thread;
 use crate::parsing::draft::{drafts_dir, read_upload};
 use std::path::Path;
 
 #[tauri::command]
-pub fn create_event_log(
+pub async fn create_event_log(
     app: tauri::AppHandle,
     project_id: String,
     source_path: String,
     columns: Vec<ColumnMapping>,
 ) -> Result<CreateEventLogResult, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    let df = read_upload(&drafts_dir(&app)?, &source_path, None)?;
-    import_frame(&dir, &source_path, df, &columns, &[]).map(|imported| imported.event_log)
+    let drafts = drafts_dir(&app)?;
+    off_main_thread(move || {
+        let df = read_upload(&drafts, &source_path, None, &mut |_, _| {})?;
+        import_frame(&dir, &source_path, df, &columns, &[]).map(|imported| imported.event_log)
+    })
+    .await
 }
 
 /// Only the violating columns come back.
 #[tauri::command]
-pub fn check_case_columns(
+pub async fn check_case_columns(
     app: tauri::AppHandle,
     source_path: String,
     case_column: String,
     columns: Vec<String>,
 ) -> Result<Vec<CaseColumnViolation>, String> {
-    violations(&drafts_dir(&app)?, &source_path, &case_column, &columns)
+    let drafts = drafts_dir(&app)?;
+    off_main_thread(move || violations(&drafts, &source_path, &case_column, &columns)).await
 }
 
 fn violations(
@@ -38,7 +44,7 @@ fn violations(
     if columns.is_empty() {
         return Ok(Vec::new());
     }
-    let df = read_upload(drafts_dir, source_path, None)?;
+    let df = read_upload(drafts_dir, source_path, None, &mut |_, _| {})?;
     case_column_violations(&df, case_column, columns)
 }
 

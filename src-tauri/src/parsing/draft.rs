@@ -32,7 +32,11 @@ fn draft_path(drafts_dir: &Path, source_path: &str) -> Result<PathBuf, String> {
 }
 
 /// The draft of an XES upload, written first when it does not exist yet.
-fn written_draft(drafts_dir: &Path, source_path: &str) -> Result<PathBuf, String> {
+fn written_draft(
+    drafts_dir: &Path,
+    source_path: &str,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Result<PathBuf, String> {
     let path = draft_path(drafts_dir, source_path)?;
     let _writing = WRITING
         .lock()
@@ -40,7 +44,7 @@ fn written_draft(drafts_dir: &Path, source_path: &str) -> Result<PathBuf, String
     if path.exists() {
         return Ok(path);
     }
-    let mut df = read_xes(source_path, None)?;
+    let mut df = read_xes(source_path, None, progress)?;
     fs::create_dir_all(drafts_dir).map_err(|e| e.to_string())?;
     let partial = path.with_extension("parquet.partial");
     let file = fs::File::create(&partial).map_err(|e| e.to_string())?;
@@ -52,16 +56,17 @@ fn written_draft(drafts_dir: &Path, source_path: &str) -> Result<PathBuf, String
 }
 
 /// Reads an upload the way the new-project flow sees it, at most `n_rows` rows
-/// when given.
+/// when given. `progress` hears from the XES reader while a draft is written.
 pub(crate) fn read_upload(
     drafts_dir: &Path,
     source_path: &str,
     n_rows: Option<usize>,
+    progress: &mut dyn FnMut(u64, u64),
 ) -> Result<DataFrame, String> {
     if !is_xes_path(source_path) {
         return read_event_log(source_path, n_rows);
     }
-    let path = written_draft(drafts_dir, source_path)?;
+    let path = written_draft(drafts_dir, source_path, progress)?;
     let file = fs::File::open(&path).map_err(|e| e.to_string())?;
     let df = ParquetReader::new(file)
         .finish()
@@ -148,8 +153,8 @@ mod tests {
         let scratch = Scratch::new();
         let source = scratch.write("log.xes", &xes(&["A", "B", "C"]));
 
-        let head = read_upload(&scratch.drafts(), &source, Some(2)).unwrap();
-        let all = read_upload(&scratch.drafts(), &source, None).unwrap();
+        let head = read_upload(&scratch.drafts(), &source, Some(2), &mut |_, _| {}).unwrap();
+        let all = read_upload(&scratch.drafts(), &source, None, &mut |_, _| {}).unwrap();
 
         assert_eq!(
             column_to_strings(&head, "concept:name").unwrap(),
@@ -163,12 +168,12 @@ mod tests {
     fn an_edited_upload_is_read_again() {
         let scratch = Scratch::new();
         let source = scratch.write("log.xes", &xes(&["A"]));
-        read_upload(&scratch.drafts(), &source, None).unwrap();
+        read_upload(&scratch.drafts(), &source, None, &mut |_, _| {}).unwrap();
 
         scratch.write("log.xes", &xes(&["A", "B"]));
 
         assert_eq!(
-            read_upload(&scratch.drafts(), &source, None)
+            read_upload(&scratch.drafts(), &source, None, &mut |_, _| {})
                 .unwrap()
                 .height(),
             2
@@ -180,7 +185,7 @@ mod tests {
         let scratch = Scratch::new();
         let source = scratch.write("log.csv", "case,activity\n1,A\n");
 
-        read_upload(&scratch.drafts(), &source, None).unwrap();
+        read_upload(&scratch.drafts(), &source, None, &mut |_, _| {}).unwrap();
 
         assert_eq!(scratch.draft_count(), 0);
     }
@@ -189,7 +194,7 @@ mod tests {
     fn discarding_removes_the_draft_of_that_upload() {
         let scratch = Scratch::new();
         let source = scratch.write("log.xes", &xes(&["A"]));
-        read_upload(&scratch.drafts(), &source, None).unwrap();
+        read_upload(&scratch.drafts(), &source, None, &mut |_, _| {}).unwrap();
 
         discard(&scratch.drafts(), &source).unwrap();
 
@@ -201,7 +206,7 @@ mod tests {
     fn clearing_removes_every_draft() {
         let scratch = Scratch::new();
         let source = scratch.write("log.xes", &xes(&["A"]));
-        read_upload(&scratch.drafts(), &source, None).unwrap();
+        read_upload(&scratch.drafts(), &source, None, &mut |_, _| {}).unwrap();
 
         clear(&scratch.drafts()).unwrap();
 

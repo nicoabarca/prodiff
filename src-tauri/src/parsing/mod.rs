@@ -15,7 +15,7 @@ pub(crate) fn read_event_log(
     n_rows: Option<usize>,
 ) -> Result<polars::prelude::DataFrame, String> {
     if xes::is_xes_path(path) {
-        xes::read_xes(path, n_rows)
+        xes::read_xes(path, n_rows, &mut |_, _| {})
     } else {
         csv::read_csv(path, n_rows).map_err(|e| e.to_string())
     }
