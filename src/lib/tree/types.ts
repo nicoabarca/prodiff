@@ -46,7 +46,7 @@ export const defaultTreeView: TreeView = {
   secondary: "cases",
   focus: "all",
   edgeLabels: true,
-  shading: true
+  shading: false
 };
 
 /** How big a difference is, in words. */
