@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Summary } from "$lib/analysis/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
-import { shadeScale, shadeValue } from "$lib/tree/utils/flow";
+import { edgeWaits, shadeScale, shadeValue } from "$lib/tree/utils/flow";
 
 const ids = ["a", "b"];
 
@@ -81,5 +81,34 @@ describe("shadeScale", () => {
 
   it("spreads any other attribute linearly", () => {
     expect(shadeScale("Amount", ids)).toBe("linear");
+  });
+});
+
+describe("edgeWaits", () => {
+  const groups = [
+    { id: "a", name: "Approved", color: "group-2" },
+    { id: "b", name: "Rejected", color: "group-6" }
+  ];
+
+  it("gives each Group's mean wait its colour, never its name", () => {
+    const transitionTime = {
+      summaries: { a: numerical(60_000, 2), b: numerical(3_600_000, 1) },
+      test: null
+    };
+    expect(edgeWaits(node({ transitionTime }), groups)).toEqual([
+      { id: "a", color: "group-2", value: "1m 0s" },
+      { id: "b", color: "group-6", value: "1h 0m" }
+    ]);
+  });
+
+  it("leaves out a Group with no wait here", () => {
+    const transitionTime = { summaries: { b: numerical(60_000, 1) }, test: null };
+    expect(edgeWaits(node({ transitionTime }), groups)).toEqual([
+      { id: "b", color: "group-6", value: "1m 0s" }
+    ]);
+  });
+
+  it("is empty without Transition Time", () => {
+    expect(edgeWaits(node(), groups)).toEqual([]);
   });
 });

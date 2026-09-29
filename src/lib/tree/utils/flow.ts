@@ -154,23 +154,30 @@ export interface FlowOptions {
   onToggleCollapse: (id: number) => void;
 }
 
+/** One Group's mean Transition Time on an edge, drawn beside a dot in its colour. */
+export interface EdgeWait {
+  id: string;
+  color: string;
+  value: string;
+}
+
+export interface TreeEdgeData {
+  waits: EdgeWait[];
+  [key: string]: unknown;
+}
+
 /**
- * The edge's label: mean Transition Time per Group. A single Group carries no
- * name, only its figure. Empty unless Transition Time was one of the
- * attributes built.
+ * The edge's label: mean Transition Time per Group, in the order compared.
+ * Empty unless Transition Time was one of the attributes built.
  */
-function edgeLabel(node: TreeNode, groups: FlowGroup[]): string | undefined {
+export function edgeWaits(node: TreeNode, groups: FlowGroup[]): EdgeWait[] {
   const block = node.transitionTime;
-  if (!block) return undefined;
-  const parts = groups
-    .map((group) => {
-      const summary = block.summaries[group.id];
-      if (summary?.type !== "numerical") return null;
-      const value = formatDuration(summary.mean);
-      return groups.length === 1 ? value : `${group.name} ${value}`;
-    })
-    .filter(Boolean);
-  return parts.length > 0 ? parts.join(" · ") : undefined;
+  if (!block) return [];
+  return groups.flatMap((group) => {
+    const summary = block.summaries[group.id];
+    if (summary?.type !== "numerical") return [];
+    return [{ id: group.id, color: group.color, value: formatDuration(summary.mean) }];
+  });
 }
 
 /**
@@ -256,8 +263,10 @@ export function toFlow(
       id: `${keys.get(node.parent as number)}->${keys.get(node.id)}`,
       source: keys.get(node.parent as number) as string,
       target: keys.get(node.id) as string,
-      type: "smoothstep",
-      label: options.edgeLabels ? edgeLabel(node, options.groups) : undefined,
+      type: "wait",
+      data: {
+        waits: options.edgeLabels ? edgeWaits(node, options.groups) : []
+      } satisfies TreeEdgeData,
       labelStyle: dimmed(node, options.focus, ids)
         ? `${EDGE_LABEL_STYLE};opacity:0.25`
         : EDGE_LABEL_STYLE,

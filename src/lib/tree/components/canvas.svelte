@@ -4,6 +4,7 @@
   import "@xyflow/svelte/dist/style.css";
   import ExportImage from "$lib/components/flow-export/export-image.svelte";
   import ActivityNode from "$lib/tree/components/node.svelte";
+  import WaitEdge from "$lib/tree/components/edge.svelte";
   import ViewportAnchor, {
     type ViewportAnchorState
   } from "$lib/tree/components/viewport-anchor.svelte";
@@ -32,6 +33,7 @@
   const ACCENT_MS = 1200;
 
   const nodeTypes = { activity: ActivityNode };
+  const edgeTypes = { wait: WaitEdge };
   // Narrowed after the Variant and collapse rules have run: `cases` still covers
   // every surviving path, so the counts on the nodes that remain are unchanged.
   const visible = $derived.by(() => {
@@ -225,6 +227,7 @@
     bind:nodes
     bind:edges
     {nodeTypes}
+    {edgeTypes}
     fitView
     minZoom={0.05}
     nodesDraggable={false}
