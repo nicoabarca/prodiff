@@ -1,5 +1,12 @@
 <script lang="ts">
-  import { SvelteFlow, Background, Controls, type Edge, type Node } from "@xyflow/svelte";
+  import {
+    SvelteFlow,
+    Background,
+    Controls,
+    type Edge,
+    type FitViewOptions,
+    type Node
+  } from "@xyflow/svelte";
   import "@xyflow/svelte/dist/style.css";
   import ExportImage from "$lib/components/flow-export/export-image.svelte";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
@@ -162,6 +169,22 @@
   });
 
   let exporting = $state(false);
+
+  // The simplification knobs and Svelte Flow's own Controls are drawn inside the
+  // flow's box, so a fit that only knows the box centres the graph underneath
+  // them. Insetting each side by what covers it leaves the graph in the part
+  // the user can actually see. Padding is in the CSS pixels Svelte Flow expects.
+  const FIT_MARGIN = 24;
+  const FLOW_CONTROLS_WIDTH = 52;
+  let knobsWidth = $state(0);
+  const fitViewOptions: FitViewOptions = $derived({
+    padding: {
+      top: `${FIT_MARGIN}px`,
+      right: `${knobsWidth + FIT_MARGIN}px`,
+      bottom: `${FIT_MARGIN}px`,
+      left: `${FLOW_CONTROLS_WIDTH + FIT_MARGIN}px`
+    }
+  });
 </script>
 
 <div class="relative min-h-0 flex-1 {stale ? 'opacity-60' : ''}">
@@ -176,6 +199,7 @@
     {nodeTypes}
     {edgeTypes}
     fitView
+    {fitViewOptions}
     minZoom={0.05}
     nodesDraggable={false}
     elementsSelectable={false}
@@ -184,10 +208,10 @@
     onpaneclick={() => (selected.id = null)}
   >
     <Background />
-    <Controls showLock={false}>
+    <Controls showLock={false} {fitViewOptions}>
       <ExportImage name="directly-follows-graph" bind:exporting />
     </Controls>
   </SvelteFlow>
 
-  <SimplificationControls {simplified} />
+  <SimplificationControls {simplified} bind:width={knobsWidth} />
 </div>

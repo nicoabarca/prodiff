@@ -4,7 +4,10 @@
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import { formatNumber } from "$lib/format";
 
-  let { simplified }: { simplified: Simplified } = $props();
+  let {
+    simplified,
+    width = $bindable(0)
+  }: { simplified: Simplified; width?: number } = $props();
 
   /**
    * What the top slider reports is what it bought, not where it sits: shapes
@@ -18,6 +21,7 @@
 </script>
 
 <div
+  bind:clientWidth={width}
   data-tour="simplification-controls"
   class="border-border bg-background/90 absolute top-4 right-4 z-10 flex gap-5 rounded-[0.5rem] border px-4 py-3 backdrop-blur"
 >
