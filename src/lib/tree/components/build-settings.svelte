@@ -10,7 +10,7 @@
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
   import type { Project } from "$lib/event-log/types";
-  import SettingField from "$lib/tree/components/setting-field.svelte";
+  import SettingField from "$lib/components/layout/setting-field.svelte";
   import FlaskConical from "@lucide/svelte/icons/flask-conical";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();

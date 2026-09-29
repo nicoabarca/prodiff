@@ -5,7 +5,7 @@
    * rebuild, so these controls stay usable while one runs.
    */
   import { Button } from "$lib/components/ui/button/index.js";
-  import SettingField from "$lib/tree/components/setting-field.svelte";
+  import SettingField from "$lib/components/layout/setting-field.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";

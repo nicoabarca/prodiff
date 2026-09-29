@@ -4,7 +4,7 @@
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, settings, variants, view } from "$lib/tree/state/tree.svelte";
   import { totalCases, visibleNodes } from "$lib/tree/utils/tree";
-  import SettingField from "$lib/tree/components/setting-field.svelte";
+  import SettingField from "$lib/components/layout/setting-field.svelte";
   import Route from "@lucide/svelte/icons/route";
 
   let {

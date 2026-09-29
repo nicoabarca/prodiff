@@ -1,31 +1,35 @@
 <script lang="ts">
   /**
-   * The tree's settings as a row of fields: what is compared, which Variants,
+   * The graph's settings as a row of fields: what is compared, which Variants,
    * which attributes are tested, and how the result is drawn.
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
+  import SettingField from "$lib/components/layout/setting-field.svelte";
   import CompareDialog from "$lib/groups/components/compare-dialog.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { Project } from "$lib/event-log/types";
-  import { colorVar } from "$lib/format";
-  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import BuildSettings from "$lib/tree/components/build-settings.svelte";
-  import SettingField from "$lib/components/layout/setting-field.svelte";
-  import VariantSummary from "$lib/tree/components/variant-summary.svelte";
-  import VisualizationSettings from "$lib/tree/components/visualization-settings.svelte";
+  import { colorVar, formatNumber } from "$lib/format";
+  import type { ResponseDfg } from "$lib/dfg/invokers/types";
+  import BuildSettings from "$lib/dfg/components/build-settings.svelte";
+  import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
+  import VisualizationSettings from "$lib/dfg/components/visualization-settings.svelte";
   import GitCompare from "@lucide/svelte/icons/git-compare";
 
   let {
     project,
-    tree,
+    graph,
     error,
+    building,
+    stale,
     variantsOpen = $bindable(false),
     buildSettingsOpen = $bindable(false),
     comparing = $bindable(false)
   }: {
     project: Project;
-    tree: ResponseDirectedTree | null;
+    graph: ResponseDfg | null;
     error: string | null;
+    building: boolean;
+    stale: boolean;
     variantsOpen?: boolean;
     buildSettingsOpen?: boolean;
     comparing?: boolean;
@@ -58,18 +62,28 @@
       <Badge>+ Add a group</Badge>
     {/if}
   </SettingField>
-  <VariantSummary {tree} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
+  <VariantSummary {graph} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
   <BuildSettings {project} bind:open={buildSettingsOpen} />
 
-  <div class="flex min-w-0 flex-1 items-center px-3">
+  <div class="flex min-w-0 flex-1 items-center gap-3 px-3">
     {#if error}
       <p class="text-destructive truncate text-xs" title={error}>{error}</p>
+    {:else if stale && building}
+      <p class="text-muted-foreground text-xs">Rebuilding…</p>
+    {/if}
+    {#if graph && graph.overlapCases > 0}
+      <p class="text-muted-foreground truncate text-xs">
+        {formatNumber(graph.overlapCases)} cases in both groups
+      </p>
+    {/if}
+    {#if graph?.skippedCaseLevel.length}
+      <p class="text-muted-foreground truncate text-xs">
+        Case-level attributes left out: {graph.skippedCaseLevel.join(", ")}
+      </p>
     {/if}
   </div>
 
-  {#if tree}
-    <VisualizationSettings {tree} />
-  {/if}
+  <VisualizationSettings />
 </div>
 
 <CompareDialog {project} bind:open={comparing} />

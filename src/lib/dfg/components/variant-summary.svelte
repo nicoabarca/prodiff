@@ -5,7 +5,8 @@
   import { selectedVariants, variants } from "$lib/dfg/state/variants.svelte";
   import { view } from "$lib/dfg/state/view.svelte";
   import { simplify } from "$lib/dfg/utils/simplify";
-  import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import SettingField from "$lib/components/layout/setting-field.svelte";
+  import Route from "@lucide/svelte/icons/route";
 
   let {
     graph,
@@ -33,38 +34,27 @@
   const selected = $derived(selectedVariants().size);
 </script>
 
-<button
-  class="hover:bg-accent -mx-2 flex min-w-0 cursor-pointer items-center gap-2 rounded-md px-2 py-1 text-left"
+<SettingField
+  icon={Route}
+  caption="Variants"
+  class="shrink-0"
+  {open}
   aria-pressed={open}
+  title={onScreen
+    ? `${formatNumber(onScreen.casesShown)} of ${formatNumber(onScreen.total)} cases`
+    : undefined}
   onclick={onToggle}
 >
-  <span class="flex flex-col gap-0.5">
-    {#if onScreen}
-      <span class="flex items-baseline gap-2 whitespace-nowrap">
-        <span class="text-base leading-none font-semibold tabular-nums">
-          {formatNumber(onScreen.variantsShown)} of {formatNumber(onScreen.variantsTotal)} variants
-        </span>
-        <span class="text-muted-foreground text-xs tabular-nums">
-          {onScreen.share}% of cases
-        </span>
-      </span>
-      <span class="text-muted-foreground text-[0.625rem]">
-        {formatNumber(onScreen.casesShown)} of {formatNumber(onScreen.total)} cases
-      </span>
-    {:else if selected > 0}
-      <span class="text-base leading-none font-semibold tabular-nums">
-        {formatNumber(selected)}
-        {#if variants.rows.length > 0}
-          of {formatNumber(variants.rows.length)}
-        {/if}
-        variants selected
-      </span>
-      <span class="text-muted-foreground text-[0.625rem]">No graph built yet</span>
-    {:else}
-      <span class="text-base leading-none font-semibold">Select variants</span>
+  {#if onScreen}
+    {formatNumber(onScreen.variantsShown)} of {formatNumber(onScreen.variantsTotal)}
+    <span class="text-muted-foreground font-normal">{onScreen.share}% of cases</span>
+  {:else if selected > 0}
+    {formatNumber(selected)}
+    {#if variants.rows.length > 0}
+      of {formatNumber(variants.rows.length)}
     {/if}
-  </span>
-  <ChevronDown
-    class="text-muted-foreground size-4 shrink-0 transition-transform {open ? 'rotate-180' : ''}"
-  />
-</button>
+    <span class="text-muted-foreground font-normal">selected · no graph yet</span>
+  {:else}
+    Select variants
+  {/if}
+</SettingField>
