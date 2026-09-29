@@ -6,7 +6,7 @@
 import { formatDuration, formatNumber } from "$lib/format";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { FaceGroup, Measure } from "$lib/dfg/types";
+import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
@@ -28,6 +28,19 @@ export function faceCounts(
       return [group.id, value === 0 ? null : formatNumber(value)];
     })
   );
+}
+
+/**
+ * The figure a node's shade is drawn from: its union across the Groups in the
+ * measure shown. `null` for Start and End, and where nothing reached it.
+ */
+export function shadeValue(
+  node: { kind: NodeKind; counts: Record<string, Counts> },
+  measure: Measure
+): number | null {
+  if (node.kind !== "activity") return null;
+  const total = unionCount(node.counts, measure);
+  return total === 0 ? null : total;
 }
 
 /** Edge thickness, between 1.5 and 8, scaled against the busiest edge drawn. */

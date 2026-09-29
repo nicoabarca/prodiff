@@ -57,6 +57,7 @@ export interface DfgNodeData {
   kind: NodeKind;
   groups: FaceGroup[];
   counts: Record<string, string | null>;
+  shadeStep: number | null;
   findings: number;
   membership: string | null;
   selected: boolean;

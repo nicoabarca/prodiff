@@ -9,14 +9,9 @@ import type { EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { isDurationAttribute } from "$lib/analysis/attributes";
 import { layoutTree } from "$lib/tree/utils/layout";
-import {
-  children,
-  groupCasesAt,
-  groupIds,
-  isDivergent,
-  membership
-} from "$lib/tree/utils/tree";
+import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
 import { formatDuration, formatNumber } from "$lib/format";
+import { pooledMean, shadeSteps, type ShadeScale } from "$lib/groups/utils/shade";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
 // lines inside it.
@@ -58,6 +53,7 @@ export interface TreeNodeData {
   membership: string;
   groups: FlowGroup[];
   secondaries: (string | null)[];
+  shadeStep: number | null;
   significantCount: number;
   peakBand: EffectBand | null;
   peakStep: 1 | 2 | 3 | 4 | null;
@@ -108,6 +104,41 @@ function secondaryLabels(
   });
 }
 
+/**
+ * The figure a node's shade is drawn from, following `secondary` as the face
+ * does: the cases shown summed over the Groups, one Group's cases, or an
+ * attribute's mean pooled over the Groups by their case counts. `null` for the
+ * Start root and wherever the face has nothing to show.
+ */
+export function shadeValue(
+  node: TreeNode,
+  secondary: Secondary,
+  cases: Record<string, number>,
+  ids: string[]
+): number | null {
+  if (node.parent === null) return null;
+  if (secondary === "cases" || ids.includes(secondary)) {
+    const counted = secondary === "cases" ? ids : [secondary];
+    const total = counted.reduce((sum, id) => sum + (cases[id] ?? 0), 0);
+    return total === 0 ? null : total;
+  }
+  const block = secondary === "Transition Time" ? node.transitionTime : node.eventLevel[secondary];
+  return pooledMean(
+    ids.flatMap((id) => {
+      const summary = block?.summaries[id];
+      return summary?.type === "numerical" ? [{ mean: summary.mean, n: summary.n }] : [];
+    })
+  );
+}
+
+/** Counts and durations spread on a log scale, any other attribute linearly. */
+export function shadeScale(secondary: Secondary, ids: string[]): ShadeScale {
+  if (secondary === "cases" || ids.includes(secondary) || isDurationAttribute(secondary)) {
+    return "log";
+  }
+  return "linear";
+}
+
 function dimmed(node: TreeNode, focus: GroupFocus, ids: string[]): boolean {
   if (focus === "all") return false;
   return membership(node, ids) !== focus;
@@ -118,6 +149,7 @@ export interface FlowOptions {
   secondary: Secondary;
   focus: GroupFocus;
   edgeLabels: boolean;
+  shading: boolean;
   selected: number | null;
   onToggleCollapse: (id: number) => void;
 }
@@ -170,6 +202,14 @@ export function toFlow(
   });
 
   const busiest = Math.max(1, ...casesById.values());
+  const steps = new Map(
+    shadeSteps(
+      shown.map((node) =>
+        shadeValue(node, options.secondary, visible.cases.get(node.id) ?? {}, ids)
+      ),
+      shadeScale(options.secondary, ids)
+    ).map((step, index) => [shown[index].id, step])
+  );
   // The Start root is synthetic, so the edges leaving it are drawn dashed.
   const roots = new Set(shown.filter((node) => node.parent === null).map((node) => node.id));
 
@@ -193,6 +233,7 @@ export function toFlow(
         membership: membership(node, ids),
         groups: options.groups,
         secondaries,
+        shadeStep: options.shading ? (steps.get(node.id) ?? null) : null,
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),

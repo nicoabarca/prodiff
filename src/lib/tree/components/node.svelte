@@ -5,6 +5,7 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Split from "@lucide/svelte/icons/split";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
+  import { shade } from "$lib/groups/utils/shade";
 
   let { id, data }: { id: string; data: TreeNodeData } = $props();
 
@@ -13,9 +14,7 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const accentVar = $derived(`--${accent}`);
-  const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
-  const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
+  const shaded = $derived(shade(accent, data.shadeStep));
 </script>
 
 <Handle type="target" position={Position.Top} style="opacity:0" isConnectable={false} />
@@ -55,16 +54,16 @@
       : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
       ? 'tree-node-exit pointer-events-none'
       : ''}"
-    style="background:{fill};border-color:{data.divergent
+    style="background:{shaded.fill};border-color:{data.divergent
       ? 'var(--destructive)'
-      : border};transition-duration:var(--tree-dim-duration)"
+      : shaded.border};transition-duration:var(--tree-dim-duration)"
   >
     <div class="flex w-full items-start justify-center gap-1">
       <Tooltip.Root>
         <Tooltip.Trigger class="min-w-0 text-center">
           <span
             class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
-            style="color:var({accentVar})"
+            style="color:{shaded.ink ?? `var(--${accent})`}"
           >
             {data.label}
           </span>
@@ -84,7 +83,18 @@
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
       {#each data.groups as group, index (group.id)}
         {#if data.secondaries[index] !== null && data.secondaries[index] !== undefined}
-          <span style="color:var(--{group.color})">{data.secondaries[index]}</span>
+          <span
+            class="flex items-center gap-1"
+            style="color:{shaded.ink ?? `var(--${group.color})`}"
+          >
+            {#if shaded.ink}
+              <span
+                class="size-1.5 rounded-full ring-1 ring-white/70"
+                style="background:var(--{group.color})"
+              ></span>
+            {/if}
+            {data.secondaries[index]}
+          </span>
         {/if}
       {/each}
     </div>
@@ -98,8 +108,8 @@
           {data.significantCount}
         </Tooltip.Trigger>
         <Tooltip.Content>
-          {data.significantCount} significant difference{data.significantCount === 1 ? "" : "s"} here ·
-          strongest is {data.peakBand}
+          {data.significantCount} significant difference{data.significantCount === 1 ? "" : "s"} here
+          · strongest is {data.peakBand}
         </Tooltip.Content>
       </Tooltip.Root>
     {/if}

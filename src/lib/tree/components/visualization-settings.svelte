@@ -145,6 +145,19 @@
         </span>
       </label>
 
+      <label class="flex items-start gap-2 text-xs">
+        <Checkbox
+          checked={view.shading}
+          onCheckedChange={(checked) => (view.shading = checked === true)}
+        />
+        <span>
+          Shade nodes by what they show
+          <span class="text-muted-foreground block text-[0.625rem]">
+            Darker nodes carry more, lighter ones less.
+          </span>
+        </span>
+      </label>
+
       <Tooltip.Root>
         <Tooltip.Trigger>
           {#snippet child({ props })}

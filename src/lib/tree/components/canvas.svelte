@@ -71,6 +71,7 @@
       secondary: hasAttributes ? view.secondary : "cases",
       focus: view.focus,
       edgeLabels: view.edgeLabels,
+      shading: view.shading,
       selected: selected.id,
       onToggleCollapse: toggleCollapse
     })
