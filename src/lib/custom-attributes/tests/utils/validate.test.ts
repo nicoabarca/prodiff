@@ -73,6 +73,8 @@ describe("nameError", () => {
     ["EXPENSE", "A column is already called EXPENSE"],
     ["secret", "A column is already called secret"],
     ["transition time", "transition time is a built-in attribute"],
+    ["waiting time", "waiting time is a built-in attribute"],
+    ["Service Time", "Service Time is a built-in attribute"],
     ["Paid Share", "Another custom attribute is already called Paid Share"]
   ])("rejects %j", (name, error) => {
     expect(nameError(name, project, others, null)).toBe(error);

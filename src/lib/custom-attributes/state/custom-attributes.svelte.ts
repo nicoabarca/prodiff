@@ -14,6 +14,7 @@ import { draftOf } from "$lib/custom-attributes/state/drafts.svelte";
 import { parseFormula } from "$lib/custom-attributes/utils/parser";
 import { referencedColumns } from "$lib/custom-attributes/utils/validate";
 import type { Project } from "$lib/event-log/types";
+import { builtInLabel } from "$lib/analysis/attributes";
 
 /** The loaded project's Custom Attributes, in position order. */
 export const customAttributes = $state<CustomAttribute[]>([]);
@@ -60,9 +61,12 @@ export function isCustomAttribute(name: string): boolean {
   return attributeOf(name) !== undefined;
 }
 
-/** What the user sees for an attribute: a Custom Attribute's name, or the name itself. */
+/**
+ * What the user sees for an attribute: a Custom Attribute's name, a derived
+ * attribute's label, or the name itself.
+ */
 export function attributeLabel(name: string): string {
-  return attributeOf(name)?.name ?? name;
+  return attributeOf(name)?.name ?? builtInLabel(name);
 }
 
 /**
