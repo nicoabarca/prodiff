@@ -21,7 +21,11 @@
   d={edge.head}
   fill={edge.highlighted ? "var(--color-indigo-500)" : "var(--muted-foreground)"}
   stroke="none"
-  class={edge.boundary && !edge.highlighted ? "opacity-60" : undefined}
+  class={edge.unreached
+    ? "opacity-30"
+    : edge.boundary && !edge.highlighted
+      ? "opacity-60"
+      : undefined}
 />
 
 {#if edge.label}

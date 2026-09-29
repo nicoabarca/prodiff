@@ -23,18 +23,30 @@ export interface Rect {
   height: number;
 }
 
+/** What one canvas is simplified to. The single view and a split's left panel
+    read `coverage`/`paths`; the right panel reads the `right*` pair. */
 export interface DfgView {
   coverage: number;
   paths: number;
+  rightCoverage: number;
+  rightPaths: number;
+  syncCoverage: boolean;
+  syncPaths: boolean;
   measure: Measure;
   direction: Direction;
+  split: boolean;
 }
 
 export const defaultDfgView: DfgView = {
   coverage: 0.8,
   paths: 1,
+  rightCoverage: 0.8,
+  rightPaths: 1,
+  syncCoverage: true,
+  syncPaths: true,
   measure: "cases",
-  direction: "TB"
+  direction: "TB",
+  split: false
 };
 
 /**
@@ -64,6 +76,11 @@ export interface FaceGroup {
   color: string;
 }
 
+/**
+ * `focus` names the one Group a split panel prints; `null` is the comparative
+ * canvas, which prints every Group it was given. `exclusive` marks an activity
+ * only that Group reaches, which is what a split is read for.
+ */
 export interface DfgNodeData {
   label: string;
   kind: NodeKind;
@@ -72,8 +89,10 @@ export interface DfgNodeData {
   shadeStep: number | null;
   findings: number;
   membership: string | null;
+  exclusive: boolean;
   selected: boolean;
   direction: Direction;
+  focus: string | null;
   [key: string]: unknown;
 }
 

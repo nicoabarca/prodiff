@@ -26,7 +26,22 @@
   import { colorVar, formatNumber } from "$lib/format";
   import Split from "@lucide/svelte/icons/split";
 
-  let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
+  /**
+   * `onSplit` and `splitting` come from the view that can draw a split, so this
+   * dialog stays free of any one view's state. A view that passes neither gets
+   * the dialog without the button.
+   */
+  let {
+    project,
+    open = $bindable(false),
+    onSplit,
+    splitting = false
+  }: {
+    project: Project;
+    open?: boolean;
+    onSplit?: (on: boolean) => void;
+    splitting?: boolean;
+  } = $props();
 
   /** Only applied Groups can be compared: an unapplied one has no cases on disk yet. */
   const options = $derived([originalGroup(project.id), ...groups.filter(isApplied)]);
@@ -52,6 +67,15 @@
   const second = $derived(options.find((group) => group.id === secondId) ?? null);
 
   const both = $derived(first && second ? [first, second] : null);
+
+  /** Already split on exactly this pair, so Split has nothing left to do. */
+  const unchanged = $derived(
+    splitting &&
+      both !== null &&
+      comparison.groupIds.length === 2 &&
+      comparison.groupIds[0] === firstId &&
+      comparison.groupIds[1] === secondId
+  );
   const shared = $derived(both ? sharedCases(both) : null);
 
   $effect(() => {
@@ -65,6 +89,13 @@
 
   function apply() {
     saveComparison(project.id, second ? [firstId, secondId] : [firstId]);
+    open = false;
+  }
+
+  /** Saves the comparison the way Compare does, and turns the split on with it. */
+  function split(on: boolean) {
+    saveComparison(project.id, on && second ? [firstId, secondId] : [firstId]);
+    onSplit?.(on);
     open = false;
   }
 
@@ -140,9 +171,27 @@
     </Dialog.Header>
 
     <div class="grid gap-3 sm:grid-cols-2">
-      {@render picker("Group", firstId, (next) => (firstId = next), secondId)}
-      {@render picker("Against", secondId, (next) => (secondId = next), firstId, true)}
+      {@render picker(splitting ? "Left" : "Group", firstId, (next) => (firstId = next), secondId)}
+      {@render picker(
+        splitting ? "Right" : "Against",
+        secondId,
+        (next) => (secondId = next),
+        firstId,
+        true
+      )}
     </div>
+
+    {#if onSplit && !both}
+      <p class="text-muted-foreground text-xs">
+        {splitting
+          ? "A split needs two groups. Picking one group on its own ends it."
+          : "A split needs two groups, one to a panel."}
+      </p>
+    {:else if unchanged}
+      <p class="text-muted-foreground text-xs">
+        These two are the ones already split. Pick a different group to split again.
+      </p>
+    {/if}
 
     {#if both}
       <div class="border-border flex flex-col gap-2 border p-3">
@@ -182,6 +231,22 @@
 
     <Dialog.Footer>
       <Button variant="ghost" onclick={() => (open = false)}>Cancel</Button>
+      {#if onSplit}
+        {#if splitting}
+          <Button variant="outline" disabled={building} onclick={() => split(false)}>
+            <Split data-icon="inline-start" />
+            Stop split
+          </Button>
+        {/if}
+        <Button
+          variant="outline"
+          disabled={building || !both || unchanged}
+          onclick={() => split(true)}
+        >
+          <Split data-icon="inline-start" />
+          Split
+        </Button>
+      {/if}
       <Button disabled={building} onclick={apply}>Compare</Button>
     </Dialog.Footer>
   </Dialog.Content>

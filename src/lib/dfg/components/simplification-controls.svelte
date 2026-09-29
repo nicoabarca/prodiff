@@ -1,13 +1,16 @@
 <script lang="ts">
   import { Slider } from "$lib/components/ui/slider/index.js";
-  import { view } from "$lib/dfg/state/view.svelte";
+  import { knobs, setCoverage, setPaths } from "$lib/dfg/state/view.svelte";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import { formatNumber } from "$lib/format";
 
   let {
     simplified,
+    side = "left",
     width = $bindable(0)
-  }: { simplified: Simplified; width?: number } = $props();
+  }: { simplified: Simplified; side?: "left" | "right"; width?: number } = $props();
+
+  const mine = $derived(knobs(side));
 
   /**
    * What the top slider reports is what it bought, not where it sits: shapes
@@ -23,7 +26,10 @@
 <div
   bind:clientWidth={width}
   data-tour="simplification-controls"
-  class="border-border bg-background/90 absolute top-4 right-4 z-10 flex gap-5 rounded-[0.5rem] border px-4 py-3 backdrop-blur"
+  class="border-border bg-background/90 absolute top-4 z-10 flex gap-5 rounded-[0.5rem] border px-4 py-3 backdrop-blur {side ===
+  'right'
+    ? 'right-4'
+    : 'left-4'}"
 >
   <div class="flex w-20 flex-col items-center gap-2">
     <span class="text-[0.625rem] font-medium tracking-wide uppercase">Behaviour</span>
@@ -32,8 +38,8 @@
       type="single"
       orientation="vertical"
       class="h-40"
-      value={view.coverage}
-      onValueChange={(next: number) => (view.coverage = next)}
+      value={mine.coverage}
+      onValueChange={(next: number) => setCoverage(side, next)}
       min={0}
       max={1}
       step={0.01}
@@ -47,13 +53,13 @@
 
   <div class="flex w-16 flex-col items-center gap-2">
     <span class="text-[0.625rem] font-medium tracking-wide uppercase">Paths</span>
-    <span class="font-mono text-xs font-semibold">{Math.round(view.paths * 100)}%</span>
+    <span class="font-mono text-xs font-semibold">{Math.round(mine.paths * 100)}%</span>
     <Slider
       type="single"
       orientation="vertical"
       class="h-40"
-      value={view.paths}
-      onValueChange={(next: number) => (view.paths = next)}
+      value={mine.paths}
+      onValueChange={(next: number) => setPaths(side, next)}
       min={0}
       max={1}
       step={0.01}

@@ -3,6 +3,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import type { DfgNodeData } from "$lib/dfg/types";
   import { shade } from "$lib/groups/utils/shade";
+  import Star from "@lucide/svelte/icons/star";
 
   let { data }: { data: DfgNodeData } = $props();
 
@@ -90,6 +91,18 @@
         {/if}
       {/each}
     </div>
+
+    {#if data.exclusive}
+      <Tooltip.Root>
+        <Tooltip.Trigger
+          class="absolute -top-2.5 -left-2.5 flex size-5.5 items-center justify-center rounded-full bg-white"
+          style="box-shadow:0 0 0 0.125rem var(--{accent}), 0 0.0625rem 0.25rem rgb(0 0 0 / 0.35)"
+        >
+          <Star class="size-3.5" style="fill:var(--{accent});color:var(--{accent})" />
+        </Tooltip.Trigger>
+        <Tooltip.Content>Only this group reaches this activity</Tooltip.Content>
+      </Tooltip.Root>
+    {/if}
 
     {#if data.findings > 0}
       <Tooltip.Root>

@@ -11,6 +11,7 @@
   import { colorVar, formatNumber } from "$lib/format";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
+  import { splitting, view } from "$lib/dfg/state/view.svelte";
   import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
   import VisualizationSettings from "$lib/dfg/components/visualization-settings.svelte";
   import GitCompare from "@lucide/svelte/icons/git-compare";
@@ -36,6 +37,7 @@
   } = $props();
 
   const groups = $derived(comparedGroups());
+  const split = $derived(splitting(groups.length));
 </script>
 
 <div class="border-border bg-background flex shrink-0 flex-nowrap items-stretch border-b">
@@ -60,6 +62,8 @@
     {/each}
     {#if groups.length < 2}
       <Badge>+ Add a group</Badge>
+    {:else if split}
+      <Badge variant="secondary">Split</Badge>
     {/if}
   </SettingField>
   <VariantSummary {graph} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
@@ -86,4 +90,9 @@
   <VisualizationSettings />
 </div>
 
-<CompareDialog {project} bind:open={comparing} />
+<CompareDialog
+  {project}
+  bind:open={comparing}
+  splitting={split}
+  onSplit={(on) => (view.split = on)}
+/>
