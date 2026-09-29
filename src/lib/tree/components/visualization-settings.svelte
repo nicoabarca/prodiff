@@ -136,11 +136,24 @@
           onCheckedChange={(checked) => (view.edgeLabels = checked === true)}
         />
         <span>
-          Transition time on edges
+          Waiting time on edges
           <span class="text-muted-foreground block text-[0.625rem]">
             {hasTransitionTime
               ? "Mean wait between the two activities, per group."
-              : "Build with Transition Time selected to show this."}
+              : "Build with Waiting Time selected to show this."}
+          </span>
+        </span>
+      </label>
+
+      <label class="flex items-start gap-2 text-xs">
+        <Checkbox
+          checked={view.shading}
+          onCheckedChange={(checked) => (view.shading = checked === true)}
+        />
+        <span>
+          Shade nodes by what they show
+          <span class="text-muted-foreground block text-[0.625rem]">
+            Darker nodes carry more, lighter ones less.
           </span>
         </span>
       </label>

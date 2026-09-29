@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
-import { ACTIVITY_DURATION, attributeOptions, TRANSITION_TIME } from "$lib/analysis/attributes";
+import {
+  ACTIVITY_DURATION,
+  attributeOptions,
+  builtInLabel,
+  TRANSITION_TIME
+} from "$lib/analysis/attributes";
 
 function column(name: string, overrides: Partial<RequestColumnMapping> = {}): RequestColumnMapping {
   return { name, type: "string", role: "other", granularity: "event", ...overrides };
@@ -45,5 +50,16 @@ describe("attributeOptions", () => {
       ACTIVITY_DURATION,
       TRANSITION_TIME
     ]);
+  });
+});
+
+describe("builtInLabel", () => {
+  it("names the derived attributes the way the user reads them", () => {
+    expect(builtInLabel(ACTIVITY_DURATION)).toBe("Service Time");
+    expect(builtInLabel(TRANSITION_TIME)).toBe("Waiting Time");
+  });
+
+  it("leaves any other name as it is", () => {
+    expect(builtInLabel("Amount")).toBe("Amount");
   });
 });

@@ -2,6 +2,7 @@
   import { Handle, Position } from "@xyflow/svelte";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import type { DfgNodeData } from "$lib/dfg/types";
+  import { shade } from "$lib/groups/utils/shade";
 
   let { data }: { data: DfgNodeData } = $props();
 
@@ -12,9 +13,7 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const accentVar = $derived(`--${accent}`);
-  const fill = $derived(`color-mix(in oklab, var(${accentVar}) 8%, var(--card))`);
-  const border = $derived(`color-mix(in oklab, var(${accentVar}) 45%, var(--card))`);
+  const shaded = $derived(shade(accent, data.shadeStep));
 </script>
 
 <Handle
@@ -59,13 +58,13 @@
     class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center {data.selected
       ? 'ring-ring ring-2'
       : ''}"
-    style="background:{fill};border-color:{border}"
+    style="background:{shaded.fill};border-color:{shaded.border}"
   >
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">
         <span
           class="line-clamp-2 text-[0.6875rem] leading-tight font-medium"
-          style="color:var({accentVar})"
+          style="color:{shaded.ink ?? `var(--${accent})`}"
         >
           {data.label}
         </span>
@@ -76,7 +75,18 @@
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
       {#each data.groups as group (group.id)}
         {#if data.counts[group.id]}
-          <span style="color:var(--{group.color})">{data.counts[group.id]}</span>
+          <span
+            class="flex items-center gap-1"
+            style="color:{shaded.ink ?? `var(--${group.color})`}"
+          >
+            {#if shaded.ink}
+              <span
+                class="size-1.5 rounded-full ring-1 ring-white/70"
+                style="background:var(--{group.color})"
+              ></span>
+            {/if}
+            {data.counts[group.id]}
+          </span>
         {/if}
       {/each}
     </div>

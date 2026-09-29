@@ -1,7 +1,7 @@
 import type { Formula } from "$lib/custom-attributes/invokers/types";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Project } from "$lib/event-log/types";
-import { ACTIVITY_DURATION, TRANSITION_TIME } from "$lib/analysis/attributes";
+import { ACTIVITY_DURATION, builtInLabel, TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { CustomAttribute } from "$lib/custom-attributes/types";
 import { columnReference } from "$lib/custom-attributes/utils/print";
 
@@ -61,7 +61,9 @@ export function nameError(
   const key = trimmed.toLocaleLowerCase();
   const same = (other: string) => other.toLocaleLowerCase() === key;
   if (project.columns.some((c) => same(c.name))) return `A column is already called ${trimmed}`;
-  if (same(ACTIVITY_DURATION) || same(TRANSITION_TIME)) return `${trimmed} is a built-in attribute`;
+  if ([ACTIVITY_DURATION, TRANSITION_TIME].some((name) => same(name) || same(builtInLabel(name)))) {
+    return `${trimmed} is a built-in attribute`;
+  }
   if (attributes.some((a) => a.id !== selfId && same(a.name))) {
     return `Another custom attribute is already called ${trimmed}`;
   }

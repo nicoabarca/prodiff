@@ -37,6 +37,7 @@ export interface TreeView {
   secondary: Secondary;
   focus: GroupFocus;
   edgeLabels: boolean;
+  shading: boolean;
 }
 
 export const defaultTreeView: TreeView = {
@@ -44,7 +45,8 @@ export const defaultTreeView: TreeView = {
   collapsed: new Set(),
   secondary: "cases",
   focus: "all",
-  edgeLabels: true
+  edgeLabels: true,
+  shading: false
 };
 
 /** How big a difference is, in words. */

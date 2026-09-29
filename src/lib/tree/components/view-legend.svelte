@@ -29,7 +29,7 @@
     [
       secondaryLabel,
       focusLabel,
-      view.edgeLabels ? "Transition time on edges" : "",
+      view.edgeLabels ? "Waiting time on edges" : "",
       view.significantOnly ? "Significant only" : "",
       view.collapsed.size > 0 ? `${view.collapsed.size} collapsed` : ""
     ].filter(Boolean)

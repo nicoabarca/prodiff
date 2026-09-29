@@ -15,8 +15,10 @@
     faceCounts,
     findings,
     membership,
+    shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
+  import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
   import { placeLabels } from "$lib/dfg/utils/labels";
@@ -59,7 +61,12 @@
       })
     );
 
-    const nodes: Node[] = simplified.nodes.flatMap((node) => {
+    const steps = shadeSteps(
+      simplified.nodes.map((node) => shadeValue(node, view.measure)),
+      "log"
+    );
+
+    const nodes: Node[] = simplified.nodes.flatMap((node, index) => {
       const box = boxes.get(node.id);
       if (!box) return [];
       return [
@@ -75,6 +82,7 @@
             kind: node.kind,
             groups,
             counts: faceCounts(node.counts, groups, view.measure),
+            shadeStep: steps[index],
             findings: findings(measured.get(node.id)),
             membership: membership(node.counts, groups),
             selected: selected.id === node.id,

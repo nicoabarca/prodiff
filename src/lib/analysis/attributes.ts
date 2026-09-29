@@ -9,6 +9,17 @@ import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 export const ACTIVITY_DURATION = "Activity Duration";
 export const TRANSITION_TIME = "Transition Time";
 
+/** What the user reads for each derived attribute. */
+const BUILT_IN_LABELS: Record<string, string> = {
+  [ACTIVITY_DURATION]: "Service Time",
+  [TRANSITION_TIME]: "Waiting Time"
+};
+
+/** A derived attribute's name as the user reads it; any other name as it is. */
+export function builtInLabel(name: string): string {
+  return BUILT_IN_LABELS[name] ?? name;
+}
+
 /**
  * What the user can ask the backend to test. Hidden columns are left out. The
  * columns are ordered by name; the derived attributes come after them, and the
