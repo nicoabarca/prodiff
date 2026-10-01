@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID } from "$lib/dfg/types";
-import { edgeId, fold } from "$lib/dfg/utils/fold";
+import { edgeId, fold, variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
 
 const A = 2;
 const B = 3;
@@ -68,5 +68,32 @@ describe("fold", () => {
 
     expect(edge(folded, A, A)?.counts.a).toEqual({ cases: 1, events: 1 });
     expect(folded.nodes.get(A)?.a.events).toBe(2);
+  });
+});
+
+describe("variantKey", () => {
+  const labels = new Map([
+    [A, "A"],
+    [B, "B"]
+  ]);
+
+  it("joins activity labels the same way list_variants keys them", () => {
+    expect(variantKey([A, B], labels)).toBe("A\u{1}B");
+  });
+});
+
+describe("variantEdgeIds", () => {
+  it("bounds the trace with Start and End", () => {
+    expect(variantEdgeIds([A, B])).toEqual(
+      new Set([edgeId(START_ID, A), edgeId(A, B), edgeId(B, END_ID)])
+    );
+  });
+
+  it("bounds a one-activity trace on both sides", () => {
+    expect(variantEdgeIds([A])).toEqual(new Set([edgeId(START_ID, A), edgeId(A, END_ID)]));
+  });
+
+  it("is empty for a trace with no activities", () => {
+    expect(variantEdgeIds([])).toEqual(new Set());
   });
 });

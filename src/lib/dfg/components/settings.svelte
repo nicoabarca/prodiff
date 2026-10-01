@@ -1,35 +1,11 @@
 <script lang="ts">
+  /** How the graph is drawn: what the faces count and which way it flows. */
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
-  import { Separator } from "$lib/components/ui/separator/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
-  import { attributeOptions } from "$lib/analysis/attributes";
-  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
   import { view } from "$lib/dfg/state/view.svelte";
-  import type { Project } from "$lib/event-log/types";
   import Settings2 from "@lucide/svelte/icons/settings-2";
-
-  let { project }: { project: Project } = $props();
-
-  const options = $derived(
-    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
-  );
-
-  $effect(() => {
-    const available = new Set(options);
-    const kept = selection.attributes.filter((attribute) => available.has(attribute));
-    if (kept.length !== selection.attributes.length) setAttributes(kept);
-  });
-
-  function toggle(name: string) {
-    const next = new Set(selection.attributes);
-    if (!next.delete(name)) next.add(name);
-    setAttributes([...next]);
-  }
 </script>
 
 <Popover.Root>
@@ -72,26 +48,6 @@
         <ToggleGroup.Item value="TB">Top down</ToggleGroup.Item>
         <ToggleGroup.Item value="LR">Left to right</ToggleGroup.Item>
       </ToggleGroup.Root>
-    </div>
-
-    <Separator />
-
-    <div class="space-y-2">
-      <Label class="text-xs">Attributes to test</Label>
-      <div class="max-h-48 space-y-1.5 overflow-y-auto">
-        {#each options as option (option)}
-          <div class="flex items-center gap-2">
-            <Checkbox
-              id="dfg-attr-{option}"
-              checked={selection.attributes.includes(option)}
-              onCheckedChange={() => toggle(option)}
-            />
-            <Label for="dfg-attr-{option}" class="text-xs font-normal">
-              <AttributeName name={option} />
-            </Label>
-          </div>
-        {/each}
-      </div>
     </div>
   </Popover.Content>
 </Popover.Root>

@@ -1,6 +1,6 @@
 <script lang="ts">
   /**
-   * One segment of the tree toolbar: a caption naming the setting over its
+   * One segment of a view toolbar: a caption naming the setting over its
    * current value. Extra attributes reach the button, so it can serve as a
    * Popover or Dialog trigger.
    */

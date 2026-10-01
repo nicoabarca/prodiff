@@ -30,7 +30,8 @@ The domain vocabulary — Project, Event Log, Column Mapping, Filter, Filter Lis
 src/lib/
 ├── components/        genuinely shared only
 │   ├── ui/            shadcn primitives, CLI-managed, never hand-edited
-│   ├── layout/        sidebar, topbar, view-placeholder
+│   ├── layout/        sidebar, topbar, view-placeholder, setting-field
+│   ├── variant-panel/ the Variants picker the tree and the DFG both open
 │   └── virtual-list/  own reusable component + its logic + its test
 ├── db/                client.ts, schema.ts (one file, all tables)
 ├── hooks/             shadcn
@@ -53,7 +54,7 @@ src/lib/
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
 
-Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions → tree` and `sample-project → tree | groups`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
+Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions | dfg → tree` and `sample-project → tree | groups`. Nothing points back up. `analysis` sits below all of them and depends on nothing: it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
 `home` sits above `event-log`, `filters`, `groups` and `sample-project`, and only the Projects route imports it. The boot screen shown while the database opens and migrates is `db/components/boot-screen.svelte`, driven by the root layout.
 
@@ -89,6 +90,14 @@ Dependencies run one way — `statistics | tree | dfg | distributions → groups
 `impacts` (per-Group `{key, steps}`, in memory, filled by the Filters view via `loadImpact`, read with `groupSteps`/`groupCases`) is the draft preview only. It writes nothing and its numbers belong to the draft, not to the Group — anything showing them must label them as the draft's.
 
 The Original is not a row: it is the whole Event Log, synthesized by `originalGroup()`, answering to the id `original` everywhere including in Rust.
+
+**The tree and the DFG share one toolbar** (see `docs/adr/0015`). Both views open on a row of `SettingField`s — what is compared, which Variants, which attributes are tested — composed by `tree/components/tree-toolbar.svelte` and `dfg/components/dfg-toolbar.svelte` out of the same three pieces:
+
+- `groups/components/compare-field.svelte` is the whole Compare control, the field and the `CompareDialog` behind it, taking the project and a bindable `open`. It carries the `compare-groups` Tour anchor.
+- `custom-attributes/components/attributes-field.svelte` is the Attributes tested field and its list. It holds nothing: the view passes `options`, `selected`, `caption`, `note` and `onToggle`, so the tree can keep a draft until the popover closes and write it to `tree_settings`, while the DFG rebuilds on each change from its in-memory selection. The adapters are each domain's `build-settings.svelte`.
+- `components/variant-panel/` is the Variants panel, its rows and its toolbar field. They know neither view: they take the Groups, the rows, the staged set and the callbacks, plus `canvas` naming the view that opened them. The staging is `tree/state/variant-selection.svelte.ts`, a factory each view instantiates with where its selection is persisted and what an empty one means — `"coverage"` for the tree, where empty is "not chosen yet" and is re-seeded from `DEFAULT_COVERAGE`, and `"all"` for the DFG, where empty is every Variant. The adapters are each domain's `variant-panel.svelte` and `variant-summary.svelte`, binding its own state and counting the Variants its canvas draws.
+
+The Variant vocabulary — `ResponseVariantRow`, `list_variants`, `utils/variants.ts` — stays in `tree`.
 
 **Which Groups the tree compares** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. What the tree is built from — the attributes to test and the Variants to include — is persisted per project too, in `tree_settings`; the tree itself is never cached and lives in memory while the app is open. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the tree degrades to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
 
