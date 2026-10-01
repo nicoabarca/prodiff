@@ -2,7 +2,8 @@
   /**
    * One segment of a view toolbar: a caption naming the setting over its
    * current value. Extra attributes reach the button, so it can serve as a
-   * Popover or Dialog trigger.
+   * Popover or Dialog trigger. A field that toggles rather than opens drops the
+   * chevron.
    */
   import type { Component, Snippet } from "svelte";
   import type { HTMLButtonAttributes } from "svelte/elements";
@@ -13,6 +14,7 @@
     icon: Icon,
     caption,
     open = false,
+    chevron = true,
     class: className,
     children,
     ...rest
@@ -20,6 +22,7 @@
     icon: Component;
     caption: string;
     open?: boolean;
+    chevron?: boolean;
     children: Snippet;
   } = $props();
 </script>
@@ -43,12 +46,14 @@
     class="flex min-w-0 items-center gap-1.5 text-xs font-semibold whitespace-nowrap tabular-nums"
   >
     {@render children()}
-    <ChevronDown
-      class={cn(
-        "text-muted-foreground size-3.5 shrink-0 transition-transform",
-        open && "rotate-180"
-      )}
-      aria-hidden="true"
-    />
+    {#if chevron}
+      <ChevronDown
+        class={cn(
+          "text-muted-foreground size-3.5 shrink-0 transition-transform",
+          open && "rotate-180"
+        )}
+        aria-hidden="true"
+      />
+    {/if}
   </span>
 </button>
