@@ -14,6 +14,8 @@
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
   const shaded = $derived(shade(accent, data.shadeStep));
+  /** On a split panel, an activity this panel's Group alone reaches. */
+  const only = $derived(data.focus !== null && data.membership === data.focus);
 </script>
 
 <Handle
@@ -76,7 +78,11 @@
           {data.label}
         </span>
       </Tooltip.Trigger>
-      <Tooltip.Content>{data.label}</Tooltip.Content>
+      <Tooltip.Content>
+        {data.label}{#if only}
+          · only this group reaches it
+        {/if}
+      </Tooltip.Content>
     </Tooltip.Root>
 
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">

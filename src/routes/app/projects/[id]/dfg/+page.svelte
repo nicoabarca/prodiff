@@ -4,9 +4,10 @@
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
+  import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { refit, selected, splitting, view } from "$lib/dfg/state/view.svelte";
   import {
     loadSettings as loadVariantSettings,
     settings as variantSettings
@@ -14,13 +15,14 @@
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
+  import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
   const project = $derived(currentProject());
   const stale = $derived(isStale(project));
+  const split = $derived(splitting(comparedGroups().length));
   const graphGroupsForView = $derived(
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );
@@ -66,7 +68,17 @@
           <VariantPanel {project} {simplified} onClose={() => (variantsOpen = false)} />
         {/if}
         <div class="relative flex min-h-0 min-w-0 flex-1">
-          <Canvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
+          {#if split}
+            <SplitCanvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
+          {:else}
+            <Canvas
+              graph={built.graph}
+              {simplified}
+              groups={graphGroupsForView}
+              {stale}
+              refitAt={refit.at}
+            />
+          {/if}
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">
               <Button
