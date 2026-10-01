@@ -5,12 +5,13 @@
    */
   import VariantPath from "$lib/components/variant-path/variant-path.svelte";
   import { formatNumber } from "$lib/format";
-  import Check from "@lucide/svelte/icons/check";
-  import Eye from "@lucide/svelte/icons/eye";
-  import Network from "@lucide/svelte/icons/network";
   import type { ResponseVariantRow } from "$lib/tree/invokers/types";
   import { variantEvents } from "$lib/tree/utils/variants";
   import type { Group } from "$lib/groups/types";
+  import Check from "@lucide/svelte/icons/check";
+  import Eye from "@lucide/svelte/icons/eye";
+  import Network from "@lucide/svelte/icons/network";
+  import Waypoints from "@lucide/svelte/icons/waypoints";
 
   let {
     row,
@@ -20,7 +21,8 @@
     totals,
     staged,
     highlighted,
-    onTree,
+    drawn,
+    canvas,
     onToggle,
     onHighlight
   }: {
@@ -31,10 +33,13 @@
     totals: Record<string, number>;
     staged: boolean;
     highlighted: boolean;
-    onTree: boolean;
+    drawn: boolean;
+    canvas: "tree" | "graph";
     onToggle: () => void;
     onHighlight: () => void;
   } = $props();
+
+  const CanvasIcon = $derived(canvas === "tree" ? Network : Waypoints);
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "";
@@ -60,10 +65,10 @@
 
     <span
       class="mt-0.5 flex size-3.5 shrink-0 items-center justify-center"
-      title={onTree ? "On the tree" : "Not in this build"}
+      title={drawn ? `On the ${canvas}` : "Not in this build"}
     >
-      {#if onTree}
-        <Network class="text-foreground size-3.5" />
+      {#if drawn}
+        <CanvasIcon class="text-foreground size-3.5" />
       {/if}
     </span>
 
@@ -75,11 +80,11 @@
       <VariantPath activities={row.activities} />
 
       <span class="flex items-center gap-2">
-        {#if onTree}
+        {#if drawn}
           <button
             type="button"
             aria-pressed={highlighted}
-            aria-label="Light the path of variant {number} on the tree"
+            aria-label="Light the path of variant {number} on the {canvas}"
             class="flex size-5 shrink-0 cursor-pointer items-center justify-center border {highlighted
               ? 'border-indigo-500 text-indigo-500'
               : 'border-border text-muted-foreground hover:text-foreground'}"

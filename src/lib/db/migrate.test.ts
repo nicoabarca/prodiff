@@ -116,6 +116,7 @@ describe("journalMigrations", () => {
       "app_settings",
       "comparisons",
       "custom_attributes",
+      "dfg_settings",
       "groups",
       "projects",
       "tree_settings"

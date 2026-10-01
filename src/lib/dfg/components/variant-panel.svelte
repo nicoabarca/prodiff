@@ -1,44 +1,34 @@
 <script lang="ts">
-  /** The shared Variants panel, staging against the tree's selection. */
+  /** The shared Variants panel, staging against the graph's selection. */
   import VariantPanel from "$lib/components/variant-panel/variant-panel.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import {
     applyStaged,
     isStagedDirty,
     loadVariants,
     resetStaged,
+    selectedVariants,
     setStaged,
-    settings,
     shownVariant,
     stagedVariants,
     toggleStaged,
-    variants,
-    view
-  } from "$lib/tree/state/tree.svelte";
-  import { visibleNodes } from "$lib/tree/utils/tree";
+    variants
+  } from "$lib/dfg/state/variants.svelte";
+  import type { Simplified } from "$lib/dfg/utils/simplify";
   import type { Project } from "$lib/event-log/types";
 
   let {
     project,
-    tree,
+    simplified,
     onClose
-  }: { project: Project; tree: ResponseDirectedTree | null; onClose: () => void } = $props();
+  }: { project: Project; simplified: Simplified | null; onClose: () => void } = $props();
 
   $effect(() => {
     loadVariants(project);
   });
 
-  /** The Variants the canvas is drawing, which is what a row's eye can light. */
-  const drawn = $derived.by(() => {
-    if (!tree) return new Set<string>();
-    const visible = visibleNodes(tree, view, new Set(settings.value.selectedVariants));
-    return new Set(
-      tree.nodes
-        .filter((node) => node.variantKey !== null && visible.ids.has(node.id))
-        .map((node) => node.variantKey as string)
-    );
-  });
+  /** The Variants the canvas is drawing, which the Behaviour cut narrows further. */
+  const drawn = $derived(simplified ? simplified.variants.keys : new Set<string>());
 </script>
 
 <VariantPanel
@@ -48,11 +38,11 @@
   error={variants.error}
   dropped={variants.dropped}
   staged={stagedVariants()}
-  applied={settings.value.selectedVariants.length}
+  applied={selectedVariants().size}
   dirty={isStagedDirty()}
   {drawn}
   highlighted={shownVariant.key}
-  canvas="tree"
+  canvas="graph"
   onStage={setStaged}
   onToggle={toggleStaged}
   onHighlight={(key) => (shownVariant.key = shownVariant.key === key ? null : key)}
