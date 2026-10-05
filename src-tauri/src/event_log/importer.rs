@@ -7,7 +7,7 @@ use crate::column_mapping::{
     ColumnType,
 };
 use crate::groups::{self, GroupFilters};
-use crate::parsing::{column_to_strings, read_event_log};
+use crate::parsing::{column_to_strings, read_event_log, ungrouped};
 use crate::stats::{summarize, EventLogStats};
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -64,6 +64,16 @@ fn cast_to_declared(mut df: DataFrame, columns: &[ColumnMapping]) -> Result<Data
             df.with_column(parsed).map_err(|e| e.to_string())?;
             continue;
         }
+        let grouped = match column.dtype() {
+            DataType::String if mapping.column_type.is_numeric() => {
+                column.str().ok().and_then(ungrouped)
+            }
+            _ => None,
+        };
+        let column = match grouped {
+            Some(plain) => &plain.into_column(),
+            None => column,
+        };
         let cast = column.strict_cast(&target).map_err(|cause| {
             format!(
                 "Column \"{}\" cannot be read as {}: {cause}",
@@ -625,6 +635,22 @@ mod tests {
             error.contains("a whole number"),
             "the declared type is named: {error}"
         );
+    }
+
+    #[test]
+    fn numbers_with_grouped_thousands_read_as_numbers() {
+        let df = text_column("amount", &["1,234.56", "12,000", "7.5"]);
+        let df = cast_to_declared(df, &mapping("amount", "float")).unwrap();
+        let amounts = df.column("amount").unwrap().f64().unwrap().clone();
+        assert_eq!(
+            amounts.into_iter().collect::<Vec<_>>(),
+            [Some(1234.56), Some(12000.0), Some(7.5)]
+        );
+
+        let df = text_column("count", &["1,234", "56"]);
+        let df = cast_to_declared(df, &mapping("count", "integer")).unwrap();
+        let counts = df.column("count").unwrap().i64().unwrap().clone();
+        assert_eq!(counts.into_iter().collect::<Vec<_>>(), [Some(1234), Some(56)]);
     }
 
     #[test]

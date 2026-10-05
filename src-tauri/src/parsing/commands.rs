@@ -1,7 +1,8 @@
 use super::draft::{self, drafts_dir, read_upload};
 use super::xes::{is_xes_path, suggested_mapping};
-use super::{analyze, column_to_strings, dtype_label, TimestampColumnReport};
+use super::{analyze, column_to_strings, dtype_label, ungrouped, TimestampColumnReport};
 use crate::column_mapping::ColumnRole;
+use polars::prelude::*;
 use tauri::ipc::Channel;
 
 /// The mapping a file states for one of its columns, where its format states
@@ -46,6 +47,19 @@ pub struct ReadProgress {
     total: u64,
 }
 
+/// The type a column reads as, counting text that holds grouped numbers
+/// ("1,234.56") as numeric.
+fn preview_dtype(column: &Column) -> &'static str {
+    let Some(plain) = column.str().ok().and_then(ungrouped) else {
+        return dtype_label(column.dtype());
+    };
+    let plain = plain.into_series();
+    [DataType::Int64, DataType::Float64]
+        .iter()
+        .find(|dtype| plain.strict_cast(dtype).is_ok())
+        .map_or("string", dtype_label)
+}
+
 #[tauri::command]
 pub async fn preview_event_log(
     app: tauri::AppHandle,
@@ -77,7 +91,7 @@ fn preview(
             let column = df.column(name).expect("column exists");
             ColumnPreview {
                 name: name.to_string(),
-                dtype: dtype_label(column.dtype()).to_string(),
+                dtype: preview_dtype(column).to_string(),
                 suggested: xes.then(|| {
                     let (role, case) = suggested_mapping(name);
                     ColumnSuggestion {
