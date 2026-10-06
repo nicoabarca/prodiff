@@ -1,7 +1,8 @@
 /**
- * Seeds a development app with the Event Logs in `scripts/seed_log/`.
+ * Seeds a development app with the Event Logs in `scripts/seed_log/`, or in the
+ * directory `--seed-dir` names.
  *
- *   pnpm seed [slug…] [--app-id <id> | --app-data-dir <dir>]
+ *   pnpm seed [slug…] [--seed-dir <dir>] [--app-id <id> | --app-data-dir <dir>]
  *
  * Each `<slug>.csv` is paired with a `<slug>.json` manifest holding
  * `{ name, columns, hiddenColumns, customAttributes?, groups? }`. With no slugs, every pair is
@@ -91,12 +92,14 @@ interface SeedInput {
 }
 
 interface SeedContext {
+  seedDir: string;
   appDataDir: string;
   available: string[];
   db: BetterSQLite3Database<typeof schema>;
 }
 
 interface Args {
+  seedDir: string;
   appId: string | null;
   appDataDir: string | null;
   slugs: string[];
@@ -108,13 +111,14 @@ function fail(message: string): never {
 }
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { appId: null, appDataDir: null, slugs: [] };
+  const args: Args = { seedDir: SEED_LOG_DIR, appId: null, appDataDir: null, slugs: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
-    if (arg === "--app-id" || arg === "--app-data-dir") {
+    if (arg === "--seed-dir" || arg === "--app-id" || arg === "--app-data-dir") {
       const value = argv[++i];
       if (!value) fail(`${arg} needs a value.`);
-      if (arg === "--app-id") args.appId = value;
+      if (arg === "--seed-dir") args.seedDir = resolve(value);
+      else if (arg === "--app-id") args.appId = value;
       else args.appDataDir = value;
     } else if (arg.startsWith("--")) {
       fail(`Unknown option ${arg}.`);
@@ -144,12 +148,12 @@ function defaultAppDataDir(appId: string): string {
   return join(process.env.XDG_DATA_HOME ?? join(homedir(), ".local", "share"), appId);
 }
 
-/** Every slug with both a CSV and a manifest. */
-function availableSlugs(): string[] {
-  return readdirSync(SEED_LOG_DIR)
+/** Every slug in `seedDir` with both a CSV and a manifest. */
+function availableSlugs(seedDir: string): string[] {
+  return readdirSync(seedDir)
     .filter((file) => file.endsWith(".csv"))
     .map((file) => basename(file, ".csv"))
-    .filter((slug) => existsSync(join(SEED_LOG_DIR, `${slug}.json`)))
+    .filter((slug) => existsSync(join(seedDir, `${slug}.json`)))
     .sort();
 }
 
@@ -182,12 +186,12 @@ function seedProject(
   return JSON.parse(run.stdout) as Seeded;
 }
 
-function seedInput(slug: string, { available, appDataDir }: SeedContext): SeedInput {
+function seedInput(slug: string, { seedDir, available, appDataDir }: SeedContext): SeedInput {
   if (!available.includes(slug)) {
-    throw new Error(`No ${slug}.csv with a matching ${slug}.json in ${SEED_LOG_DIR}.`);
+    throw new Error(`No ${slug}.csv with a matching ${slug}.json in ${seedDir}.`);
   }
-  const csvPath = join(SEED_LOG_DIR, `${slug}.csv`);
-  const manifest = JSON.parse(readFileSync(join(SEED_LOG_DIR, `${slug}.json`), "utf8")) as Manifest;
+  const csvPath = join(seedDir, `${slug}.csv`);
+  const manifest = JSON.parse(readFileSync(join(seedDir, `${slug}.json`), "utf8")) as Manifest;
   const unsupported = manifest.groups?.find((group) =>
     group.filters.some((filter) => filter.kind === "case_not_in_group")
   );
@@ -413,9 +417,10 @@ function repoMigrations() {
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const appDataDir = resolve(args.appDataDir ?? defaultAppDataDir(args.appId ?? branchAppId()));
-  const available = availableSlugs();
+  if (!existsSync(args.seedDir)) fail(`No seed directory at ${args.seedDir}.`);
+  const available = availableSlugs(args.seedDir);
   const slugs = args.slugs.length > 0 ? args.slugs : available;
-  if (slugs.length === 0) fail(`No seed logs found in ${SEED_LOG_DIR}.`);
+  if (slugs.length === 0) fail(`No seed logs found in ${args.seedDir}.`);
 
   buildSeeder();
   mkdirSync(appDataDir, { recursive: true });
@@ -428,7 +433,7 @@ async function main() {
     },
     repoMigrations()
   );
-  const failures = seedAll(slugs, { appDataDir, available, db });
+  const failures = seedAll(slugs, { seedDir: args.seedDir, appDataDir, available, db });
   sqlite.close();
   if (failures.length > 0) process.exit(1);
 }
