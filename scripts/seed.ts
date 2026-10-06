@@ -1,22 +1,8 @@
 /**
- * Seeds a development app with the Event Logs in `scripts/seed_log/`, or in the
- * directory `--seed-dir` names.
+ * Seeds a development app with each `<slug>.csv` + `<slug>.json` manifest pair
+ * in `scripts/seed_log/` or `--seed-dir`. Seeding a slug again resets its Project.
  *
  *   pnpm seed [slug…] [--seed-dir <dir>] [--app-id <id> | --app-data-dir <dir>]
- *
- * Each `<slug>.csv` is paired with a `<slug>.json` manifest holding
- * `{ name, columns, hiddenColumns, customAttributes?, groups? }`. With no slugs, every pair is
- * seeded. The Project id is derived from the slug, so seeding a slug again
- * resets that Project: its files are replaced and its Custom Attributes,
- * Groups, comparison and tree settings are deleted.
- *
- * Each entry of `customAttributes` is `{ name, formula }`, with the formula in
- * the text the app's editor writes. Their ids are generated on every run, so a
- * manifest Group cannot filter on one.
- *
- * Each entry of `groups` is `{ name, color?, filters }`, where `filters` is a
- * Filter List in the exact JSON the app stores. The Groups are applied in array
- * order, which is also their position. `case_not_in_group` is not supported.
  */
 import BetterSqlite from "better-sqlite3";
 import { eq } from "drizzle-orm";
@@ -37,6 +23,8 @@ import type {
 import type { Project } from "../src/lib/event-log/types";
 import { defaultColor } from "../src/lib/groups/colors";
 import type { ResponseEventLogStats } from "../src/lib/groups/invokers/types";
+import type { CaseNotInGroupFilter } from "../src/lib/filters/kind/case-not-in-group";
+import type { Filter } from "../src/lib/filters/kind/filter";
 import type { Group } from "../src/lib/groups/types";
 import { groupId } from "../src/lib/groups/utils/group-id";
 import type {
@@ -59,9 +47,13 @@ const SEED_BIN = join(
   platform() === "win32" ? "seed-project.exe" : "seed-project"
 );
 
-type ManifestGroup = Pick<Group, "name" | "filters"> & Partial<Pick<Group, "color">>;
+type ManifestFilter =
+  Exclude<Filter, CaseNotInGroupFilter> | { kind: "case_not_in_group"; group: string };
 
-type SeedGroup = ManifestGroup & Pick<Group, "id">;
+type ManifestGroup = Pick<Group, "name"> &
+  Partial<Pick<Group, "color">> & { filters: ManifestFilter[] };
+
+type SeedGroup = Pick<Group, "id" | "name" | "filters"> & Partial<Pick<Group, "color">>;
 
 type ManifestCustomAttribute = Pick<CustomAttribute, "name" | "formula">;
 
@@ -192,11 +184,6 @@ function seedInput(slug: string, { seedDir, available, appDataDir }: SeedContext
   }
   const csvPath = join(seedDir, `${slug}.csv`);
   const manifest = JSON.parse(readFileSync(join(seedDir, `${slug}.json`), "utf8")) as Manifest;
-  const unsupported = manifest.groups?.find((group) =>
-    group.filters.some((filter) => filter.kind === "case_not_in_group")
-  );
-  if (unsupported)
-    throw new Error(`Group "${unsupported.name}" uses unsupported case_not_in_group.`);
   const id = uuidv5(`prodiff:seed:${slug}`, uuidv5.URL);
   const scope = { id, columns: manifest.columns, hiddenColumns: manifest.hiddenColumns } as Project;
   const customAttributes: SeedCustomAttribute[] = [];
@@ -226,8 +213,28 @@ function seedInput(slug: string, { seedDir, available, appDataDir }: SeedContext
     projectDir: join(appDataDir, "projects", id),
     manifest,
     customAttributes,
-    groups: (manifest.groups ?? []).map((group) => ({ ...group, id: groupId() }))
+    groups: seedGroups(manifest.groups ?? [])
   };
+}
+
+/** Gives each manifest Group an id and points its `case_not_in_group` filters at an earlier one. */
+function seedGroups(manifestGroups: ManifestGroup[]): SeedGroup[] {
+  const ids = new Map<string, string>();
+  return manifestGroups.map((group) => {
+    const filters = group.filters.map((filter): Filter => {
+      if (filter.kind !== "case_not_in_group") return filter;
+      const excluded = ids.get(filter.group);
+      if (!excluded) {
+        throw new Error(
+          `Group "${group.name}": case_not_in_group names "${filter.group}", which is not an earlier Group.`
+        );
+      }
+      return { kind: "case_not_in_group", groupId: excluded };
+    });
+    const seeded = { ...group, id: groupId(), filters };
+    ids.set(group.name, seeded.id);
+    return seeded;
+  });
 }
 
 /** `.{project id}-seed-{suffix}`, beside `projectDir`. */
