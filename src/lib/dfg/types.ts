@@ -23,18 +23,21 @@ export interface Rect {
   height: number;
 }
 
+/** One cut of the graph. A split draws both panels from the same one. */
 export interface DfgView {
   coverage: number;
   paths: number;
   measure: Measure;
   direction: Direction;
+  split: boolean;
 }
 
 export const defaultDfgView: DfgView = {
   coverage: 0.8,
   paths: 1,
   measure: "cases",
-  direction: "TB"
+  direction: "TB",
+  split: false
 };
 
 /**
@@ -63,6 +66,12 @@ export interface FaceGroup {
   color: string;
 }
 
+/**
+ * `focus` names the one Group a split panel prints; `null` is the comparative
+ * canvas, which prints every Group it was given. `membership` is the Group whose
+ * accent the node reads in, `null` being the Original's grey: on a split panel
+ * only an activity that Group alone reaches carries an accent.
+ */
 export interface DfgNodeData {
   label: string;
   kind: NodeKind;
@@ -75,6 +84,7 @@ export interface DfgNodeData {
   direction: Direction;
   highlighted: boolean;
   dimmed: boolean;
+  focus: string | null;
   [key: string]: unknown;
 }
 

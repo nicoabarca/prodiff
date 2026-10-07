@@ -49,7 +49,7 @@ src/lib/
 ├── home/              the Projects list, its cards and the first-run screen
 ├── tour/              Tours of the Sample Project: steps per view, driver.js runner
 ├── updater/           startup update check and install
-└── devtools/          dev-only inspectors, one folder per view (devtools/tree/)
+└── devtools/          dev-only inspectors, one folder per view (devtools/tree/, devtools/dfg/)
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
@@ -98,6 +98,10 @@ The Original is not a row: it is the whole Event Log, synthesized by `originalGr
 - `components/variant-panel/` is the Variants panel, its rows and its toolbar field. They know neither view: they take the Groups, the rows, the staged set and the callbacks, plus `canvas` naming the view that opened them. The staging is `tree/state/variant-selection.svelte.ts`, a factory each view instantiates with where its selection is persisted and what an empty one means — `"coverage"` for the tree, where empty is "not chosen yet" and is re-seeded from `DEFAULT_COVERAGE`, and `"all"` for the DFG, where empty is every Variant. The adapters are each domain's `variant-panel.svelte` and `variant-summary.svelte`, binding its own state and counting the Variants its canvas draws.
 
 The Variant vocabulary — `ResponseVariantRow`, `list_variants`, `utils/variants.ts` — stays in `tree`.
+
+**The DFG can split into one panel per Group** (see `docs/adr/0016`). `view.split` plus exactly two compared Groups is what `splitting()` answers; the toolbar's Split field toggles it and the route picks `split-canvas.svelte` over `canvas.svelte`. Both panels are cut by the one Behaviour and Paths pair in the toolbar, laid out from that whole cut rather than from what either panel draws, and bound to one `Viewport`, so coordinates and pan/zoom match on both sides. A panel passes `focus`, which drops what its Group never reaches and narrows every figure, shade and thickness to it; an activity reads grey unless that Group alone reaches it. Nothing in `DfgView` can express two different cuts, and that is deliberate.
+
+Moving a slider reframes what is left: `reframe()` bumps `refit.at`, the canvas holds that request until the ELK placement it is meant to frame has landed, and `refit.svelte` performs it from inside `SvelteFlow`, where `useSvelteFlow` resolves. In a split only the panel that fits runs it; the other follows through the shared viewport.
 
 **Which Groups the tree compares** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. What the tree is built from — the attributes to test and the Variants to include — is persisted per project too, in `tree_settings`; the tree itself is never cached and lives in memory while the app is open. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the tree degrades to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
 
