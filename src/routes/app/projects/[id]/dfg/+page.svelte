@@ -79,6 +79,11 @@
               refitAt={refit.at}
             />
           {/if}
+          {#if import.meta.env.DEV}
+            {#await import("$lib/devtools/dfg/components/dfg-inspector.svelte") then { default: DfgInspector }}
+              <DfgInspector graph={built.graph} {simplified} />
+            {/await}
+          {/if}
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">
               <Button

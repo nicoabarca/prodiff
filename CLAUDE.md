@@ -49,7 +49,7 @@ src/lib/
 ├── home/              the Projects list, its cards and the first-run screen
 ├── tour/              Tours of the Sample Project: steps per view, driver.js runner
 ├── updater/           startup update check and install
-└── devtools/          dev-only inspectors, one folder per view (devtools/tree/)
+└── devtools/          dev-only inspectors, one folder per view (devtools/tree/, devtools/dfg/)
 
 each domain: types.ts · invokers/ · state/ · utils/ · components/ · tests/
 ```
