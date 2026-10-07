@@ -1,11 +1,9 @@
 <script lang="ts">
-  /** What the tree on screen is made of, and the way into the Variants panel. */
-  import { formatNumber } from "$lib/format";
+  /** The shared Variants field, counting what the tree on screen is made of. */
+  import VariantSummary from "$lib/components/variant-panel/variant-summary.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, settings, variants, view } from "$lib/tree/state/tree.svelte";
   import { totalCases, visibleNodes } from "$lib/tree/utils/tree";
-  import SettingField from "$lib/tree/components/setting-field.svelte";
-  import Route from "@lucide/svelte/icons/route";
 
   let {
     tree,
@@ -26,31 +24,13 @@
       share: total > 0 ? Math.round((visible.casesShown / total) * 100) : 0
     };
   });
-
-  const selected = $derived(settings.value.selectedVariants.length);
 </script>
 
-<SettingField
-  icon={Route}
-  caption="Variants"
-  class="shrink-0"
+<VariantSummary
+  {onScreen}
+  selected={settings.value.selectedVariants.length}
+  known={variants.rows.length}
+  noun="tree"
   {open}
-  aria-pressed={open}
-  title={onScreen
-    ? `${formatNumber(onScreen.casesShown)} of ${formatNumber(onScreen.total)} cases`
-    : undefined}
-  onclick={onToggle}
->
-  {#if onScreen}
-    {formatNumber(onScreen.variantsShown)} of {formatNumber(onScreen.variantsTotal)}
-    <span class="text-muted-foreground font-normal">{onScreen.share}% of cases</span>
-  {:else if selected > 0}
-    {formatNumber(selected)}
-    {#if variants.rows.length > 0}
-      of {formatNumber(variants.rows.length)}
-    {/if}
-    <span class="text-muted-foreground font-normal">selected · no tree yet</span>
-  {:else}
-    Select variants
-  {/if}
-</SettingField>
+  {onToggle}
+/>

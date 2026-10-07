@@ -3,21 +3,23 @@
   import * as Empty from "$lib/components/ui/empty/index.js";
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
-  import Settings from "$lib/dfg/components/settings.svelte";
+  import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
+  import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { selected, view } from "$lib/dfg/state/view.svelte";
+  import {
+    loadSettings as loadVariantSettings,
+    settings as variantSettings
+  } from "$lib/dfg/state/variants.svelte";
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
+  import { comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
-  import CompareDialog from "$lib/groups/components/compare-dialog.svelte";
-  import GitCompare from "@lucide/svelte/icons/git-compare";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
   const project = $derived(currentProject());
-  const groups = $derived(comparedGroups());
   const stale = $derived(isStale(project));
   const graphGroupsForView = $derived(
     built.graph && project ? graphGroups(built.graph, project.id) : []
@@ -25,6 +27,8 @@
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
 
   let comparing = $state(false);
+  let variantsOpen = $state(false);
+  let buildSettingsOpen = $state(false);
   let panelOpen = $state(false);
   $effect(() => {
     panelOpen = selected.id !== null;
@@ -34,6 +38,7 @@
     if (!project) return;
     forgetOtherProject(project.id);
     if (comparison.projectId !== project.id) loadComparison(project.id);
+    if (variantSettings.projectId !== project.id) loadVariantSettings(project.id);
   });
 
   $effect(() => {
@@ -43,43 +48,24 @@
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="border-border bg-background flex shrink-0 items-center gap-3 border-b px-4 py-2">
-      {#if built.graph && built.graph.overlapCases > 0}
-        <p class="text-muted-foreground text-xs">
-          {built.graph.overlapCases} cases in both groups
-        </p>
-      {/if}
-      {#if built.graph?.skippedCaseLevel.length}
-        <p class="text-muted-foreground text-xs">
-          Case-level attributes left out: {built.graph.skippedCaseLevel.join(", ")}
-        </p>
-      {/if}
-      {#if stale && built.building}
-        <p class="text-muted-foreground text-xs">Rebuilding…</p>
-      {/if}
-      {#if built.error}
-        <p class="text-destructive truncate text-xs">{built.error}</p>
-      {/if}
-
-      <div class="ml-auto flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          data-tour="compare-groups"
-          onclick={() => (comparing = true)}
-        >
-          <GitCompare data-icon="inline-start" />
-          {groups[1] ? `${groups[0].name} vs ${groups[1].name}` : groups[0].name}
-        </Button>
-        <Settings {project} />
-      </div>
-    </div>
-
-    <CompareDialog {project} bind:open={comparing} />
+    <DfgToolbar
+      {project}
+      graph={built.graph}
+      {simplified}
+      error={built.error}
+      building={built.building}
+      {stale}
+      bind:variantsOpen
+      bind:buildSettingsOpen
+      bind:comparing
+    />
 
     {#if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
-        <div class="relative flex min-h-0 flex-1">
+        {#if variantsOpen}
+          <VariantPanel {project} {simplified} onClose={() => (variantsOpen = false)} />
+        {/if}
+        <div class="relative flex min-h-0 min-w-0 flex-1">
           <Canvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">

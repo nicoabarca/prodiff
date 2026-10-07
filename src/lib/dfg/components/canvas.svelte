@@ -8,6 +8,7 @@
   import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
     edgeWait,
@@ -21,6 +22,7 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
+  import { variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
   import { placeLabels } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -37,6 +39,20 @@
 
   const waits = $derived(transitionsById(graph));
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
+
+  /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
+  const highlight = $derived.by(() => {
+    if (shownVariant.key === null) return null;
+    const lit = graph.variants.find(
+      (variant) => variantKey(variant.activities, labels) === shownVariant.key
+    );
+    if (!lit) return null;
+    return {
+      nodes: new Set([START_ID, ...lit.activities, END_ID].map(String)),
+      edges: variantEdgeIds(lit.activities)
+    };
+  });
 
   // ELK is asynchronous, so the placement lands a tick after the topology
   // changes. The token drops a result whose request has already been superseded.
@@ -86,7 +102,9 @@
             findings: findings(measured.get(node.id)),
             membership: membership(node.counts, groups),
             selected: selected.id === node.id,
-            direction: view.direction
+            direction: view.direction,
+            highlighted: false,
+            dimmed: false
           }
         }
       ];
@@ -130,7 +148,9 @@
           width,
           label,
           labelAt: anchors.get(key) ?? { x: 0, y: 0 },
-          boundary: edge.source === START_ID || edge.target === END_ID
+          boundary: edge.source === START_ID || edge.target === END_ID,
+          highlighted: false,
+          dimmed: false
         }
       };
     });
@@ -139,12 +159,25 @@
   });
 
   // Svelte Flow owns these arrays while the user pans, so they are local state
-  // re-seeded from the layout.
+  // re-seeded from the layout and the lit Variant. The highlight is applied over
+  // the finished layout, so lighting a Variant never re-runs the layout.
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
   $effect(() => {
-    nodes = flow.nodes;
-    edges = flow.edges;
+    const lit = highlight;
+    if (lit === null) {
+      nodes = flow.nodes;
+      edges = flow.edges;
+      return;
+    }
+    nodes = flow.nodes.map((node) => {
+      const on = lit.nodes.has(node.id);
+      return { ...node, data: { ...node.data, highlighted: on, dimmed: !on } };
+    });
+    edges = flow.edges.map((edge) => {
+      const on = lit.edges.has(edge.id);
+      return { ...edge, data: { ...edge.data, highlighted: on, dimmed: !on } };
+    });
   });
 
   let exporting = $state(false);
