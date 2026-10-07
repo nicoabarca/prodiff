@@ -34,6 +34,12 @@
 -->
 <Toaster position="top-right" theme="light" richColors closeButton />
 
+{#if import.meta.env.DEV}
+  {#await import("$lib/devtools/picker/components/picker.svelte") then { default: Picker }}
+    <Picker />
+  {/await}
+{/if}
+
 {#if problem}
   <DatabaseProblem {problem} />
 {:else if boot.stage !== "ready"}
