@@ -1,5 +1,5 @@
 <script lang="ts">
-  /** How the graph is drawn: what the faces count and which way it flows. */
+  /** How the graph is drawn. What the faces print is the measures panel's. */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
@@ -18,22 +18,6 @@
     {/snippet}
   </Popover.Trigger>
   <Popover.Content class="w-80 space-y-4" align="end">
-    <div class="space-y-1.5">
-      <Label class="text-xs">Faces show</Label>
-      <ToggleGroup.Root
-        type="single"
-        size="sm"
-        variant="outline"
-        value={view.measure}
-        onValueChange={(value) => {
-          if (value) view.measure = value as typeof view.measure;
-        }}
-      >
-        <ToggleGroup.Item value="cases">Cases</ToggleGroup.Item>
-        <ToggleGroup.Item value="events">Events</ToggleGroup.Item>
-      </ToggleGroup.Root>
-    </div>
-
     <div class="space-y-1.5">
       <Label class="text-xs">Direction</Label>
       <ToggleGroup.Root

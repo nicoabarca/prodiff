@@ -1,4 +1,6 @@
-import { defaultDfgView, type DfgView } from "$lib/dfg/types";
+import { defaultDfgView, type DfgView, type EdgeMeasure, type Measure } from "$lib/dfg/types";
+import type { Ramp } from "$lib/groups/utils/shade";
+import { keptMeasure, measureKey } from "$lib/dfg/utils/measure";
 
 /**
  * The sliders and the measures on the faces. Every one of them is answered from
@@ -41,10 +43,53 @@ export function setSplit(on: boolean) {
   reframe();
 }
 
+/**
+ * What the faces print and shade by. The boxes are placed from the frequency
+ * behind the measure, so painting an attribute never relays the graph.
+ */
+export function setMeasure(measure: Measure) {
+  view.measure = measure;
+}
+
+export function setEdgeMeasure(edge: EdgeMeasure) {
+  view.edge = edge;
+}
+
+export function setRamp(ramp: Ramp) {
+  view.ramp = ramp;
+}
+
+/** Whether the edges print the wait they were measured with. */
+export function setEdgeLabels(on: boolean) {
+  view.edgeLabels = on;
+}
+
+/**
+ * Keeps the painted measure among the ones the build still holds, so dropping
+ * an attribute from the build leaves the graph painting cases rather than
+ * nothing.
+ */
+export function keepMeasure(options: Measure[]) {
+  const kept = keptMeasure(view.measure, options);
+  if (measureKey(kept) !== measureKey(view.measure)) view.measure = kept;
+}
+
 /** The node the detail panel is showing. */
 export const selected = $state<{ id: number | null }>({ id: null });
+
+/** The node the pointer is over, on the canvas or in the measures panel. */
+export const hovered = $state<{ id: number | null }>({ id: null });
+
+/** The edge whose wait was clicked. It stays lit until another one is. */
+export const picked = $state<{ key: string | null }>({ key: null });
+
+export function pickEdge(key: string) {
+  picked.key = picked.key === key ? null : key;
+}
 
 export function reset() {
   Object.assign(view, defaultDfgView);
   selected.id = null;
+  hovered.id = null;
+  picked.key = null;
 }

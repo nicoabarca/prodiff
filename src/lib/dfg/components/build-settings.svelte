@@ -3,11 +3,16 @@
   import AttributesField from "$lib/custom-attributes/components/attributes-field.svelte";
   import { attributeOptions } from "$lib/analysis/attributes";
   import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
+  import {
+    selection,
+    setAttributes,
+    testedAttributes,
+    toggleTested
+  } from "$lib/dfg/state/dfg.svelte";
   import type { Project } from "$lib/event-log/types";
 
   const NOTE =
-    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested. The graph rebuilds on each change.";
+    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested, and the graph rebuilds on each change. Waiting Time is always measured: ticking it prints the wait on the edges.";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
@@ -21,20 +26,13 @@
     const kept = selection.attributes.filter((attribute) => available.has(attribute));
     if (kept.length !== selection.attributes.length) setAttributes(kept);
   });
-
-  function toggle(name: string, on: boolean) {
-    const next = new Set(selection.attributes);
-    if (on) next.add(name);
-    else next.delete(name);
-    setAttributes([...next]);
-  }
 </script>
 
 <AttributesField
   {options}
-  selected={selection.attributes}
+  selected={testedAttributes()}
   caption="Attributes tested · rebuilds graph"
   note={NOTE}
-  onToggle={toggle}
+  onToggle={toggleTested}
   bind:open
 />

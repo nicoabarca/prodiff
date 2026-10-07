@@ -5,7 +5,7 @@ import {
   END_ID,
   START_ID,
   type Direction,
-  type Measure,
+  type Frequency,
   type Point,
   type Rect
 } from "$lib/dfg/types";
@@ -56,11 +56,11 @@ export function straightRoute(
 }
 
 /** Cache key for layout topology, direction, and edge priority. */
-export function topologyKey(graph: Simplified, direction: Direction, measure: Measure): string {
+export function topologyKey(graph: Simplified, direction: Direction, frequency: Frequency): string {
   return JSON.stringify([
     direction,
     graph.nodes.map((node) => node.id),
-    graph.edges.map((edge) => [edge.source, edge.target, unionCount(edge.counts, measure)])
+    graph.edges.map((edge) => [edge.source, edge.target, unionCount(edge.counts, frequency)])
   ]);
 }
 
@@ -93,7 +93,7 @@ function selfLoop(corner: Point, id: number, direction: Direction): Point[] {
   ];
 }
 
-function elkGraph(graph: Simplified, direction: Direction, measure: Measure): ElkNode {
+function elkGraph(graph: Simplified, direction: Direction, frequency: Frequency): ElkNode {
   const routed = graph.edges.filter((edge) => edge.source !== edge.target);
   return {
     id: "root",
@@ -127,7 +127,7 @@ function elkGraph(graph: Simplified, direction: Direction, measure: Measure): El
       id: edgeKey(edge.source, edge.target),
       sources: [String(edge.source)],
       targets: [String(edge.target)],
-      layoutOptions: { "elk.priority": String(Math.round(unionCount(edge.counts, measure))) }
+      layoutOptions: { "elk.priority": String(Math.round(unionCount(edge.counts, frequency))) }
     }))
   };
 }
@@ -156,15 +156,15 @@ function placementFromElk(graph: Simplified, laid: ElkNode, direction: Direction
 export async function layout(
   graph: Simplified,
   direction: Direction,
-  measure: Measure
+  frequency: Frequency
 ): Promise<Placement> {
-  const key = topologyKey(graph, direction, measure);
+  const key = topologyKey(graph, direction, frequency);
   const hit = cache.get(key);
   if (hit) return hit;
 
   const placement = placementFromElk(
     graph,
-    await elk.layout(elkGraph(graph, direction, measure)),
+    await elk.layout(elkGraph(graph, direction, frequency)),
     direction
   );
   if (cache.size >= CACHE_LIMIT) cache.delete(cache.keys().next().value as string);

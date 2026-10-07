@@ -15,18 +15,21 @@
   import RoutedEdge from "$lib/dfg/components/edge.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-  import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { hovered, picked, selected, view } from "$lib/dfg/state/view.svelte";
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
-    busiest,
+    edgeValue,
     edgeWait,
     edgeWidth,
-    faceCounts,
+    faceFigures,
     findings,
     membership,
     shadeValue,
-    transitionsById
+    transitionsById,
+    waitExtra,
+    waitText
   } from "$lib/dfg/utils/face";
+  import { facing, frequencyOf, type Measurable } from "$lib/dfg/utils/measure";
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
@@ -76,15 +79,8 @@
       place on either side. */
   const placedGraph = $derived(layoutFrom ?? ownGraph);
 
-  const NO_COUNTS: Counts = { cases: 0, events: 0 };
-
-  /**
-   * The counts a panel prints from. A split panel narrows them to its one
-   * Group, so every figure, shade and thickness below ranks within that Group
-   * instead of across the comparison.
-   */
-  const facing = (counts: Record<string, Counts>): Record<string, Counts> =>
-    focus === null ? counts : { [focus]: counts[focus] ?? NO_COUNTS };
+  /** The frequency the boxes are placed and the paths are cut by. */
+  const frequency = $derived(frequencyOf(view.measure));
 
   const shown = $derived(focus === null ? groups : groups.filter((group) => group.id === focus));
 
@@ -111,8 +107,8 @@
   let pending = 0;
   $effect(() => {
     const request = ++pending;
-    const wanted = { graph: placedGraph, direction: view.direction, measure: view.measure };
-    layout(wanted.graph, wanted.direction, wanted.measure).then((laid) => {
+    const wanted = { graph: placedGraph, direction: view.direction, frequency };
+    layout(wanted.graph, wanted.direction, wanted.frequency).then((laid) => {
       if (request !== pending) return;
       placement = laid;
       placedAt += 1;
@@ -153,9 +149,13 @@
       })
     );
 
+    /** A node with the figures of the cut on screen and of the build both in hand. */
+    const measurable = (node: { id: number; counts: Record<string, Counts> }): Measurable =>
+      facing({ counts: node.counts, attributes: measured.get(node.id)?.attributes ?? {} }, focus);
+
     const steps = shadeSteps(
       simplified.nodes.map((node) =>
-        shadeValue({ ...node, counts: facing(node.counts) }, view.measure)
+        shadeValue({ ...measurable(node), kind: node.kind }, view.measure)
       ),
       "log"
     );
@@ -184,11 +184,13 @@
             label: node.label,
             kind: node.kind,
             groups: shown,
-            counts: faceCounts(node.counts, shown, view.measure),
+            figures: faceFigures(measurable(node), shown, view.measure),
             shadeStep: steps[index],
+            ramp: view.ramp,
             findings: findings(measured.get(node.id)),
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,
+            hovered: hovered.id === node.id,
             direction: view.direction,
             focus
           }
@@ -209,7 +211,8 @@
             boxes.get(edge.target) ?? null,
             view.direction
           );
-        return { edge, key, label: edgeWait(waits.get(key), shown), route: prepareRoute(points) };
+        const label = view.edgeLabels ? edgeWait(waits.get(key), shown) : null;
+        return { edge, key, label, route: prepareRoute(points) };
       });
 
     const anchors = placeLabels(
@@ -218,17 +221,22 @@
         .map((one) => ({
           key: one.key,
           route: one.route,
-          text: one.label ?? ""
+          text: one.label ? waitText(one.label) : "",
+          extra: one.label ? waitExtra(one.label) : 0
         })),
       [...boxes.values()]
     );
 
-    const busiestEdge = busiest(
-      simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
-      view.measure
-    );
+    const thickness = (edge: { source: number; target: number; counts: Record<string, Counts> }) =>
+      edgeValue(
+        facing({ counts: edge.counts, attributes: {} }, focus).counts,
+        waits.get(edgeKey(edge.source, edge.target)),
+        view.edge,
+        frequency
+      );
+    const largest = Math.max(0, ...simplified.edges.map(thickness));
     const edges: Edge[] = drawn.map(({ edge, key, label, route }) => {
-      const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
+      const width = edgeWidth(thickness(edge), largest);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       return {
         id: key,
@@ -242,7 +250,7 @@
           label,
           labelAt: anchors.get(key) ?? { x: 0, y: 0 },
           boundary: edge.source === START_ID || edge.target === END_ID,
-          highlighted: highlightedEdgeIds.has(key)
+          highlighted: highlightedEdgeIds.has(key) || picked.key === key
         }
       };
     });
@@ -296,6 +304,8 @@
     elementsSelectable={false}
     onlyRenderVisibleElements={!exporting}
     onnodeclick={({ node }) => (selected.id = Number(node.id))}
+    onnodepointerenter={({ node }) => (hovered.id = Number(node.id))}
+    onnodepointerleave={() => (hovered.id = null)}
     onpaneclick={() => (selected.id = null)}
   >
     <Background />
