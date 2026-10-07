@@ -1,11 +1,13 @@
 pub mod commands;
 mod csv;
+mod number;
 mod timestamp;
 
 pub(crate) mod draft;
 mod xes;
 
 pub(crate) use csv::{column_to_strings, dtype_label};
+pub(crate) use number::ungrouped;
 pub(crate) use timestamp::{analyze, TimestampColumnReport};
 
 /// Reads an uploaded Event Log, XES or CSV by its extension, at most `n_rows`

@@ -91,13 +91,17 @@
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
 
-  /** The edges of the Variant a row's eye lit, if it is still on the graph. */
-  const highlightedEdgeIds = $derived.by(() => {
-    if (shownVariant.key === null) return new Set<string>();
+  /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
+  const highlight = $derived.by(() => {
+    if (shownVariant.key === null) return null;
     const lit = graph.variants.find(
       (variant) => variantKey(variant.activities, labels) === shownVariant.key
     );
-    return lit ? variantEdgeIds(lit.activities) : new Set<string>();
+    if (!lit) return null;
+    return {
+      nodes: new Set([START_ID, ...lit.activities, END_ID].map(String)),
+      edges: variantEdgeIds(lit.activities)
+    };
   });
 
   // ELK is asynchronous, so the placement lands a tick after the topology
@@ -192,6 +196,8 @@
             selected: selected.id === node.id,
             hovered: hovered.id === node.id,
             direction: view.direction,
+            highlighted: false,
+            dimmed: false,
             focus
           }
         }
@@ -250,7 +256,8 @@
           label,
           labelAt: anchors.get(key) ?? { x: 0, y: 0 },
           boundary: edge.source === START_ID || edge.target === END_ID,
-          highlighted: highlightedEdgeIds.has(key) || picked.key === key
+          highlighted: picked.key === key,
+          dimmed: false
         }
       };
     });
@@ -259,12 +266,25 @@
   });
 
   // Svelte Flow owns these arrays while the user pans, so they are local state
-  // re-seeded from the layout.
+  // re-seeded from the layout and the lit Variant. The highlight is applied over
+  // the finished layout, so lighting a Variant never re-runs the layout.
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
   $effect(() => {
-    nodes = flow.nodes;
-    edges = flow.edges;
+    const lit = highlight;
+    if (lit === null) {
+      nodes = flow.nodes;
+      edges = flow.edges;
+      return;
+    }
+    nodes = flow.nodes.map((node) => {
+      const on = lit.nodes.has(node.id);
+      return { ...node, data: { ...node.data, highlighted: on, dimmed: !on } };
+    });
+    edges = flow.edges.map((edge) => {
+      const on = lit.edges.has(edge.id) || picked.key === edge.id;
+      return { ...edge, data: { ...edge.data, highlighted: on, dimmed: !on } };
+    });
   });
 
   let exporting = $state(false);

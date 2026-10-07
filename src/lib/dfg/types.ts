@@ -106,6 +106,8 @@ export interface DfgNodeData {
   selected: boolean;
   hovered: boolean;
   direction: Direction;
+  highlighted: boolean;
+  dimmed: boolean;
   focus: string | null;
   [key: string]: unknown;
 }
@@ -128,5 +130,6 @@ export interface DfgEdgeData {
   labelAt: Point;
   boundary: boolean;
   highlighted: boolean;
+  dimmed: boolean;
   [key: string]: unknown;
 }

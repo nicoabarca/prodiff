@@ -29,6 +29,11 @@
     loadVariants(project);
   });
 
+  // A lit Variant belongs to the open panel, so closing it clears the highlight.
+  $effect(() => () => {
+    shownVariant.key = null;
+  });
+
   /** The Variants the canvas is drawing, which is what a row's eye can light. */
   const drawn = $derived.by(() => {
     if (!tree) return new Set<string>();

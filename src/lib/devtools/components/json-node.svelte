@@ -1,14 +1,14 @@
 <script lang="ts">
   import { untrack } from "svelte";
   import * as ContextMenu from "$lib/components/ui/context-menu/index.js";
-  import Self from "$lib/devtools/tree/components/json-node.svelte";
+  import Self from "$lib/devtools/components/json-node.svelte";
   import {
     branchPreview,
     childrenOf,
     displayPrimitive,
     isDurationPath,
     kindOf
-  } from "$lib/devtools/tree/utils/inspect";
+  } from "$lib/devtools/utils/json";
   import { formatDuration } from "$lib/format";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";

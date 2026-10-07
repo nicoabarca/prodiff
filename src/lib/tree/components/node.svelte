@@ -50,13 +50,17 @@
       : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
       ? 'ring-destructive/60 ring-2'
       : ''} {data.highlighted
-      ? 'shadow-[0_0_1.25rem_0.125rem_rgba(99,102,241,0.55)] ring-2 ring-indigo-500 ring-offset-1'
+      ? 'shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)]'
       : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
       ? 'tree-node-exit pointer-events-none'
       : ''}"
-    style="background:{shaded.fill};border-color:{data.divergent
-      ? 'var(--destructive)'
-      : shaded.border};transition-duration:var(--tree-dim-duration)"
+    style="background:{shaded.fill};border-color:{data.highlighted
+      ? 'var(--color-indigo-500)'
+      : data.divergent
+        ? 'var(--destructive)'
+        : shaded.border};border-width:{data.highlighted
+      ? '0.125rem'
+      : ''};transition-duration:var(--tree-dim-duration)"
   >
     <div class="flex w-full items-start justify-center gap-1">
       <Tooltip.Root>
