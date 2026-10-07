@@ -27,6 +27,11 @@
     loadVariants(project);
   });
 
+  // A lit Variant belongs to the open panel, so closing it clears the highlight.
+  $effect(() => () => {
+    shownVariant.key = null;
+  });
+
   /** The Variants the graph was built from, which is what a row's eye can light. */
   const drawn = $derived(simplified ? simplified.variants.keys : new Set<string>());
 </script>
