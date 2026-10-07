@@ -27,7 +27,7 @@
     loadVariants(project);
   });
 
-  /** The Variants the canvas is drawing, which the Behaviour cut narrows further. */
+  /** The Variants the graph was built from, which is what a row's eye can light. */
   const drawn = $derived(simplified ? simplified.variants.keys : new Set<string>());
 </script>
 

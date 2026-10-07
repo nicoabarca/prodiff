@@ -79,6 +79,9 @@
     })
   );
 
+  const LIT_EDGE_STYLE =
+    "stroke:var(--color-indigo-500);filter:drop-shadow(0 0 0.25rem rgb(99 102 241 / 0.9)) drop-shadow(0 0 0.75rem rgb(99 102 241 / 0.5))";
+
   // Hovering a Variant in the picker lights up the path it drew. Applied over the
   // finished layout, so a hover never re-runs the layout.
   const highlight = $derived.by(() => {
@@ -209,6 +212,7 @@
             return {
               ...edge,
               class: on ? undefined : "opacity-15",
+              style: on ? `${edge.style};${LIT_EDGE_STYLE}` : edge.style,
               labelStyle: on ? EDGE_LABEL_STYLE : `${EDGE_LABEL_STYLE};opacity:0.15`
             };
           });

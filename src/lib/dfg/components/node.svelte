@@ -26,9 +26,12 @@
 {#if boundary}
   <Tooltip.Root>
     <Tooltip.Trigger
-      class="flex h-full w-full items-center justify-center rounded-full {data.kind === 'start'
+      class="flex h-full w-full items-center justify-center rounded-full transition-[opacity,box-shadow] duration-200 {data.kind ===
+      'start'
         ? 'bg-emerald-500'
-        : 'bg-rose-500'}"
+        : 'bg-rose-500'} {data.dimmed ? 'opacity-25' : ''} {data.highlighted
+        ? 'shadow-[0_0_0.75rem_0.25rem_rgba(99,102,241,0.6)]'
+        : ''}"
     >
       {#if data.kind === "start"}
         <svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true">
@@ -55,10 +58,14 @@
   <div
     data-tour="dfg-node"
     data-tour-key={data.label}
-    class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center {data.selected
+    class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-[opacity,box-shadow,border-color] duration-200 {data.selected
       ? 'ring-ring ring-2'
+      : ''} {data.dimmed ? 'opacity-25' : ''} {data.highlighted
+      ? 'shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)]'
       : ''}"
-    style="background:{shaded.fill};border-color:{shaded.border}"
+    style="background:{shaded.fill};border-color:{data.highlighted
+      ? 'var(--color-indigo-500)'
+      : shaded.border};border-width:{data.highlighted ? '0.125rem' : ''}"
   >
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">

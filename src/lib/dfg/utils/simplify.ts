@@ -18,8 +18,8 @@ export interface Simplified {
     total: number;
     cases: number;
     totalCases: number;
-    /** Keys of the Variants the Behaviour cut kept, for the picker to mark which
-        rows are actually drawn. */
+    /** Keys of every Variant the graph was built from, before the Behaviour cut,
+        for the picker to mark which rows are on the graph. */
     keys: Set<string>;
   };
   activities: { shown: number; total: number };
@@ -56,7 +56,7 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
       total: graph.variants.length,
       cases,
       totalCases,
-      keys: new Set(chosen.map((variant) => variantKey(variant.activities, labels)))
+      keys: new Set(graph.variants.map((variant) => variantKey(variant.activities, labels)))
     },
     activities: {
       shown: nodes.filter((node) => node.kind === "activity").length,

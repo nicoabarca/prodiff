@@ -73,6 +73,8 @@ export interface DfgNodeData {
   membership: string | null;
   selected: boolean;
   direction: Direction;
+  highlighted: boolean;
+  dimmed: boolean;
   [key: string]: unknown;
 }
 
@@ -84,5 +86,6 @@ export interface DfgEdgeData {
   labelAt: Point;
   boundary: boolean;
   highlighted: boolean;
+  dimmed: boolean;
   [key: string]: unknown;
 }
