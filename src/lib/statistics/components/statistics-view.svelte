@@ -16,7 +16,7 @@
   import { groupComparison } from "$lib/statistics/invokers/group-comparison";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import { pickGroup, pickable, statisticsGroups } from "$lib/statistics/state/selection.svelte";
-  import { formatSigned, isGap, percentChange } from "$lib/statistics/utils/change";
+  import { formatSigned, isGap, percentChange } from "$lib/analysis/utils/change";
   import {
     activityFigures,
     biggestDifferences,

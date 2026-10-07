@@ -4,7 +4,7 @@
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { linearAxis } from "$lib/statistics/utils/axis";
-  import { effectLabel, formatP, formatSigned, isGap } from "$lib/statistics/utils/change";
+  import { effectLabel, formatP, formatSigned, isGap } from "$lib/analysis/utils/change";
   import { valueShares } from "$lib/statistics/utils/figures";
   import BoxRows from "$lib/statistics/components/box-rows.svelte";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";

@@ -2,7 +2,7 @@
   import { formatNumber } from "$lib/format";
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
-  import { formatSigned, isGap, share } from "$lib/statistics/utils/change";
+  import { formatSigned, isGap, share } from "$lib/analysis/utils/change";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
   import GroupName from "$lib/statistics/components/group-name.svelte";
   import VariantPath from "$lib/components/variant-path/variant-path.svelte";

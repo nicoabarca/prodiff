@@ -6,7 +6,7 @@ import {
   isGap,
   percentChange,
   share
-} from "$lib/statistics/utils/change";
+} from "$lib/analysis/utils/change";
 
 describe("percentChange", () => {
   it("measures B against A", () => {

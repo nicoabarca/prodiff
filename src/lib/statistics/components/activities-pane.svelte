@@ -2,7 +2,7 @@
   import { formatDecimal, formatDuration } from "$lib/format";
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
-  import { formatSigned, isGap, share } from "$lib/statistics/utils/change";
+  import { formatSigned, isGap, share } from "$lib/analysis/utils/change";
   import {
     ACTIVITY_MEASURE_LABELS,
     activityFigures,

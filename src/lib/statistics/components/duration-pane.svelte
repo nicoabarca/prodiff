@@ -3,7 +3,7 @@
   import type { Group } from "$lib/groups/types";
   import type { GroupFigures, ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import { linearDurationAxis, logDurationAxis } from "$lib/statistics/utils/axis";
-  import { formatP, formatSigned, isGap, percentChange } from "$lib/statistics/utils/change";
+  import { formatP, formatSigned, isGap, percentChange } from "$lib/analysis/utils/change";
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxRows from "$lib/statistics/components/box-rows.svelte";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
