@@ -4,10 +4,12 @@
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
+  import MeasuresPanel from "$lib/dfg/components/measures-panel.svelte";
   import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
-  import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { refit, selected, splitting, view } from "$lib/dfg/state/view.svelte";
+  import { built, forgetOtherProject, isStale, load, selection } from "$lib/dfg/state/dfg.svelte";
+  import { keepMeasure, refit, selected, splitting, view } from "$lib/dfg/state/view.svelte";
+  import { measuresFor } from "$lib/dfg/utils/measure";
   import {
     loadSettings as loadVariantSettings,
     settings as variantSettings
@@ -27,14 +29,21 @@
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
+  const measures = $derived(project ? measuresFor(project, built.graph, selection.attributes) : []);
 
   let comparing = $state(false);
   let variantsOpen = $state(false);
   let buildSettingsOpen = $state(false);
   let panelOpen = $state(false);
+  let measuresOpen = $state(false);
+  let measuresWidth = $state(28);
+  // One panel to the right of the canvas at a time: the detail of one activity
+  // or the measures of all of them.
   $effect(() => {
-    panelOpen = selected.id !== null;
+    panelOpen = selected.id !== null && !measuresOpen;
   });
+
+  $effect(() => keepMeasure(measures));
 
   $effect(() => {
     if (!project) return;
@@ -60,6 +69,11 @@
       bind:variantsOpen
       bind:buildSettingsOpen
       bind:comparing
+      {measuresOpen}
+      onToggleMeasures={() => {
+        measuresOpen = !measuresOpen;
+        if (measuresOpen) panelOpen = false;
+      }}
     />
 
     {#if built.graph && simplified}
@@ -84,7 +98,7 @@
               <DfgInspector graph={built.graph} {simplified} />
             {/await}
           {/if}
-          {#if selected.id !== null}
+          {#if selected.id !== null && !measuresOpen}
             <div class="absolute top-4 left-4 z-10">
               <Button
                 variant="outline"
@@ -99,7 +113,23 @@
             </div>
           {/if}
         </div>
-        {#if panelOpen}
+        {#if measuresOpen}
+          <div
+            class="border-border bg-background shrink-0 border-l"
+            style="width:{measuresWidth}rem"
+          >
+            <MeasuresPanel
+              {project}
+              graph={built.graph}
+              {simplified}
+              groups={graphGroupsForView}
+              {measures}
+              bind:width={measuresWidth}
+              onClose={() => (measuresOpen = false)}
+              onDetails={() => (measuresOpen = false)}
+            />
+          </div>
+        {:else if panelOpen}
           <div
             class="border-border bg-background w-80 shrink-0 border-l"
             data-tour="dfg-detail-panel"

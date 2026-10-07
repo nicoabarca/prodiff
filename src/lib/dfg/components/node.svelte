@@ -13,7 +13,10 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const shaded = $derived(shade(accent, data.shadeStep));
+  // An activity one Group alone reaches keeps that Group's colour, so no ramp
+  // can be mistaken for a Group's own. Everything else reads the chosen ramp.
+  const ramp = $derived(accent === "group-original" ? data.ramp : "group");
+  const shaded = $derived(shade(accent, data.shadeStep, ramp));
   /** On a split panel, an activity this panel's Group alone reaches. */
   const only = $derived(data.focus !== null && data.membership === data.focus);
 </script>
@@ -47,9 +50,9 @@
     </Tooltip.Trigger>
     <Tooltip.Content>
       {data.label}
-      {#if Object.values(data.counts).some((count) => count !== null)}
-        · {Object.values(data.counts)
-          .filter((count) => count !== null)
+      {#if Object.values(data.figures).some((figure) => figure !== null)}
+        · {Object.values(data.figures)
+          .filter((figure) => figure !== null)
           .join(" · ")}
       {/if}
     </Tooltip.Content>
@@ -61,8 +64,10 @@
     data-tour="dfg-node"
     data-tour-key={data.label}
     class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-[opacity,box-shadow,border-color] duration-200 {data.selected
-      ? 'ring-ring ring-2'
-      : ''} {data.dimmed ? 'opacity-25' : ''} {data.highlighted
+      ? 'ring-ring ring-4'
+      : data.hovered
+        ? 'ring-ring/50 ring-2'
+        : ''} {data.dimmed ? 'opacity-25' : ''} {data.highlighted
       ? 'shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)]'
       : ''}"
     style="background:{shaded.fill};border-color:{data.highlighted
@@ -87,7 +92,7 @@
 
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
       {#each data.groups as group (group.id)}
-        {#if data.counts[group.id]}
+        {#if data.figures[group.id]}
           <span
             class="flex items-center gap-1"
             style="color:{shaded.ink ?? `var(--${group.color})`}"
@@ -98,7 +103,7 @@
                 style="background:var(--{group.color})"
               ></span>
             {/if}
-            {data.counts[group.id]}
+            {data.figures[group.id]}
           </span>
         {/if}
       {/each}

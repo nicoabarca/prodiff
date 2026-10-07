@@ -3,7 +3,7 @@
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
-  import { formatSigned, isGap, share } from "$lib/statistics/utils/change";
+  import { formatSigned, isGap, share } from "$lib/analysis/utils/change";
   import {
     OVERVIEW_METRICS,
     biggestDifferences,

@@ -1,9 +1,11 @@
 <script lang="ts">
   /**
    * The graph's settings as a row of fields: what is compared, which Variants,
-   * which attributes are tested, whether it is split, and how it is drawn.
+   * which attributes are tested, whether it is split, what it paints, and how
+   * it is drawn.
    */
   import CompareField from "$lib/groups/components/compare-field.svelte";
+  import MeasuresField from "$lib/dfg/components/measures-field.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
   import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
@@ -24,7 +26,9 @@
     stale,
     variantsOpen = $bindable(false),
     buildSettingsOpen = $bindable(false),
-    comparing = $bindable(false)
+    comparing = $bindable(false),
+    measuresOpen = false,
+    onToggleMeasures
   }: {
     project: Project;
     graph: ResponseDfg | null;
@@ -35,6 +39,8 @@
     variantsOpen?: boolean;
     buildSettingsOpen?: boolean;
     comparing?: boolean;
+    measuresOpen?: boolean;
+    onToggleMeasures: () => void;
   } = $props();
 
   const groups = $derived(comparedGroups());
@@ -42,9 +48,14 @@
 
 <div class="border-border bg-background flex shrink-0 flex-nowrap items-stretch border-b">
   <CompareField {project} bind:open={comparing} />
-  <VariantSummary {simplified} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
+  <VariantSummary
+    {simplified}
+    open={variantsOpen}
+    onToggle={() => (variantsOpen = !variantsOpen)}
+  />
   <BuildSettings {project} bind:open={buildSettingsOpen} />
   <SplitField groupCount={groups.length} />
+  <MeasuresField open={measuresOpen} onToggle={onToggleMeasures} />
 
   <div class="flex min-w-0 flex-1 items-center gap-3 px-3">
     {#if error}

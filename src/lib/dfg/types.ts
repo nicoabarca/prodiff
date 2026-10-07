@@ -1,13 +1,29 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
 
+import type { Ramp } from "$lib/groups/utils/shade";
+
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
 export const START_ID = 0;
 export const END_ID = 1;
 
 export type NodeKind = "start" | "end" | "activity";
 
-/** Which figure a node or an edge prints on its face, and ranks by. */
-export type Measure = "cases" | "events";
+/** The unit the fold counts in: a case once, or every occurrence of it. */
+export type Frequency = "cases" | "events";
+
+/**
+ * What a node prints on its face and shades by. A frequency is read off the
+ * fold; an attribute is read off the Summary Rust shipped for it, which exists
+ * only while that attribute is among the ones tested.
+ */
+export type Measure = { kind: "cases" } | { kind: "events" } | { kind: "attribute"; name: string };
+
+/**
+ * What an edge's width scales by. A wait is the mean Waiting Time Rust measured
+ * for the pair, so it needs Waiting Time among the attributes and falls back to
+ * the frequency on a pair the log never held.
+ */
+export type EdgeMeasure = "frequency" | "wait";
 
 export type Direction = "TB" | "LR";
 
@@ -28,6 +44,9 @@ export interface DfgView {
   coverage: number;
   paths: number;
   measure: Measure;
+  edge: EdgeMeasure;
+  edgeLabels: boolean;
+  ramp: Ramp;
   direction: Direction;
   split: boolean;
 }
@@ -35,7 +54,10 @@ export interface DfgView {
 export const defaultDfgView: DfgView = {
   coverage: 0.8,
   paths: 1,
-  measure: "cases",
+  measure: { kind: "cases" },
+  edge: "frequency",
+  edgeLabels: false,
+  ramp: "group",
   direction: "TB",
   split: false
 };
@@ -76,11 +98,13 @@ export interface DfgNodeData {
   label: string;
   kind: NodeKind;
   groups: FaceGroup[];
-  counts: Record<string, string | null>;
+  figures: Record<string, string | null>;
   shadeStep: number | null;
+  ramp: Ramp;
   findings: number;
   membership: string | null;
   selected: boolean;
+  hovered: boolean;
   direction: Direction;
   highlighted: boolean;
   dimmed: boolean;
@@ -88,11 +112,21 @@ export interface DfgNodeData {
   [key: string]: unknown;
 }
 
+/**
+ * The mean wait an edge prints, one part per Group that measured one, each in
+ * that Group's colour. `shared` says every Group waited the same, so one figure
+ * stands for all of them and the dots alone say whose it is.
+ */
+export interface WaitLabel {
+  parts: { id: string; color: string; text: string }[];
+  shared: boolean;
+}
+
 export interface DfgEdgeData {
   shaft: string;
   head: string;
   width: number;
-  label: string | null;
+  label: WaitLabel | null;
   labelAt: Point;
   boundary: boolean;
   highlighted: boolean;

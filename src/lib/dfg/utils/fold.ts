@@ -6,7 +6,7 @@
  * counts every occurrence.
  */
 import type { Counts, Variant } from "$lib/dfg/invokers/types";
-import { END_ID, START_ID, type Measure } from "$lib/dfg/types";
+import { END_ID, START_ID, type Frequency } from "$lib/dfg/types";
 
 export interface FoldedEdge {
   source: number;
@@ -40,9 +40,9 @@ export function variantEdgeIds(activities: number[]): Set<string> {
 }
 
 /** The union across the Groups, which is what everything ranks and scales by. */
-export function unionCount(counts: Record<string, Counts>, measure: Measure): number {
+export function unionCount(counts: Record<string, Counts>, frequency: Frequency): number {
   let total = 0;
-  for (const count of Object.values(counts)) total += count[measure];
+  for (const count of Object.values(counts)) total += count[frequency];
   return total;
 }
 
@@ -90,7 +90,7 @@ export function fold(variants: Variant[]): Folded {
 
     for (const [group, cases] of Object.entries(variant.cases)) {
       // A case enters once and leaves once, so the two boundaries count it once
-      // on both measures.
+      // on both frequencies.
       add(nodeCounts(START_ID), group, cases, cases);
       add(nodeCounts(END_ID), group, cases, cases);
       for (const [activity, times] of nodeHits) {

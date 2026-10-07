@@ -3,7 +3,7 @@ import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
 import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
 import { formatDecimal, formatDuration, formatNumber } from "$lib/format";
-import { formatSigned, isGap, percentChange, share } from "$lib/statistics/utils/change";
+import { formatSigned, isGap, percentChange, share } from "$lib/analysis/utils/change";
 
 export const PANES = ["overview", "duration", "activities", "attributes", "variants"] as const;
 export type Pane = (typeof PANES)[number];

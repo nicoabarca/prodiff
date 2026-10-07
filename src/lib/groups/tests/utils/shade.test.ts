@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { pooledMean, shade, shadeSteps } from "$lib/groups/utils/shade";
+import { GROUP_COLORS } from "$lib/groups/colors";
+import { keptRamp, pooledMean, rampsFor, shade, shadeSteps } from "$lib/groups/utils/shade";
 
 describe("shadeSteps", () => {
   it("spreads values linearly between the smallest and the largest", () => {
@@ -87,5 +88,29 @@ describe("shade", () => {
     expect(ink).toBe(
       `oklch(from ${fill} clamp(0.32, calc((0.72 - l) * infinity), 0.92) calc(c * clamp(0.5, calc((l - 0.72) * infinity), 1)) h / 1)`
     );
+  });
+});
+
+describe("rampsFor", () => {
+  it("drops the ramps a compared Group's own colour would be mistaken for", () => {
+    // group-2 is the palette's blue, group-4 its green.
+    const offered = rampsFor(["group-2", "group-4"]);
+
+    expect(offered).not.toContain("blue");
+    expect(offered).not.toContain("green");
+    expect(offered).toContain("red");
+    expect(offered).toContain("amber");
+  });
+
+  it("always offers the Group ramp and the grey one, which carry no hue of their own", () => {
+    const offered = rampsFor(GROUP_COLORS.slice());
+
+    expect(offered).toContain("group");
+    expect(offered).toContain("grey");
+  });
+
+  it("falls back to the Group ramp once a Group claims the one in use", () => {
+    expect(keptRamp("red", rampsFor(["group-6"]))).toBe("group");
+    expect(keptRamp("red", rampsFor(["group-2"]))).toBe("red");
   });
 });

@@ -1,10 +1,10 @@
 import { dfg } from "$lib/dfg/invokers/dfg";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey } from "$lib/dfg/types";
-import { attributeOptions } from "$lib/analysis/attributes";
+import { ACTIVITY_DURATION, attributeOptions, TRANSITION_TIME } from "$lib/analysis/attributes";
 import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
-import { selected } from "$lib/dfg/state/view.svelte";
+import { selected, setEdgeLabels, view } from "$lib/dfg/state/view.svelte";
 import { resetVariantsState, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
 import type { Project } from "$lib/event-log/types";
 
@@ -24,9 +24,12 @@ export const built = $state<{
 /**
  * The attributes each node is asked to measure and test. A build input, so it
  * keys the cache; the simplification thresholds do not, because they never
- * cross the seam.
+ * cross the seam. Waiting Time is not among them: the invoker always asks for it,
+ * because the edges are drawn from it. Service Time is asked for from the start,
+ * so the Time view is one press rather than a rebuild; a log with no start
+ * timestamp drops it in `selectedAttributes`.
  */
-export const selection = $state<{ attributes: string[] }>({ attributes: [] });
+export const selection = $state<{ attributes: string[] }>({ attributes: [ACTIVITY_DURATION] });
 
 /** The selected attributes that are still valid and visible for this project. */
 export function selectedAttributes(project: Project): string[] {
@@ -76,6 +79,27 @@ export async function load(project: Project, force = false) {
 
 export function setAttributes(names: string[]) {
   selection.attributes = names;
+}
+
+export function toggleAttribute(name: string, on: boolean) {
+  const next = new Set(selection.attributes);
+  if (on) next.add(name);
+  else next.delete(name);
+  setAttributes([...next]);
+}
+
+/**
+ * What the attributes field shows ticked. Waiting Time is always measured, so
+ * its tick says whether the edges print it rather than whether it is asked for,
+ * which is why flipping it redraws instead of rebuilding.
+ */
+export function testedAttributes(): string[] {
+  return view.edgeLabels ? [...selection.attributes, TRANSITION_TIME] : selection.attributes;
+}
+
+export function toggleTested(name: string, on: boolean) {
+  if (name === TRANSITION_TIME) setEdgeLabels(on);
+  else toggleAttribute(name, on);
 }
 
 function clear() {

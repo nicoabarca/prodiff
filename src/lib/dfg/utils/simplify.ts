@@ -1,7 +1,8 @@
 /** Simplifies DFG variants and paths for display. */
 import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
-import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
+import { END_ID, START_ID, type DfgView, type Frequency, type NodeKind } from "$lib/dfg/types";
 import { fold, unionCount, variantKey, type FoldedEdge } from "$lib/dfg/utils/fold";
+import { frequencyOf } from "$lib/dfg/utils/measure";
 
 export interface SimplifiedNode {
   id: number;
@@ -37,7 +38,7 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
   const { chosen, cases, totalCases } = chooseVariants(graph.variants, view.coverage);
 
   const folded = fold(chosen);
-  const edges = cutPaths(folded.edges, ids, view.paths, view.measure);
+  const edges = cutPaths(folded.edges, ids, view.paths, frequencyOf(view.measure));
 
   const nodes: SimplifiedNode[] = [...folded.nodes.entries()]
     .map(([id, counts]) => ({
@@ -92,7 +93,7 @@ function cutPaths(
   edges: FoldedEdge[],
   groups: string[],
   share: number,
-  measure: Measure
+  frequency: Frequency
 ): FoldedEdge[] {
   const inner = edges.filter((edge) => !isBoundary(edge));
   const preserved = new Set<FoldedEdge>(edges.filter(isBoundary));
@@ -101,15 +102,15 @@ function cutPaths(
 
   for (const group of groups) {
     const ofGroup = inner
-      .filter((edge) => (edge.counts[group]?.[measure] ?? 0) > 0)
-      .sort((a, b) => (b.counts[group]?.[measure] ?? 0) - (a.counts[group]?.[measure] ?? 0));
+      .filter((edge) => (edge.counts[group]?.[frequency] ?? 0) > 0)
+      .sort((a, b) => (b.counts[group]?.[frequency] ?? 0) - (a.counts[group]?.[frequency] ?? 0));
     for (const edge of ofGroup.slice(0, wanted)) preserved.add(edge);
   }
 
   const best = (of: FoldedEdge[]) =>
     of.reduce<FoldedEdge | null>(
       (top, edge) =>
-        !top || unionCount(edge.counts, measure) > unionCount(top.counts, measure) ? edge : top,
+        !top || unionCount(edge.counts, frequency) > unionCount(top.counts, frequency) ? edge : top,
       null
     );
   const push = (into: Map<number, FoldedEdge[]>, node: number, edge: FoldedEdge) => {

@@ -15,6 +15,10 @@ import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.
  *
  * Nothing about the drawing crosses the seam: the simplification thresholds and
  * the layout are the frontend's, so moving a slider never calls this again.
+ *
+ * Waiting Time is always asked for, whatever `attributes` holds: the graph draws
+ * it on its edges and scales their width by it, so it is part of the map rather
+ * than something to opt into. `attributes` is what the activities are tested on.
  */
 export function dfg(
   project: Project,
@@ -22,10 +26,13 @@ export function dfg(
   attributes: string[],
   selectedVariants: string[]
 ): Promise<ResponseDfg> {
+  const asked = attributes.includes(TRANSITION_TIME)
+    ? attributes
+    : [...attributes, TRANSITION_TIME];
   return invoke<ResponseDfg>("dfg", {
     projectId: project.id,
     groups,
-    attributes: attributes.map(requestAttribute),
+    attributes: asked.map(requestAttribute),
     columns: analysisColumns(project),
     variants: selectedVariants.length > 0 ? selectedVariants : null
   });

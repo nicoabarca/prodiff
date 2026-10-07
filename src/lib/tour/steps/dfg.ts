@@ -17,6 +17,12 @@ export const dfgTour: TourStep[] = [
     side: "left"
   },
   {
+    target: [{ anchor: "dfg-measures" }],
+    title: "One measure at a time",
+    body: "The graph paints one measure as shade and figures. Open Measures to change which, and to read every other figure the build holds, activity by activity.",
+    side: "bottom"
+  },
+  {
     target: [requestDocuments],
     title: "Pick an activity",
     body: "Click Request documents to see what each Group does there.",
