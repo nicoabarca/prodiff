@@ -10,61 +10,71 @@ use super::Endpoint;
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::project_dir_for_app;
 use crate::filters::Filter;
+use crate::parsing::commands::off_main_thread;
 
 /// How much of the log survives each prefix of a Filter List. Index 0 is the
 /// unfiltered log and index `i + 1` the result after filter `i`.
 #[tauri::command]
-pub fn filters_impact(
+pub async fn filters_impact(
     app: tauri::AppHandle,
     project_id: String,
     filters: Vec<Filter>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<ChainStep>, String> {
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let dir = project_dir_for_app(&app, &project_id)?;
-    let mut df = read_event_log(&dir)?;
+    off_main_thread(move || {
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        let mut df = read_event_log(&dir)?;
 
-    let mut steps = Vec::with_capacity(filters.len() + 1);
-    steps.push(measure(&df, case_col)?);
-    for filter in &filters {
-        df = filtered(&dir, &df, std::slice::from_ref(filter), &columns)?;
+        let mut steps = Vec::with_capacity(filters.len() + 1);
         steps.push(measure(&df, case_col)?);
-    }
-    Ok(steps)
+        for filter in &filters {
+            df = filtered(&dir, &df, std::slice::from_ref(filter), &columns)?;
+            steps.push(measure(&df, case_col)?);
+        }
+        Ok(steps)
+    })
+    .await
 }
 
 /// The distribution of case durations under a Filter List.
 #[tauri::command]
-pub fn duration_histogram(
+pub async fn duration_histogram(
     app: tauri::AppHandle,
     project_id: String,
     chain: Vec<Filter>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<DurationBin>, String> {
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
     let dir = project_dir_for_app(&app, &project_id)?;
-    let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
-    Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
+    off_main_thread(move || {
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+        let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
+        Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
+    })
+    .await
 }
 
 /// How many cases are open on each day the log covers, quiet days included.
 #[tauri::command]
-pub fn daily_case_load(
+pub async fn daily_case_load(
     app: tauri::AppHandle,
     project_id: String,
     chain: Vec<Filter>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<DayLoad>, String> {
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
     let dir = project_dir_for_app(&app, &project_id)?;
-    let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
-    Ok(daily_load(&case_spans(df, case_col, timestamp_col)?))
+    off_main_thread(move || {
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
+        let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
+        Ok(daily_load(&case_spans(df, case_col, timestamp_col)?))
+    })
+    .await
 }
 
 #[tauri::command]
-pub fn group_preview(
+pub async fn group_preview(
     app: tauri::AppHandle,
     project_id: String,
     filters: Vec<Filter>,
@@ -73,34 +83,37 @@ pub fn group_preview(
     limit: usize,
 ) -> Result<PreviewTable, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    let df = filtered(&dir, &read_event_log(&dir)?, &filters, &columns)?;
-    let total_events = df.height();
-    let page = df.slice(offset as i64, limit);
+    off_main_thread(move || {
+        let df = filtered(&dir, &read_event_log(&dir)?, &filters, &columns)?;
+        let total_events = df.height();
+        let page = df.slice(offset as i64, limit);
 
-    let names: Vec<String> = page
-        .get_column_names()
-        .iter()
-        .map(|n| n.to_string())
-        .collect();
-    let columns: Vec<_> = names
-        .iter()
-        .map(|n| page.column(n).map_err(|e| e.to_string()))
-        .collect::<Result<_, _>>()?;
-    let rows = (0..page.height())
-        .map(|i| columns.iter().map(|c| cell_to_string(c, i)).collect())
-        .collect();
+        let names: Vec<String> = page
+            .get_column_names()
+            .iter()
+            .map(|n| n.to_string())
+            .collect();
+        let columns: Vec<_> = names
+            .iter()
+            .map(|n| page.column(n).map_err(|e| e.to_string()))
+            .collect::<Result<_, _>>()?;
+        let rows = (0..page.height())
+            .map(|i| columns.iter().map(|c| cell_to_string(c, i)).collect())
+            .collect();
 
-    Ok(PreviewTable {
-        columns: names,
-        rows,
-        total_events,
+        Ok(PreviewTable {
+            columns: names,
+            rows,
+            total_events,
+        })
     })
+    .await
 }
 
 /// Distinct values of a column, alphabetical. `endpoint` narrows them to the
 /// activities cases begin (or end) with.
 #[tauri::command]
-pub fn distinct_values(
+pub async fn distinct_values(
     app: tauri::AppHandle,
     project_id: String,
     column: String,
@@ -108,7 +121,11 @@ pub fn distinct_values(
     limit: usize,
     endpoint: Option<Endpoint>,
 ) -> Result<DistinctValues, String> {
-    let df = read_event_log(&project_dir_for_app(&app, &project_id)?)?;
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
-    count_values(df, &column, case_col, endpoint, limit)
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let df = read_event_log(&dir)?;
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        count_values(df, &column, case_col, endpoint, limit)
+    })
+    .await
 }

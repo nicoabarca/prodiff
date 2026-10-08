@@ -9,6 +9,7 @@ use super::{build, DirectedTree};
 use crate::analysis::read_groups;
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::project_dir_for_app;
+use crate::parsing::commands::off_main_thread;
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to
@@ -33,7 +34,7 @@ pub async fn list_variants(
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    tauri::async_runtime::spawn_blocking(move || {
+    off_main_thread(move || {
         let logs = read_groups(&dir, &groups)?;
 
         let mut rows = super::variant_rows(&logs, &columns)?;
@@ -44,7 +45,6 @@ pub async fn list_variants(
         Ok(rows)
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// `variants` is the set the picker has checked, by Variant key. It cuts before
@@ -61,12 +61,11 @@ pub async fn directed_tree(
     variants: Option<Vec<String>>,
 ) -> Result<DirectedTree, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    tauri::async_runtime::spawn_blocking(move || {
+    off_main_thread(move || {
         let logs = read_groups(&dir, &groups)?;
         build(&logs, &columns, &attributes, variants.as_deref())
     })
     .await
-    .map_err(|e| e.to_string())?
 }
 
 /// One node's Distributions: value counts per attribute, per Group, under one
@@ -89,10 +88,9 @@ pub async fn node_distributions(
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    tauri::async_runtime::spawn_blocking(move || {
+    off_main_thread(move || {
         let logs = read_groups(&dir, &groups)?;
         distributions(&logs, &columns, &attributes, &variants, depth, scope)
     })
     .await
-    .map_err(|e| e.to_string())?
 }

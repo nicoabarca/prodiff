@@ -6,11 +6,12 @@ use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::project_dir_for_app;
 use crate::filters::queries::case_ids;
 use crate::filters::Filter;
+use crate::parsing::commands::off_main_thread;
 use crate::stats::{summarize, EventLogStats};
 
 /// Runs a Group's Filter List, writes the result as Parquet and returns its figures.
 #[tauri::command]
-pub fn apply_group(
+pub async fn apply_group(
     app: tauri::AppHandle,
     project_id: String,
     group_id: String,
@@ -22,7 +23,7 @@ pub fn apply_group(
         id: group_id,
         filters,
     };
-    super::apply(&dir, &group, &columns)
+    off_main_thread(move || super::apply(&dir, &group, &columns)).await
 }
 
 /// Drops a Group's Parquet.
@@ -52,39 +53,45 @@ pub fn applied_groups(
 
 /// Cases present in every one of these Groups. Reported, never removed.
 #[tauri::command]
-pub fn shared_cases(
+pub async fn shared_cases(
     app: tauri::AppHandle,
     project_id: String,
     group_ids: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<i64, String> {
-    let case_col = require_role(&columns, ColumnRole::CaseId)?;
     let dir = project_dir_for_app(&app, &project_id)?;
-    let mut per_group = group_ids
-        .iter()
-        .map(|id| case_ids(&read_group(&dir, id)?, case_col))
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter();
-    let Some(first) = per_group.next() else {
-        return Ok(0);
-    };
-    let shared = per_group.fold(first, |kept, next| {
-        kept.into_iter().filter(|id| next.contains(id)).collect()
-    });
-    Ok(shared.len() as i64)
+    off_main_thread(move || {
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        let mut per_group = group_ids
+            .iter()
+            .map(|id| case_ids(&read_group(&dir, id)?, case_col))
+            .collect::<Result<Vec<_>, _>>()?
+            .into_iter();
+        let Some(first) = per_group.next() else {
+            return Ok(0);
+        };
+        let shared = per_group.fold(first, |kept, next| {
+            kept.into_iter().filter(|id| next.contains(id)).collect()
+        });
+        Ok(shared.len() as i64)
+    })
+    .await
 }
 
 /// Statistics for several Groups at once, in the order asked.
 #[tauri::command]
-pub fn group_stats(
+pub async fn group_stats(
     app: tauri::AppHandle,
     project_id: String,
     group_ids: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<EventLogStats>, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    group_ids
-        .iter()
-        .map(|id| summarize(&read_group(&dir, id)?, &columns))
-        .collect()
+    off_main_thread(move || {
+        group_ids
+            .iter()
+            .map(|id| summarize(&read_group(&dir, id)?, &columns))
+            .collect()
+    })
+    .await
 }
