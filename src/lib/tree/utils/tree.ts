@@ -35,7 +35,10 @@ export function children(tree: ResponseDirectedTree): Map<number, number[]> {
 
 /** The path from the root down to `id`, inclusive. */
 export function pathTo(tree: ResponseDirectedTree, id: number): TreeNode[] {
-  const byId = new Map(tree.nodes.map((n) => [n.id, n]));
+  return pathIn(new Map(tree.nodes.map((n) => [n.id, n])), id);
+}
+
+function pathIn(byId: Map<number, TreeNode>, id: number): TreeNode[] {
   const path: TreeNode[] = [];
   let current: TreeNode | undefined = byId.get(id);
   while (current) {
@@ -103,6 +106,7 @@ export function visibleNodes(
 ): Visible {
   const kids = children(tree);
   const all = leaves(tree);
+  const byId = new Map(tree.nodes.map((n) => [n.id, n]));
 
   // An empty selection means nothing has been chosen yet, so the built tree
   // already is the selection.
@@ -112,7 +116,7 @@ export function visibleNodes(
   // Biggest Variants first. Case count then id keeps ties stable across renders.
   const ranked = all
     .filter(chosen)
-    .filter((leaf) => !view.significantOnly || pathTo(tree, leaf.id).some(hasSignificant))
+    .filter((leaf) => !view.significantOnly || pathIn(byId, leaf.id).some(hasSignificant))
     .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id);
 
   const kept = new Set<number>();
@@ -121,7 +125,7 @@ export function visibleNodes(
   let casesShown = 0;
   for (const leaf of ranked) {
     casesShown += nodeCases(leaf);
-    for (const node of pathTo(tree, leaf.id)) {
+    for (const node of pathIn(byId, leaf.id)) {
       kept.add(node.id);
       const acc = cases.get(node.id) ?? Object.fromEntries(groups.map((id) => [id, 0]));
       for (const id of groups) acc[id] += groupCasesAt(leaf, id);
