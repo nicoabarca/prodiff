@@ -12,7 +12,7 @@
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import Database from "@lucide/svelte/icons/database";
-  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+  import Funnel from "@lucide/svelte/icons/funnel";
   import SquareFunction from "@lucide/svelte/icons/square-function";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
@@ -44,8 +44,8 @@
     {
       view: "filters",
       href: `/app/projects/${activeProject.id}/filters`,
-      label: "Filters",
-      icon: SlidersHorizontal
+      label: "Group Filters",
+      icon: Funnel
     },
     {
       view: "custom-attributes",

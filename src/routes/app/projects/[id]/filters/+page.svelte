@@ -16,7 +16,6 @@
   import FilterEditor from "$lib/filters/components/filter-editor.svelte";
   import DeleteGroupDialog from "$lib/groups/components/delete-group-dialog.svelte";
   import GroupCard from "$lib/groups/components/group-card.svelte";
-  import GroupComparison from "$lib/groups/components/group-comparison.svelte";
   import type { Group } from "$lib/groups/types";
   import Plus from "@lucide/svelte/icons/plus";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
@@ -114,10 +113,10 @@
       <div class="flex flex-col gap-5 *:shrink-0 lg:h-full lg:min-h-0 lg:overflow-auto lg:px-px">
         <div class="flex flex-wrap items-center gap-3">
           <div>
-            <h1 class="text-sm font-semibold">Filters</h1>
+            <h1 class="text-sm font-semibold">Group Filters</h1>
             <p class="text-muted-foreground text-xs">
-              Each group is a set of cases its filters carve out of the event log, in order. Edits
-              are a draft until you apply them.
+              Filters narrow the event log to the cases each group compares. They run in order and
+              take effect when you apply.
             </p>
           </div>
         </div>
@@ -145,7 +144,6 @@
             </Empty.Content>
           </Empty.Root>
         {:else}
-          <GroupComparison {groups} />
           {#each groups as group (group.id)}
             <GroupCard
               {project}
