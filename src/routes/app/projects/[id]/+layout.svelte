@@ -2,14 +2,12 @@
   import { untrack } from "svelte";
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
-  import { Button } from "$lib/components/ui/button/index.js";
   import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
   import { markOpened } from "$lib/event-log/state/opened.svelte";
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import AppSidebar from "$lib/components/layout/sidebar.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
-  import FilterSummaryBar from "$lib/groups/components/filter-summary-bar.svelte";
   import ApplyingOverlay from "$lib/custom-attributes/components/applying-overlay.svelte";
   import {
     customAttributesLoaded,
@@ -17,7 +15,6 @@
   } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import TourButton from "$lib/tour/components/tour-button.svelte";
   import TourLauncher from "$lib/tour/components/tour-launcher.svelte";
-  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
 
   let { children } = $props();
 
@@ -80,16 +77,6 @@
     </AppSidebar>
     <Sidebar.Inset class="min-h-0 min-w-0">
       <ProjectTopbar {project} projectView={view} />
-      <FilterSummaryBar {project}>
-        {#snippet actions()}
-          {#if !onFilters}
-            <Button variant="outline" size="sm" href="/app/projects/{project.id}/filters">
-              <SlidersHorizontal data-icon="inline-start" />
-              Edit filters
-            </Button>
-          {/if}
-        {/snippet}
-      </FilterSummaryBar>
       {@render children()}
       <ApplyingOverlay />
       <TourLauncher {project} {view} />

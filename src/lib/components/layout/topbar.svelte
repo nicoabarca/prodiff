@@ -12,7 +12,7 @@
     distributions: "Distributions",
     statistics: "Statistics & data",
     "event-log": "Event log",
-    filters: "Filters",
+    filters: "Group Filters",
     "custom-attributes": "Custom attributes"
   };
 

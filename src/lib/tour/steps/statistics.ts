@@ -21,8 +21,8 @@ export const statisticsTour: TourStep[] = [
   },
   {
     target: [{ anchor: "nav-filters" }],
-    title: "Next: Filters",
-    body: "Groups are made in the Filters view. Open it to see how Approved, Rejected and Slow cases are defined.",
+    title: "Next: Group Filters",
+    body: "Groups are made in the Group Filters view. Open it to see how Approved, Rejected and Slow cases are defined.",
     side: "right",
     interactive: true
   }
