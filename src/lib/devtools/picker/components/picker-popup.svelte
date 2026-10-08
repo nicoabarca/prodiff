@@ -20,6 +20,7 @@
   import { formatMessage } from "$lib/devtools/picker/utils/message";
   import { storeMode } from "$lib/devtools/picker/utils/mode";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
+  import Copy from "@lucide/svelte/icons/copy";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import X from "@lucide/svelte/icons/x";
   import { onMount } from "svelte";
@@ -59,7 +60,8 @@
 
   const session = $derived(sessions?.find((s) => s.id === sessionId) ?? null);
   const matching = $derived(sessions?.filter((s) => s.matches).length ?? 0);
-  const canSend = $derived(!sending && text.trim() !== "" && session !== null && elements.length > 0);
+  const canCopy = $derived(!sending && text.trim() !== "" && elements.length > 0);
+  const canSend = $derived(canCopy && session !== null);
 
   const left = $derived(Math.max(8, Math.min(x + 12, window.innerWidth - width - 8)));
   const top = $derived(Math.max(8, Math.min(y + 12, window.innerHeight - height - 8)));
@@ -70,21 +72,34 @@
     sessionId = pickSession(sessions);
   });
 
+  function message() {
+    return formatMessage({
+      mode,
+      instruction: text,
+      elements: elements.map(contextOf),
+      route: location.pathname + location.search,
+      viewport: { width: window.innerWidth, height: window.innerHeight }
+    });
+  }
+
+  async function copy() {
+    if (!canCopy) return;
+    error = null;
+    try {
+      await navigator.clipboard.writeText(message().text);
+    } catch (cause) {
+      error = (cause as Error).message;
+      return;
+    }
+    toast.success("Prompt copied");
+  }
+
   async function submit() {
     if (!canSend || !session) return;
     error = null;
     sending = true;
     try {
-      await send(
-        session.id,
-        formatMessage({
-          mode,
-          instruction: text,
-          elements: elements.map(contextOf),
-          route: location.pathname + location.search,
-          viewport: { width: window.innerWidth, height: window.innerHeight }
-        })
-      );
+      await send(session.id, message());
     } catch (cause) {
       error = (cause as Error).message;
       sending = false;
@@ -231,11 +246,17 @@
   {/if}
   <div class="flex items-center justify-between gap-2">
     <span class="text-muted-foreground">⌘⇧A Ask · ⌘⇧D Do · ⌘↵ send · Esc close</span>
-    <Button size="sm" disabled={!canSend} onclick={submit}>
-      {#if sending}
-        <LoaderCircle data-icon="inline-start" class="animate-spin" />
-      {/if}
-      {mode === "ask" ? "Ask" : "Send"}
-    </Button>
+    <div class="flex items-center gap-1.5">
+      <Button size="sm" variant="outline" disabled={!canCopy} onclick={copy} title="Copy the prompt to the clipboard">
+        <Copy data-icon="inline-start" />
+        Copy
+      </Button>
+      <Button size="sm" disabled={!canSend} onclick={submit}>
+        {#if sending}
+          <LoaderCircle data-icon="inline-start" class="animate-spin" />
+        {/if}
+        {mode === "ask" ? "Ask" : "Send"}
+      </Button>
+    </div>
   </div>
 </div>
