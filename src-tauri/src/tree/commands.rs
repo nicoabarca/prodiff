@@ -26,20 +26,25 @@ pub struct VariantRow {
 /// aggregation and no Significance Test, so it is cheap to call on opening a
 /// panel.
 #[tauri::command]
-pub fn list_variants(
+pub async fn list_variants(
     app: tauri::AppHandle,
     project_id: String,
     groups: Vec<String>,
     columns: Vec<ColumnMapping>,
 ) -> Result<Vec<VariantRow>, String> {
-    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
+    let dir = project_dir_for_app(&app, &project_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let logs = read_groups(&dir, &groups)?;
 
-    let mut rows = super::variant_rows(&logs, &columns)?;
-    // Same order the cold-build cut uses, so the list the user sees and the set
-    // the backend would have picked rank identically.
-    let total = |row: &VariantRow| row.cases.values().sum::<i64>();
-    rows.sort_by(|x, y| total(y).cmp(&total(x)).then_with(|| x.key.cmp(&y.key)));
-    Ok(rows)
+        let mut rows = super::variant_rows(&logs, &columns)?;
+        // Same order the cold-build cut uses, so the list the user sees and the set
+        // the backend would have picked rank identically.
+        let total = |row: &VariantRow| row.cases.values().sum::<i64>();
+        rows.sort_by(|x, y| total(y).cmp(&total(x)).then_with(|| x.key.cmp(&y.key)));
+        Ok(rows)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// `variants` is the set the picker has checked, by Variant key. It cuts before
@@ -47,7 +52,7 @@ pub fn list_variants(
 /// included. `None` is a cold build, which opens on the Variants covering most
 /// of the cases.
 #[tauri::command]
-pub fn directed_tree(
+pub async fn directed_tree(
     app: tauri::AppHandle,
     project_id: String,
     groups: Vec<String>,
@@ -55,9 +60,13 @@ pub fn directed_tree(
     columns: Vec<ColumnMapping>,
     variants: Option<Vec<String>>,
 ) -> Result<DirectedTree, String> {
-    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
-
-    build(&logs, &columns, &attributes, variants.as_deref())
+    let dir = project_dir_for_app(&app, &project_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let logs = read_groups(&dir, &groups)?;
+        build(&logs, &columns, &attributes, variants.as_deref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 /// One node's Distributions: value counts per attribute, per Group, under one
@@ -69,7 +78,7 @@ pub fn directed_tree(
 ///
 /// Runs no Significance Test and applies no correction.
 #[tauri::command]
-pub fn node_distributions(
+pub async fn node_distributions(
     app: tauri::AppHandle,
     project_id: String,
     groups: Vec<String>,
@@ -79,7 +88,11 @@ pub fn node_distributions(
     depth: usize,
     scope: Scope,
 ) -> Result<NodeDistributions, String> {
-    let logs = read_groups(&project_dir_for_app(&app, &project_id)?, &groups)?;
-
-    distributions(&logs, &columns, &attributes, &variants, depth, scope)
+    let dir = project_dir_for_app(&app, &project_id)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let logs = read_groups(&dir, &groups)?;
+        distributions(&logs, &columns, &attributes, &variants, depth, scope)
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
