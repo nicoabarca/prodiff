@@ -49,6 +49,18 @@ export const comparisons = sqliteTable("comparisons", {
 });
 
 /**
+ * Comparisons a project keeps to switch between. `groupIds` is ordered and holds
+ * one or two entries, `original` among them; `createdAt` is epoch milliseconds
+ * and orders the list.
+ */
+export const savedComparisons = sqliteTable("saved_comparisons", {
+  id: text("id").primaryKey(),
+  projectId: text("project_id").notNull(),
+  groupIds: text("group_ids", { mode: "json" }).$type<string[]>().notNull(),
+  createdAt: integer("created_at").notNull()
+});
+
+/**
  * What the Comparison Directed Tree is built from: the attributes to test and
  * the Variants to include. The tree itself is never cached; it lives in memory
  * while the app is open.

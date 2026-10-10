@@ -119,6 +119,7 @@ describe("journalMigrations", () => {
       "dfg_settings",
       "groups",
       "projects",
+      "saved_comparisons",
       "tree_settings"
     ]);
   });

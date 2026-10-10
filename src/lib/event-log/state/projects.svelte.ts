@@ -6,6 +6,7 @@ import { deleteProjectFiles } from "$lib/event-log/invokers/delete-project-files
 import { forgetOpened, loadOpenedAt } from "$lib/event-log/state/opened.svelte";
 import type { Project } from "$lib/event-log/types";
 import { removeGroupsForProject } from "$lib/groups/state/groups.svelte";
+import { deleteSavedComparisonsForProject } from "$lib/groups/state/saved-comparisons.svelte";
 import { removeCustomAttributesForProject } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 export const projects = $state<Project[]>([]);
@@ -38,6 +39,7 @@ export async function updateProject(id: string, changes: Partial<Project>) {
 export async function removeProject(id: string) {
   await deleteProjectFiles(id);
   await removeGroupsForProject(id);
+  await deleteSavedComparisonsForProject(id);
   await removeCustomAttributesForProject(id);
   await forgetOpened(id);
   await db().delete(projectsTable).where(eq(projectsTable.id, id));
