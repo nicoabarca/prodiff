@@ -54,7 +54,11 @@
   import Split from "@lucide/svelte/icons/split";
   import Trash2 from "@lucide/svelte/icons/trash-2";
 
-  let { project, onclose }: { project: Project; onclose: () => void } = $props();
+  let {
+    project,
+    editorSide = "right",
+    onclose
+  }: { project: Project; editorSide?: "left" | "right"; onclose: () => void } = $props();
 
   const ACTION_LABEL: Record<ComparisonAction, string> = {
     comparing: "Comparing",
@@ -252,7 +256,12 @@
   </div>
 {/snippet}
 
-<div class={cn("border-border flex w-62 shrink-0 flex-col", editor && "border-r")}>
+<div
+  class={cn(
+    "border-border flex w-62 shrink-0 flex-col",
+    editor && (editorSide === "left" ? "border-l" : "border-r")
+  )}
+>
   <button
     type="button"
     class="border-border hover:bg-accent flex cursor-pointer flex-col gap-0.5 border-b px-3 py-2 text-left disabled:pointer-events-none disabled:opacity-50"

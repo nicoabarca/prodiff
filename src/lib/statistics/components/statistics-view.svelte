@@ -6,7 +6,13 @@
   import { isTemporal } from "$lib/event-log/utils/field-settings";
   import type { Filter } from "$lib/filters/kind/filter";
   import { filtersKey } from "$lib/filters/utils/key";
-  import { computeStats } from "$lib/groups/state/groups.svelte";
+  import CompareField from "$lib/groups/components/compare-field.svelte";
+  import {
+    comparedGroups,
+    comparison as compared,
+    loadComparison
+  } from "$lib/groups/state/comparison.svelte";
+  import { allGroups, computeStats, isApplied } from "$lib/groups/state/groups.svelte";
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
   import {
@@ -15,7 +21,6 @@
   } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { groupComparison } from "$lib/statistics/invokers/group-comparison";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
-  import { pickGroup, pickable, statisticsGroups } from "$lib/statistics/state/selection.svelte";
   import { formatSigned, isGap, percentChange } from "$lib/statistics/utils/change";
   import {
     activityFigures,
@@ -28,7 +33,6 @@
   import AttributesPane from "$lib/statistics/components/attributes-pane.svelte";
   import DataDrawer from "$lib/statistics/components/data-drawer.svelte";
   import DurationPane from "$lib/statistics/components/duration-pane.svelte";
-  import GroupPicker from "$lib/statistics/components/group-picker.svelte";
   import OverviewPane from "$lib/statistics/components/overview-pane.svelte";
   import VariantsPane from "$lib/statistics/components/variants-pane.svelte";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -43,8 +47,12 @@
   let drawerOpen = $state(false);
   let narrowed = $state<{ group: Group; filters: Filter[]; label: string } | null>(null);
 
-  const groups = $derived(statisticsGroups(project.id));
-  const options = $derived(pickable(project.id));
+  const groups = $derived(comparedGroups());
+  const applied = $derived(allGroups(project.id).filter(isApplied));
+
+  $effect(() => {
+    if (compared.projectId !== project.id) loadComparison(project.id);
+  });
   const ids = $derived(groups.map((group) => group.id));
   const pair = $derived(groups.length === 2);
   const attributes = $derived(
@@ -73,6 +81,7 @@
 
   let lastKey = "";
   $effect(() => {
+    if (compared.projectId !== project.id) return;
     const key = wantedKey;
     const wanted = groups;
     const names = attributes;
@@ -326,22 +335,7 @@
             <Skeleton class="h-3.5 w-80" />
           {/if}
         </div>
-        <div class="flex items-center gap-2">
-          <GroupPicker
-            label="First group"
-            {options}
-            value={groups[0]}
-            onpick={(id) => id && pickGroup(project.id, 0, id)}
-          />
-          <span class="text-muted-foreground font-mono text-[0.6875rem]">vs</span>
-          <GroupPicker
-            label="Second group"
-            {options}
-            value={groups[1] ?? null}
-            optional
-            onpick={(id) => pickGroup(project.id, 1, id)}
-          />
-        </div>
+        <CompareField {project} align="end" class="border" />
       </div>
 
       {#if error}
@@ -393,4 +387,4 @@
   </button>
 </div>
 
-<DataDrawer bind:open={drawerOpen} {project} groups={options} {narrowed} />
+<DataDrawer bind:open={drawerOpen} {project} groups={applied} {narrowed} />

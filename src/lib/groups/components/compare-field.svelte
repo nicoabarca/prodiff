@@ -7,10 +7,16 @@
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { ORIGINAL_ID } from "$lib/groups/types";
   import { colorVar } from "$lib/format";
+  import { cn } from "$lib/utils";
   import type { Project } from "$lib/event-log/types";
   import GitCompare from "@lucide/svelte/icons/git-compare";
 
-  let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
+  let {
+    project,
+    open = $bindable(false),
+    align = "start",
+    class: className
+  }: { project: Project; open?: boolean; align?: "start" | "end"; class?: string } = $props();
 
   const groups = $derived(comparedGroups());
 </script>
@@ -23,7 +29,7 @@
         icon={GitCompare}
         caption={groups.length > 1 ? "Compare groups" : "Compare · only 1 group selected"}
         {open}
-        class="max-w-96 shrink-0 pl-4"
+        class={cn("max-w-96 shrink-0 pl-4", className)}
         title={groups.map((group) => group.name).join(" vs ")}
         data-tour="compare-groups"
       >
@@ -44,7 +50,17 @@
       </SettingField>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content align="start" class="w-auto max-w-[calc(100vw-2rem)] flex-row gap-0 p-0">
-    <ComparePopover {project} onclose={() => (open = false)} />
+  <Popover.Content
+    {align}
+    class={cn(
+      "w-auto max-w-[calc(100vw-2rem)] gap-0 p-0",
+      align === "end" ? "flex-row-reverse" : "flex-row"
+    )}
+  >
+    <ComparePopover
+      {project}
+      editorSide={align === "end" ? "left" : "right"}
+      onclose={() => (open = false)}
+    />
   </Popover.Content>
 </Popover.Root>
