@@ -2,10 +2,11 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { comparisons as comparisonsTable } from "$lib/db/schema";
 import { groups, isApplied, originalGroup } from "$lib/groups/state/groups.svelte";
+import { loadSavedComparisons } from "$lib/groups/state/saved-comparisons.svelte";
 import { ORIGINAL_ID, type Group } from "$lib/groups/types";
 
 /**
- * Which Groups the comparison views draw, as the compare modal picked them and
+ * Which Groups the comparison views draw, as the Compare popover picked them and
  * as the `comparisons` table remembers them. One or two Group ids, in the order
  * they are drawn.
  */
@@ -14,11 +15,12 @@ export const comparison = $state<{ projectId: string | null; groupIds: string[] 
   groupIds: []
 });
 
+/** Loads what a project compares, and the Saved Comparisons it can switch to. */
 export async function loadComparison(projectId: string) {
-  const rows = await db()
-    .select()
-    .from(comparisonsTable)
-    .where(eq(comparisonsTable.projectId, projectId));
+  const [rows] = await Promise.all([
+    db().select().from(comparisonsTable).where(eq(comparisonsTable.projectId, projectId)),
+    loadSavedComparisons(projectId)
+  ]);
   comparison.projectId = projectId;
   comparison.groupIds = rows[0]?.groupIds ?? [];
 }
@@ -34,7 +36,7 @@ export async function saveComparison(projectId: string, groupIds: string[]) {
 }
 
 /**
- * The Groups being compared: what the modal picked, resolved to the Groups
+ * The Groups being compared: what the popover picked, resolved to the Groups
  * themselves. Only applied Groups can be read, and anything the selection names
  * that has since been deleted or un-applied falls away, so a stale selection
  * degrades to the Original. Capped at two.

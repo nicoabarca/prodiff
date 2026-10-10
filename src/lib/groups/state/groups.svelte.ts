@@ -15,6 +15,7 @@ import { defaultColor, ORIGINAL_COLOR } from "$lib/groups/colors";
 import { ORIGINAL_ID, ORIGINAL_NAME, type Group } from "$lib/groups/types";
 import { groupId } from "$lib/groups/utils/group-id";
 import { draftOf } from "$lib/groups/state/drafts.svelte";
+import { deleteSavedComparisonsNaming } from "$lib/groups/state/saved-comparisons.svelte";
 
 /** The loaded project's Groups, in position order. The Original is not one of them. */
 export const groups = $state<Group[]>([]);
@@ -192,17 +193,25 @@ export async function reapplyGroupsReading(project: Project, column: string): Pr
   return ordered;
 }
 
-/** Deletes a Group and everything that excludes it, then re-packs the positions. */
+/**
+ * Deletes a Group, everything that excludes it and the Saved Comparisons naming
+ * any of them, then re-packs the positions.
+ */
 export async function removeGroup(id: string) {
   const group = groups.find((g) => g.id === id);
   if (!group) return;
 
-  for (const doomed of [...dependentsOf(group), group]) {
+  const doomedGroups = [...dependentsOf(group), group];
+  for (const doomed of doomedGroups) {
     await deleteGroupFile(doomed.projectId, doomed.id);
     await db().delete(groupsTable).where(eq(groupsTable.id, doomed.id));
     const index = groups.indexOf(doomed);
     if (index !== -1) groups.splice(index, 1);
   }
+  await deleteSavedComparisonsNaming(
+    group.projectId,
+    doomedGroups.map((doomed) => doomed.id)
+  );
 
   await Promise.all(
     groups.map((other, position) =>

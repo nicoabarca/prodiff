@@ -340,6 +340,7 @@ function persistSeed(
     tx.delete(schema.customAttributes).where(eq(schema.customAttributes.projectId, id)).run();
     tx.delete(schema.groups).where(eq(schema.groups.projectId, id)).run();
     tx.delete(schema.comparisons).where(eq(schema.comparisons.projectId, id)).run();
+    tx.delete(schema.savedComparisons).where(eq(schema.savedComparisons.projectId, id)).run();
     tx.delete(schema.treeSettings).where(eq(schema.treeSettings.projectId, id)).run();
     tx.insert(schema.projects)
       .values(project)

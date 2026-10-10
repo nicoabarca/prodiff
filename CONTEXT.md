@@ -63,6 +63,10 @@ _Avoid_: Raw, base, unfiltered log
 Two or more Groups selected to be measured against each other. Groups may overlap: a case belonging to both sides is counted on both, and the count of such cases is reported when the Comparison is chosen so the reader knows the sides are not independent. A Comparison of one Group is a description rather than a comparison, and carries no Significance Test. The model admits N Groups; a given release may cap what the interface offers.
 _Avoid_: A/B, versus
 
+**Saved Comparison**:
+A Comparison a Project keeps so it can be compared again in one click. It is an ordered list of one or two Groups and nothing else: it has no name of its own and reads as its Groups' names. The one whose Groups are the ones being compared is in use; that is read off the Comparison, never stored. Deleting a Saved Comparison changes nothing about what is compared, and deleting a Group deletes every Saved Comparison naming it.
+_Avoid_: Preset, favourite, bookmark
+
 **Difference Group**:
 A Group created from another Group's Filter List plus one Filter excluding the cases of a second Group, so the two no longer overlap. Offered when a Comparison reports shared cases. It is an ordinary Group once created, and depends on the Group it excludes: deleting that one deletes this one too.
 _Avoid_: Complement, exclusive group, negation
