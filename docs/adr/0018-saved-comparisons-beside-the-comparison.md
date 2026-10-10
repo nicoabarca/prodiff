@@ -6,7 +6,7 @@ Switching what the tree and the DFG compare meant opening a modal and picking bo
 
 **Which Saved Comparison is in use is derived, never stored.** It is the one whose Group ids equal the ids being compared, in the same order. An active-id column was rejected because it is a second answer to "what is compared" that can disagree with the first: the Sample Project, the seed script and a Difference Group all write `comparisons` directly, and each would have had to keep the pointer honest. Matching ids cannot go stale, and a comparison nobody saved is simply one no row matches. The match is against `comparedIds()`, what the views draw, so a stored selection naming a deleted Group does not hide the row that is really on screen. Order counts because it is what the views draw first; the same two Groups swapped are another Saved Comparison.
 
-**Deleting a Saved Comparison does not change what is compared.** It removes the row and nothing else. The views keep drawing the same Groups, which now match no row, and the popover shows them as a new draft. Deleting is housekeeping on a list; making it also switch the canvas would turn a small cleanup into a rebuild of the tree the reader was looking at.
+**Deleting a Saved Comparison does not change what is compared.** It removes the row and nothing else. The views keep drawing the same Groups, which now match no row, and "New comparison" starts from them. Deleting is housekeeping on a list; making it also switch the canvas would turn a small cleanup into a rebuild of the tree the reader was looking at.
 
 **No two rows hold the same ids.** Saving a draft that equals an existing Saved Comparison compares that one and writes nothing, whether the draft was new or an edit of another row.
 

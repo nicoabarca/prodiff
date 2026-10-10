@@ -3,7 +3,6 @@ import {
   ORIGINAL_ID,
   type ComparisonAction,
   type ComparisonDraft,
-  type ComparisonSelection,
   type SavedComparison,
   type SaveTarget
 } from "$lib/groups/types";
@@ -32,20 +31,6 @@ export function savedMatching(
   groupIds: string[]
 ): SavedComparison | null {
   return saved.find((entry) => sameGroupIds(entry.groupIds, groupIds)) ?? null;
-}
-
-/** What the editor holds when the popover opens: the one in use, else a new draft. */
-export function initialSelection(
-  saved: SavedComparison[],
-  compared: string[]
-): ComparisonSelection {
-  const inUse = savedMatching(saved, compared);
-  return inUse ? { kind: "saved", id: inUse.id } : { kind: "new" };
-}
-
-/** What the editor holds once a Saved Comparison is gone, given the ones left. */
-export function selectionAfterDelete(remaining: SavedComparison[]): ComparisonSelection {
-  return remaining.length > 0 ? { kind: "saved", id: remaining[0].id } : { kind: "new" };
 }
 
 /**

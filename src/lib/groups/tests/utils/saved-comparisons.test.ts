@@ -3,10 +3,8 @@ import { NO_GROUP, ORIGINAL_ID, type SavedComparison } from "$lib/groups/types";
 import {
   comparisonAction,
   draftGroupIds,
-  initialSelection,
   saveTarget,
   savedMatching,
-  selectionAfterDelete,
   toDraft
 } from "$lib/groups/utils/saved-comparisons";
 
@@ -44,24 +42,6 @@ describe("savedMatching", () => {
 
   it("does not match a pair by its first Group alone", () => {
     expect(savedMatching(all, ["approved"])).toBeNull();
-  });
-});
-
-describe("initialSelection", () => {
-  it("opens on the Saved Comparison in use", () => {
-    expect(initialSelection(all, ["approved", "rejected"])).toEqual({ kind: "saved", id: "s1" });
-  });
-
-  it("opens on a new draft when nothing saved is in use", () => {
-    expect(initialSelection(all, ["rejected"])).toEqual({ kind: "new" });
-    expect(initialSelection([], [ORIGINAL_ID])).toEqual({ kind: "new" });
-  });
-});
-
-describe("selectionAfterDelete", () => {
-  it("moves to the first one left, or to a new draft", () => {
-    expect(selectionAfterDelete([originalAlone])).toEqual({ kind: "saved", id: "s2" });
-    expect(selectionAfterDelete([])).toEqual({ kind: "new" });
   });
 });
 
