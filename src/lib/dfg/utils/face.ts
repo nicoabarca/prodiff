@@ -8,6 +8,7 @@ import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
 export const EDGE_WIDTH_MIN = 1.5;
@@ -79,16 +80,25 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
   );
 }
 
-/** The mean wait on an edge, per Group. */
-export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): string | null {
-  if (!wait) return null;
-  const parts = groups
-    .map((group) => {
-      const summary = wait.summaries[group.id];
-      return summary?.type === "numerical" ? formatDuration(summary.mean) : null;
-    })
-    .filter((part): part is string => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : null;
+/** Under this many milliseconds a wait prints as 0s. */
+export const INSTANT_MS = 500;
+
+/**
+ * The mean wait on an edge, one line per Group, in the order compared. Empty
+ * when every Group's wait is instant: the canvas leaves that edge unlabelled.
+ */
+export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): EdgeWait[] {
+  if (!wait) return [];
+  const means = groups.flatMap((group) => {
+    const summary = wait.summaries[group.id];
+    return summary?.type === "numerical" ? [{ group, mean: summary.mean }] : [];
+  });
+  if (means.every(({ mean }) => Math.abs(mean) < INSTANT_MS)) return [];
+  return means.map(({ group, mean }) => ({
+    id: group.id,
+    color: group.color,
+    value: formatDuration(mean)
+  }));
 }
 
 /** How many of a node's attributes came back a significant difference. */

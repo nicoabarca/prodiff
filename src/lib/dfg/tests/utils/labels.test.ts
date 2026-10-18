@@ -1,55 +1,64 @@
 import { describe, expect, it } from "vitest";
-import type { Rect } from "$lib/dfg/types";
-import { prepareRoute } from "$lib/dfg/utils/arrow";
-import { placeLabels } from "$lib/dfg/utils/labels";
+import { labelSize, settleLabels } from "$lib/dfg/utils/labels";
 
-const crossing = [
-  {
-    key: "a",
-    route: prepareRoute([
-      { x: 0, y: 0 },
-      { x: 200, y: 200 }
-    ]),
-    text: "2.4 h"
-  },
-  {
-    key: "b",
-    route: prepareRoute([
-      { x: 200, y: 0 },
-      { x: 0, y: 200 }
-    ]),
-    text: "3.1 h"
-  }
-];
+const wait = (id: string, value: string) => ({ id, color: `group-${id}`, value });
 
-describe("placeLabels", () => {
-  it("keeps the middle when nothing is in the way", () => {
-    const placed = placeLabels([crossing[0]], []);
-    expect(placed.get("a")).toEqual({ x: 100, y: 100 });
+describe("labelSize", () => {
+  it("is null when the edge has no wait to print", () => {
+    expect(labelSize([], true)).toBeNull();
   });
 
-  it("moves the second of two that would meet at the same point", () => {
-    const placed = placeLabels(crossing, []);
-    const [one, other] = [placed.get("a")!, placed.get("b")!];
-    expect(one).toEqual({ x: 100, y: 100 });
-    expect(Math.hypot(one.x - other.x, one.y - other.y)).toBeGreaterThan(20);
+  it("stacks one line per Group", () => {
+    const one = labelSize([wait("a", "2.4 h")], false)!;
+    const two = labelSize([wait("a", "2.4 h"), wait("b", "3.1 h")], true)!;
+
+    expect(two.height).toBeGreaterThan(one.height);
   });
 
-  it("reads the same way every time", () => {
-    expect(placeLabels(crossing, [])).toEqual(placeLabels(crossing, []));
+  it("is as wide as the longest line", () => {
+    const short = labelSize([wait("a", "2 h"), wait("b", "3 h")], true)!;
+    const long = labelSize([wait("a", "2 h"), wait("b", "3 d 4 h")], true)!;
+
+    expect(long.width).toBeGreaterThan(short.width);
+  });
+});
+
+describe("settleLabels", () => {
+  const size = { width: 40, height: 20 };
+
+  it("draws a label on its edge's line when nothing is in the way", () => {
+    const settled = settleLabels(
+      [{ key: "a", size, onLine: [{ x: 0, y: 0 }], reserved: { x: 30, y: 0 } }],
+      []
+    );
+    expect(settled.get("a")).toEqual({ x: 0, y: 0 });
   });
 
-  it("steps off a node it would sit on", () => {
-    const node: Rect = { x: 60, y: 80, width: 150, height: 58 };
-    const placed = placeLabels([crossing[0]], [node])!;
-    const at = placed.get("a")!;
-    expect(
-      at.x > node.x && at.x < node.x + node.width && at.y > node.y && at.y < node.y + node.height
-    ).toBe(false);
+  it("slides along the line past a neighbour's reserved room", () => {
+    const settled = settleLabels(
+      [
+        {
+          key: "a",
+          size,
+          onLine: [
+            { x: 25, y: 0 },
+            { x: 25, y: 60 }
+          ],
+          reserved: { x: 0, y: 0 }
+        },
+        { key: "b", size, onLine: [], reserved: { x: 50, y: 0 } }
+      ],
+      []
+    );
+    expect(settled.get("a")).toEqual({ x: 25, y: 60 });
   });
 
-  it("keeps the middle when no stop is free", () => {
-    const wall: Rect[] = [{ x: -500, y: -500, width: 1500, height: 1500 }];
-    expect(placeLabels([crossing[0]], wall).get("a")).toEqual({ x: 100, y: 100 });
+  it("keeps the reserved room when no spot on the line is clear", () => {
+    const node = { x: -100, y: -100, width: 200, height: 200 };
+    const settled = settleLabels(
+      [{ key: "a", size, onLine: [{ x: 0, y: 0 }], reserved: { x: 300, y: 0 } }],
+      [node]
+    );
+    expect(settled.get("a")).toEqual({ x: 300, y: 0 });
   });
 });

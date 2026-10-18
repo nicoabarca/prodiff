@@ -1,4 +1,5 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
+import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
 export const START_ID = 0;
@@ -92,7 +93,8 @@ export interface DfgEdgeData {
   shaft: string;
   head: string;
   width: number;
-  label: string | null;
+  waits: EdgeWait[];
+  dotted: boolean;
   labelAt: Point;
   boundary: boolean;
   highlighted: boolean;

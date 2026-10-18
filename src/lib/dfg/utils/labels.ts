@@ -1,65 +1,89 @@
 /**
- * Where each edge label rides. Two edges that cross meet at their middles, so
- * the obvious anchor puts one pill on top of another and neither reads.
+ * The box an edge label takes: one line per Group, stacked, in 0.625rem
+ * monospace. ELK lays these boxes out with the graph, so a label sits on its
+ * own edge and never on a node or on another label. Sizes are in the CSS
+ * pixels ELK and Svelte Flow both work in.
  */
 import type { Point, Rect } from "$lib/dfg/types";
-import { along, type Route } from "$lib/dfg/utils/arrow";
+import type { EdgeWait } from "$lib/tree/utils/flow";
 
-export interface Labelled {
+export interface Size {
+  width: number;
+  height: number;
+}
+
+const CHAR_WIDTH = 6.1;
+const LINE_HEIGHT = 13;
+const PADDING_X = 8;
+const PADDING_Y = 4;
+const DOT = 10;
+
+/**
+ * The box a stack of waits needs, or null when there is nothing to print.
+ * `dotted` is whether each line carries its Group's dot.
+ */
+export function labelSize(waits: EdgeWait[], dotted: boolean): Size | null {
+  if (waits.length === 0) return null;
+  const longest = Math.max(...waits.map((wait) => wait.value.length));
+  const dot = dotted ? DOT : 0;
+  return {
+    width: Math.ceil(longest * CHAR_WIDTH + dot + PADDING_X),
+    height: waits.length * LINE_HEIGHT + PADDING_Y
+  };
+}
+
+/**
+ * Fractions of a route a label may slide to, middle first, when the spot
+ * beside its reserved room is taken. Past these it reads as another edge's.
+ */
+export const LABEL_STOPS = [0.5, 0.4, 0.6, 0.3, 0.7];
+
+/** A label to settle: `onLine` are spots on its edge's line, best first, and
+    `reserved` the room ELK kept free beside the edge. */
+export interface Settling {
   key: string;
-  route: Route;
-  text: string;
+  size: Size;
+  onLine: Point[];
+  reserved: Point;
 }
+
+const boxAt = (at: Point, size: Size): Rect => ({
+  x: at.x - size.width / 2,
+  y: at.y - size.height / 2,
+  ...size
+});
+
+const overlaps = (one: Rect, other: Rect) =>
+  one.x < other.x + other.width &&
+  other.x < one.x + one.width &&
+  one.y < other.y + other.height &&
+  other.y < one.y + one.height;
 
 /**
- * Fractions of the route to try, middle first. Past these the label is far
- * enough from the middle to read as another edge's.
+ * Where each label is drawn: at the first spot on its edge's line that covers
+ * no node, no other label's reserved room and no label already settled, or
+ * else in the room ELK reserved beside the edge. Reserved rooms never overlap
+ * one another or a node, so no choice lands on another label.
  */
-const STOPS = [0.5, 0.58, 0.42, 0.66, 0.34, 0.74, 0.26];
-
-/** The pill is 0.625rem text in a rounded box; near enough for a hit test. */
-const CHAR_WIDTH = 5.6;
-const PADDING = 14;
-const HEIGHT = 16;
-const CLEARANCE = 3;
-
-function box(at: Point, text: string): Rect {
-  const width = text.length * CHAR_WIDTH + PADDING;
-  return { x: at.x - width / 2, y: at.y - HEIGHT / 2, width, height: HEIGHT };
-}
-
-function overlaps(one: Rect, other: Rect): boolean {
-  return (
-    one.x < other.x + other.width + CLEARANCE &&
-    other.x < one.x + one.width + CLEARANCE &&
-    one.y < other.y + other.height + CLEARANCE &&
-    other.y < one.y + one.height + CLEARANCE
-  );
-}
-
-/**
- * Anchors every label, taking the first stop along its route that clears the
- * nodes and the labels already placed. A label with nowhere to go keeps the
- * middle. The order the edges arrive in decides who moves, so the same graph
- * always reads the same way.
- */
-export function placeLabels(edges: Labelled[], nodes: Rect[]): Map<string, Point> {
+export function settleLabels(labels: Settling[], nodes: Rect[]): Map<string, Point> {
+  const reserved = labels.map((label) => ({
+    key: label.key,
+    box: boxAt(label.reserved, label.size)
+  }));
   const taken: Rect[] = [];
-  const placed = new Map<string, Point>();
-
-  for (const edge of edges) {
-    const tried = STOPS.map((stop) => along(edge.route, stop));
-    const free = tried.find((point) => {
-      const shape = box(point, edge.text);
+  const settled = new Map<string, Point>();
+  for (const label of labels) {
+    const clear = (at: Point) => {
+      const box = boxAt(at, label.size);
       return (
-        !nodes.some((node) => overlaps(shape, node)) &&
-        !taken.some((other) => overlaps(shape, other))
+        !nodes.some((node) => overlaps(box, node)) &&
+        !reserved.some((other) => other.key !== label.key && overlaps(box, other.box)) &&
+        !taken.some((other) => overlaps(box, other))
       );
-    });
-    const anchor = free ?? tried[0];
-    taken.push(box(anchor, edge.text));
-    placed.set(edge.key, anchor);
+    };
+    const at = label.onLine.find(clear) ?? label.reserved;
+    taken.push(boxAt(at, label.size));
+    settled.set(label.key, at);
   }
-
-  return placed;
+  return settled;
 }
