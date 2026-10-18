@@ -30,7 +30,7 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
+  import { litPath } from "$lib/dfg/utils/fold";
   import { placeLabels } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -96,17 +96,9 @@
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
 
   /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
-  const highlight = $derived.by(() => {
-    if (shownVariant.key === null) return null;
-    const lit = graph.variants.find(
-      (variant) => variantKey(variant.activities, labels) === shownVariant.key
-    );
-    if (!lit) return null;
-    return {
-      nodes: new Set([START_ID, ...lit.activities, END_ID].map(String)),
-      edges: variantEdgeIds(lit.activities)
-    };
-  });
+  const highlight = $derived(
+    litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
+  );
 
   // ELK is asynchronous, so the placement lands a tick after the topology
   // changes. The token drops a result whose request has already been superseded.
@@ -302,8 +294,7 @@
     <div class="absolute inset-0 flex items-center justify-center p-8">
       <Skeleton class="h-full w-full" />
     </div>
-  {/if}
-  <SvelteFlow
+  {/if}  <SvelteFlow
     bind:nodes
     bind:edges
     bind:viewport

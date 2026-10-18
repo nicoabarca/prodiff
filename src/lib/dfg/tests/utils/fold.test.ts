@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID } from "$lib/dfg/types";
-import { edgeId, fold, variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
+import { edgeId, fold, litPath, variantEdgeIds, variantKey } from "$lib/dfg/utils/fold";
 
 const A = 2;
 const B = 3;
@@ -95,5 +95,44 @@ describe("variantEdgeIds", () => {
 
   it("is empty for a trace with no activities", () => {
     expect(variantEdgeIds([])).toEqual(new Set());
+  });
+});
+
+describe("litPath", () => {
+  const labels = new Map([
+    [A, "A"],
+    [B, "B"],
+    [C, "C"]
+  ]);
+  const onlyB = variant([A, C], { b: 4 });
+  const both = variant([A, B], { a: 2, b: 1 });
+  const variants = [both, onlyB];
+  const keyOf = (one: Variant) => variantKey(one.activities, labels);
+  const drawn = new Set(variants.map(keyOf));
+
+  it("lights nothing when no Variant is lit or the graph lost it", () => {
+    expect(litPath(variants, null, drawn, labels, null)).toBeNull();
+    expect(litPath(variants, keyOf(variant([C], {})), drawn, labels, null)).toBeNull();
+  });
+
+  it("lights nothing when the cut dropped part of its path", () => {
+    expect(litPath(variants, keyOf(onlyB), new Set([keyOf(both)]), labels, null)).toBeNull();
+  });
+
+  it("lights the whole trace, Start through End", () => {
+    expect(litPath(variants, keyOf(onlyB), drawn, labels, null)).toEqual({
+      nodes: new Set([START_ID, A, C, END_ID].map(String)),
+      edges: variantEdgeIds([A, C])
+    });
+  });
+
+  it("lights the trace on the panel of a Group that ran it", () => {
+    expect(litPath(variants, keyOf(onlyB), drawn, labels, "b")?.edges).toEqual(
+      variantEdgeIds([A, C])
+    );
+  });
+
+  it("lights nothing on the panel of a Group that never ran it", () => {
+    expect(litPath(variants, keyOf(onlyB), drawn, labels, "a")).toBeNull();
   });
 });

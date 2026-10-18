@@ -39,6 +39,33 @@ export function variantEdgeIds(activities: number[]): Set<string> {
   return ids;
 }
 
+export interface LitPath {
+  nodes: Set<string>;
+  edges: Set<string>;
+}
+
+/**
+ * The nodes and edges the Variant keyed `key` lights, or null when nothing is
+ * lit, when its whole path is not among the `drawn` keys, or, on a split panel,
+ * when `focus` names a Group that never ran it.
+ */
+export function litPath(
+  variants: Variant[],
+  key: string | null,
+  drawn: Set<string>,
+  labels: Map<number, string>,
+  focus: string | null
+): LitPath | null {
+  if (key === null || !drawn.has(key)) return null;
+  const lit = variants.find((variant) => variantKey(variant.activities, labels) === key);
+  if (!lit) return null;
+  if (focus !== null && (lit.cases[focus] ?? 0) === 0) return null;
+  return {
+    nodes: new Set([START_ID, ...lit.activities, END_ID].map(String)),
+    edges: variantEdgeIds(lit.activities)
+  };
+}
+
 /** The union across the Groups, which is what everything ranks and scales by. */
 export function unionCount(counts: Record<string, Counts>, measure: Measure): number {
   let total = 0;

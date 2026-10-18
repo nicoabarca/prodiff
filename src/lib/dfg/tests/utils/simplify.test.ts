@@ -187,3 +187,41 @@ describe("simplify", () => {
     expect(pairs(simplified.edges)).toContain(`${A}->${D}`);
   });
 });
+
+describe("simplify keys", () => {
+  const keyOf = (activities: number[]) => activities.map((id) => label.get(id)).join("\u{1}");
+
+  it("holds every Variant at full coverage and every path", () => {
+    const graph = graphOf([
+      [[A, B], { a: 3 }],
+      [[A, C], { a: 1 }]
+    ]);
+
+    const { keys } = simplify(graph, view({ coverage: 1, paths: 1 })).variants;
+
+    expect(keys).toEqual(new Set([keyOf([A, B]), keyOf([A, C])]));
+  });
+
+  it("drops a Variant the Behaviour cut left out", () => {
+    const graph = graphOf([
+      [[A, B], { a: 9 }],
+      [[A, C], { a: 1 }]
+    ]);
+
+    const { keys } = simplify(graph, view({ coverage: 0.5, paths: 1 })).variants;
+
+    expect(keys).toEqual(new Set([keyOf([A, B])]));
+  });
+
+  it("drops a Variant one of whose paths the Paths cut removed", () => {
+    const graph = graphOf([
+      [[A, B, C, D], { a: 9 }],
+      [[A, C, B, D], { a: 1 }]
+    ]);
+
+    const simplified = simplify(graph, view({ coverage: 1, paths: 0 }));
+
+    expect(pairs(simplified.edges)).not.toContain(`${C}->${B}`);
+    expect(simplified.variants.keys).toEqual(new Set([keyOf([A, B, C, D])]));
+  });
+});
