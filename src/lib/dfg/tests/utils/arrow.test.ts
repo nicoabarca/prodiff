@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Point, Rect } from "$lib/dfg/types";
-import { along, arrow, polyline, prepareRoute } from "$lib/dfg/utils/arrow";
+import { along, arrow, nearest, polyline, prepareRoute } from "$lib/dfg/utils/arrow";
 
 const node: Rect = { x: 100, y: 200, width: 150, height: 58 };
 
@@ -158,5 +158,21 @@ describe("along", () => {
 
   it("uses the sole point of a degenerate route", () => {
     expect(along(prepareRoute([{ x: 1, y: 2 }]), 0.5)).toEqual({ x: 1, y: 2 });
+  });
+});
+
+describe("nearest", () => {
+  const route = prepareRoute([
+    { x: 0, y: 0 },
+    { x: 100, y: 0 }
+  ]);
+
+  it("drops a point square onto the route", () => {
+    expect(nearest(route, { x: 40, y: 25 })).toEqual({ x: 40, y: 0 });
+  });
+
+  it("clamps to the route's ends", () => {
+    expect(nearest(route, { x: -30, y: 10 })).toEqual({ x: 0, y: 0 });
+    expect(nearest(route, { x: 130, y: -10 })).toEqual({ x: 100, y: 0 });
   });
 });

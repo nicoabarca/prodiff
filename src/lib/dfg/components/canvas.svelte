@@ -29,9 +29,9 @@
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
-  import { arrow, prepareRoute } from "$lib/dfg/utils/arrow";
+  import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
   import { litPath } from "$lib/dfg/utils/fold";
-  import { placeLabels } from "$lib/dfg/utils/labels";
+  import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -95,6 +95,18 @@
   const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
 
+  /** Every edge label's box, sized for every compared Group, so both split
+      panels reserve the same room and place it in the same spot. */
+  const labelSizes = $derived(
+    new Map(
+      placedGraph.edges.flatMap((edge) => {
+        const key = edgeKey(edge.source, edge.target);
+        const size = labelSize(edgeWait(waits.get(key), groups), groups.length > 1);
+        return size ? [[key, size] as [string, Size]] : [];
+      })
+    )
+  );
+
   /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
   const highlight = $derived(
     litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
@@ -107,8 +119,13 @@
   let pending = 0;
   $effect(() => {
     const request = ++pending;
-    const wanted = { graph: placedGraph, direction: view.direction, measure: view.measure };
-    layout(wanted.graph, wanted.direction, wanted.measure).then((laid) => {
+    const wanted = {
+      graph: placedGraph,
+      direction: view.direction,
+      measure: view.measure,
+      labels: labelSizes
+    };
+    layout(wanted.graph, wanted.direction, wanted.measure, wanted.labels).then((laid) => {
       if (request !== pending) return;
       placement = laid;
       placedAt += 1;
@@ -207,17 +224,22 @@
             boxes.get(edge.target) ?? null,
             view.direction
           );
-        return { edge, key, label: edgeWait(waits.get(key), shown), route: prepareRoute(points) };
+        return { edge, key, waits: edgeWait(waits.get(key), shown), route: prepareRoute(points) };
       });
 
-    const anchors = placeLabels(
-      drawn
-        .filter((one) => one.label !== null)
-        .map((one) => ({
-          key: one.key,
-          route: one.route,
-          text: one.label ?? ""
-        })),
+    // ELK reserves each label's room beside its edge; a label is drawn on the
+    // edge's own line, at the first spot along it that covers nothing else.
+    const settled = settleLabels(
+      drawn.flatMap(({ edge, key, waits, route }) => {
+        const reserved = placed.labels.get(key);
+        const size = labelSizes.get(key);
+        if (waits.length === 0 || !reserved || !size) return [];
+        const onLine =
+          edge.source === edge.target
+            ? [reserved]
+            : [nearest(route, reserved), ...LABEL_STOPS.map((stop) => along(route, stop))];
+        return [{ key, size, onLine, reserved }];
+      }),
       [...boxes.values()]
     );
 
@@ -225,7 +247,7 @@
       simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
       view.measure
     );
-    const edges: Edge[] = drawn.map(({ edge, key, label, route }) => {
+    const edges: Edge[] = drawn.map(({ edge, key, waits, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       return {
@@ -237,8 +259,9 @@
           shaft: shape.shaft,
           head: shape.head,
           width,
-          label,
-          labelAt: anchors.get(key) ?? { x: 0, y: 0 },
+          waits,
+          dotted: shown.length > 1,
+          labelAt: settled.get(key) ?? along(route, 0.5),
           boundary: edge.source === START_ID || edge.target === END_ID,
           highlighted: false,
           dimmed: false
@@ -294,7 +317,8 @@
     <div class="absolute inset-0 flex items-center justify-center p-8">
       <Skeleton class="h-full w-full" />
     </div>
-  {/if}  <SvelteFlow
+  {/if}
+  <SvelteFlow
     bind:nodes
     bind:edges
     bind:viewport
