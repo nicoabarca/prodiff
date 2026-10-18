@@ -13,6 +13,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
   import RoutedEdge from "$lib/dfg/components/edge.svelte";
+  import Frame from "$lib/dfg/components/frame.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
@@ -45,6 +46,8 @@
     fits = true,
     exportName = "directly-follows-graph",
     refitAt = 0,
+    spotlight = null,
+    frameOn = null,
     viewport = $bindable<Viewport>({ x: 0, y: 0, zoom: 1 })
   }: {
     graph: ResponseDfg;
@@ -56,6 +59,8 @@
     fits?: boolean;
     exportName?: string;
     refitAt?: number;
+    spotlight?: { nodes: Set<string>; edges: Set<string> } | null;
+    frameOn?: { ids: number[]; at: number } | null;
     viewport?: Viewport;
   } = $props();
 
@@ -97,6 +102,7 @@
 
   /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
   const highlight = $derived.by(() => {
+    if (spotlight) return spotlight;
     if (shownVariant.key === null) return null;
     const lit = graph.variants.find(
       (variant) => variantKey(variant.activities, labels) === shownVariant.key
@@ -321,6 +327,9 @@
     <Background />
     {#if fits}
       <Refit at={fitAt} options={fitViewOptions} />
+    {/if}
+    {#if frameOn}
+      <Frame ids={frameOn.ids} at={frameOn.at} options={fitViewOptions} />
     {/if}
     <Controls showLock={false} {fitViewOptions}>
       <ExportImage name={exportName} bind:exporting />

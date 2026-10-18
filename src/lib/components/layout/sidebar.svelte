@@ -12,6 +12,7 @@
   import PanelLeft from "@lucide/svelte/icons/panel-left";
   import BarChart3 from "@lucide/svelte/icons/bar-chart-3";
   import Database from "@lucide/svelte/icons/database";
+  import FlaskConical from "@lucide/svelte/icons/flask-conical";
   import Funnel from "@lucide/svelte/icons/funnel";
   import SquareFunction from "@lucide/svelte/icons/square-function";
   import Waypoints from "@lucide/svelte/icons/waypoints";
@@ -41,6 +42,12 @@
       label: "Directly-Follows Graph",
       icon: Waypoints
     },
+    ...(["a", "b", "c"] as const).map((variant) => ({
+      view: `dfg-${variant}`,
+      href: `/app/projects/${activeProject.id}/dfg-${variant}`,
+      label: `DFG · ${variant.toUpperCase()}`,
+      icon: FlaskConical
+    })),
     {
       view: "filters",
       href: `/app/projects/${activeProject.id}/filters`,

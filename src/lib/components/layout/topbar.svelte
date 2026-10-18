@@ -4,11 +4,23 @@
   import type { Project } from "$lib/event-log/types";
 
   type ProjectView =
-    "tree" | "dfg" | "distributions" | "statistics" | "event-log" | "filters" | "custom-attributes";
+    | "tree"
+    | "dfg"
+    | "dfg-a"
+    | "dfg-b"
+    | "dfg-c"
+    | "distributions"
+    | "statistics"
+    | "event-log"
+    | "filters"
+    | "custom-attributes";
 
   const viewLabels: Record<ProjectView, string> = {
     tree: "Directed Rooted Tree",
     dfg: "Directly-Follows Graph",
+    "dfg-a": "DFG · A",
+    "dfg-b": "DFG · B",
+    "dfg-c": "DFG · C",
     distributions: "Distributions",
     statistics: "Statistics & data",
     "event-log": "Event log",

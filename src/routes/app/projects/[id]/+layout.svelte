@@ -24,7 +24,13 @@
 
   const project = $derived(currentProject());
   const onFilters = $derived(page.url.pathname.endsWith("/filters"));
+  const prototype = $derived(page.url.pathname.match(/\/(dfg-[abc])$/)?.[1] as
+    | "dfg-a"
+    | "dfg-b"
+    | "dfg-c"
+    | undefined);
   const view = $derived(
+    prototype ??
     onFilters
       ? "filters"
       : page.url.pathname.endsWith("/tree")
