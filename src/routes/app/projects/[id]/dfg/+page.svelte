@@ -1,24 +1,23 @@
 <script lang="ts">
-  import { Button } from "$lib/components/ui/button/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import Canvas from "$lib/dfg/components/canvas.svelte";
-  import DetailPanel from "$lib/dfg/components/detail-panel.svelte";
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
   import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
+  import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { refit, selected, splitting, view } from "$lib/dfg/state/view.svelte";
+  import { pointed, pointedPlace, refit, splitting, tests, view } from "$lib/dfg/state/view.svelte";
   import {
     loadSettings as loadVariantSettings,
     settings as variantSettings
   } from "$lib/dfg/state/variants.svelte";
+  import { graphFindings, placeIds, placeLight } from "$lib/dfg/utils/findings";
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
-  import PanelRight from "@lucide/svelte/icons/panel-right";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
   const project = $derived(currentProject());
@@ -28,14 +27,21 @@
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );
   const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
+  const findings = $derived(
+    built.graph && simplified ? graphFindings(built.graph, simplified) : []
+  );
+  const frameOn = $derived({
+    ids: pointed.place ? placeIds(pointed.place) : [],
+    at: pointed.at
+  });
+  const spotlight = $derived.by(() => {
+    const place = pointedPlace();
+    return place ? placeLight(place) : null;
+  });
 
   let comparing = $state(false);
   let variantsOpen = $state(false);
   let buildSettingsOpen = $state(false);
-  let panelOpen = $state(false);
-  $effect(() => {
-    panelOpen = selected.id !== null;
-  });
 
   $effect(() => {
     if (!project) return;
@@ -55,6 +61,7 @@
       {project}
       graph={built.graph}
       {simplified}
+      {findings}
       error={built.error}
       building={built.building}
       {stale}
@@ -70,7 +77,14 @@
         {/if}
         <div class="relative flex min-h-0 min-w-0 flex-1">
           {#if split}
-            <SplitCanvas graph={built.graph} {simplified} groups={graphGroupsForView} {stale} />
+            <SplitCanvas
+              graph={built.graph}
+              {simplified}
+              groups={graphGroupsForView}
+              {stale}
+              {frameOn}
+              {spotlight}
+            />
           {:else}
             <Canvas
               graph={built.graph}
@@ -78,6 +92,8 @@
               groups={graphGroupsForView}
               {stale}
               refitAt={refit.at}
+              {frameOn}
+              {spotlight}
             />
           {/if}
           {#if import.meta.env.DEV}
@@ -95,28 +111,15 @@
               />
             </div>
           {/if}
-          {#if selected.id !== null}
-            <div class="absolute top-4 left-4 z-10">
-              <Button
-                variant="outline"
-                size="sm"
-                class="bg-background/90 backdrop-blur"
-                aria-pressed={panelOpen}
-                onclick={() => (panelOpen = !panelOpen)}
-              >
-                <PanelRight data-icon="inline-start" />
-                {panelOpen ? "Hide" : "Show"} panel
-              </Button>
-            </div>
-          {/if}
         </div>
-        {#if panelOpen}
-          <div
-            class="border-border bg-background w-80 shrink-0 border-l"
-            data-tour="dfg-detail-panel"
-          >
-            <DetailPanel graph={built.graph} {simplified} groups={graphGroupsForView} />
-          </div>
+        {#if tests.open}
+          <TestsPanel
+            {findings}
+            groupCount={graphGroupsForView.length}
+            onClose={() => (tests.open = false)}
+            onCompare={() => (comparing = true)}
+            onChooseAttributes={() => (buildSettingsOpen = true)}
+          />
         {/if}
       </div>
     {:else}

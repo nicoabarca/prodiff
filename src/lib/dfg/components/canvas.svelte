@@ -13,6 +13,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import ActivityNode from "$lib/dfg/components/node.svelte";
   import RoutedEdge from "$lib/dfg/components/edge.svelte";
+  import Frame from "$lib/dfg/components/frame.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
   import { selected, view } from "$lib/dfg/state/view.svelte";
@@ -30,7 +31,7 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { litPath } from "$lib/dfg/utils/fold";
+  import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -45,6 +46,8 @@
     fits = true,
     exportName = "directly-follows-graph",
     refitAt = 0,
+    frameOn = null,
+    spotlight = null,
     viewport = $bindable<Viewport>({ x: 0, y: 0, zoom: 1 })
   }: {
     graph: ResponseDfg;
@@ -56,6 +59,8 @@
     fits?: boolean;
     exportName?: string;
     refitAt?: number;
+    frameOn?: { ids: number[]; at: number } | null;
+    spotlight?: LitPath | null;
     viewport?: Viewport;
   } = $props();
 
@@ -107,9 +112,10 @@
     )
   );
 
-  /** The nodes and edges of the Variant a row's eye lit, if it is still on the graph. */
+  /** What `spotlight` lights, or else the nodes and edges of the Variant a row's
+      eye lit, if it is still on the graph. */
   const highlight = $derived(
-    litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
+    spotlight ?? litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
   );
 
   // ELK is asynchronous, so the placement lands a tick after the topology
@@ -336,6 +342,9 @@
     <Background />
     {#if fits}
       <Refit at={fitAt} options={fitViewOptions} />
+    {/if}
+    {#if frameOn}
+      <Frame ids={frameOn.ids} at={frameOn.at} options={fitViewOptions} />
     {/if}
     <Controls showLock={false} {fitViewOptions}>
       <ExportImage name={exportName} bind:exporting />

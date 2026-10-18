@@ -1,15 +1,18 @@
 <script lang="ts">
   /**
    * The graph's settings as a row of fields: what is compared, which Variants,
-   * which attributes are tested, whether it is split, and how it is drawn.
+   * which attributes are tested, whether it is split, the tests panel, and how
+   * it is drawn.
    */
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
   import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import SplitField from "$lib/dfg/components/split-field.svelte";
+  import TestsField from "$lib/dfg/components/tests-field.svelte";
   import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
+  import type { Finding } from "$lib/dfg/utils/findings";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { formatNumber } from "$lib/format";
@@ -19,6 +22,7 @@
     project,
     graph,
     simplified,
+    findings,
     error,
     building,
     stale,
@@ -29,6 +33,7 @@
     project: Project;
     graph: ResponseDfg | null;
     simplified: Simplified | null;
+    findings: Finding[];
     error: string | null;
     building: boolean;
     stale: boolean;
@@ -42,9 +47,14 @@
 
 <div class="border-border bg-background flex shrink-0 flex-nowrap items-stretch border-b">
   <CompareField {project} bind:open={comparing} />
-  <VariantSummary {simplified} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
+  <VariantSummary
+    {simplified}
+    open={variantsOpen}
+    onToggle={() => (variantsOpen = !variantsOpen)}
+  />
   <BuildSettings {project} bind:open={buildSettingsOpen} />
   <SplitField groupCount={groups.length} />
+  <TestsField {findings} groupCount={groups.length} />
 
   <div class="flex min-w-0 flex-1 items-center gap-3 px-3">
     {#if error}
