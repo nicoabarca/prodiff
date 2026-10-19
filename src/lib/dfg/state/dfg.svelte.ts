@@ -5,7 +5,11 @@ import { attributeOptions } from "$lib/analysis/attributes";
 import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 import { comparedIds } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
-import { resetVariantsState, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
+import {
+  loadVariants,
+  resetVariantsState,
+  settings as variantSettings
+} from "$lib/dfg/state/variants.svelte";
 import type { Project } from "$lib/event-log/types";
 
 /**
@@ -21,11 +25,7 @@ export const built = $state<{
   error: string | null;
 }>({ projectId: null, key: null, graph: null, building: false, error: null });
 
-/**
- * The attributes each node is asked to measure and test. A build input, so it
- * keys the cache; the simplification thresholds do not, because they never
- * cross the seam.
- */
+/** The attributes each node is asked to measure and test. A build input, so it keys the cache. */
 export const selection = $state<{ attributes: string[] }>({ attributes: [] });
 
 /** The selected attributes that are still valid and visible for this project. */
@@ -46,25 +46,28 @@ export function isStale(project: Project | null): boolean {
 }
 
 /**
- * Builds the graph for the Groups and attributes as they stand, unless it is
- * already in hand. Changing the compared Groups or the attributes asks Rust
- * again; moving a simplification slider never does.
+ * Builds the graph for the Groups, attributes and Variants as they stand, unless
+ * it is already in hand. The Variant list is loaded first, which drops keys the
+ * Groups no longer hold and seeds an empty selection, so the build is cut to
+ * the Variants the panel shows as applied.
  */
 export async function load(project: Project, force = false) {
-  const attributes = selectedAttributes(project);
-  const key = dfgKey(comparedIds(), attributes, variantSettings.value.selectedVariants);
-  if (built.building || (!force && built.projectId === project.id && built.key === key)) return;
+  if (
+    built.building ||
+    (!force && built.projectId === project.id && built.key === currentKey(project))
+  ) {
+    return;
+  }
 
   built.building = true;
   built.error = null;
   selected.id = null;
   try {
-    built.graph = await dfg(
-      project,
-      comparedIds(),
-      attributes,
-      variantSettings.value.selectedVariants
-    );
+    await loadVariants(project);
+    const attributes = selectedAttributes(project);
+    const variants = variantSettings.value.selectedVariants;
+    const key = dfgKey(comparedIds(), attributes, variants);
+    built.graph = await dfg(project, comparedIds(), attributes, variants);
     built.projectId = project.id;
     built.key = key;
   } catch (cause) {

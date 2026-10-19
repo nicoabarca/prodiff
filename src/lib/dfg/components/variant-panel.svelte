@@ -1,12 +1,16 @@
 <script lang="ts">
-  /** The shared Variants panel, staging against the graph's selection. */
+  /**
+   * The shared Variants panel, staging against the graph's selection through
+   * the Behaviour and Paths sliders.
+   */
   import VariantPanel from "$lib/components/variant-panel/variant-panel.svelte";
+  import VariantCuts from "$lib/dfg/components/variant-cuts.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import {
-    applyStaged,
+    applyCuts,
     isStagedDirty,
     loadVariants,
-    resetStaged,
+    resetCuts,
     selectedVariants,
     setStaged,
     shownVariant,
@@ -32,12 +36,14 @@
     shownVariant.key = null;
   });
 
+  const groups = $derived(comparedGroups());
+
   /** The Variants the graph was built from, which is what a row's eye can light. */
   const drawn = $derived(simplified ? simplified.variants.keys : new Set<string>());
 </script>
 
 <VariantPanel
-  groups={comparedGroups()}
+  {groups}
   rows={variants.rows}
   loading={variants.loading}
   error={variants.error}
@@ -51,7 +57,11 @@
   onStage={setStaged}
   onToggle={toggleStaged}
   onHighlight={(key) => (shownVariant.key = shownVariant.key === key ? null : key)}
-  onReset={resetStaged}
-  onApply={() => applyStaged(project)}
+  onReset={resetCuts}
+  onApply={() => applyCuts(project)}
   {onClose}
-/>
+>
+  {#snippet cuts()}
+    <VariantCuts {groups} rows={variants.rows} staged={stagedVariants()} onStage={setStaged} />
+  {/snippet}
+</VariantPanel>
