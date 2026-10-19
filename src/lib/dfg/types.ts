@@ -24,27 +24,23 @@ export interface Rect {
   height: number;
 }
 
-/** One cut of the graph. A split draws both panels from the same one. */
+/** How the graph is drawn. A split draws both panels the same way. */
 export interface DfgView {
-  coverage: number;
-  paths: number;
   measure: Measure;
   direction: Direction;
   split: boolean;
 }
 
 export const defaultDfgView: DfgView = {
-  coverage: 0.8,
-  paths: 1,
   measure: "cases",
   direction: "TB",
   split: false
 };
 
 /**
- * Which Variants the build is cut to, persisted per project. Empty means every
- * Variant, which is what the graph shows before the panel is ever opened, not
- * "not chosen yet" as it is for the tree.
+ * Which Variants the build is cut to, persisted per project. Empty means "not
+ * chosen yet", as it does for the tree: the first load re-seeds it from the
+ * coverage default.
  */
 export interface DfgSettings {
   selectedVariants: string[];

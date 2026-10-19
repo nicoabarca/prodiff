@@ -6,7 +6,7 @@
   import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { pointed, pointedPlace, refit, splitting, tests, view } from "$lib/dfg/state/view.svelte";
+  import { pointed, pointedPlace, refit, splitting, tests } from "$lib/dfg/state/view.svelte";
   import {
     loadSettings as loadVariantSettings,
     settings as variantSettings
@@ -26,7 +26,7 @@
   const graphGroupsForView = $derived(
     built.graph && project ? graphGroups(built.graph, project.id) : []
   );
-  const simplified = $derived(built.graph ? simplify(built.graph, view) : null);
+  const simplified = $derived(built.graph ? simplify(built.graph) : null);
   const findings = $derived(
     built.graph && simplified ? graphFindings(built.graph, simplified) : []
   );
@@ -51,7 +51,14 @@
   });
 
   $effect(() => {
-    if (project && groupsLoaded.projectId === project.id) load(project);
+    if (
+      project &&
+      groupsLoaded.projectId === project.id &&
+      comparison.projectId === project.id &&
+      variantSettings.projectId === project.id
+    ) {
+      load(project);
+    }
   });
 </script>
 

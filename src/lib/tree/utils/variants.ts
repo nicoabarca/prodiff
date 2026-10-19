@@ -23,6 +23,27 @@ export function variantsCovering(rows: ResponseVariantRow[], coverage: number): 
   return keys;
 }
 
+/** The share of every case the Variants keyed in `keys` hold, from 0 to 1. */
+export function casesShare(rows: ResponseVariantRow[], keys: Set<string>): number {
+  const total = rows.reduce((sum, row) => sum + variantCases(row), 0);
+  if (total === 0) return 0;
+  const held = rows
+    .filter((row) => keys.has(row.key))
+    .reduce((sum, row) => sum + variantCases(row), 0);
+  return held / total;
+}
+
+/**
+ * The share of every case the biggest Variant holds, from 0 to 1: the least
+ * coverage a selection can hold, since a build needs one Variant. An empty list
+ * answers 1.
+ */
+export function coverageFloor(rows: ResponseVariantRow[]): number {
+  const total = rows.reduce((sum, row) => sum + variantCases(row), 0);
+  if (total === 0) return 1;
+  return rows.reduce((max, row) => Math.max(max, variantCases(row)), 0) / total;
+}
+
 /**
  * Events one Group contributes to a Variant: every case there walks the same
  * trace, so it is the trace length times the cases.

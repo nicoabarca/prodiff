@@ -11,10 +11,10 @@ export const dfgTour: TourStep[] = [
     side: "right"
   },
   {
-    target: [{ anchor: "simplification-controls" }],
+    target: [{ anchor: "dfg-variants" }],
     title: "Simplify",
-    body: "Trim rare activities and transitions so the main flow stands out. The graph is not rebuilt, only redrawn.",
-    side: "left"
+    body: "Open Variants to keep the common variants and the busiest transitions. Apply rebuilds the graph, so every test describes what is drawn.",
+    side: "bottom"
   },
   {
     target: [{ anchor: "dfg-tests" }],

@@ -2,8 +2,9 @@ import { defaultDfgView, type DfgView } from "$lib/dfg/types";
 import { placeKey, type Place } from "$lib/dfg/utils/findings";
 
 /**
- * The sliders and the measures on the faces. Every one of them is answered from
- * the graph already in hand, so none reaches the backend and none is persisted.
+ * The measures on the faces, the direction and the split. Every one of them is
+ * answered from the graph already in hand, so none reaches the backend and none
+ * is persisted.
  */
 export const view = $state<DfgView>({ ...defaultDfgView });
 
@@ -17,24 +18,14 @@ export function splitting(groupCount: number): boolean {
 }
 
 /**
- * Asks the canvas to fit itself again. A cut changes how much of the graph there
- * is to frame, so moving a slider reframes what is left. A split panel follows
- * the one that fits through the viewport the two share.
+ * Asks the canvas to fit itself again. Applying a new Variant selection changes
+ * how much of the graph there is to frame, so it reframes what is built. A split
+ * panel follows the one that fits through the viewport the two share.
  */
 export const refit = $state<{ at: number }>({ at: 0 });
 
 export function reframe() {
   refit.at += 1;
-}
-
-export function setCoverage(value: number) {
-  view.coverage = value;
-  reframe();
-}
-
-export function setPaths(value: number) {
-  view.paths = value;
-  reframe();
 }
 
 export function setSplit(on: boolean) {
