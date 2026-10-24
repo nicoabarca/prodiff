@@ -14,7 +14,7 @@
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { byAttribute, type Finding, type Ranking } from "$lib/dfg/utils/findings";
-  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
+  import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import { formatNumber } from "$lib/format";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
@@ -154,7 +154,11 @@
                 differs at {row.significant} of {where(row.attribute, row.tested)}
               </span>
             </span>
-            <EffectMeter test={row.peak?.block.test} />
+            {#if row.peak}
+              <EffectChip test={row.peak.block.test} tooltip={false} />
+            {:else}
+              <span></span>
+            {/if}
           </Collapsible.Trigger>
           <Collapsible.Content>
             {#each places as finding (finding.key)}
