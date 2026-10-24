@@ -55,7 +55,7 @@ describe("graphFindings", () => {
     expect(findings.map((f) => f.place.label)).toEqual(["Review", "Approve", "Review → Approve"]);
   });
 
-  it("leaves out an activity one Group alone reaches, but keeps the waits around it", () => {
+  it("leaves out an activity and an edge one Group alone reaches", () => {
     const lone = {
       ...graph,
       nodes: [
@@ -67,7 +67,11 @@ describe("graphFindings", () => {
           attributes: { Amount: block(test(0.8, 0.001)) }
         }
       ],
-      transitions: [...graph.transitions, { source: 2, target: 5, wait: block(test(0.4, 0.01)) }]
+      transitions: [
+        ...graph.transitions,
+        { source: 2, target: 5, wait: block(test(0.4, 0.01)) },
+        { source: 5, target: 3, wait: block(test(0.4, 0.01)) }
+      ]
     } as ResponseDfg;
     const drawn = {
       ...simplified,
@@ -75,7 +79,11 @@ describe("graphFindings", () => {
         ...simplified.nodes,
         { id: 5, label: "Escalate", kind: "activity", counts: lone.nodes[3].counts }
       ],
-      edges: [...simplified.edges, { source: 2, target: 5, counts }]
+      edges: [
+        ...simplified.edges,
+        { source: 2, target: 5, counts },
+        { source: 5, target: 3, counts: lone.nodes[3].counts }
+      ]
     } as unknown as Simplified;
     const found = graphFindings(lone, drawn);
     expect(found.map((f) => f.place.label)).toEqual([

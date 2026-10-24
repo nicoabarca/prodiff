@@ -94,6 +94,7 @@ export interface DfgEdgeData {
   dotted: boolean;
   labelAt: Point;
   boundary: boolean;
+  clickable: boolean;
   highlighted: boolean;
   dimmed: boolean;
   [key: string]: unknown;

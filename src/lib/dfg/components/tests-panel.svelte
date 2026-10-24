@@ -29,6 +29,7 @@
   import { untrack } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
+  import ChevronsDownUp from "@lucide/svelte/icons/chevrons-down-up";
   import X from "@lucide/svelte/icons/x";
 
   let {
@@ -89,6 +90,16 @@
     });
   });
 
+  /** Moves on each time Collapse all closes every attribute and every card. */
+  let collapsedAt = $state(0);
+
+  function collapseAll() {
+    flipped.clear();
+    const first = attributes[0]?.attribute;
+    if (first !== undefined) flipped.add(first);
+    collapsedAt += 1;
+  }
+
   // A panel opened later starts on every test again.
   $effect(() => () => clearInspected());
 
@@ -97,6 +108,18 @@
       ? `${count} edge${count === 1 ? "" : "s"}`
       : `${count} activit${count === 1 ? "y" : "ies"}`;
 </script>
+
+{#snippet collapseButton()}
+  <Button
+    variant="outline"
+    size="xs"
+    class="ml-auto shrink-0 text-[0.6875rem]"
+    onclick={collapseAll}
+  >
+    <ChevronsDownUp data-icon="inline-start" />
+    Collapse all
+  </Button>
+{/snippet}
 
 <aside
   class="border-border bg-sidebar flex w-[26rem] shrink-0 flex-col border-l"
@@ -136,6 +159,7 @@
           <span class="truncate">Activity {activity.label}</span>
           <X class="size-3 shrink-0" aria-hidden="true" />
         </button>
+        {@render collapseButton()}
       </div>
     {:else if groupCount > 1 && findings.length > 0}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -158,6 +182,7 @@
           <Checkbox bind:checked={onlyDifferences} />
           Only differences
         </Label>
+        {@render collapseButton()}
       </div>
     {/if}
   </div>
@@ -173,7 +198,7 @@
   {:else if activity}
     <ScrollArea.Root class="min-h-0 flex-1">
       {#each differences as finding (finding.key)}
-        <PlaceTest {finding} named="attribute" />
+        <PlaceTest {finding} named="attribute" collapse={collapsedAt} />
       {:else}
         <p class="text-muted-foreground px-4 py-3 text-xs">
           No attribute differs significantly at {activity.label}.
@@ -232,6 +257,7 @@
               <PlaceTest
                 {finding}
                 reveal={finding.key === edgeFinding?.key ? inspected.at : 0}
+                collapse={collapsedAt}
               />
             {:else}
               <p class="text-muted-foreground border-border border-t px-6 py-2.5 text-[0.6875rem]">

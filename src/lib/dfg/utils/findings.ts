@@ -1,12 +1,12 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
  * every attribute block of every activity on screen that more than one Group
- * reaches, plus the Waiting Time of every edge on screen whose pair the log
- * holds. An activity one Group alone reaches has nothing to compare against.
+ * reaches, plus the Waiting Time of every edge on screen that more than one
+ * Group follows. A place one Group alone reaches has nothing to compare against.
  */
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import { transitionsById } from "$lib/dfg/utils/face";
 import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -51,17 +51,19 @@ export function placeKey(place: Place): string {
   return place.kind === "node" ? `n${place.id}` : `e${edgeId(place.source, place.target)}`;
 }
 
+/** Whether a place's counts leave something to compare: more than one Group reaches it, or only one Group is compared. */
+export function comparable(counts: Record<string, Counts>, groupIds: string[]): boolean {
+  return groupIds.length < 2 || groupIds.filter((id) => (counts[id]?.cases ?? 0) > 0).length > 1;
+}
+
 export function graphFindings(graph: ResponseDfg, simplified: Simplified): Finding[] {
   const measured = new Map(graph.nodes.map((node) => [node.id, node]));
   const labels = new Map(simplified.nodes.map((node) => [node.id, node.label]));
   const waits = transitionsById(graph);
-  const comparable = (id: number) =>
-    graph.groups.length < 2 ||
-    graph.groups.filter((group) => (measured.get(id)?.counts[group.id]?.cases ?? 0) > 0).length >
-      1;
+  const groupIds = graph.groups.map((group) => group.id);
 
   const nodes = simplified.nodes.flatMap((node) => {
-    if (!comparable(node.id)) return [];
+    if (!comparable(measured.get(node.id)?.counts ?? {}, groupIds)) return [];
     const blocks = measured.get(node.id)?.attributes ?? {};
     const place: Place = { kind: "node", id: node.id, label: node.label };
     return Object.entries(blocks).map(([attribute, block]) => ({
@@ -74,7 +76,7 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
 
   const edges = simplified.edges.flatMap((edge) => {
     const block = waits.get(edgeId(edge.source, edge.target));
-    if (!block) return [];
+    if (!block || !comparable(edge.counts, groupIds)) return [];
     const place = edgePlace(edge.source, edge.target, labels);
     return [
       { key: `${placeKey(place)}:${TRANSITION_TIME}`, place, attribute: TRANSITION_TIME, block }

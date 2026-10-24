@@ -4,7 +4,8 @@
    * the place, its verdict and its magnitude, and opening on both Groups'
    * figures. Clicking anywhere on the card but its chevron frames and lights
    * the place on the canvas; a click that ends a text selection does not.
-   * Each time `reveal` moves on past 0 the card opens and scrolls into view.
+   * Each time `reveal` moves on past 0 the card opens and scrolls into view;
+   * each time `collapse` moves on after the card mounts, it closes.
    */
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -21,13 +22,19 @@
   import ArrowRight from "@lucide/svelte/icons/arrow-right";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Square from "@lucide/svelte/icons/square";
-  import { tick } from "svelte";
+  import { tick, untrack } from "svelte";
 
   let {
     finding,
     named = "place",
-    reveal = 0
-  }: { finding: Finding; named?: "place" | "attribute"; reveal?: number } = $props();
+    reveal = 0,
+    collapse = 0
+  }: {
+    finding: Finding;
+    named?: "place" | "attribute";
+    reveal?: number;
+    collapse?: number;
+  } = $props();
 
   let open = $state(false);
   let card = $state<HTMLElement | null>(null);
@@ -38,6 +45,14 @@
     void tick().then(() =>
       requestAnimationFrame(() => card?.scrollIntoView({ block: "nearest", behavior: "smooth" }))
     );
+  });
+
+  // A card mounted after the last Collapse all keeps what `reveal` opened.
+  let collapsedAt = untrack(() => collapse);
+  $effect(() => {
+    if (collapse === collapsedAt) return;
+    collapsedAt = collapse;
+    open = false;
   });
 
   const groups = $derived(comparedGroups());
