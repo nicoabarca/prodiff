@@ -5,7 +5,7 @@
  */
 import { formatDuration, formatNumber } from "$lib/format";
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { Counts, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { EdgeWait } from "$lib/tree/utils/flow";
@@ -105,12 +105,6 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
     color: group.color,
     value: waitLabel(mean)
   }));
-}
-
-/** How many of a node's attributes came back a significant difference. */
-export function findings(node: DfgNode | undefined): number {
-  if (!node) return 0;
-  return Object.values(node.attributes).filter((block) => block.test?.significant).length;
 }
 
 /** The busiest of a set, for scaling every other one against. */

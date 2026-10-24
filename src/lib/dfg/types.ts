@@ -1,4 +1,5 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
+import type { NodeDifferences } from "$lib/dfg/utils/findings";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
@@ -75,7 +76,7 @@ export interface DfgNodeData {
   groups: FaceGroup[];
   counts: Record<string, string | null>;
   shadeStep: number | null;
-  findings: number;
+  differences: NodeDifferences | null;
   membership: string | null;
   selected: boolean;
   direction: Direction;

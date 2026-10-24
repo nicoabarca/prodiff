@@ -23,7 +23,6 @@
     edgeWait,
     edgeWidth,
     faceCounts,
-    findings,
     membership,
     shadeValue,
     transitionsById
@@ -31,6 +30,7 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
+  import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
@@ -39,6 +39,7 @@
   let {
     graph,
     simplified,
+    findings,
     groups,
     stale,
     focus = null,
@@ -52,6 +53,7 @@
   }: {
     graph: ResponseDfg;
     simplified: Simplified;
+    findings: Finding[];
     groups: FaceGroup[];
     stale: boolean;
     focus?: string | null;
@@ -97,7 +99,7 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
-  const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
 
   /** Every edge label's box, sized for every compared Group, so both split
@@ -205,7 +207,7 @@
             groups: shown,
             counts: faceCounts(node.counts, shown, view.measure),
             shadeStep: steps[index],
-            findings: findings(measured.get(node.id)),
+            differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,
             direction: view.direction,

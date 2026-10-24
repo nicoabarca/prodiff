@@ -87,6 +87,7 @@
             <SplitCanvas
               graph={built.graph}
               {simplified}
+              {findings}
               groups={graphGroupsForView}
               {stale}
               {frameOn}
@@ -96,6 +97,7 @@
             <Canvas
               graph={built.graph}
               {simplified}
+              {findings}
               groups={graphGroupsForView}
               {stale}
               refitAt={refit.at}

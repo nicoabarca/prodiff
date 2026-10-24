@@ -87,6 +87,27 @@ export function rank(findings: Finding[], by: Ranking): Finding[] {
   );
 }
 
+/** How many significant differences an activity carries, and the strongest effect among them. */
+export interface NodeDifferences {
+  count: number;
+  peak: number;
+}
+
+/** Each activity's significant findings, by node id. Activities with none are absent. */
+export function nodeDifferences(findings: Finding[]): Map<number, NodeDifferences> {
+  const out = new Map<number, NodeDifferences>();
+  for (const finding of findings) {
+    const test = finding.block.test;
+    if (finding.place.kind !== "node" || !test?.significant) continue;
+    const current = out.get(finding.place.id);
+    out.set(finding.place.id, {
+      count: (current?.count ?? 0) + 1,
+      peak: Math.max(current?.peak ?? 0, test.effectSize)
+    });
+  }
+  return out;
+}
+
 export interface AttributeTests {
   attribute: string;
   places: Finding[];
