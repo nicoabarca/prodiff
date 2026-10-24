@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * The case attributes as one row of chips above the tree: each names the
-   * attribute, its headline and its magnitude, and opens its chart. Measured
-   * once per case across each whole Group, so no node changes them.
+   * The case attributes as one row of chips above the tree or the graph: each
+   * names the attribute, its headline and its magnitude, and opens its chart.
+   * Measured once per case across each Group, so no node changes them.
    */
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -11,8 +11,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { formatNumber } from "$lib/format";
-  import type { Summary } from "$lib/analysis/types";
-  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
+  import type { AttributeBlock, Summary } from "$lib/analysis/types";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand, effectStep } from "$lib/tree/utils/effect";
@@ -22,24 +21,35 @@
   import Info from "@lucide/svelte/icons/info";
   import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
-  let { tree }: { tree: ResponseDirectedTree } = $props();
+  let {
+    caseLevel,
+    groupIds,
+    overlapCases = 0,
+    cappedByCeiling = false
+  }: {
+    caseLevel: Record<string, AttributeBlock>;
+    groupIds: string[];
+    overlapCases?: number;
+    cappedByCeiling?: boolean;
+  } = $props();
 
   const groups = $derived(comparedGroups());
-  const comparing = $derived(tree.groups.length > 1);
+  const comparing = $derived(groupIds.length > 1);
 
   const attributes = $derived(
-    Object.keys(tree.groups[0]?.caseLevel ?? {}).map((name) => {
-      const summaries: Record<string, Summary | null> = Object.fromEntries(
-        tree.groups.map((group) => [group.id, group.caseLevel[name] ?? null])
-      );
-      const test = tree.caseLevelTests[name] ?? null;
-      return {
-        name,
-        summaries,
-        test,
-        headline: headline(summaries, comparing ? groups : groups.slice(0, 1), false)
-      };
-    })
+    Object.entries(caseLevel)
+      .sort(([x], [y]) => x.localeCompare(y))
+      .map(([name, block]) => {
+        const summaries: Record<string, Summary | null> = Object.fromEntries(
+          groupIds.map((id) => [id, block.summaries[id] ?? null])
+        );
+        return {
+          name,
+          summaries,
+          test: block.test,
+          headline: headline(summaries, comparing ? groups : groups.slice(0, 1), false)
+        };
+      })
   );
 
   const significant = $derived(attributes.filter((a) => a.test?.significant));
@@ -51,9 +61,7 @@
 
   let expanded = $state(true);
 
-  const hasContent = $derived(
-    tree.overlapCases > 0 || tree.cappedByCeiling || attributes.length > 0
-  );
+  const hasContent = $derived(overlapCases > 0 || cappedByCeiling || attributes.length > 0);
 </script>
 
 {#if hasContent}
@@ -151,7 +159,7 @@
       <span class="flex-1"></span>
     {/if}
 
-    {#if tree.cappedByCeiling}
+    {#if cappedByCeiling}
       <Tooltip.Provider>
         <Tooltip.Root>
           <Tooltip.Trigger>
@@ -168,17 +176,17 @@
       </Tooltip.Provider>
     {/if}
 
-    {#if tree.overlapCases > 0}
+    {#if overlapCases > 0}
       <Tooltip.Provider>
         <Tooltip.Root>
           <Tooltip.Trigger>
             <Badge variant="destructive" class="h-6 cursor-help">
               <TriangleAlert data-icon="inline-start" />
-              {formatNumber(tree.overlapCases)} shared cases
+              {formatNumber(overlapCases)} shared cases
             </Badge>
           </Tooltip.Trigger>
           <Tooltip.Content class="max-w-64 text-[0.6875rem]">
-            {formatNumber(tree.overlapCases)} cases are in both groups. Both Significance Tests assume
+            {formatNumber(overlapCases)} cases are in both groups. Both Significance Tests assume
             the two groups are independent samples. Overlapping cases make every p-value on screen optimistic.
           </Tooltip.Content>
         </Tooltip.Root>

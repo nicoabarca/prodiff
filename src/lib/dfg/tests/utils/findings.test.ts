@@ -31,7 +31,7 @@ const graph = {
   ],
   groups: [{ id: "a" }, { id: "b" }],
   overlapCases: 0,
-  skippedCaseLevel: []
+  caseLevel: {}
 } as ResponseDfg;
 
 const simplified = {

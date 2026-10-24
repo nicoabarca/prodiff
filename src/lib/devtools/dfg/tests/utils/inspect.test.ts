@@ -19,7 +19,7 @@ const graph: ResponseDfg = {
   ],
   groups: [{ id: "original" }, { id: "aB3dE5gH" }],
   overlapCases: 0,
-  skippedCaseLevel: []
+  caseLevel: {}
 };
 
 describe("findNode", () => {

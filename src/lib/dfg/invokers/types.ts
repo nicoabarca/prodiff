@@ -21,7 +21,7 @@ export interface ResponseDfg {
   transitions: Transition[];
   groups: GroupBlock[];
   overlapCases: number;
-  skippedCaseLevel: string[];
+  caseLevel: Record<string, AttributeBlock>;
 }
 
 export interface DfgNode {

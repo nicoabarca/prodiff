@@ -4,6 +4,7 @@
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
   import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
   import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
+  import CaseStrip from "$lib/tree/components/case-strip.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { pointed, pointedPlace, refit, splitting, tests } from "$lib/dfg/state/view.svelte";
@@ -76,6 +77,13 @@
       bind:buildSettingsOpen
       bind:comparing
     />
+
+    {#if built.graph}
+      <CaseStrip
+        caseLevel={built.graph.caseLevel}
+        groupIds={built.graph.groups.map((group) => group.id)}
+      />
+    {/if}
 
     {#if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
