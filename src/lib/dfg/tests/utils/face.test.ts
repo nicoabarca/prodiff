@@ -71,15 +71,18 @@ describe("edgeWait", () => {
     ]);
   });
 
-  it("leaves an edge unlabelled when the one Group crossing it waited an instant", () => {
-    expect(edgeWait(wait({ b: mean(200) }), groups)).toEqual([]);
+  it("labels any wait above zero, printing a sub-second one in ms", () => {
+    expect(edgeWait(wait({ b: mean(200) }), groups)).toEqual([
+      { id: "b", color: "group-6", value: "200ms" }
+    ]);
+    expect(edgeWait(wait({ b: mean(0.2) }), groups).map((line) => line.value)).toEqual(["1ms"]);
   });
 
-  it("leaves an edge unlabelled when every Group's wait is instant", () => {
-    expect(edgeWait(wait({ a: mean(0), b: mean(300) }), groups)).toEqual([]);
+  it("leaves an edge unlabelled when no Group waited at all", () => {
+    expect(edgeWait(wait({ a: mean(0), b: mean(0) }), groups)).toEqual([]);
   });
 
-  it("keeps an instant Group's line when another Group waited", () => {
+  it("keeps a Group that did not wait when another Group did", () => {
     expect(
       edgeWait(wait({ a: mean(0), b: mean(5_000) }), groups).map((line) => line.value)
     ).toEqual(["0s", "5s"]);

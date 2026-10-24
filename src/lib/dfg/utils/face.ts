@@ -80,12 +80,18 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
   );
 }
 
-/** Under this many milliseconds a wait prints as 0s. */
-export const INSTANT_MS = 500;
+/** Under this many milliseconds `formatDuration` rounds a wait to 0s. */
+const SUB_SECOND_MS = 500;
+
+/** A mean wait as its edge prints it. A wait too short to round to a second prints in ms. */
+function waitLabel(mean: number): string {
+  if (mean <= 0 || mean >= SUB_SECOND_MS) return formatDuration(mean);
+  return `${Math.max(1, Math.round(mean))}ms`;
+}
 
 /**
  * The mean wait on an edge, one line per Group, in the order compared. Empty
- * when every Group's wait is instant: the canvas leaves that edge unlabelled.
+ * when no Group waited at all: the canvas leaves that edge unlabelled.
  */
 export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): EdgeWait[] {
   if (!wait) return [];
@@ -93,11 +99,11 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
     const summary = wait.summaries[group.id];
     return summary?.type === "numerical" ? [{ group, mean: summary.mean }] : [];
   });
-  if (means.every(({ mean }) => Math.abs(mean) < INSTANT_MS)) return [];
+  if (means.every(({ mean }) => mean <= 0)) return [];
   return means.map(({ group, mean }) => ({
     id: group.id,
     color: group.color,
-    value: formatDuration(mean)
+    value: waitLabel(mean)
   }));
 }
 
