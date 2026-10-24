@@ -99,12 +99,12 @@
           {@const cases = row.cases[group.id] ?? 0}
           {@const ink = cases > 0 ? accents[group.id] : "var(--muted-foreground)"}
           <span
-            class="flex shrink-0 gap-2 text-right font-mono text-[0.6875rem] tabular-nums"
+            class="flex shrink-0 gap-1.5 text-right font-mono text-[0.6875rem] tabular-nums"
             style="color:{ink}"
           >
-            <span class="w-14">{cases > 0 ? formatNumber(cases) : "—"}</span>
-            <span class="w-12 opacity-85">{cases > 0 ? share(cases, totals[group.id]) : ""}</span>
-            <span class="text-muted-foreground w-14">
+            <span class="min-w-12">{cases > 0 ? formatNumber(cases) : "—"}</span>
+            <span class="w-11 opacity-85">{cases > 0 ? share(cases, totals[group.id]) : ""}</span>
+            <span class="text-muted-foreground min-w-12">
               {cases > 0 ? formatNumber(variantEvents(row, group.id)) : "—"}
             </span>
           </span>

@@ -213,46 +213,50 @@
 
 <div class="flex min-h-0 shrink-0" style:width="{width}rem">
   <div class="bg-card flex min-w-0 flex-1 flex-col border-r shadow-lg">
-    <div class="flex shrink-0 items-center gap-2 border-b px-3 py-2.5">
+    <div class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b px-3 py-2.5">
       <span class="text-[0.8125rem] font-semibold">Variants</span>
       {#if dirty}
-        <span class="text-foreground text-[0.6875rem] font-semibold tabular-nums">
+        <span class="text-foreground truncate text-[0.6875rem] font-semibold tabular-nums">
           {formatNumber(applied)} → {formatNumber(staged.size)} variants
         </span>
       {/if}
 
-      {#if columns.length > 1}
-        <span class="text-muted-foreground ml-auto text-[0.625rem] tracking-wide uppercase">
-          Show
-        </span>
-        <div class="flex items-center">
-          {#each filters as filter (filter.id)}
-            <button
-              type="button"
-              aria-pressed={shown === filter.id}
-              class="-ml-px flex h-6 max-w-32 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem] first:ml-0 {shown ===
-              filter.id
-                ? 'relative z-10'
-                : 'border-border text-muted-foreground hover:text-foreground'}"
-              style={shown === filter.id ? `border-color:${filter.ink};color:${filter.ink}` : ""}
-              onclick={() => (shown = filter.id)}
-            >
-              <span class="truncate">{filter.label}</span>
-              <span class="ml-1 tabular-nums opacity-70">({formatNumber(counts[filter.id])})</span>
-            </button>
-          {/each}
-        </div>
-      {/if}
-
       <button
-        class="text-muted-foreground hover:bg-accent hover:text-foreground {columns.length > 1
-          ? ''
-          : 'ml-auto'} flex size-6 cursor-pointer items-center justify-center"
+        class="text-muted-foreground hover:bg-accent hover:text-foreground ml-auto flex size-6 shrink-0 cursor-pointer items-center justify-center"
         aria-label="Close variants panel"
         onclick={onClose}
       >
         <X class="size-3.5" />
       </button>
+
+      {#if columns.length > 1}
+        <!-- Wraps under the title when the panel is too narrow for one line. -->
+        <div class="flex w-full min-w-0 items-center gap-2">
+          <span class="text-muted-foreground shrink-0 text-[0.625rem] tracking-wide uppercase">
+            Show
+          </span>
+          <div class="flex min-w-0 items-center">
+            {#each filters as filter (filter.id)}
+              <button
+                type="button"
+                aria-pressed={shown === filter.id}
+                title="{filter.label} ({formatNumber(counts[filter.id])})"
+                class="-ml-px flex h-6 max-w-32 min-w-0 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem] first:ml-0 {shown ===
+                filter.id
+                  ? 'relative z-10 shrink-0'
+                  : 'border-border text-muted-foreground hover:text-foreground'}"
+                style={shown === filter.id ? `border-color:${filter.ink};color:${filter.ink}` : ""}
+                onclick={() => (shown = filter.id)}
+              >
+                <span class="truncate">{filter.label}</span>
+                <span class="ml-1 shrink-0 tabular-nums opacity-70"
+                  >({formatNumber(counts[filter.id])})</span
+                >
+              </button>
+            {/each}
+          </div>
+        </div>
+      {/if}
     </div>
 
     <div class="flex shrink-0 flex-col gap-2 border-b px-3 py-2.5">
@@ -346,13 +350,17 @@
       <span class="min-w-0 flex-1"></span>
       {#each columns as group (group.id)}
         <span class="flex shrink-0 flex-col items-end gap-0.5">
-          <span class="max-w-44 truncate font-semibold" style="color:{accents[group.id]}">
+          <span
+            class="max-w-36 truncate font-semibold"
+            style="color:{accents[group.id]}"
+            title={group.name}
+          >
             {columns.length > 1 ? group.name : "Cases"}
           </span>
-          <span class="flex gap-2 text-right">
-            <span class="w-14">Cases</span>
-            <span class="w-12">% Cases</span>
-            <span class="w-14">Events</span>
+          <span class="flex gap-1.5 text-right">
+            <span class="w-12">Cases</span>
+            <span class="w-11 truncate">% Cases</span>
+            <span class="w-12">Events</span>
           </span>
         </span>
       {/each}
