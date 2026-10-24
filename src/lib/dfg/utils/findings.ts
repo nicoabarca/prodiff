@@ -37,6 +37,16 @@ export function placeLight(place: Place): LitPath {
   };
 }
 
+/** An edge as a place, named by the labels of its two ends. */
+export function edgePlace(source: number, target: number, labels: Map<number, string>): Place {
+  return {
+    kind: "edge",
+    source,
+    target,
+    label: `${labels.get(source) ?? source} → ${labels.get(target) ?? target}`
+  };
+}
+
 export function placeKey(place: Place): string {
   return place.kind === "node" ? `n${place.id}` : `e${edgeId(place.source, place.target)}`;
 }
@@ -65,18 +75,24 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
   const edges = simplified.edges.flatMap((edge) => {
     const block = waits.get(edgeId(edge.source, edge.target));
     if (!block) return [];
-    const place: Place = {
-      kind: "edge",
-      source: edge.source,
-      target: edge.target,
-      label: `${labels.get(edge.source) ?? edge.source} → ${labels.get(edge.target) ?? edge.target}`
-    };
+    const place = edgePlace(edge.source, edge.target, labels);
     return [
       { key: `${placeKey(place)}:${TRANSITION_TIME}`, place, attribute: TRANSITION_TIME, block }
     ];
   });
 
   return [...nodes, ...edges];
+}
+
+/** One activity's significant findings, strongest effect first. */
+export function activityDifferences(findings: Finding[], id: number): Finding[] {
+  return rank(
+    findings.filter(
+      (finding) =>
+        finding.place.kind === "node" && finding.place.id === id && finding.block.test?.significant
+    ),
+    "effect"
+  );
 }
 
 /** Significant first, then strongest effect or smallest p. Untested last. */

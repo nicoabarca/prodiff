@@ -2,7 +2,9 @@
   /**
    * Every Significance Test on the drawn graph, attribute by attribute: how
    * widely each one differs, and under it every activity or edge that measured
-   * it, strongest first.
+   * it, strongest first. Opened on an activity from the canvas, it lists only
+   * that activity's differences until its chip is cleared; opened on an edge,
+   * it opens and scrolls to that edge's Waiting Time.
    */
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -13,10 +15,18 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
-  import { byAttribute, type Finding, type Ranking } from "$lib/dfg/utils/findings";
+  import { clearInspected, inspected } from "$lib/dfg/state/view.svelte";
+  import {
+    activityDifferences,
+    byAttribute,
+    placeKey,
+    type Finding,
+    type Ranking
+  } from "$lib/dfg/utils/findings";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import { formatNumber } from "$lib/format";
   import { cn } from "$lib/utils";
+  import { untrack } from "svelte";
   import { SvelteSet } from "svelte/reactivity";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import X from "@lucide/svelte/icons/x";
@@ -49,6 +59,39 @@
   const isOpen = (attribute: string) =>
     (attribute === attributes[0]?.attribute) !== flipped.has(attribute);
 
+  /** The activity the panel is narrowed to, from a click on the canvas. */
+  const activity = $derived(inspected.place?.kind === "node" ? inspected.place : null);
+  const differences = $derived(activity ? activityDifferences(findings, activity.id) : []);
+
+  /** The Waiting Time finding of the edge clicked on the canvas, if it has one. */
+  const edgeFinding = $derived.by(() => {
+    const place = inspected.place;
+    if (place?.kind !== "edge") return null;
+    return (
+      findings.find(
+        (finding) =>
+          finding.attribute === TRANSITION_TIME && placeKey(finding.place) === placeKey(place)
+      ) ?? null
+    );
+  });
+
+  // Each click on an edge opens its attribute and shows it even if it does not differ.
+  $effect(() => {
+    void inspected.at;
+    const finding = edgeFinding;
+    if (!finding) return;
+    untrack(() => {
+      if (!isOpen(TRANSITION_TIME)) {
+        if (flipped.has(TRANSITION_TIME)) flipped.delete(TRANSITION_TIME);
+        else flipped.add(TRANSITION_TIME);
+      }
+      if (!finding.block.test?.significant) onlyDifferences = false;
+    });
+  });
+
+  // A panel opened later starts on every test again.
+  $effect(() => () => clearInspected());
+
   const where = (attribute: string, count: number) =>
     attribute === TRANSITION_TIME
       ? `${count} edge${count === 1 ? "" : "s"}`
@@ -80,7 +123,21 @@
         <X />
       </Button>
     </div>
-    {#if groupCount > 1 && findings.length > 0}
+    {#if activity && groupCount > 1}
+      <div class="flex items-center gap-2">
+        <span class="text-muted-foreground text-[0.625rem]">Showing</span>
+        <button
+          type="button"
+          class="border-border hover:bg-muted flex h-6 max-w-full min-w-0 cursor-pointer items-center gap-1 border pr-1 pl-2 text-[0.6875rem] font-medium"
+          aria-label="Show every test again"
+          title="Show every test again"
+          onclick={clearInspected}
+        >
+          <span class="truncate">Activity {activity.label}</span>
+          <X class="size-3 shrink-0" aria-hidden="true" />
+        </button>
+      </div>
+    {:else if groupCount > 1 && findings.length > 0}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div class="flex items-center gap-1.5">
           <Label class="text-muted-foreground text-[0.625rem]">Rank by</Label>
@@ -113,6 +170,16 @@
       </p>
       <Button size="sm" onclick={onCompare}>Choose a second group</Button>
     </div>
+  {:else if activity}
+    <ScrollArea.Root class="min-h-0 flex-1">
+      {#each differences as finding (finding.key)}
+        <PlaceTest {finding} named="attribute" />
+      {:else}
+        <p class="text-muted-foreground px-4 py-3 text-xs">
+          No attribute differs significantly at {activity.label}.
+        </p>
+      {/each}
+    </ScrollArea.Root>
   {:else if findings.length === 0}
     <div class="flex flex-col items-start gap-2.5 p-4">
       <p class="text-muted-foreground text-xs">
@@ -162,7 +229,10 @@
           </Collapsible.Trigger>
           <Collapsible.Content>
             {#each places as finding (finding.key)}
-              <PlaceTest {finding} />
+              <PlaceTest
+                {finding}
+                reveal={finding.key === edgeFinding?.key ? inspected.at : 0}
+              />
             {:else}
               <p class="text-muted-foreground border-border border-t px-6 py-2.5 text-[0.6875rem]">
                 No place on the graph differs on this attribute.

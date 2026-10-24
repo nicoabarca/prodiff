@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
-import { byAttribute, graphFindings, nodeDifferences, rank } from "$lib/dfg/utils/findings";
+import {
+  activityDifferences,
+  byAttribute,
+  graphFindings,
+  nodeDifferences,
+  rank
+} from "$lib/dfg/utils/findings";
 
 const test = (effectSize: number, pValue: number, significant = true): Test => ({
   test: "mannwhitney",
@@ -118,5 +124,21 @@ describe("nodeDifferences", () => {
       ...graphFindings(graph, simplified).filter((f) => f.place.kind === "edge")
     ]);
     expect([...differences.entries()]).toEqual([[2, { count: 2, peak: 0.6 }]]);
+  });
+});
+
+describe("activityDifferences", () => {
+  it("lists one activity's significant findings, strongest effect first", () => {
+    const review = { kind: "node" as const, id: 2, label: "Review" };
+    const found = activityDifferences(
+      [
+        { key: "1", place: review, attribute: "Amount", block: block(test(0.2, 0.01)) },
+        { key: "2", place: review, attribute: "Region", block: block(test(0.6, 0.04)) },
+        { key: "3", place: review, attribute: "Cost", block: block(test(0.9, 0.5, false)) },
+        ...graphFindings(graph, simplified).filter((f) => f.place.label !== "Review")
+      ],
+      2
+    );
+    expect(found.map((f) => f.attribute)).toEqual(["Region", "Amount"]);
   });
 });

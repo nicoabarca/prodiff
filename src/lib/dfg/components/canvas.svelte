@@ -16,7 +16,7 @@
   import Frame from "$lib/dfg/components/frame.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-  import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { inspect, selected, view } from "$lib/dfg/state/view.svelte";
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
@@ -30,7 +30,7 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
+  import { edgePlace, nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
@@ -102,6 +102,24 @@
   const waits = $derived(transitionsById(graph));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
+  const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
+  const kinds = $derived(new Map(simplified.nodes.map((node) => [node.id, node.kind])));
+
+  /** A click on an activity opens the tests panel on it; Start and End only select. */
+  function clickNode(id: number) {
+    const label = drawnLabels.get(id);
+    if (kinds.get(id) !== "activity" || label === undefined) {
+      selected.id = id;
+      return;
+    }
+    inspect({ kind: "node", id, label });
+  }
+
+  /** A click on an edge between two activities opens the tests panel on its Waiting Time. */
+  function clickEdge(source: number, target: number) {
+    if (source === START_ID || target === END_ID) return;
+    inspect(edgePlace(source, target, drawnLabels));
+  }
 
   /** Every edge label's box, sized for every compared Group, so both split
       panels reserve the same room and place it in the same spot. */
@@ -342,7 +360,8 @@
     nodesDraggable={false}
     elementsSelectable={false}
     onlyRenderVisibleElements={!exporting}
-    onnodeclick={({ node }) => (selected.id = Number(node.id))}
+    onnodeclick={({ node }) => clickNode(Number(node.id))}
+    onedgeclick={({ edge }) => clickEdge(Number(edge.source), Number(edge.target))}
     onpaneclick={() => (selected.id = null)}
   >
     <Background />

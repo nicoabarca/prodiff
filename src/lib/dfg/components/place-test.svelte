@@ -4,12 +4,14 @@
    * the place, its verdict and its magnitude, and opening on both Groups'
    * figures. Clicking anywhere on the card but its chevron frames and lights
    * the place on the canvas; a click that ends a text selection does not.
+   * Each time `reveal` moves on past 0 the card opens and scrolls into view.
    */
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { isDurationAttribute } from "$lib/analysis/attributes";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
   import type { Finding } from "$lib/dfg/utils/findings";
@@ -19,10 +21,24 @@
   import ArrowRight from "@lucide/svelte/icons/arrow-right";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import Square from "@lucide/svelte/icons/square";
+  import { tick } from "svelte";
 
-  let { finding }: { finding: Finding } = $props();
+  let {
+    finding,
+    named = "place",
+    reveal = 0
+  }: { finding: Finding; named?: "place" | "attribute"; reveal?: number } = $props();
 
   let open = $state(false);
+  let card = $state<HTMLElement | null>(null);
+
+  $effect(() => {
+    if (reveal === 0) return;
+    open = true;
+    void tick().then(() =>
+      requestAnimationFrame(() => card?.scrollIntoView({ block: "nearest", behavior: "smooth" }))
+    );
+  });
 
   const groups = $derived(comparedGroups());
   const block = $derived(finding.block);
@@ -35,6 +51,7 @@
 
 <Collapsible.Root
   bind:open
+  bind:ref={card}
   class={cn(
     "border-border border-t",
     open && "bg-sidebar",
@@ -77,12 +94,16 @@
             !differs && "text-muted-foreground"
           )}
         >
-          {#if finding.place.kind === "edge"}
-            <ArrowRight class="size-3 shrink-0" aria-hidden="true" />
+          {#if named === "attribute"}
+            <span class="truncate"><AttributeName name={finding.attribute} /></span>
           {:else}
-            <Square class="size-2.5 shrink-0" aria-hidden="true" />
+            {#if finding.place.kind === "edge"}
+              <ArrowRight class="size-3 shrink-0" aria-hidden="true" />
+            {:else}
+              <Square class="size-2.5 shrink-0" aria-hidden="true" />
+            {/if}
+            <span class="truncate" title={finding.place.label}>{finding.place.label}</span>
           {/if}
-          <span class="truncate" title={finding.place.label}>{finding.place.label}</span>
         </span>
         <span
           class="text-muted-foreground flex items-center gap-1.25 text-[0.625rem] whitespace-nowrap"
