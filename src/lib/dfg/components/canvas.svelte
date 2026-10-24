@@ -32,6 +32,7 @@
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
   import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
+  import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -114,10 +115,13 @@
     )
   );
 
-  /** What `spotlight` lights, or else the nodes and edges of the Variant a row's
-      eye lit, if it is still on the graph. */
+  /** The Variant a row's eye lit, if it is still on the graph, over the place
+      `spotlight` names. */
   const highlight = $derived(
-    spotlight ?? litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
+    light({
+      variant: litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus),
+      finding: spotlight
+    })
   );
 
   // ELK is asynchronous, so the placement lands a tick after the topology
