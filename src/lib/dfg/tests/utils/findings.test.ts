@@ -49,6 +49,38 @@ describe("graphFindings", () => {
     expect(findings.map((f) => f.place.label)).toEqual(["Review", "Approve", "Review → Approve"]);
   });
 
+  it("leaves out an activity one Group alone reaches, but keeps the waits around it", () => {
+    const lone = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        {
+          id: 5,
+          label: "Escalate",
+          counts: { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } },
+          attributes: { Amount: block(test(0.8, 0.001)) }
+        }
+      ],
+      transitions: [...graph.transitions, { source: 2, target: 5, wait: block(test(0.4, 0.01)) }]
+    } as ResponseDfg;
+    const drawn = {
+      ...simplified,
+      nodes: [
+        ...simplified.nodes,
+        { id: 5, label: "Escalate", kind: "activity", counts: lone.nodes[3].counts }
+      ],
+      edges: [...simplified.edges, { source: 2, target: 5, counts }]
+    } as unknown as Simplified;
+    const found = graphFindings(lone, drawn);
+    expect(found.map((f) => f.place.label)).toEqual([
+      "Review",
+      "Approve",
+      "Review → Approve",
+      "Review → Escalate"
+    ]);
+    expect(nodeDifferences(found).has(5)).toBe(false);
+  });
+
   it("tests an edge on its Waiting Time", () => {
     expect(findings[2].attribute).toBe("Transition Time");
   });

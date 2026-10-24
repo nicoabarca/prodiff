@@ -1,7 +1,8 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity on screen, plus the Waiting Time of
- * every edge on screen whose pair the log holds.
+ * every attribute block of every activity on screen that more than one Group
+ * reaches, plus the Waiting Time of every edge on screen whose pair the log
+ * holds. An activity one Group alone reaches has nothing to compare against.
  */
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
@@ -44,8 +45,13 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
   const measured = new Map(graph.nodes.map((node) => [node.id, node]));
   const labels = new Map(simplified.nodes.map((node) => [node.id, node.label]));
   const waits = transitionsById(graph);
+  const comparable = (id: number) =>
+    graph.groups.length < 2 ||
+    graph.groups.filter((group) => (measured.get(id)?.counts[group.id]?.cases ?? 0) > 0).length >
+      1;
 
   const nodes = simplified.nodes.flatMap((node) => {
+    if (!comparable(node.id)) return [];
     const blocks = measured.get(node.id)?.attributes ?? {};
     const place: Place = { kind: "node", id: node.id, label: node.label };
     return Object.entries(blocks).map(([attribute, block]) => ({
