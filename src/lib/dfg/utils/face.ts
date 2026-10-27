@@ -4,6 +4,7 @@
  * touches the backend and never moves a box.
  */
 import { formatDuration, formatNumber } from "$lib/format";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
@@ -73,10 +74,10 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
  */
 export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock> {
   return new Map(
-    graph.transitions.map((transition) => [
-      edgeId(transition.source, transition.target),
-      transition.wait
-    ])
+    graph.transitions.flatMap((transition) => {
+      const wait = transition.attributes[TRANSITION_TIME];
+      return wait ? [[edgeId(transition.source, transition.target), wait] as const] : [];
+    })
   );
 }
 

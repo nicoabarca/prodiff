@@ -22,6 +22,7 @@ const CASES: &str = "__dfg_cases";
 const VALUE: &str = "__dfg_value";
 const SEQUENCE: &str = "__dfg_sequence";
 const GROUPS_PER_CASE: &str = "__dfg_groups_per_case";
+const OCCURRENCES: &str = "__dfg_occurrences";
 
 pub(super) struct EventAttr {
     pub name: String,
@@ -49,6 +50,7 @@ pub(super) struct CaseLevelAgg {
 pub(super) struct NodeAgg {
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, HashMap<String, Acc>>,
+    pub occurrences: HashMap<String, Acc>,
 }
 
 pub(super) struct VariantAgg {
@@ -245,9 +247,10 @@ pub(super) fn aggregate(
     })
 }
 
-/// Event and case counts per activity, and each numeric attribute as one value
-/// per case: the mean of that case's events at the activity, so a case that
-/// repeats an activity is one observation.
+/// Event and case counts per activity, how many times each case that reaches
+/// it runs it, and each numeric attribute as one value per case: the mean of
+/// that case's events at the activity, so a case that repeats an activity is
+/// one observation.
 fn node_counts(
     lf: &LazyFrame,
     attributes: &[EventAttr],
@@ -261,6 +264,7 @@ fn node_counts(
     let mut per_activity = vec![
         col(EVENTS).sum().cast(DataType::Int64).alias(EVENTS),
         len().cast(DataType::Int64).alias(CASES),
+        col(EVENTS).cast(DataType::Float64).alias(OCCURRENCES),
     ];
     per_activity.extend(numeric().map(|attr| col(&attr.column).drop_nulls().alias(&attr.column)));
 
@@ -288,6 +292,13 @@ fn node_counts(
                 .or_default()
                 .insert(groups[row].clone(), Acc::Num(values));
         }
+    }
+    for (row, values) in float_lists(&df, OCCURRENCES)?.into_iter().enumerate() {
+        nodes
+            .entry(labels[row].clone())
+            .or_default()
+            .occurrences
+            .insert(groups[row].clone(), Acc::Num(values));
     }
     for row in 0..df.height() {
         nodes.entry(labels[row].clone()).or_default().counts.insert(

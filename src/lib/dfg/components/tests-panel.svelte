@@ -15,6 +15,7 @@
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
+  import { EDGE_FREQUENCY } from "$lib/dfg/types";
   import { clearInspected, inspected } from "$lib/dfg/state/view.svelte";
   import {
     activityDifferences,
@@ -64,15 +65,15 @@
   const activity = $derived(inspected.place?.kind === "node" ? inspected.place : null);
   const differences = $derived(activity ? activityDifferences(findings, activity.id) : []);
 
-  /** The Waiting Time finding of the edge clicked on the canvas, if it has one. */
+  /** The finding of the edge clicked on the canvas: its Waiting Time, else how often it is followed. */
   const edgeFinding = $derived.by(() => {
     const place = inspected.place;
     if (place?.kind !== "edge") return null;
+    const on = findings.filter((finding) => placeKey(finding.place) === placeKey(place));
     return (
-      findings.find(
-        (finding) =>
-          finding.attribute === TRANSITION_TIME && placeKey(finding.place) === placeKey(place)
-      ) ?? null
+      on.find((finding) => finding.attribute === TRANSITION_TIME) ??
+      on.find((finding) => finding.attribute === EDGE_FREQUENCY) ??
+      null
     );
   });
 
@@ -82,9 +83,10 @@
     const finding = edgeFinding;
     if (!finding) return;
     untrack(() => {
-      if (!isOpen(TRANSITION_TIME)) {
-        if (flipped.has(TRANSITION_TIME)) flipped.delete(TRANSITION_TIME);
-        else flipped.add(TRANSITION_TIME);
+      const attribute = finding.attribute;
+      if (!isOpen(attribute)) {
+        if (flipped.has(attribute)) flipped.delete(attribute);
+        else flipped.add(attribute);
       }
       if (!finding.block.test?.significant) onlyDifferences = false;
     });
@@ -104,7 +106,7 @@
   $effect(() => () => clearInspected());
 
   const where = (attribute: string, count: number) =>
-    attribute === TRANSITION_TIME
+    attribute === TRANSITION_TIME || attribute === EDGE_FREQUENCY
       ? `${count} edge${count === 1 ? "" : "s"}`
       : `${count} activit${count === 1 ? "y" : "ies"}`;
 </script>

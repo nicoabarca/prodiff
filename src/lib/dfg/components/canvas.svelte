@@ -30,7 +30,13 @@
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { comparable, edgePlace, nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
+  import {
+    edgePlace,
+    nodeDifferences,
+    placeKey,
+    testedPlaces,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
@@ -103,30 +109,23 @@
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
-  const groupIds = $derived(groups.map((group) => group.id));
-  const inspectable = $derived(
-    new Set(
-      simplified.nodes
-        .filter((node) => node.kind === "activity" && comparable(node.counts, groupIds))
-        .map((node) => node.id)
-    )
-  );
+  const tested = $derived(testedPlaces(findings));
 
-  /** Whether a click on an edge opens the tests panel: it joins two activities and more than one Group follows it. */
-  const edgeInspectable = (source: number, target: number, counts: Record<string, Counts>) =>
-    source !== START_ID && target !== END_ID && comparable(counts, groupIds);
+  /** Whether a click on an edge opens the tests panel: some test was run on it. */
+  const edgeInspectable = (source: number, target: number) =>
+    tested.has(placeKey({ kind: "edge", source, target, label: "" }));
 
-  /** A click on an activity more than one Group reaches opens the tests panel on it; any other node only selects. */
+  /** A click on an activity some test was run on opens the tests panel on it; any other node only selects. */
   function clickNode(id: number) {
     const label = drawnLabels.get(id);
-    if (!inspectable.has(id) || label === undefined) {
+    if (label === undefined || !tested.has(placeKey({ kind: "node", id, label }))) {
       selected.id = id;
       return;
     }
     inspect({ kind: "node", id, label });
   }
 
-  /** A click on an inspectable edge opens the tests panel on its Waiting Time. */
+  /** A click on an inspectable edge opens the tests panel on it. */
   function clickEdge(edge: Edge) {
     if (!(edge.data as DfgEdgeData).clickable) return;
     inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
@@ -291,7 +290,7 @@
     const edges: Edge[] = drawn.map(({ edge, key, waits, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
-      const clickable = edgeInspectable(edge.source, edge.target, edge.counts);
+      const clickable = edgeInspectable(edge.source, edge.target);
       return {
         id: key,
         class: clickable ? "cursor-pointer" : undefined,

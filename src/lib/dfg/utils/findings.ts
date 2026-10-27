@@ -1,15 +1,17 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity on screen that more than one Group
- * reaches, plus the Waiting Time of every edge on screen that more than one
- * Group follows. A place one Group alone reaches has nothing to compare against.
+ * every attribute block of every activity and every edge on screen. An
+ * attribute at a place one Group alone reaches has nothing to compare against
+ * and is left out; how often each Group reaches it is kept, since that is
+ * exactly where the Groups differ most.
  */
-import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
-import { transitionsById } from "$lib/dfg/utils/face";
 import type { Simplified } from "$lib/dfg/utils/simplify";
+
+const FREQUENCIES = new Set([ACTIVITY_FREQUENCY, EDGE_FREQUENCY]);
 
 export type Place =
   | { kind: "node"; id: number; label: string }
@@ -59,31 +61,79 @@ export function comparable(counts: Record<string, Counts>, groupIds: string[]): 
 export function graphFindings(graph: ResponseDfg, simplified: Simplified): Finding[] {
   const measured = new Map(graph.nodes.map((node) => [node.id, node]));
   const labels = new Map(simplified.nodes.map((node) => [node.id, node.label]));
-  const waits = transitionsById(graph);
+  const pairs = new Map(
+    graph.transitions.map((transition) => [
+      edgeId(transition.source, transition.target),
+      transition.attributes
+    ])
+  );
   const groupIds = graph.groups.map((group) => group.id);
 
+  const at = (
+    place: Place,
+    blocks: Record<string, AttributeBlock>,
+    counts: Record<string, Counts>
+  ): Finding[] => {
+    const shared = comparable(counts, groupIds);
+    return Object.entries(blocks)
+      .filter(([attribute]) => shared || FREQUENCIES.has(attribute))
+      .map(([attribute, block]) => ({
+        key: `${placeKey(place)}:${attribute}`,
+        place,
+        attribute,
+        block
+      }));
+  };
+
   const nodes = simplified.nodes.flatMap((node) => {
-    if (!comparable(measured.get(node.id)?.counts ?? {}, groupIds)) return [];
-    const blocks = measured.get(node.id)?.attributes ?? {};
-    const place: Place = { kind: "node", id: node.id, label: node.label };
-    return Object.entries(blocks).map(([attribute, block]) => ({
-      key: `${placeKey(place)}:${attribute}`,
-      place,
-      attribute,
-      block
-    }));
+    const activity = measured.get(node.id);
+    if (!activity) return [];
+    return at(
+      { kind: "node", id: node.id, label: node.label },
+      activity.attributes,
+      activity.counts
+    );
   });
 
   const edges = simplified.edges.flatMap((edge) => {
-    const block = waits.get(edgeId(edge.source, edge.target));
-    if (!block || !comparable(edge.counts, groupIds)) return [];
-    const place = edgePlace(edge.source, edge.target, labels);
-    return [
-      { key: `${placeKey(place)}:${TRANSITION_TIME}`, place, attribute: TRANSITION_TIME, block }
-    ];
+    const blocks = pairs.get(edgeId(edge.source, edge.target));
+    if (!blocks) return [];
+    return at(edgePlace(edge.source, edge.target, labels), blocks, edge.counts);
   });
 
   return [...nodes, ...edges];
+}
+
+/** The category a frequency counts its hits under. Mirrors `src-tauri/src/dfg/mod.rs`. */
+const HIT: Record<string, string> = {
+  [ACTIVITY_FREQUENCY]: "Reached",
+  [EDGE_FREQUENCY]: "Followed"
+};
+
+/**
+ * A frequency's verdict in words, "Group 2 more often · 72% vs 65%", the
+ * shares in the order the Groups are compared. `null` for any other attribute
+ * or a frequency that did not come out significant.
+ */
+export function frequencyVerdict(
+  attribute: string,
+  block: AttributeBlock,
+  groups: { id: string; name: string }[]
+): string | null {
+  const hit = HIT[attribute];
+  const higher = groups.find((group) => group.id === block.test?.higher);
+  if (hit === undefined || !block.test?.significant || !higher) return null;
+  const shares = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    if (summary?.type !== "categorical" || summary.n === 0) return "0%";
+    return `${Math.round(((summary.counts[hit] ?? 0) / summary.n) * 100)}%`;
+  });
+  return `${higher.name} more often · ${shares.join(" vs ")}`;
+}
+
+/** Every place that carries at least one finding, by `placeKey`. */
+export function testedPlaces(findings: Finding[]): Set<string> {
+  return new Set(findings.map((finding) => placeKey(finding.place)));
 }
 
 /** One activity's significant findings, strongest effect first. */

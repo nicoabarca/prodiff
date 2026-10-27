@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY } from "$lib/dfg/types";
 import {
   activityDifferences,
   byAttribute,
+  frequencyVerdict,
   graphFindings,
   nodeDifferences,
-  rank
+  rank,
+  testedPlaces
 } from "$lib/dfg/utils/findings";
 
 const test = (effectSize: number, pValue: number, significant = true): Test => ({
@@ -33,8 +37,8 @@ const graph = {
   ],
   variants: [],
   transitions: [
-    { source: 2, target: 3, wait: block(test(0.6, 0.02)) },
-    { source: 3, target: 4, wait: block(test(0.7, 0.001)) }
+    { source: 2, target: 3, attributes: { [TRANSITION_TIME]: block(test(0.6, 0.02)) } },
+    { source: 3, target: 4, attributes: { [TRANSITION_TIME]: block(test(0.7, 0.001)) } }
   ],
   groups: [{ id: "a" }, { id: "b" }],
   overlapCases: 0,
@@ -70,8 +74,8 @@ describe("graphFindings", () => {
       ],
       transitions: [
         ...graph.transitions,
-        { source: 2, target: 5, wait: block(test(0.4, 0.01)) },
-        { source: 5, target: 3, wait: block(test(0.4, 0.01)) }
+        { source: 2, target: 5, attributes: { [TRANSITION_TIME]: block(test(0.4, 0.01)) } },
+        { source: 5, target: 3, attributes: { [TRANSITION_TIME]: block(test(0.4, 0.01)) } }
       ]
     } as ResponseDfg;
     const drawn = {
@@ -94,6 +98,37 @@ describe("graphFindings", () => {
       "Review → Escalate"
     ]);
     expect(nodeDifferences(found).has(5)).toBe(false);
+  });
+
+  it("keeps how often each Group reaches a place one Group alone reaches", () => {
+    const loneCounts = { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } };
+    const lone = {
+      ...graph,
+      nodes: [
+        {
+          id: 5,
+          label: "Escalate",
+          counts: loneCounts,
+          attributes: {
+            Amount: block(test(0.8, 0.001)),
+            [ACTIVITY_FREQUENCY]: block(test(0.5, 0.001))
+          }
+        }
+      ],
+      transitions: [
+        { source: 0, target: 5, attributes: { [EDGE_FREQUENCY]: block(test(0.5, 0.001)) } }
+      ]
+    } as ResponseDfg;
+    const drawn = {
+      nodes: [
+        { id: 0, label: "Start", kind: "start", counts },
+        { id: 5, label: "Escalate", kind: "activity", counts: loneCounts }
+      ],
+      edges: [{ source: 0, target: 5, counts: loneCounts }]
+    } as unknown as Simplified;
+    const found = graphFindings(lone, drawn);
+    expect(found.map((f) => f.attribute)).toEqual([ACTIVITY_FREQUENCY, EDGE_FREQUENCY]);
+    expect([...testedPlaces(found)]).toEqual(["n5", "e0->5"]);
   });
 
   it("tests an edge on its Waiting Time", () => {
@@ -149,5 +184,30 @@ describe("activityDifferences", () => {
       2
     );
     expect(found.map((f) => f.attribute)).toEqual(["Region", "Amount"]);
+  });
+});
+
+describe("frequencyVerdict", () => {
+  const groups = [
+    { id: "a", name: "Day" },
+    { id: "b", name: "Night" }
+  ];
+  const reach = (higher: string, significant = true): AttributeBlock => ({
+    summaries: {
+      a: { type: "categorical", n: 100, counts: { Reached: 72, "Not reached": 28 } },
+      b: { type: "categorical", n: 50, counts: { Reached: 30, "Not reached": 20 } }
+    },
+    test: { ...test(0.13, 0.01, significant), test: "chi2", effectSigned: null, higher }
+  });
+
+  it("names the Group that reaches it more often, with both shares in order", () => {
+    expect(frequencyVerdict(ACTIVITY_FREQUENCY, reach("a"), groups)).toBe(
+      "Day more often · 72% vs 60%"
+    );
+  });
+
+  it("says nothing for a frequency that is not significant or another attribute", () => {
+    expect(frequencyVerdict(ACTIVITY_FREQUENCY, reach("a", false), groups)).toBeNull();
+    expect(frequencyVerdict("Amount", reach("a"), groups)).toBeNull();
   });
 });
