@@ -17,6 +17,7 @@ const test = (effectSize: number, pValue: number, significant = true): Test => (
   effectSize,
   effectSigned: effectSize,
   significant,
+  approximate: false,
   higher: "a"
 });
 

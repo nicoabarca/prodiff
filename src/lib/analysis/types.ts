@@ -49,4 +49,5 @@ export interface Test {
   effectSigned: number | null;
   significant: boolean;
   higher: string | null;
+  approximate: boolean;
 }

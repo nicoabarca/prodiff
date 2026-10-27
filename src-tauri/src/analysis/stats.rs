@@ -158,7 +158,15 @@ fn mann_whitney(ids: &[String], a: &[f64], b: &[f64]) -> Option<Test> {
         effect_signed: Some(effect_signed),
         significant: false, // set by the Benjamini-Hochberg pass
         higher: ids.get(if effect_signed >= 0.0 { 0 } else { 1 }).cloned(),
+        approximate: false,
     })
+}
+
+/// Cochran's rule: chi-square's p-value can be trusted when no expected count
+/// is below 1 and at most a fifth of them are below 5.
+fn cochran_holds(expected: &[f64]) -> bool {
+    let small = expected.iter().filter(|e| **e < 5.0).count();
+    expected.iter().all(|e| *e >= 1.0) && small * 5 <= expected.len()
 }
 
 /// Chi-square over the value × group contingency table. Non-directional, so no
@@ -176,6 +184,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
     let total = (total_a + total_b) as f64;
 
     let mut statistic = 0.0;
+    let mut expected_counts = Vec::with_capacity(values.len() * 2);
     for value in &values {
         let row =
             (a.get(*value).copied().unwrap_or(0) + b.get(*value).copied().unwrap_or(0)) as f64;
@@ -184,6 +193,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
             (b.get(*value).copied().unwrap_or(0), total_b),
         ] {
             let expected = row * column_total as f64 / total;
+            expected_counts.push(expected);
             if expected > 0.0 {
                 statistic += (observed as f64 - expected).powi(2) / expected;
             }
@@ -201,6 +211,7 @@ fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test
         effect_signed: None,
         significant: false,
         higher: None,
+        approximate: !cochran_holds(&expected_counts),
     })
 }
 
@@ -283,6 +294,25 @@ mod tests {
         assert!((test.effect_size - 0.6).abs() < 1e-9);
         assert!(test.p_value < 1e-6);
         assert!(test.higher.is_none(), "chi² is non-directional");
+        assert!(!test.approximate);
+    }
+
+    #[test]
+    fn a_rare_category_marks_chi_square_approximate() {
+        // "z" is expected about 1.5 times in each Group: a third of the cells below 5.
+        let a = HashMap::from([
+            ("x".to_string(), 40),
+            ("y".to_string(), 10),
+            ("z".to_string(), 3),
+        ]);
+        let b = HashMap::from([("x".to_string(), 10), ("y".to_string(), 40)]);
+        assert!(chi_square(&a, &b).unwrap().approximate);
+    }
+
+    #[test]
+    fn mann_whitney_is_never_approximate() {
+        let test = mann_whitney(&ids(), &[1.0, 2.0, 3.0, 4.0, 5.0], &[6.0; 5]).unwrap();
+        assert!(!test.approximate);
     }
 
     #[test]

@@ -95,6 +95,7 @@ describe("caseLevelBlocks", () => {
     effectSize: 0.4,
     effectSigned: null,
     significant: true,
+    approximate: false,
     higher: null
   };
 

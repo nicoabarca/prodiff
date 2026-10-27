@@ -154,6 +154,11 @@
             The test is confident this gap is real, but it is too small to act on.
           </p>
         {/if}
+        {#if block.test.approximate}
+          <p class="text-muted-foreground text-[0.625rem]">
+            Approximate: some values are too rare here for chi-square to be exact.
+          </p>
+        {/if}
         <p class="text-muted-foreground font-mono text-[0.625rem] text-pretty">
           {testLine(block.test, groups)}
         </p>
