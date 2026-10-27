@@ -654,6 +654,68 @@ mod tests {
     }
 
     #[test]
+    fn a_repeated_activity_is_one_observation_at_its_mean() {
+        let dfg = dfg_with(
+            &log(&[
+                ("1", &[("A", 0, 10), ("B", 1, 20), ("A", 2, 30)]),
+                ("2", &[("A", 0, 70)]),
+            ]),
+            None,
+            &["cost"],
+            false,
+        );
+
+        let Summary::Numerical { n, min, max, .. } =
+            &node(&dfg, "A").attributes["cost"].summaries["a"]
+        else {
+            panic!("cost is numeric");
+        };
+        assert_eq!(*n, 2);
+        assert_eq!((*min, *max), (20.0, 70.0));
+        assert_eq!(node(&dfg, "A").counts["a"].events, 3);
+    }
+
+    #[test]
+    fn a_category_counts_each_case_that_ever_had_it_once() {
+        let dfg = dfg_with(
+            &log(&[
+                ("1", &[("A", 0, 90), ("A", 1, 90), ("A", 2, 10)]),
+                ("2", &[("A", 0, 90)]),
+            ]),
+            None,
+            &["who"],
+            false,
+        );
+
+        let Summary::Categorical { counts, .. } = &node(&dfg, "A").attributes["who"].summaries["a"]
+        else {
+            panic!("who is categorical");
+        };
+        assert_eq!(counts["Ana"], 2);
+        assert_eq!(counts["Bo"], 1);
+    }
+
+    #[test]
+    fn a_pair_followed_twice_in_a_case_is_one_wait() {
+        let dfg = dfg_with(
+            &log(&[(
+                "1",
+                &[("A", 0, 10), ("B", 1, 10), ("A", 2, 10), ("B", 5, 10)],
+            )]),
+            None,
+            &[TRANSITION_TIME],
+            false,
+        );
+
+        let Summary::Numerical { n, mean, .. } = &transition(&dfg, "A", "B").wait.summaries["a"]
+        else {
+            panic!("a wait is numeric");
+        };
+        assert_eq!(*n, 1);
+        assert_eq!(*mean, 2_000.0);
+    }
+
+    #[test]
     fn one_group_measures_but_never_tests() {
         let dfg = dfg_with(
             &log(&[("1", &[("A", 0, 10), ("B", 1, 20)])]),
