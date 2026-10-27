@@ -112,3 +112,35 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
 export function busiest(of: { counts: Record<string, Counts> }[], measure: Measure): number {
   return of.reduce((top, one) => Math.max(top, unionCount(one.counts, measure)), 0);
 }
+
+/**
+ * One Group's counts divided by how many cases that Group holds: the share of
+ * its cases for `cases`, events per case for `events`. What a split panel
+ * shades and thickens by, so a Group ten times larger does not draw ten times
+ * thicker.
+ */
+export function perCase(
+  counts: Record<string, Counts>,
+  id: string,
+  caseCounts: Map<string, number>
+): Counts {
+  const n = Math.max(caseCounts.get(id) ?? 0, 1);
+  const own = counts[id];
+  return own ? { cases: own.cases / n, events: own.events / n } : { cases: 0, events: 0 };
+}
+
+/** The busiest of a set per case of each Group, across every Group, so all split panels share it. */
+export function busiestPerCase(
+  of: { counts: Record<string, Counts> }[],
+  caseCounts: Map<string, number>,
+  measure: Measure
+): number {
+  return of.reduce(
+    (top, one) =>
+      Math.max(
+        top,
+        ...[...caseCounts.keys()].map((id) => perCase(one.counts, id, caseCounts)[measure])
+      ),
+    0
+  );
+}

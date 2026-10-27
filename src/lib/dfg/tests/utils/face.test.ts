@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Summary } from "$lib/analysis/types";
-import { edgeWait, faceCounts, shadeValue } from "$lib/dfg/utils/face";
+import { busiestPerCase, edgeWait, faceCounts, perCase, shadeValue } from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
   it("keys displayed counts by Group id", () => {
@@ -86,5 +86,30 @@ describe("edgeWait", () => {
     expect(
       edgeWait(wait({ a: mean(0), b: mean(5_000) }), groups).map((line) => line.value)
     ).toEqual(["0s", "5s"]);
+  });
+});
+
+describe("perCase", () => {
+  const caseCounts = new Map([
+    ["a", 1000],
+    ["b", 100]
+  ]);
+  const edges = [
+    { counts: { a: { cases: 900, events: 1800 }, b: { cases: 10, events: 10 } } },
+    { counts: { a: { cases: 100, events: 100 }, b: { cases: 50, events: 75 } } }
+  ];
+
+  it("divides one Group's counts by the cases that Group holds", () => {
+    expect(perCase(edges[0].counts, "a", caseCounts)).toEqual({ cases: 0.9, events: 1.8 });
+    expect(perCase(edges[0].counts, "b", caseCounts)).toEqual({ cases: 0.1, events: 0.1 });
+  });
+
+  it("reads a Group that never got there as zero", () => {
+    expect(perCase({}, "a", caseCounts)).toEqual({ cases: 0, events: 0 });
+  });
+
+  it("ranks against the busiest share of any Group, so both panels share one scale", () => {
+    expect(busiestPerCase(edges, caseCounts, "cases")).toBe(0.9);
+    expect(busiestPerCase(edges, caseCounts, "events")).toBe(1.8);
   });
 });

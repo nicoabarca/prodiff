@@ -20,10 +20,12 @@
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
+    busiestPerCase,
     edgeWait,
     edgeWidth,
     faceCounts,
     membership,
+    perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
@@ -90,15 +92,15 @@
       place on either side. */
   const placedGraph = $derived(layoutFrom ?? ownGraph);
 
-  const NO_COUNTS: Counts = { cases: 0, events: 0 };
+  const caseCounts = $derived(new Map(graph.groups.map((group) => [group.id, group.caseCount])));
 
   /**
-   * The counts a panel prints from. A split panel narrows them to its one
-   * Group, so every figure, shade and thickness below ranks within that Group
-   * instead of across the comparison.
+   * The counts a panel shades and thickens by. A split panel narrows them to
+   * its one Group, per case of that Group, and ranks them against every
+   * Group's, so both panels draw on one scale.
    */
   const facing = (counts: Record<string, Counts>): Record<string, Counts> =>
-    focus === null ? counts : { [focus]: counts[focus] ?? NO_COUNTS };
+    focus === null ? counts : { [focus]: perCase(counts, focus, caseCounts) };
 
   const shown = $derived(focus === null ? groups : groups.filter((group) => group.id === focus));
 
@@ -206,11 +208,26 @@
       })
     );
 
-    const steps = shadeSteps(
-      simplified.nodes.map((node) =>
-        shadeValue({ ...node, counts: facing(node.counts) }, view.measure)
+    // A split panel shades against every Group's figures, then keeps its own.
+    const shadedIds: (string | null)[] = focus === null ? [null] : [...caseCounts.keys()];
+    const allSteps = shadeSteps(
+      shadedIds.flatMap((id) =>
+        simplified.nodes.map((node) =>
+          shadeValue(
+            {
+              ...node,
+              counts: id === null ? node.counts : { [id]: perCase(node.counts, id, caseCounts) }
+            },
+            view.measure
+          )
+        )
       ),
       "log"
+    );
+    const own = focus === null ? 0 : shadedIds.indexOf(focus);
+    const steps = allSteps.slice(
+      own * simplified.nodes.length,
+      (own + 1) * simplified.nodes.length
     );
 
     // A split panel draws only what its own Group reaches. The box stays in the
@@ -283,10 +300,10 @@
       [...boxes.values()]
     );
 
-    const busiestEdge = busiest(
-      simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
-      view.measure
-    );
+    const busiestEdge =
+      focus === null
+        ? busiest(simplified.edges, view.measure)
+        : busiestPerCase(simplified.edges, caseCounts, view.measure);
     const edges: Edge[] = drawn.map(({ edge, key, waits, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
