@@ -1,7 +1,8 @@
 //! The tree commands take Group ids and read the Parquet each one names. Filter
 //! Lists never reach this side, and nothing derived is persisted.
 //!
-//! `groups` is ordered and holds one or two ids. One is single-Group mode: the
+//! `groups` is ordered and holds one or two ids. Two Groups are read with their
+//! shared cases removed (`analysis::reduction`). One is single-Group mode: the
 //! tree still renders, with case counts and aggregates but no comparison.
 
 use super::distributions::{distributions, NodeDistributions, Scope};
@@ -35,7 +36,7 @@ pub async fn list_variants(
 ) -> Result<Vec<VariantRow>, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
-        let logs = read_groups(&dir, &groups)?;
+        let logs = read_groups(&dir, &groups, &columns)?;
 
         let mut rows = super::variant_rows(&logs, &columns)?;
         // Same order the cold-build cut uses, so the list the user sees and the set
@@ -62,7 +63,7 @@ pub async fn directed_tree(
 ) -> Result<DirectedTree, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
-        let logs = read_groups(&dir, &groups)?;
+        let logs = read_groups(&dir, &groups, &columns)?;
         build(&logs, &columns, &attributes, variants.as_deref())
     })
     .await
@@ -89,7 +90,7 @@ pub async fn node_distributions(
 ) -> Result<NodeDistributions, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
-        let logs = read_groups(&dir, &groups)?;
+        let logs = read_groups(&dir, &groups, &columns)?;
         distributions(&logs, &columns, &attributes, &variants, depth, scope)
     })
     .await

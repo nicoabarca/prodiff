@@ -2,27 +2,18 @@
   /**
    * The Compare popover: the Original and the project's Saved Comparisons, each
    * compared in one click, and an editor that is there only while a new draft
-   * or a Saved Comparison is being edited.
-   *
-   * Overlap is reported, never removed: taking the intersection out at event level
-   * would fabricate traces no case walked. A Difference Group is the way out, and
-   * is built from here.
+   * or a Saved Comparison is being edited. Two picked Groups show what the
+   * comparison will remove before they are compared, and a pair that cannot be
+   * compared is refused here.
    */
   import * as Select from "$lib/components/ui/select/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import type { Project } from "$lib/event-log/types";
-  import type { Filter } from "$lib/filters/kind/filter";
   import { comparedIds, saveComparison } from "$lib/groups/state/comparison.svelte";
-  import {
-    applyGroup,
-    createGroup,
-    groups,
-    isApplied,
-    loadSharedCases,
-    originalGroup,
-    sharedCases
-  } from "$lib/groups/state/groups.svelte";
+  import { comparisonRelation } from "$lib/groups/invokers/comparison-relation";
+  import type { ResponseRelation } from "$lib/groups/invokers/types";
+  import { groups, isApplied, originalGroup } from "$lib/groups/state/groups.svelte";
   import {
     createSavedComparison,
     deleteSavedComparison,
@@ -46,12 +37,12 @@
     savedMatching,
     toDraft
   } from "$lib/groups/utils/saved-comparisons";
-  import { colorVar, formatNumber } from "$lib/format";
+  import { relationCopy, refusalCopy } from "$lib/groups/utils/comparison-note";
+  import { colorVar } from "$lib/format";
   import { cn } from "$lib/utils";
   import Check from "@lucide/svelte/icons/check";
   import Pencil from "@lucide/svelte/icons/pencil";
   import Plus from "@lucide/svelte/icons/plus";
-  import Split from "@lucide/svelte/icons/split";
   import Trash2 from "@lucide/svelte/icons/trash-2";
 
   let {
@@ -93,7 +84,7 @@
   }
 
   let editor = $state<ReturnType<typeof editing> | null>(null);
-  let busy = $state<"saving" | "building" | null>(null);
+  let busy = $state<"saving" | null>(null);
   let error = $state<string | null>(null);
 
   const selection = $derived(editor?.selection ?? null);
@@ -104,11 +95,29 @@
   const first = $derived(editor ? (byId.get(editor.draft[0]) ?? null) : null);
   const second = $derived(editor ? (byId.get(editor.draft[1]) ?? null) : null);
   const both = $derived(first && second ? [first, second] : null);
-  const shared = $derived(both ? sharedCases(both) : null);
+  /** The picked pair's relation, tagged with the pair it was read for. */
+  let pairRelation = $state<{ pair: string; summary: ResponseRelation } | null>(null);
+  const pairKey = $derived(both ? both.map((group) => group.id).join("|") : null);
+  const pairSummary = $derived(
+    pairRelation && pairRelation.pair === pairKey ? pairRelation.summary : null
+  );
+  const pairRefused = $derived(pairSummary !== null && pairSummary.status !== "ok");
 
   $effect(() => {
-    if (both) loadSharedCases(project, both);
+    const pair = pairKey;
+    const ids = both?.map((group) => group.id);
+    if (!pair || !ids) return;
+    comparisonRelation(project, ids)
+      .then((summary) => {
+        if (pairKey === pair) pairRelation = { pair, summary };
+      })
+      .catch((cause) => {
+        if (pairKey === pair) error = String(cause);
+      });
   });
+
+  /** Why a Saved Comparison clicked just now could not be compared, by its id. */
+  let savedRefusal = $state<{ id: string; reason: string } | null>(null);
 
   const resolve = (ids: string[]): Group[] =>
     ids.map((id) => byId.get(id)).filter((group): group is Group => group !== undefined);
@@ -124,7 +133,7 @@
   const name = (id: string) =>
     id === NO_GROUP ? "Select group" : (byId.get(id)?.name ?? "Pick a group");
 
-  async function run(kind: "saving" | "building", task: () => Promise<void>) {
+  async function run(kind: "saving", task: () => Promise<void>) {
     busy = kind;
     error = null;
     try {
@@ -159,7 +168,16 @@
 
   function compare(saved: SavedComparison) {
     return run("saving", async () => {
-      if (inUse?.id !== saved.id) await saveComparison(project.id, saved.groupIds);
+      savedRefusal = null;
+      if (inUse?.id === saved.id) return onclose();
+      if (saved.groupIds.length === 2) {
+        const summary = await comparisonRelation(project, saved.groupIds);
+        if (summary.status !== "ok") {
+          savedRefusal = { id: saved.id, reason: refusalCopy(resolve(saved.groupIds), summary) };
+          return;
+        }
+      }
+      await saveComparison(project.id, saved.groupIds);
       onclose();
     });
   }
@@ -169,31 +187,6 @@
       if (!selected) return;
       await deleteSavedComparison(selected.id);
       editor = null;
-    });
-  }
-
-  /**
-   * Builds the Difference Group, saves the pair and compares it. The views
-   * rebuild on their own while the new Group's Parquet is written.
-   */
-  function compareDifference() {
-    return run("building", async () => {
-      if (!both) return;
-      const [baseline, other] = both;
-      const filters: Filter[] = [
-        ...other.filters,
-        { kind: "case_not_in_group", groupId: baseline.id }
-      ];
-      const difference = await createGroup(
-        project.id,
-        filters,
-        `${other.name} without ${baseline.name}`
-      );
-      await applyGroup(project, difference, filters);
-      const pair = [baseline.id, difference.id];
-      await createSavedComparison(project.id, pair);
-      await saveComparison(project.id, pair);
-      onclose();
     });
   }
 </script>
@@ -311,6 +304,11 @@
           {#if inUse?.id === saved.id}
             {@render inUseMark()}
           {/if}
+          {#if savedRefusal?.id === saved.id}
+            <span class="text-destructive pl-3.5 text-[0.625rem] whitespace-normal">
+              {savedRefusal.reason}
+            </span>
+          {/if}
         </button>
         <Button
           variant="ghost"
@@ -375,40 +373,24 @@
       {/if}
     </div>
 
-    {#if both && shared === 0}
-      <p
-        class="flex items-center gap-1.5 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400"
-      >
-        <Check class="size-3.5 shrink-0" aria-hidden="true" />
-        Groups don't share common cases
+    {#if both && !pairSummary}
+      <Skeleton class="h-4 w-48" />
+    {:else if both && pairSummary && pairRefused}
+      <p class="border-destructive/50 text-destructive border p-3 text-xs">
+        {refusalCopy(both, pairSummary)}
       </p>
-    {:else if both}
-      <div class="border-border flex flex-col gap-2 border p-3">
-        {#if shared === null}
-          <Skeleton class="h-4 w-48" />
-        {:else}
-          <p class="text-xs">
-            <span class="font-semibold">{formatNumber(shared)} cases are in both groups.</span>
-            Every p-value assumes independent samples, so shared cases make the findings optimistic.
-          </p>
-          <Button
-            variant="outline"
-            size="sm"
-            class="h-auto min-h-7 self-start py-1 text-left whitespace-normal"
-            disabled={busy !== null}
-            onclick={compareDifference}
-          >
-            <Split data-icon="inline-start" />
-            {busy === "building"
-              ? "Building…"
-              : `Compare against ${second?.name} without those cases`}
-          </Button>
-          <p class="text-muted-foreground text-[0.6875rem]">
-            Creates a group holding {second?.name}'s filters plus one excluding {first?.name}'s
-            cases. It is an ordinary group afterwards, and is deleted with {first?.name}.
-          </p>
-        {/if}
-      </div>
+    {:else if both && pairSummary}
+      {@const outcome = relationCopy(both, pairSummary)}
+      {#if outcome}
+        <p class="border-border border p-3 text-xs">{outcome}</p>
+      {:else}
+        <p
+          class="flex items-center gap-1.5 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-700 dark:text-emerald-400"
+        >
+          <Check class="size-3.5 shrink-0" aria-hidden="true" />
+          Groups don't share common cases
+        </p>
+      {/if}
     {/if}
 
     {@render failure()}
@@ -430,7 +412,7 @@
         size="sm"
         variant={action === "comparing" ? "secondary" : "default"}
         class="ml-auto"
-        disabled={busy !== null || !first}
+        disabled={busy !== null || !first || (both !== null && (!pairSummary || pairRefused))}
         onclick={() => primary(draft, action)}
       >
         {ACTION_LABEL[action]}

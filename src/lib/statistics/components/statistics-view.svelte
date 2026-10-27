@@ -5,13 +5,18 @@
   import type { Project } from "$lib/event-log/types";
   import { isTemporal } from "$lib/event-log/utils/field-settings";
   import type { Filter } from "$lib/filters/kind/filter";
-  import { filtersKey } from "$lib/filters/utils/key";
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import {
     comparedGroups,
     comparison as compared,
-    loadComparison
+    comparisonKey,
+    loadComparison,
+    relation,
+    relationReady,
+    relationRefused
   } from "$lib/groups/state/comparison.svelte";
+  import ComparisonNote from "$lib/groups/components/comparison-note.svelte";
+  import ComparisonRefused from "$lib/groups/components/comparison-refused.svelte";
   import { allGroups, computeStats, isApplied } from "$lib/groups/state/groups.svelte";
   import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
   import type { Group } from "$lib/groups/types";
@@ -48,6 +53,7 @@
   let narrowed = $state<{ group: Group; filters: Filter[]; label: string } | null>(null);
 
   const groups = $derived(comparedGroups());
+  const refused = $derived(relationRefused());
   const applied = $derived(allGroups(project.id).filter(isApplied));
 
   $effect(() => {
@@ -72,16 +78,12 @@
 
   /** Identifies what the figures describe: the Groups, what they hold, and the columns. */
   const wantedKey = $derived(
-    JSON.stringify([
-      groups.map((group) => `${group.id}:${filtersKey(group.filters)}`),
-      analysisColumns(project),
-      attributes
-    ])
+    JSON.stringify([comparisonKey(), analysisColumns(project), attributes])
   );
 
   let lastKey = "";
   $effect(() => {
-    if (compared.projectId !== project.id) return;
+    if (compared.projectId !== project.id || !relationReady()) return;
     const key = wantedKey;
     const wanted = groups;
     const names = attributes;
@@ -91,17 +93,22 @@
     let stale = false;
     error = null;
     comparison = null;
+    // Two Groups take their figures from the comparison, which reads them with
+    // their shared cases removed.
+    const single = wanted.length === 1;
     Promise.all([
-      computeStats(project, wanted),
+      single ? computeStats(project, wanted) : null,
       groupComparison(
         project,
         wanted.map((group) => group.id),
         names
       )
     ])
-      .then(([nextStats, nextComparison]) => {
+      .then(([singleStats, nextComparison]) => {
         if (stale) return;
-        stats = nextStats;
+        stats =
+          singleStats ??
+          Object.fromEntries(nextComparison.groups.map((group) => [group.id, group.stats]));
         comparison = nextComparison;
       })
       .catch((cause) => {
@@ -120,10 +127,20 @@
     drawerOpen = true;
   }
 
+  /** The filter that removes from a reduced side the cases the comparison removed. */
+  function reduction(group: Group): Filter[] {
+    const other = groups.find((g) => g.id !== group.id);
+    if (!other || !relation.summary?.removed[group.id]) return [];
+    return [{ kind: "case_not_in_group", groupId: other.id }];
+  }
+
   function openTail(group: Group, fromMs: number) {
     narrowed = {
       group,
-      filters: [{ kind: "duration", mode: "above", min: fromMs / DAY_MS, max: null }],
+      filters: [
+        ...reduction(group),
+        { kind: "duration", mode: "above", min: fromMs / DAY_MS, max: null }
+      ],
       label: `cases above P90 (${formatDuration(fromMs)})`
     };
     drawerOpen = true;
@@ -331,14 +348,17 @@
                     class="text-foreground font-medium"
                   />{/if}{/each}
             </span>
-          {:else}
+          {:else if !refused}
             <Skeleton class="h-3.5 w-80" />
           {/if}
+          <ComparisonNote />
         </div>
         <CompareField {project} align="end" class="border" />
       </div>
 
-      {#if error}
+      {#if refused}
+        <ComparisonRefused {project} />
+      {:else if error}
         <div class="p-4.5">
           <Alert variant="destructive">
             <CircleAlert />

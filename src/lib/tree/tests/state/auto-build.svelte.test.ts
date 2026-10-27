@@ -33,7 +33,6 @@ function tree(variantsTotal = 2): ResponseDirectedTree {
     ],
     groups: [],
     caseLevelTests: {},
-    overlapCases: 0,
     variantsTotal,
     variantsIncluded: 2,
     caseCoverage: 1,

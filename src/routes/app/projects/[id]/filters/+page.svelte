@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { checkAfterApply } from "$lib/groups/state/comparison.svelte";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -79,6 +80,7 @@
     try {
       await applyGroup(project, group, draftOf(group));
       discardDraft(group);
+      void checkAfterApply(project, group);
     } catch (cause) {
       applyError = String(cause);
     }

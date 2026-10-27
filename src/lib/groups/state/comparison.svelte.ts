@@ -1,8 +1,13 @@
 import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { comparisons as comparisonsTable } from "$lib/db/schema";
-import { groups, isApplied, originalGroup } from "$lib/groups/state/groups.svelte";
-import { loadSavedComparisons } from "$lib/groups/state/saved-comparisons.svelte";
+import type { Project } from "$lib/event-log/types";
+import { comparisonRelation } from "$lib/groups/invokers/comparison-relation";
+import type { ResponseRelation } from "$lib/groups/invokers/types";
+import { groups, isApplied, originalGroup, revisionOf } from "$lib/groups/state/groups.svelte";
+import { loadSavedComparisons, savedComparisons } from "$lib/groups/state/saved-comparisons.svelte";
+import { afterApplyCopy } from "$lib/groups/utils/comparison-note";
+import { toast } from "svelte-sonner";
 import { ORIGINAL_ID, type Group } from "$lib/groups/types";
 
 /**
@@ -56,4 +61,91 @@ export function comparedGroups(): Group[] {
 /** The ids the seam takes: one for a single-Group view, two for a comparison. */
 export function comparedIds(): string[] {
   return comparedGroups().map((group) => group.id);
+}
+
+/**
+ * What is compared, down to each Group's Parquet. A Group's revision moves on
+ * every Apply, so a rename never changes it; the Original's cases never change.
+ */
+export function comparisonKey(): string {
+  return JSON.stringify(
+    comparedGroups().map((group) =>
+      group.id === ORIGINAL_ID ? [group.id] : [group.id, revisionOf(group.id)]
+    )
+  );
+}
+
+/** How the two compared Groups relate, for the key it was loaded under. */
+export const relation = $state<{
+  key: string | null;
+  state: "loading" | "ready" | "failed";
+  summary: ResponseRelation | null;
+  error: string | null;
+}>({ key: null, state: "loading", summary: null, error: null });
+
+/** Loads the relation when what is compared has changed. The last request wins. */
+export async function loadRelation(project: Project) {
+  const key = comparisonKey();
+  if (relation.key === key) return;
+  const ids = comparedIds();
+  relation.key = key;
+  relation.error = null;
+  if (ids.length < 2) {
+    relation.state = "ready";
+    relation.summary = null;
+    return;
+  }
+  relation.state = "loading";
+  relation.summary = null;
+  try {
+    const summary = await comparisonRelation(project, ids);
+    if (comparisonKey() !== key) return;
+    relation.summary = summary;
+    relation.state = "ready";
+  } catch (cause) {
+    if (comparisonKey() !== key) return;
+    relation.error = String(cause);
+    relation.state = "failed";
+  }
+}
+
+/** Whether the comparison views may build: one Group, or two that can be compared. */
+export function relationReady(): boolean {
+  if (comparedIds().length < 2) return true;
+  if (relation.key !== comparisonKey() || relation.state !== "ready") return false;
+  return relation.summary === null || relation.summary.status === "ok";
+}
+
+/** Whether the compared pair cannot be shown: refused by the rule, or its read failed. */
+export function relationRefused(): boolean {
+  if (relation.key !== comparisonKey()) return false;
+  if (relation.state === "failed") return true;
+  return (
+    relation.state === "ready" && relation.summary !== null && relation.summary.status !== "ok"
+  );
+}
+
+/**
+ * After an Apply, warns about each two-Group Comparison naming this Group that
+ * can no longer be compared: the one in use and every Saved Comparison.
+ */
+export async function checkAfterApply(project: Project, group: Group) {
+  const resolve = (id: string): Group | null =>
+    id === ORIGINAL_ID
+      ? originalGroup(project.id)
+      : (groups.find((g) => g.id === id && isApplied(g)) ?? null);
+  const pairs = [
+    comparison.projectId === project.id ? comparison.groupIds : [],
+    ...savedComparisons.filter((saved) => saved.projectId === project.id).map((s) => s.groupIds)
+  ].filter((ids) => ids.length === 2 && ids.includes(group.id));
+  const seen = new Set<string>();
+  for (const ids of pairs) {
+    const key = ids.join("|");
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const named = ids.map(resolve);
+    if (named.some((g) => g === null)) continue;
+    const summary = await comparisonRelation(project, ids);
+    if (summary.status !== "ok") toast.warning(afterApplyCopy(named as Group[], summary));
+  }
 }
