@@ -7,7 +7,7 @@ import { nodeDistributions } from "$lib/distributions/invokers/node-distribution
 import type { ResponseNodeDistributions } from "$lib/distributions/invokers/types";
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
 import { built, isStale } from "$lib/tree/state/build.svelte";
-import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { comparedIds, relationReady } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
 import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
@@ -102,7 +102,7 @@ let latest: string | null = null;
 export async function loadDistributions(project: Project, attributes: string[]) {
   const tree = built.tree;
   const nodeId = selected.id;
-  if (!tree || nodeId === null || isStale() || attributes.length === 0) return;
+  if (!tree || nodeId === null || isStale() || attributes.length === 0 || !relationReady()) return;
 
   const depth = nodeDepth(tree, nodeId);
   // The Start root has no event of its own, so `atStep` has nothing to count.

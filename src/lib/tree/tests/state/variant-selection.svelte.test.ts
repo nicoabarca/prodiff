@@ -10,7 +10,9 @@ vi.mock("$lib/tree/invokers/list-variants", () => ({
 }));
 
 vi.mock("$lib/groups/state/comparison.svelte", () => ({
-  comparedIds: () => compared
+  comparedIds: () => compared,
+  comparisonKey: () => JSON.stringify(compared),
+  relationReady: () => true
 }));
 
 const { createVariantSelection } = await import("$lib/tree/state/variant-selection.svelte");

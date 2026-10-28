@@ -3,7 +3,7 @@ import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey } from "$lib/dfg/types";
 import { attributeOptions } from "$lib/analysis/attributes";
 import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { comparedIds, comparisonKey, relationReady } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
 import { resetVariantsState, settings as variantSettings } from "$lib/dfg/state/variants.svelte";
 import type { Project } from "$lib/event-log/types";
@@ -38,7 +38,11 @@ export function selectedAttributes(project: Project): string[] {
 
 /** The key the graph on screen would need to match to still be current. */
 export function currentKey(project: Project): string {
-  return dfgKey(comparedIds(), selectedAttributes(project), variantSettings.value.selectedVariants);
+  return dfgKey(
+    comparisonKey(),
+    selectedAttributes(project),
+    variantSettings.value.selectedVariants
+  );
 }
 
 export function isStale(project: Project | null): boolean {
@@ -52,7 +56,8 @@ export function isStale(project: Project | null): boolean {
  */
 export async function load(project: Project, force = false) {
   const attributes = selectedAttributes(project);
-  const key = dfgKey(comparedIds(), attributes, variantSettings.value.selectedVariants);
+  const key = dfgKey(comparisonKey(), attributes, variantSettings.value.selectedVariants);
+  if (!relationReady()) return;
   if (built.building || (!force && built.projectId === project.id && built.key === key)) return;
 
   built.building = true;

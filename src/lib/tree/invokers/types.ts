@@ -9,7 +9,6 @@ export interface ResponseDirectedTree {
   nodes: TreeNode[];
   groups: GroupBlock[];
   caseLevelTests: Record<string, Test>;
-  overlapCases: number;
   variantsTotal: number;
   variantsIncluded: number;
   caseCoverage: number;

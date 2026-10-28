@@ -2,7 +2,9 @@
  * The Statistics view's comparison as Rust ships it. Every type here mirrors a
  * serde struct in `src-tauri/src/statistics/`.
  */
+
 import type { Summary, Test } from "$lib/analysis/types";
+import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 
 export interface ResponseGroupComparison {
   groups: GroupFigures[];
@@ -36,6 +38,7 @@ export interface GroupFigures {
   durationP90: number | null;
   startActivities: Record<string, number>;
   endActivities: Record<string, number>;
+  stats: ResponseEventLogStats;
 }
 
 /** `cases` counts the cases touching the activity; `avgDurationMs` needs a start timestamp. */
