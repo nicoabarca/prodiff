@@ -46,7 +46,7 @@
   const size = $derived(a && b ? share(b.cases, a.cases) : null);
 
   const half = (delta: number) => Math.min(Math.abs(delta) / FULL_SCALE, 1) * 36;
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="flex flex-col">

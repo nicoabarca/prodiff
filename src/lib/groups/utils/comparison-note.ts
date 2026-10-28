@@ -1,4 +1,5 @@
 import { formatNumber } from "$lib/format";
+import type { Filter } from "$lib/filters/kind/filter";
 import type { ResponseRelation } from "$lib/groups/invokers/types";
 import { MIN_GROUP_CASES } from "$lib/analysis/types";
 import type { Group } from "$lib/groups/types";
@@ -35,6 +36,46 @@ export function comparisonSentence(
     sentence += ` Tests skipped for ${group.name}: fewer than ${MIN_GROUP_CASES} cases.`;
   }
   return sentence;
+}
+
+/** A side the comparison removed cases from, and the Group they are shared with. */
+export interface ReducedSide {
+  group: Group;
+  other: Group;
+  removed: number;
+}
+
+/** The reduced sides of a comparison that went ahead, in the order they are drawn. */
+export function reducedSides(groups: Group[], summary: ResponseRelation | null): ReducedSide[] {
+  if (groups.length !== 2 || !summary || summary.status !== "ok") return [];
+  const [a, b] = groups;
+  return [
+    { group: a, other: b, removed: summary.removed[a.id] ?? 0 },
+    { group: b, other: a, removed: summary.removed[b.id] ?? 0 }
+  ].filter((side) => side.removed > 0);
+}
+
+/** The chip on a reduced side: how many cases it lost. */
+export function removedChip(side: ReducedSide): string {
+  return `−${formatNumber(side.removed)}`;
+}
+
+/** Why a reduced side lost its cases, for the card behind its chip. */
+export function removedCopy(side: ReducedSide, summary: ResponseRelation): string {
+  const { group, other } = side;
+  if (summary.relation === "contained") {
+    return `Every ${other.name} case is also in ${group.name}. Tests need groups with no case in common, so these ${cases(side.removed)} are removed from ${group.name}.`;
+  }
+  return `${group.name} shares ${cases(side.removed)} with ${other.name}. Tests need groups with no case in common, so they are removed from both.`;
+}
+
+/**
+ * The filters that narrow a reduced side to the cases it lost. Both relations
+ * remove the cases the side shares with the other Group: the intersection in a
+ * partial overlap, and the inner Group's cases from the outer one.
+ */
+export function removedFilters(side: ReducedSide): Filter[] {
+  return [{ kind: "case_in_group", groupId: side.other.id }];
 }
 
 /** What comparing two overlapping Groups will do, shown before Compare. `null` when disjoint. */

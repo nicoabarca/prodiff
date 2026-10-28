@@ -94,4 +94,6 @@ pub enum Filter {
     },
     #[serde(rename_all = "camelCase")]
     CaseNotInGroup { group_id: String },
+    #[serde(rename_all = "camelCase")]
+    CaseInGroup { group_id: String },
 }

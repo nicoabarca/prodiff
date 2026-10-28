@@ -2,7 +2,7 @@
 //! applying a chain, and the per-command aggregations.
 
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
-use super::{apply, timestamp_millis, Endpoint, ExcludedCases, Filter};
+use super::{apply, timestamp_millis, Endpoint, Filter, GroupCases};
 use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::event_log_path;
 use crate::groups::storage::read_group;
@@ -16,32 +16,33 @@ pub fn read_event_log(project_dir: &Path) -> Result<DataFrame, String> {
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
 
-/// The case ids each `case_not_in_group` filter takes away, read from the Groups
-/// it names. Resolved here because a Group's cases live in another file, not in
+/// The case ids of every Group a `case_not_in_group` or `case_in_group` filter
+/// names. Resolved here because a Group's cases live in another file, not in
 /// the frame being filtered.
 ///
-/// A Group that has never been applied contributes nothing.
-fn excluded_cases(
+/// A Group that has never been applied holds no case.
+fn group_cases(
     project_dir: &Path,
     filters: &[Filter],
     columns: &[ColumnMapping],
-) -> Result<ExcludedCases, String> {
+) -> Result<GroupCases, String> {
     let case_col = require_role(columns, ColumnRole::CaseId)?;
-    let mut excluded = ExcludedCases::new();
+    let mut members = GroupCases::new();
     for filter in filters {
-        let Filter::CaseNotInGroup { group_id } = filter else {
+        let (Filter::CaseNotInGroup { group_id } | Filter::CaseInGroup { group_id }) = filter
+        else {
             continue;
         };
-        if excluded.contains_key(group_id) {
+        if members.contains_key(group_id) {
             continue;
         }
         let ids = match read_group(project_dir, group_id) {
             Ok(df) => case_ids(&df, case_col)?,
             Err(_) => HashSet::new(),
         };
-        excluded.insert(group_id.clone(), ids);
+        members.insert(group_id.clone(), ids);
     }
-    Ok(excluded)
+    Ok(members)
 }
 
 /// Every case id in a frame, as the display strings the seam uses everywhere.
@@ -58,8 +59,8 @@ pub fn filtered(
     filters: &[Filter],
     columns: &[ColumnMapping],
 ) -> Result<DataFrame, String> {
-    let excluded = excluded_cases(project_dir, filters, columns)?;
-    apply(df.clone().lazy(), filters, columns, &excluded)?
+    let members = group_cases(project_dir, filters, columns)?;
+    apply(df.clone().lazy(), filters, columns, &members)?
         .collect()
         .map_err(|e| e.to_string())
 }

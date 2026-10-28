@@ -3,7 +3,7 @@
   import type { Project } from "$lib/event-log/types";
   import type { Filter } from "$lib/filters/kind/filter";
   import type { Group } from "$lib/groups/types";
-  import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
+  import EventDataTable from "$lib/groups/components/event-data-table.svelte";
 
   let {
     open = $bindable(false),
@@ -24,7 +24,7 @@
       <Sheet.Title class="text-[0.6875rem] font-bold tracking-[0.12em] uppercase">
         Event log data
       </Sheet.Title>
-      <Sheet.Description class="sr-only">The events behind the statistics.</Sheet.Description>
+      <Sheet.Description class="sr-only">The events of one group.</Sheet.Description>
     </Sheet.Header>
     <EventDataTable {project} {groups} {narrowed}>
       {#snippet columns({ shown, total })}

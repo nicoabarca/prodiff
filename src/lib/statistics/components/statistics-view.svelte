@@ -36,7 +36,7 @@
   } from "$lib/statistics/utils/figures";
   import ActivitiesPane from "$lib/statistics/components/activities-pane.svelte";
   import AttributesPane from "$lib/statistics/components/attributes-pane.svelte";
-  import DataDrawer from "$lib/statistics/components/data-drawer.svelte";
+  import DataDrawer from "$lib/groups/components/data-drawer.svelte";
   import DurationPane from "$lib/statistics/components/duration-pane.svelte";
   import OverviewPane from "$lib/statistics/components/overview-pane.svelte";
   import VariantsPane from "$lib/statistics/components/variants-pane.svelte";
@@ -276,7 +276,7 @@
     return { range: `${formatDay(start)} → ${formatDay(end)}`, covered };
   });
   const a = $derived(stats[ids[0]]);
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="relative flex min-h-0 flex-1 flex-col">
@@ -351,7 +351,7 @@
           {:else if !refused}
             <Skeleton class="h-3.5 w-80" />
           {/if}
-          <ComparisonNote />
+          <ComparisonNote {project} />
         </div>
         <CompareField {project} align="end" class="border" />
       </div>

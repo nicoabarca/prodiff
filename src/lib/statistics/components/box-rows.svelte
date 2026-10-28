@@ -27,7 +27,7 @@
   const at = (value: number) => `${axis.position(value) * 100}%`;
   const span = (from: number, to: number) =>
     `${Math.max(0, axis.position(to) - axis.position(from)) * 100}%`;
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="flex flex-col gap-2.5">

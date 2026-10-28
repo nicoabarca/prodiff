@@ -4,7 +4,7 @@
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import { formatSigned, isGap, share } from "$lib/statistics/utils/change";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
   import VariantPath from "$lib/components/variant-path/variant-path.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
 

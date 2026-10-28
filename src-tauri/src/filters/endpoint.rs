@@ -88,7 +88,7 @@ mod tests {
                 activities: vec!["10".to_string()],
             }],
             &numeric_activity,
-            &crate::filters::ExcludedCases::new(),
+            &crate::filters::GroupCases::new(),
         )
         .unwrap()
         .collect()

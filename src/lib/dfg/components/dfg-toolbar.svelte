@@ -56,7 +56,7 @@
     {:else if stale && building}
       <p class="text-muted-foreground text-xs">Rebuilding…</p>
     {:else}
-      <ComparisonNote />
+      <ComparisonNote {project} />
     {/if}
     {#if graph?.skippedCaseLevel.length}
       <p class="text-muted-foreground truncate text-xs">

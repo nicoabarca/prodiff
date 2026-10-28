@@ -63,7 +63,7 @@
   const tailFrom = $derived(figures[tailGroup.id]?.durationP90 ?? null);
   const tailDelta = $derived(rows.find((row) => row.label === "P90")?.delta ?? null);
   const test = $derived(comparison.durationTest);
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">

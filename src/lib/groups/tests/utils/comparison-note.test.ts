@@ -4,8 +4,12 @@ import type { Group } from "$lib/groups/types";
 import {
   afterApplyCopy,
   comparisonSentence,
+  reducedSides,
   refusalCopy,
-  relationCopy
+  relationCopy,
+  removedChip,
+  removedCopy,
+  removedFilters
 } from "$lib/groups/utils/comparison-note";
 
 function group(id: string, name: string): Group {
@@ -118,5 +122,47 @@ describe("popover copy", () => {
     expect(afterApplyCopy([approved, slow], summary({ status: "identical" }))).toBe(
       "Approved vs Slow cases can no longer be compared: the groups hold the same cases."
     );
+  });
+});
+
+describe("removed cases", () => {
+  it("puts a chip on both sides of a partial overlap", () => {
+    const sides = reducedSides([approved, slow], partial);
+    expect(sides.map((side) => [side.group.id, side.other.id, removedChip(side)])).toEqual([
+      ["a", "s", "−310"],
+      ["s", "a", "−310"]
+    ]);
+  });
+
+  it("puts a chip only on the outer side of a contained pair", () => {
+    const sides = reducedSides([log, approved], contained);
+    expect(sides.map((side) => side.group.id)).toEqual(["original"]);
+    expect(removedChip(sides[0])).toBe("−1,240");
+  });
+
+  it("puts no chip on a disjoint, refused or single comparison", () => {
+    const disjoint = summary({ kept: { a: 10, s: 10 }, removed: { a: 0, s: 0 } });
+    expect(reducedSides([approved, slow], disjoint)).toEqual([]);
+    expect(reducedSides([approved, slow], summary({ status: "identical" }))).toEqual([]);
+    expect(reducedSides([approved], partial)).toEqual([]);
+  });
+
+  it("says why each side lost its cases", () => {
+    const [side] = reducedSides([approved, slow], partial);
+    expect(removedCopy(side, partial)).toBe(
+      "Approved shares 310 cases with Slow cases. Tests need groups with no case in common, so they are removed from both."
+    );
+    const [outer] = reducedSides([log, approved], contained);
+    expect(removedCopy(outer, contained)).toBe(
+      "Every Approved case is also in Event Log. Tests need groups with no case in common, so these 1,240 cases are removed from Event Log."
+    );
+  });
+
+  it("narrows a side to the cases it shares with the other Group", () => {
+    const [a, s] = reducedSides([approved, slow], partial);
+    expect(removedFilters(a)).toEqual([{ kind: "case_in_group", groupId: "s" }]);
+    expect(removedFilters(s)).toEqual([{ kind: "case_in_group", groupId: "a" }]);
+    const [outer] = reducedSides([log, approved], contained);
+    expect(removedFilters(outer)).toEqual([{ kind: "case_in_group", groupId: "a" }]);
   });
 });

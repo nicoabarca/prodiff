@@ -96,7 +96,7 @@
       stale = true;
     };
   });
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="flex min-h-0 flex-1 flex-col" data-tour="event-data-table">
