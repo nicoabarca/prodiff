@@ -14,8 +14,8 @@ const START_ID: usize = 0;
 const END_ID: usize = 1;
 const FIRST_ACTIVITY_ID: usize = 2;
 
-/// Measured on every graph without being asked for, each its own
-/// Benjamini-Hochberg family. A column of the same name wins over them.
+/// Derived attributes only the DFG offers, measured from the graph itself
+/// rather than from a column. A column of the same name wins over them.
 pub const ACTIVITY_FREQUENCY: &str = "Activity Frequency";
 pub const EDGE_FREQUENCY: &str = "Edge Frequency";
 pub const REPETITIONS: &str = "Repetitions";
@@ -30,6 +30,9 @@ pub enum RequestedAttribute {
     Column { name: String },
     ActivityDuration,
     TransitionTime,
+    ActivityFrequency,
+    EdgeFrequency,
+    Repetitions,
 }
 
 impl RequestedAttribute {
@@ -38,6 +41,28 @@ impl RequestedAttribute {
             Self::Column { name } => name,
             Self::ActivityDuration => ACTIVITY_DURATION,
             Self::TransitionTime => TRANSITION_TIME,
+            Self::ActivityFrequency => ACTIVITY_FREQUENCY,
+            Self::EdgeFrequency => EDGE_FREQUENCY,
+            Self::Repetitions => REPETITIONS,
+        }
+    }
+}
+
+/// Which of the graph's own measures were asked for.
+#[derive(Clone, Copy)]
+struct Measured {
+    activity_frequency: bool,
+    edge_frequency: bool,
+    repetitions: bool,
+}
+
+impl Measured {
+    fn from(requested: &[RequestedAttribute]) -> Self {
+        let asked = |wanted: RequestedAttribute| requested.contains(&wanted);
+        Self {
+            activity_frequency: asked(RequestedAttribute::ActivityFrequency),
+            edge_frequency: asked(RequestedAttribute::EdgeFrequency),
+            repetitions: asked(RequestedAttribute::Repetitions),
         }
     }
 }
@@ -112,9 +137,10 @@ pub fn build(
         .map(|(i, label)| (label.as_str(), i + FIRST_ACTIVITY_ID))
         .collect();
 
-    let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates);
+    let measured = Measured::from(attributes);
+    let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates, measured);
     correct(nodes.iter_mut().map(|node| &mut node.attributes));
-    let mut transitions = transitions(&ids, &node_id, &aggregates);
+    let mut transitions = transitions(&ids, &node_id, &aggregates, measured);
     correct(
         transitions
             .iter_mut()
@@ -156,6 +182,7 @@ fn activity_nodes(
     labels: &[&String],
     node_id: &HashMap<&str, usize>,
     aggregates: &build::Aggregates,
+    measured: Measured,
 ) -> Vec<DfgNode> {
     labels
         .iter()
@@ -169,15 +196,17 @@ fn activity_nodes(
                     Some((attr.name.clone(), block(ids, accs, attr.numeric)))
                 })
                 .collect();
-            let reached = node
-                .counts
-                .iter()
-                .map(|(id, counts)| (id.clone(), counts.cases))
-                .collect();
-            attributes
-                .entry(ACTIVITY_FREQUENCY.to_string())
-                .or_insert_with(|| frequency(ids, &reached, &aggregates.case_counts, REACHED));
-            if repeats(&node.occurrences) {
+            if measured.activity_frequency {
+                let reached = node
+                    .counts
+                    .iter()
+                    .map(|(id, counts)| (id.clone(), counts.cases))
+                    .collect();
+                attributes
+                    .entry(ACTIVITY_FREQUENCY.to_string())
+                    .or_insert_with(|| frequency(ids, &reached, &aggregates.case_counts, REACHED));
+            }
+            if measured.repetitions && repeats(&node.occurrences) {
                 attributes
                     .entry(REPETITIONS.to_string())
                     .or_insert_with(|| block(ids, &node.occurrences, true));
@@ -217,15 +246,22 @@ fn variants(
         .collect()
 }
 
-/// Every pair the drawn Variants hold, Start and End included, with how often
-/// each Group follows it and, when asked for, the wait on it.
+/// What is measured per pair, each when asked for: how often each Group
+/// follows it, over every pair the drawn Variants hold with Start and End
+/// included, and the wait on it, over the pairs between two activities.
 fn transitions(
     ids: &[String],
     node_id: &HashMap<&str, usize>,
     aggregates: &build::Aggregates,
+    measured: Measured,
 ) -> Vec<Transition> {
     let mut followed: HashMap<(usize, usize), HashMap<String, i64>> = HashMap::new();
-    for variant in &aggregates.variants {
+    let variants = if measured.edge_frequency {
+        aggregates.variants.as_slice()
+    } else {
+        &[]
+    };
+    for variant in variants {
         let Some(path) = std::iter::once(Some(START_ID))
             .chain(
                 variant
@@ -247,33 +283,32 @@ fn transitions(
         }
     }
 
-    let mut waits: HashMap<(usize, usize), AttributeBlock> = aggregates
-        .transitions
-        .iter()
-        .filter_map(|((source, target), accs)| {
-            let pair = (
-                node_id.get(source.as_str()).copied()?,
-                node_id.get(target.as_str()).copied()?,
-            );
-            Some((pair, block(ids, accs, true)))
-        })
-        .collect();
+    let mut pairs: HashMap<(usize, usize), HashMap<String, AttributeBlock>> = HashMap::new();
+    for ((source, target), accs) in &aggregates.transitions {
+        let (Some(source), Some(target)) = (
+            node_id.get(source.as_str()).copied(),
+            node_id.get(target.as_str()).copied(),
+        ) else {
+            continue;
+        };
+        pairs
+            .entry((source, target))
+            .or_default()
+            .insert(TRANSITION_TIME.to_string(), block(ids, accs, true));
+    }
+    for (pair, counts) in followed {
+        pairs.entry(pair).or_default().insert(
+            EDGE_FREQUENCY.to_string(),
+            frequency(ids, &counts, &aggregates.case_counts, FOLLOWED),
+        );
+    }
 
-    let mut transitions: Vec<Transition> = followed
+    let mut transitions: Vec<Transition> = pairs
         .into_iter()
-        .map(|((source, target), counts)| {
-            let mut attributes = HashMap::from([(
-                EDGE_FREQUENCY.to_string(),
-                frequency(ids, &counts, &aggregates.case_counts, FOLLOWED),
-            )]);
-            if let Some(wait) = waits.remove(&(source, target)) {
-                attributes.insert(TRANSITION_TIME.to_string(), wait);
-            }
-            Transition {
-                source,
-                target,
-                attributes,
-            }
+        .map(|((source, target), attributes)| Transition {
+            source,
+            target,
+            attributes,
         })
         .collect();
     transitions.sort_by_key(|transition| (transition.source, transition.target));
@@ -480,6 +515,9 @@ mod tests {
             .map(|name| match *name {
                 ACTIVITY_DURATION => RequestedAttribute::ActivityDuration,
                 TRANSITION_TIME => RequestedAttribute::TransitionTime,
+                ACTIVITY_FREQUENCY => RequestedAttribute::ActivityFrequency,
+                EDGE_FREQUENCY => RequestedAttribute::EdgeFrequency,
+                REPETITIONS => RequestedAttribute::Repetitions,
                 name => RequestedAttribute::Column {
                     name: name.to_string(),
                 },
@@ -647,7 +685,7 @@ mod tests {
             false,
         );
 
-        assert_eq!(dfg.transitions.len(), 3);
+        assert_eq!(dfg.transitions.len(), 1);
         let wait = &transition(&dfg, "A", "B").attributes[TRANSITION_TIME];
         assert_eq!(n_of(&wait.summaries["a"]), 1);
     }
@@ -1014,7 +1052,12 @@ mod tests {
         let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
         let mut half: Vec<Trace> = same_trace(&CASE_IDS[..5], &[("A", 0, 10), ("B", 1, 10)]);
         half.extend(same_trace(&CASE_IDS[5..], &[("A", 0, 10)]));
-        let dfg = dfg_with(&log(&through_b), Some(&log(&half)), &[], false);
+        let dfg = dfg_with(
+            &log(&through_b),
+            Some(&log(&half)),
+            &[ACTIVITY_FREQUENCY, EDGE_FREQUENCY],
+            false,
+        );
 
         let reach = node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
             .test
@@ -1035,7 +1078,12 @@ mod tests {
     fn a_place_one_group_never_reaches_has_no_frequency_test() {
         let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
         let a_only = same_trace(&CASE_IDS, &[("A", 0, 10)]);
-        let dfg = dfg_with(&log(&through_b), Some(&log(&a_only)), &[], false);
+        let dfg = dfg_with(
+            &log(&through_b),
+            Some(&log(&a_only)),
+            &[ACTIVITY_FREQUENCY, EDGE_FREQUENCY],
+            false,
+        );
 
         assert!(node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
             .test
@@ -1054,7 +1102,7 @@ mod tests {
     #[test]
     fn a_place_every_case_reaches_has_no_frequency_test() {
         let a = same_trace(&CASE_IDS, &[("A", 0, 10)]);
-        let dfg = dfg_with(&log(&a), Some(&log(&a)), &[], false);
+        let dfg = dfg_with(&log(&a), Some(&log(&a)), &[ACTIVITY_FREQUENCY], false);
 
         let reach = &node(&dfg, "A").attributes[ACTIVITY_FREQUENCY];
         assert!(reach.test.is_none());
@@ -1069,7 +1117,7 @@ mod tests {
     fn repetitions_are_counted_per_case_that_reaches_the_activity() {
         let thrice = same_trace(&CASE_IDS[..6], &[("A", 0, 10), ("A", 1, 10), ("A", 2, 10)]);
         let once = same_trace(&CASE_IDS[..6], &[("A", 0, 10)]);
-        let dfg = dfg_with(&log(&thrice), Some(&log(&once)), &[], false);
+        let dfg = dfg_with(&log(&thrice), Some(&log(&once)), &[REPETITIONS], false);
 
         let block = &node(&dfg, "A").attributes[REPETITIONS];
         let Summary::Numerical { n, median, .. } = &block.summaries["a"] else {
@@ -1083,8 +1131,17 @@ mod tests {
 
     #[test]
     fn an_activity_no_case_repeats_measures_no_repetitions() {
-        let dfg = dfg_with(&log(&[("1", &[("A", 0, 10)])]), None, &[], false);
+        let dfg = dfg_with(&log(&[("1", &[("A", 0, 10)])]), None, &[REPETITIONS], false);
 
         assert!(!node(&dfg, "A").attributes.contains_key(REPETITIONS));
+    }
+
+    #[test]
+    fn the_graph_measures_none_of_its_own_tests_unasked() {
+        let a = log(&[("1", &[("A", 0, 10), ("A", 1, 10), ("B", 2, 10)])]);
+        let dfg = dfg_with(&a, Some(&a), &[], false);
+
+        assert!(node(&dfg, "A").attributes.is_empty());
+        assert!(dfg.transitions.is_empty());
     }
 }

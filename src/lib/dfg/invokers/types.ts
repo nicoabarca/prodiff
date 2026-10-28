@@ -14,7 +14,10 @@ import type { AttributeBlock } from "$lib/analysis/types";
 export type RequestDfgAttribute =
   | { kind: "column"; name: string }
   | { kind: "activityDuration" }
-  | { kind: "transitionTime" };
+  | { kind: "transitionTime" }
+  | { kind: "activityFrequency" }
+  | { kind: "edgeFrequency" }
+  | { kind: "repetitions" };
 
 export interface ResponseDfg {
   nodes: DfgNode[];
