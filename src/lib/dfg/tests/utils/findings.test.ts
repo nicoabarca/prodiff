@@ -98,21 +98,16 @@ describe("graphFindings", () => {
     expect(findings[2].attribute).toBe("Transition Time");
   });
 
-  it("ranks significant tests first, then by effect or by p-value", () => {
-    expect(rank(findings, "effect").map((f) => f.place.label)).toEqual([
+  it("ranks significant tests first, then by effect", () => {
+    expect(rank(findings).map((f) => f.place.label)).toEqual([
       "Review → Approve",
       "Review",
-      "Approve"
-    ]);
-    expect(rank(findings, "pValue").map((f) => f.place.label)).toEqual([
-      "Review",
-      "Review → Approve",
       "Approve"
     ]);
   });
 
   it("lists every place under its attribute, with how many differ", () => {
-    const rows = byAttribute(findings, "effect");
+    const rows = byAttribute(findings);
     expect(rows.map((row) => row.attribute)).toEqual(["Transition Time", "Amount"]);
     const amount = rows[1];
     expect(amount).toMatchObject({ tested: 2, significant: 1 });
