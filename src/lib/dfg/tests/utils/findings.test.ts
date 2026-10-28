@@ -3,11 +3,11 @@ import type { AttributeBlock, Test } from "$lib/analysis/types";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY } from "$lib/dfg/types";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import {
   activityDifferences,
   byAttribute,
-  frequencyVerdict,
+  builtInVerdict,
   graphFindings,
   nodeDifferences,
   rank,
@@ -100,7 +100,7 @@ describe("graphFindings", () => {
     expect(nodeDifferences(found).has(5)).toBe(false);
   });
 
-  it("keeps how often each Group reaches a place one Group alone reaches", () => {
+  it("leaves out even the frequency of a place one Group alone reaches", () => {
     const loneCounts = { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } };
     const lone = {
       ...graph,
@@ -127,8 +127,8 @@ describe("graphFindings", () => {
       edges: [{ source: 0, target: 5, counts: loneCounts }]
     } as unknown as Simplified;
     const found = graphFindings(lone, drawn);
-    expect(found.map((f) => f.attribute)).toEqual([ACTIVITY_FREQUENCY, EDGE_FREQUENCY]);
-    expect([...testedPlaces(found)]).toEqual(["n5", "e0->5"]);
+    expect(found).toEqual([]);
+    expect(testedPlaces(found).size).toBe(0);
   });
 
   it("tests an edge on its Waiting Time", () => {
@@ -187,7 +187,7 @@ describe("activityDifferences", () => {
   });
 });
 
-describe("frequencyVerdict", () => {
+describe("builtInVerdict", () => {
   const groups = [
     { id: "a", name: "Day" },
     { id: "b", name: "Night" }
@@ -201,13 +201,45 @@ describe("frequencyVerdict", () => {
   });
 
   it("names the Group that reaches it more often, with both shares in order", () => {
-    expect(frequencyVerdict(ACTIVITY_FREQUENCY, reach("a"), groups)).toBe(
+    expect(builtInVerdict(ACTIVITY_FREQUENCY, reach("a"), groups)).toBe(
       "Day more often · 72% vs 60%"
     );
   });
 
   it("says nothing for a frequency that is not significant or another attribute", () => {
-    expect(frequencyVerdict(ACTIVITY_FREQUENCY, reach("a", false), groups)).toBeNull();
-    expect(frequencyVerdict("Amount", reach("a"), groups)).toBeNull();
+    expect(builtInVerdict(ACTIVITY_FREQUENCY, reach("a", false), groups)).toBeNull();
+    expect(builtInVerdict("Amount", reach("a"), groups)).toBeNull();
+  });
+});
+
+describe("builtInVerdict on Repetitions", () => {
+  const groups = [
+    { id: "a", name: "Day" },
+    { id: "b", name: "Night" }
+  ];
+  const numeric = (mean: number) => ({
+    type: "numerical" as const,
+    n: 10,
+    mean,
+    std: 1,
+    min: 1,
+    q1: 1,
+    median: 1,
+    q3: 2,
+    max: 4,
+    whiskerLow: 1,
+    whiskerHigh: 4,
+    outliersLow: 0,
+    outliersHigh: 0
+  });
+
+  it("names the Group that repeats the activity more, with both means", () => {
+    const block: AttributeBlock = {
+      summaries: { a: numeric(2.14), b: numeric(1.6) },
+      test: test(0.3, 0.001)
+    };
+    expect(builtInVerdict(REPETITIONS, block, groups)).toMatch(
+      /^Day repeats it more · 2[.,]1 vs 1[.,]6 times on average$/
+    );
   });
 });

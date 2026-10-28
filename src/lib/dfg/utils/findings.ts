@@ -1,17 +1,15 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity and every edge on screen. An
- * attribute at a place one Group alone reaches has nothing to compare against
- * and is left out; how often each Group reaches it is kept, since that is
- * exactly where the Groups differ most.
+ * every attribute block of every activity and every edge on screen that more
+ * than one Group reaches. A place one Group alone reaches has nothing to
+ * compare against.
  */
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY } from "$lib/dfg/types";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
-
-const FREQUENCIES = new Set([ACTIVITY_FREQUENCY, EDGE_FREQUENCY]);
+import { formatDecimal } from "$lib/format";
 
 export type Place =
   | { kind: "node"; id: number; label: string }
@@ -74,15 +72,13 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
     blocks: Record<string, AttributeBlock>,
     counts: Record<string, Counts>
   ): Finding[] => {
-    const shared = comparable(counts, groupIds);
-    return Object.entries(blocks)
-      .filter(([attribute]) => shared || FREQUENCIES.has(attribute))
-      .map(([attribute, block]) => ({
-        key: `${placeKey(place)}:${attribute}`,
-        place,
-        attribute,
-        block
-      }));
+    if (!comparable(counts, groupIds)) return [];
+    return Object.entries(blocks).map(([attribute, block]) => ({
+      key: `${placeKey(place)}:${attribute}`,
+      place,
+      attribute,
+      block
+    }));
   };
 
   const nodes = simplified.nodes.flatMap((node) => {
@@ -111,24 +107,36 @@ const HIT: Record<string, string> = {
 };
 
 /**
- * A frequency's verdict in words, "Group 2 more often · 72% vs 65%", the
- * shares in the order the Groups are compared. `null` for any other attribute
- * or a frequency that did not come out significant.
+ * The verdict of a test the DFG runs on its own, in words, with the figures in
+ * the order the Groups are compared: "Group 2 more often · 72% vs 65%" for a
+ * frequency, "Group 1 repeats it more · 2,1 vs 1,6 times on average" for
+ * Repetitions. `null` for any other attribute or a test that did not come out
+ * significant.
  */
-export function frequencyVerdict(
+export function builtInVerdict(
   attribute: string,
   block: AttributeBlock,
   groups: { id: string; name: string }[]
 ): string | null {
-  const hit = HIT[attribute];
   const higher = groups.find((group) => group.id === block.test?.higher);
-  if (hit === undefined || !block.test?.significant || !higher) return null;
-  const shares = groups.map((group) => {
-    const summary = block.summaries[group.id];
-    if (summary?.type !== "categorical" || summary.n === 0) return "0%";
-    return `${Math.round(((summary.counts[hit] ?? 0) / summary.n) * 100)}%`;
-  });
-  return `${higher.name} more often · ${shares.join(" vs ")}`;
+  if (!block.test?.significant || !higher) return null;
+  const hit = HIT[attribute];
+  if (hit !== undefined) {
+    const shares = groups.map((group) => {
+      const summary = block.summaries[group.id];
+      if (summary?.type !== "categorical" || summary.n === 0) return "0%";
+      return `${Math.round(((summary.counts[hit] ?? 0) / summary.n) * 100)}%`;
+    });
+    return `${higher.name} more often · ${shares.join(" vs ")}`;
+  }
+  if (attribute === REPETITIONS) {
+    const means = groups.map((group) => {
+      const summary = block.summaries[group.id];
+      return summary?.type === "numerical" ? formatDecimal(summary.mean, 1) : "-";
+    });
+    return `${higher.name} repeats it more · ${means.join(" vs ")} times on average`;
+  }
+  return null;
 }
 
 /** Every place that carries at least one finding, by `placeKey`. */

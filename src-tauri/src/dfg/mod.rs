@@ -283,7 +283,8 @@ fn transitions(
 /// How many of each Group's cases reach a place, split into `labels` and
 /// tested as a two-by-two chi-square, with `higher` naming the Group whose
 /// share is larger. A category no case falls in is left out, so a place every
-/// case of both Groups reaches has one category and no test.
+/// case of both Groups reaches has one category and no test, and a place some
+/// Group never reaches is not tested either.
 fn frequency(
     ids: &[String],
     reached: &HashMap<String, i64>,
@@ -309,6 +310,13 @@ fn frequency(
         .collect();
 
     let mut block = block(ids, &accs, false);
+    // A place one Group never reaches is that Group's absence, not a share to compare.
+    if ids
+        .iter()
+        .any(|id| reached.get(id).copied().unwrap_or(0) == 0)
+    {
+        block.test = None;
+    }
     if let (Some(test), [a, b]) = (block.test.as_mut(), ids) {
         test.higher = match share(a).total_cmp(&share(b)) {
             std::cmp::Ordering::Greater => Some(a.clone()),
@@ -1002,10 +1010,11 @@ mod tests {
     }
 
     #[test]
-    fn a_place_one_group_alone_reaches_is_a_frequency_finding() {
+    fn a_place_one_group_reaches_more_often_is_a_frequency_finding() {
         let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
-        let a_only = same_trace(&CASE_IDS, &[("A", 0, 10)]);
-        let dfg = dfg_with(&log(&through_b), Some(&log(&a_only)), &[], false);
+        let mut half: Vec<Trace> = same_trace(&CASE_IDS[..5], &[("A", 0, 10), ("B", 1, 10)]);
+        half.extend(same_trace(&CASE_IDS[5..], &[("A", 0, 10)]));
+        let dfg = dfg_with(&log(&through_b), Some(&log(&half)), &[], false);
 
         let reach = node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
             .test
@@ -1018,14 +1027,28 @@ mod tests {
             .test
             .as_ref()
             .unwrap();
+        assert!(follow.significant);
         assert_eq!(follow.higher.as_deref(), Some("a"));
+    }
+
+    #[test]
+    fn a_place_one_group_never_reaches_has_no_frequency_test() {
+        let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
+        let a_only = same_trace(&CASE_IDS, &[("A", 0, 10)]);
+        let dfg = dfg_with(&log(&through_b), Some(&log(&a_only)), &[], false);
+
+        assert!(node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
+            .test
+            .is_none());
+        assert!(transition(&dfg, "A", "B").attributes[EDGE_FREQUENCY]
+            .test
+            .is_none());
         let to_end = dfg
             .transitions
             .iter()
             .find(|t| t.source == node(&dfg, "A").id && t.target == END_ID)
             .unwrap();
-        let ends = to_end.attributes[EDGE_FREQUENCY].test.as_ref().unwrap();
-        assert_eq!(ends.higher.as_deref(), Some("b"));
+        assert!(to_end.attributes[EDGE_FREQUENCY].test.is_none());
     }
 
     #[test]

@@ -16,7 +16,7 @@
   import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
   import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
-  import { frequencyVerdict, type Finding } from "$lib/dfg/utils/findings";
+  import { builtInVerdict, type Finding } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -149,7 +149,7 @@
             ></span>
           {/if}
           <span class="truncate"
-            >{frequencyVerdict(finding.attribute, block, groups) ??
+            >{builtInVerdict(finding.attribute, block, groups) ??
               verdict(block, groups, duration)}</span
           >
         </span>
