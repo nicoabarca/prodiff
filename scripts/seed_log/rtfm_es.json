@@ -1,0 +1,193 @@
+{
+  "name": "Multas de tránsito (estudio de usuarios)",
+  "columns": [
+    {
+      "name": "ID Caso",
+      "role": "case_id",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Actividad",
+      "role": "activity_name",
+      "scope": "event",
+      "type": "string"
+    },
+    {
+      "name": "Fecha",
+      "role": "complete_timestamp",
+      "scope": "event",
+      "type": "datetime",
+      "timestampFormat": "YYYY-MM-DD HH:mm:ss"
+    },
+    {
+      "name": "Funcionario",
+      "role": "other",
+      "scope": "event",
+      "type": "string"
+    },
+    {
+      "name": "Tipo de infracción",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Tipo de vehículo",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Monto multa",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "float"
+    },
+    {
+      "name": "Puntos descontados",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "integer"
+    },
+    {
+      "name": "Canal de detección",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Región",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Edad del infractor",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "integer"
+    },
+    {
+      "name": "Reincidente",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "string"
+    },
+    {
+      "name": "Total pagado",
+      "role": "other",
+      "scope": "case",
+      "caseResolution": "constant",
+      "type": "float"
+    },
+    {
+      "name": "Gastos de envío",
+      "role": "other",
+      "scope": "event",
+      "type": "float"
+    },
+    {
+      "name": "Monto con recargo",
+      "role": "other",
+      "scope": "event",
+      "type": "float"
+    },
+    {
+      "name": "Monto pago",
+      "role": "other",
+      "scope": "event",
+      "type": "float"
+    },
+    {
+      "name": "Medio de pago",
+      "role": "other",
+      "scope": "event",
+      "type": "string"
+    }
+  ],
+  "hiddenColumns": [],
+  "customAttributes": [
+    {
+      "name": "Proporción pagada",
+      "formula": "[Total pagado] / [Monto multa]"
+    }
+  ],
+  "groups": [
+    {
+      "name": "Cobranza",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Actividad",
+          "mode": "mandatory",
+          "values": ["Enviar a cobranza"]
+        }
+      ]
+    },
+    {
+      "name": "Pagadas",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Actividad",
+          "mode": "mandatory",
+          "values": ["Pago"]
+        }
+      ]
+    },
+    {
+      "name": "Control en terreno",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Canal de detección",
+          "mode": "mandatory",
+          "values": ["Control en terreno"]
+        }
+      ]
+    },
+    {
+      "name": "Cámara de tránsito",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Canal de detección",
+          "mode": "mandatory",
+          "values": ["Cámara de tránsito"]
+        }
+      ]
+    },
+    {
+      "name": "Pago en línea",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Medio de pago",
+          "mode": "mandatory",
+          "values": ["En línea"]
+        }
+      ]
+    },
+    {
+      "name": "Pago en banco u oficina",
+      "filters": [
+        {
+          "kind": "attribute",
+          "column": "Medio de pago",
+          "mode": "mandatory",
+          "values": ["Banco", "Oficina municipal"]
+        }
+      ]
+    }
+  ]
+}
