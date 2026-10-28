@@ -12,7 +12,6 @@
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
-  import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { EDGE_FREQUENCY } from "$lib/dfg/types";
@@ -21,8 +20,7 @@
     activityDifferences,
     byAttribute,
     placeKey,
-    type Finding,
-    type Ranking
+    type Finding
   } from "$lib/dfg/utils/findings";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import { formatNumber } from "$lib/format";
@@ -31,6 +29,7 @@
   import { SvelteSet } from "svelte/reactivity";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import ChevronsDownUp from "@lucide/svelte/icons/chevrons-down-up";
+  import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
   import X from "@lucide/svelte/icons/x";
 
   let {
@@ -47,14 +46,13 @@
     onChooseAttributes: () => void;
   } = $props();
 
-  let by = $state<Ranking>("effect");
   let onlyDifferences = $state(false);
 
   const tested = $derived(findings.filter((finding) => finding.block.test).length);
   const significant = $derived(
     findings.filter((finding) => finding.block.test?.significant).length
   );
-  const attributes = $derived(byAttribute(findings, by));
+  const attributes = $derived(byAttribute(findings));
 
   /** Attributes the user flipped from how they start: the first open, the rest closed. */
   const flipped = new SvelteSet<string>();
@@ -92,14 +90,17 @@
     });
   });
 
-  /** Moves on each time Collapse all closes every attribute and every card. */
-  let collapsedAt = $state(0);
+  /** The last Collapse all or Expand all: `at` moves on each time, `open` is which one it was. */
+  let fold = $state({ at: 0, open: false });
+  const expanding = $derived(fold.at > 0 && !fold.open);
 
-  function collapseAll() {
+  function toggleAll() {
+    const open = expanding;
     flipped.clear();
-    const first = attributes[0]?.attribute;
-    if (first !== undefined) flipped.add(first);
-    collapsedAt += 1;
+    for (const row of attributes) {
+      if ((row.attribute === attributes[0]?.attribute) !== open) flipped.add(row.attribute);
+    }
+    fold = { at: fold.at + 1, open };
   }
 
   // A panel opened later starts on every test again.
@@ -112,14 +113,14 @@
 </script>
 
 {#snippet collapseButton()}
-  <Button
-    variant="outline"
-    size="xs"
-    class="ml-auto shrink-0 text-[0.6875rem]"
-    onclick={collapseAll}
-  >
-    <ChevronsDownUp data-icon="inline-start" />
-    Collapse all
+  <Button variant="outline" size="xs" class="ml-auto shrink-0 text-[0.6875rem]" onclick={toggleAll}>
+    {#if expanding}
+      <ChevronsUpDown data-icon="inline-start" />
+      Expand all
+    {:else}
+      <ChevronsDownUp data-icon="inline-start" />
+      Collapse all
+    {/if}
   </Button>
 {/snippet}
 
@@ -165,21 +166,6 @@
       </div>
     {:else if groupCount > 1 && findings.length > 0}
       <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <div class="flex items-center gap-1.5">
-          <Label class="text-muted-foreground text-[0.625rem]">Rank by</Label>
-          <ToggleGroup.Root
-            type="single"
-            size="sm"
-            variant="outline"
-            value={by}
-            onValueChange={(value) => {
-              if (value) by = value as Ranking;
-            }}
-          >
-            <ToggleGroup.Item value="effect" class="text-[0.6875rem]">Effect</ToggleGroup.Item>
-            <ToggleGroup.Item value="pValue" class="text-[0.6875rem]">p-value</ToggleGroup.Item>
-          </ToggleGroup.Root>
-        </div>
         <Label class="text-muted-foreground flex items-center gap-1.5 text-[0.625rem]">
           <Checkbox bind:checked={onlyDifferences} />
           Only differences
@@ -200,7 +186,7 @@
   {:else if activity}
     <ScrollArea.Root class="min-h-0 flex-1">
       {#each differences as finding (finding.key)}
-        <PlaceTest {finding} named="attribute" collapse={collapsedAt} />
+        <PlaceTest {finding} named="attribute" {fold} />
       {:else}
         <p class="text-muted-foreground px-4 py-3 text-xs">
           No attribute differs significantly at {activity.label}.
@@ -259,7 +245,7 @@
               <PlaceTest
                 {finding}
                 reveal={finding.key === edgeFinding?.key ? inspected.at : 0}
-                collapse={collapsedAt}
+                {fold}
               />
             {:else}
               <p class="text-muted-foreground border-border border-t px-6 py-2.5 text-[0.6875rem]">

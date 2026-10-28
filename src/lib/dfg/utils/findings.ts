@@ -22,8 +22,6 @@ export interface Finding {
   block: AttributeBlock;
 }
 
-export type Ranking = "effect" | "pValue";
-
 /** The node ids a place covers, for framing it on the canvas. */
 export function placeIds(place: Place): number[] {
   return place.kind === "node" ? [place.id] : [place.source, place.target];
@@ -150,18 +148,13 @@ export function activityDifferences(findings: Finding[], id: number): Finding[] 
     findings.filter(
       (finding) =>
         finding.place.kind === "node" && finding.place.id === id && finding.block.test?.significant
-    ),
-    "effect"
+    )
   );
 }
 
-/** Significant first, then strongest effect or smallest p. Untested last. */
-export function rank(findings: Finding[], by: Ranking): Finding[] {
-  const score = (finding: Finding) => {
-    const test = finding.block.test;
-    if (!test) return -Infinity;
-    return by === "effect" ? test.effectSize : -test.pValue;
-  };
+/** Significant first, then strongest effect. Untested last. */
+export function rank(findings: Finding[]): Finding[] {
+  const score = (finding: Finding) => finding.block.test?.effectSize ?? -Infinity;
   return [...findings].sort(
     (x, y) =>
       Number(y.block.test?.significant ?? false) - Number(x.block.test?.significant ?? false) ||
@@ -202,18 +195,15 @@ export interface AttributeTests {
  * Every place that measured an attribute, ranked, with how many of them differ
  * and the strongest one. Attributes that differ in more places come first.
  */
-export function byAttribute(findings: Finding[], by: Ranking): AttributeTests[] {
+export function byAttribute(findings: Finding[]): AttributeTests[] {
   const grouped = new Map<string, Finding[]>();
   for (const finding of findings) {
     grouped.set(finding.attribute, [...(grouped.get(finding.attribute) ?? []), finding]);
   }
   return [...grouped.entries()]
     .map(([attribute, all]) => {
-      const places = rank(all, by);
-      const differing = rank(
-        all.filter((finding) => finding.block.test?.significant),
-        "effect"
-      );
+      const places = rank(all);
+      const differing = rank(all.filter((finding) => finding.block.test?.significant));
       return {
         attribute,
         places,
