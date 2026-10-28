@@ -16,7 +16,7 @@
   import Frame from "$lib/dfg/components/frame.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-  import { inspect, selected, tests, view } from "$lib/dfg/state/view.svelte";
+  import { inspect, selected, view } from "$lib/dfg/state/view.svelte";
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
@@ -256,7 +256,7 @@
             groups: shown,
             counts: faceCounts(node.counts, shown, view.measure),
             shadeStep: steps[index],
-            differences: tests.open ? (differences.get(node.id) ?? null) : null,
+            differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,
             direction: view.direction,
