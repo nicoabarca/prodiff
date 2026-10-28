@@ -67,7 +67,7 @@
     </span>
   </div>
 
-  <div class="flex items-center">
+  <div class="flex items-center gap-1">
     <span class={CAPTION}>Paths</span>
     <Slider
       type="single"

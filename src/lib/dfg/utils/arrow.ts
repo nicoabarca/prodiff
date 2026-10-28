@@ -135,6 +135,30 @@ function pullback(end: Point, direction: Point, rect: Rect | null, width: number
   return TIP_GAP + Math.min(Math.max(depth(1), depth(-1), 0) / into, MAX_PULLBACK);
 }
 
+/** The point on a prepared route closest to `point`. */
+export function nearest(route: Route, point: Point): Point {
+  const { line } = route;
+  if (line.length === 0) return point;
+  let best = line[0];
+  let bestAway = Infinity;
+  for (let i = 1; i < line.length; i++) {
+    const [a, b] = [line[i - 1], line[i]];
+    const [dx, dy] = [b.x - a.x, b.y - a.y];
+    const span = dx * dx + dy * dy;
+    const t =
+      span === 0
+        ? 0
+        : Math.min(Math.max(((point.x - a.x) * dx + (point.y - a.y) * dy) / span, 0), 1);
+    const on = { x: a.x + dx * t, y: a.y + dy * t };
+    const away = Math.hypot(point.x - on.x, point.y - on.y);
+    if (away < bestAway) {
+      best = on;
+      bestAway = away;
+    }
+  }
+  return best;
+}
+
 /** The point a fraction of the way along a prepared route, by arc length. */
 export function along(route: Route, fraction: number): Point {
   return at(route, route.distances[route.distances.length - 1] * fraction);

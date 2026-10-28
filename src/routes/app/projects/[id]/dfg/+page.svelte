@@ -23,6 +23,7 @@
     relationRefused
   } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import PanelRight from "@lucide/svelte/icons/panel-right";
   import Waypoints from "@lucide/svelte/icons/waypoints";
 
@@ -91,6 +92,16 @@
             {#await import("$lib/devtools/dfg/components/dfg-inspector.svelte") then { default: DfgInspector }}
               <DfgInspector graph={built.graph} {simplified} />
             {/await}
+          {/if}
+          {#if built.building}
+            <div
+              class="bg-background/50 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-xs"
+            >
+              <LoaderCircle
+                class="text-muted-foreground size-8 animate-spin"
+                aria-label="Building the graph"
+              />
+            </div>
           {/if}
           {#if selected.id !== null}
             <div class="absolute top-4 left-4 z-10">

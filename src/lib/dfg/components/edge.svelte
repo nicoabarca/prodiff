@@ -1,6 +1,7 @@
 <script lang="ts">
   import { BaseEdge, EdgeLabel, type EdgeProps } from "@xyflow/svelte";
   import type { DfgEdgeData } from "$lib/dfg/types";
+  import { colorVar } from "$lib/format";
 
   let { data }: EdgeProps = $props();
 
@@ -31,14 +32,21 @@
   />
 </g>
 
-{#if edge.label}
+{#if edge.waits.length > 0}
   <EdgeLabel x={edge.labelAt.x} y={edge.labelAt.y} transparent>
     <span
       class="transition-opacity duration-200 {edge.dimmed
         ? 'opacity-15'
-        : ''} border-border/70 bg-card text-muted-foreground inline-block rounded-full border px-1.5 py-px text-[0.625rem] leading-tight font-medium whitespace-nowrap"
+        : ''} bg-background text-muted-foreground flex flex-col items-start gap-px px-1 py-0.5 font-mono text-[0.625rem] leading-tight whitespace-nowrap"
     >
-      {edge.label}
+      {#each edge.waits as wait (wait.id)}
+        <span class="inline-flex items-center gap-1">
+          {#if edge.dotted}
+            <span class="size-1.5 rounded-full" style="background:{colorVar(wait.color)}"></span>
+          {/if}
+          {wait.value}
+        </span>
+      {/each}
     </span>
   </EdgeLabel>
 {/if}

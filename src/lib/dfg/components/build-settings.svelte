@@ -7,7 +7,7 @@
   import type { Project } from "$lib/event-log/types";
 
   const NOTE =
-    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested. The graph rebuilds on each change.";
+    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested. The graph rebuilds on each change. A Waiting Time under 0.5s is not drawn on its edge.";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 

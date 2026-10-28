@@ -1,7 +1,14 @@
 /** Simplifies DFG variants and paths for display. */
 import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
-import { fold, unionCount, variantKey, type FoldedEdge } from "$lib/dfg/utils/fold";
+import {
+  edgeId,
+  fold,
+  unionCount,
+  variantEdgeIds,
+  variantKey,
+  type FoldedEdge
+} from "$lib/dfg/utils/fold";
 
 export interface SimplifiedNode {
   id: number;
@@ -18,8 +25,9 @@ export interface Simplified {
     total: number;
     cases: number;
     totalCases: number;
-    /** Keys of every Variant the graph was built from, before the Behaviour cut,
-        for the picker to mark which rows are on the graph. */
+    /** Keys of the Variants whose whole path, Start through End, survives the
+        Behaviour and Paths cut: the rows the picker marks as on the graph and
+        whose eye can light them. */
     keys: Set<string>;
   };
   activities: { shown: number; total: number };
@@ -48,6 +56,11 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
     }))
     .sort((a, b) => a.id - b.id);
 
+  const kept = new Set(edges.map((edge) => edgeId(edge.source, edge.target)));
+  const whole = chosen.filter((variant) =>
+    [...variantEdgeIds(variant.activities)].every((id) => kept.has(id))
+  );
+
   return {
     nodes,
     edges,
@@ -56,7 +69,7 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
       total: graph.variants.length,
       cases,
       totalCases,
-      keys: new Set(graph.variants.map((variant) => variantKey(variant.activities, labels)))
+      keys: new Set(whole.map((variant) => variantKey(variant.activities, labels)))
     },
     activities: {
       shown: nodes.filter((node) => node.kind === "activity").length,
