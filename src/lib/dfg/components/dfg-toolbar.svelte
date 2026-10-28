@@ -8,7 +8,6 @@
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
-  import SimplificationControls from "$lib/dfg/components/simplification-controls.svelte";
   import SplitField from "$lib/dfg/components/split-field.svelte";
   import TestsField from "$lib/dfg/components/tests-field.svelte";
   import VariantSummary from "$lib/dfg/components/variant-summary.svelte";
@@ -70,10 +69,6 @@
       </p>
     {/if}
   </div>
-
-  {#if simplified}
-    <SimplificationControls {simplified} />
-  {/if}
 
   <div class="flex shrink-0 items-center px-3">
     <Settings />

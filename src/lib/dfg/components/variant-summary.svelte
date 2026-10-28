@@ -17,26 +17,28 @@
     )
   );
 
-  /** The built graph's Variant selection; the Behaviour cut is the canvas's own count. */
+  /** What the built graph is made of, which is every Variant it draws. */
   const onScreen = $derived.by(() => {
     if (!simplified) return null;
-    const { total, totalCases } = simplified.variants;
-    const all = logCases || totalCases;
+    const { count, cases } = simplified.variants;
+    const all = logCases || cases;
     return {
-      variantsShown: total,
-      variantsTotal: variants.rows.length || total,
-      casesShown: totalCases,
+      variantsShown: count,
+      variantsTotal: variants.rows.length || count,
+      casesShown: cases,
       total: all,
-      share: all > 0 ? Math.round((totalCases / all) * 100) : 0
+      share: all > 0 ? Math.round((cases / all) * 100) : 0
     };
   });
 </script>
 
-<VariantSummary
-  {onScreen}
-  selected={selectedVariants().size}
-  known={variants.rows.length}
-  noun="graph"
-  {open}
-  {onToggle}
-/>
+<div data-tour="dfg-variants" class="flex shrink-0">
+  <VariantSummary
+    {onScreen}
+    selected={selectedVariants().size}
+    known={variants.rows.length}
+    noun="graph"
+    {open}
+    {onToggle}
+  />
+</div>

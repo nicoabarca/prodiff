@@ -1,14 +1,11 @@
-/** Simplifies DFG variants and paths for display. */
+/**
+ * The built graph folded into what the canvas draws. Every Variant the graph
+ * was built from is drawn: the cut happens in the Variants panel, before the
+ * build, so nothing on screen goes untested and no test describes a case off it.
+ */
 import type { Counts, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
-import { END_ID, START_ID, type DfgView, type Measure, type NodeKind } from "$lib/dfg/types";
-import {
-  edgeId,
-  fold,
-  unionCount,
-  variantEdgeIds,
-  variantKey,
-  type FoldedEdge
-} from "$lib/dfg/utils/fold";
+import { END_ID, START_ID, type NodeKind } from "$lib/dfg/types";
+import { fold, variantKey, type FoldedEdge } from "$lib/dfg/utils/fold";
 
 export interface SimplifiedNode {
   id: number;
@@ -17,35 +14,23 @@ export interface SimplifiedNode {
   counts: Record<string, Counts>;
 }
 
+/** `variants.keys` are the rows the picker marks as on the graph and whose eye can light them. */
 export interface Simplified {
   nodes: SimplifiedNode[];
   edges: FoldedEdge[];
   variants: {
-    shown: number;
-    total: number;
+    count: number;
     cases: number;
-    totalCases: number;
-    /** Keys of the Variants whose whole path, Start through End, survives the
-        Behaviour and Paths cut: the rows the picker marks as on the graph and
-        whose eye can light them. */
     keys: Set<string>;
   };
-  activities: { shown: number; total: number };
-  paths: { shown: number; total: number };
 }
-
-const isBoundary = (edge: FoldedEdge) => edge.source === START_ID || edge.target === END_ID;
 
 const variantCases = (variant: Variant): number =>
   Object.values(variant.cases).reduce((total, cases) => total + cases, 0);
 
-export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
-  const ids = graph.groups.map((group) => group.id);
+export function simplify(graph: ResponseDfg): Simplified {
   const labels = new Map(graph.nodes.map((node) => [node.id, node.label]));
-  const { chosen, cases, totalCases } = chooseVariants(graph.variants, view.coverage);
-
-  const folded = fold(chosen);
-  const edges = cutPaths(folded.edges, ids, view.paths, view.measure);
+  const folded = fold(graph.variants);
 
   const nodes: SimplifiedNode[] = [...folded.nodes.entries()]
     .map(([id, counts]) => ({
@@ -56,90 +41,13 @@ export function simplify(graph: ResponseDfg, view: DfgView): Simplified {
     }))
     .sort((a, b) => a.id - b.id);
 
-  const kept = new Set(edges.map((edge) => edgeId(edge.source, edge.target)));
-  const whole = chosen.filter((variant) =>
-    [...variantEdgeIds(variant.activities)].every((id) => kept.has(id))
-  );
-
   return {
     nodes,
-    edges,
+    edges: folded.edges,
     variants: {
-      shown: chosen.length,
-      total: graph.variants.length,
-      cases,
-      totalCases,
-      keys: new Set(whole.map((variant) => variantKey(variant.activities, labels)))
-    },
-    activities: {
-      shown: nodes.filter((node) => node.kind === "activity").length,
-      total: graph.nodes.length
-    },
-    paths: { shown: edges.length, total: folded.edges.length }
+      count: graph.variants.length,
+      cases: graph.variants.reduce((total, variant) => total + variantCases(variant), 0),
+      keys: new Set(graph.variants.map((variant) => variantKey(variant.activities, labels)))
+    }
   };
-}
-
-/** Chooses whole trace shapes up to the requested case coverage. */
-function chooseVariants(
-  variants: Variant[],
-  coverage: number
-): { chosen: Variant[]; cases: number; totalCases: number } {
-  const ordered = [...variants].sort(
-    (a, b) => variantCases(b) - variantCases(a) || a.activities.length - b.activities.length
-  );
-  const totalCases = ordered.reduce((total, variant) => total + variantCases(variant), 0);
-  const wanted = coverage * totalCases;
-
-  const chosen: Variant[] = [];
-  let cases = 0;
-  for (const variant of ordered) {
-    if (chosen.length > 0 && cases >= wanted) break;
-    chosen.push(variant);
-    cases += variantCases(variant);
-  }
-  return { chosen, cases, totalCases };
-}
-
-/** Keeps each Group's busiest paths and every activity's busiest connections. */
-function cutPaths(
-  edges: FoldedEdge[],
-  groups: string[],
-  share: number,
-  measure: Measure
-): FoldedEdge[] {
-  const inner = edges.filter((edge) => !isBoundary(edge));
-  const preserved = new Set<FoldedEdge>(edges.filter(isBoundary));
-  const wanted =
-    inner.length === 0 ? 0 : Math.min(inner.length, Math.max(1, Math.ceil(share * inner.length)));
-
-  for (const group of groups) {
-    const ofGroup = inner
-      .filter((edge) => (edge.counts[group]?.[measure] ?? 0) > 0)
-      .sort((a, b) => (b.counts[group]?.[measure] ?? 0) - (a.counts[group]?.[measure] ?? 0));
-    for (const edge of ofGroup.slice(0, wanted)) preserved.add(edge);
-  }
-
-  const best = (of: FoldedEdge[]) =>
-    of.reduce<FoldedEdge | null>(
-      (top, edge) =>
-        !top || unionCount(edge.counts, measure) > unionCount(top.counts, measure) ? edge : top,
-      null
-    );
-  const push = (into: Map<number, FoldedEdge[]>, node: number, edge: FoldedEdge) => {
-    const found = into.get(node);
-    if (found) found.push(edge);
-    else into.set(node, [edge]);
-  };
-  const incomingByNode = new Map<number, FoldedEdge[]>();
-  const outgoingByNode = new Map<number, FoldedEdge[]>();
-  for (const edge of inner) {
-    push(incomingByNode, edge.target, edge);
-    push(outgoingByNode, edge.source, edge);
-  }
-  for (const edges of [...incomingByNode.values(), ...outgoingByNode.values()]) {
-    const winner = best(edges);
-    if (winner) preserved.add(winner);
-  }
-
-  return edges.filter((edge) => preserved.has(edge));
 }

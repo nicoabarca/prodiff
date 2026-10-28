@@ -3,7 +3,8 @@
    * Which Variants the next build is made of. Everything here edits a staged
    * selection; only Apply writes it through, and only then does the view
    * rebuild. The staging itself belongs to the view that opened the panel, which
-   * is what `canvas` names.
+   * is what `canvas` names. A view that stages through sliders of its own
+   * passes them as `cuts`, which take the place of the Coverage slider.
    */
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
@@ -16,8 +17,9 @@
   } from "$lib/components/variant-venn/variant-venn.svelte";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Group } from "$lib/groups/types";
+  import type { Snippet } from "svelte";
   import type { ResponseVariantRow } from "$lib/tree/invokers/types";
-  import { variantCases, variantsCovering } from "$lib/tree/utils/variants";
+  import { casesShare, coverageFloor, variantsCovering } from "$lib/tree/utils/variants";
   import Minus from "@lucide/svelte/icons/minus";
   import Plus from "@lucide/svelte/icons/plus";
   import X from "@lucide/svelte/icons/x";
@@ -34,6 +36,7 @@
     drawn,
     highlighted,
     canvas,
+    cuts,
     onStage,
     onToggle,
     onHighlight,
@@ -52,6 +55,7 @@
     drawn: Set<string>;
     highlighted: string | null;
     canvas: "tree" | "graph";
+    cuts?: Snippet;
     onStage: (keys: Iterable<string>) => void;
     onToggle: (key: string) => void;
     onHighlight: (key: string) => void;
@@ -163,23 +167,11 @@
   });
 
   /** The share of all cases the staged Variants hold, in percent. */
-  const stagedShare = $derived.by(() => {
-    const all = allRows.reduce((sum, row) => sum + variantCases(row), 0);
-    if (all === 0) return 0;
-    const held = allRows
-      .filter((row) => staged.has(row.key))
-      .reduce((sum, row) => sum + variantCases(row), 0);
-    return Math.round((held / all) * 100);
-  });
+  const stagedShare = $derived(Math.round(casesShare(allRows, staged) * 100));
 
   /** The least coverage a selection can hold: a build needs one Variant, so the
       biggest one's share is the floor the slider stops at. */
-  const minCoverage = $derived.by(() => {
-    const all = allRows.reduce((sum, row) => sum + variantCases(row), 0);
-    if (all === 0) return 1;
-    const biggest = allRows.reduce((max, row) => Math.max(max, variantCases(row)), 0);
-    return Math.max(1, Math.round((biggest / all) * 100));
-  });
+  const minCoverage = $derived(Math.max(1, Math.round(coverageFloor(allRows) * 100)));
 
   /** What the slider sits on: the coverage held, never below the floor it stops at. */
   const coverage = $derived(Math.max(stagedShare, minCoverage));
@@ -291,45 +283,48 @@
         >
           Clear
         </Button>
-        <div class="ml-auto flex min-w-40 flex-1 items-center gap-2">
-          <span class="text-muted-foreground text-[0.625rem] whitespace-nowrap">Coverage</span>
-          <Slider
-            type="single"
-            value={coverage}
-            onValueChange={setCoverage}
-            min={1}
-            max={100}
-            step={1}
-            disabled={allRows.length === 0}
-            class="flex-1"
-          />
-          <span
-            class="text-muted-foreground w-8 text-right font-mono text-[0.6875rem] tabular-nums"
-          >
-            {coverage}%
-          </span>
-          <div class="flex items-center">
-            <button
-              type="button"
-              aria-label="Decrease coverage by 10%"
-              class="text-muted-foreground hover:bg-accent hover:text-foreground flex size-5 cursor-pointer items-center justify-center border disabled:pointer-events-none disabled:opacity-50"
-              disabled={allRows.length === 0 || coverage <= minCoverage}
-              onclick={() => setCoverage(coverage - COVERAGE_STEP)}
-            >
-              <Minus class="size-3" />
-            </button>
-            <button
-              type="button"
-              aria-label="Increase coverage by 10%"
-              class="text-muted-foreground hover:bg-accent hover:text-foreground -ml-px flex size-5 cursor-pointer items-center justify-center border disabled:pointer-events-none disabled:opacity-50"
+        {#if !cuts}
+          <div class="ml-auto flex min-w-40 flex-1 items-center gap-2">
+            <span class="text-muted-foreground text-[0.625rem] whitespace-nowrap">Coverage</span>
+            <Slider
+              type="single"
+              value={coverage}
+              onValueChange={setCoverage}
+              min={1}
+              max={100}
+              step={1}
               disabled={allRows.length === 0}
-              onclick={() => setCoverage(coverage + COVERAGE_STEP)}
+              class="flex-1"
+            />
+            <span
+              class="text-muted-foreground w-8 text-right font-mono text-[0.6875rem] tabular-nums"
             >
-              <Plus class="size-3" />
-            </button>
+              {coverage}%
+            </span>
+            <div class="flex items-center">
+              <button
+                type="button"
+                aria-label="Decrease coverage by 10%"
+                class="text-muted-foreground hover:bg-accent hover:text-foreground flex size-5 cursor-pointer items-center justify-center border disabled:pointer-events-none disabled:opacity-50"
+                disabled={allRows.length === 0 || coverage <= minCoverage}
+                onclick={() => setCoverage(coverage - COVERAGE_STEP)}
+              >
+                <Minus class="size-3" />
+              </button>
+              <button
+                type="button"
+                aria-label="Increase coverage by 10%"
+                class="text-muted-foreground hover:bg-accent hover:text-foreground -ml-px flex size-5 cursor-pointer items-center justify-center border disabled:pointer-events-none disabled:opacity-50"
+                disabled={allRows.length === 0}
+                onclick={() => setCoverage(coverage + COVERAGE_STEP)}
+              >
+                <Plus class="size-3" />
+              </button>
+            </div>
           </div>
-        </div>
+        {/if}
       </div>
+      {@render cuts?.()}
     </div>
 
     {#if dropped > 0}

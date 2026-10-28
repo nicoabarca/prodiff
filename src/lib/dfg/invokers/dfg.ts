@@ -10,11 +10,11 @@ import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.
  * counts and Summaries but no Significance Test.
  *
  * `selectedVariants` is cut before anything is aggregated, so every Summary and
- * Significance Test describes exactly those Variants. Empty sends `null`, which
- * is every Variant, not a cold-build default like the tree's.
+ * Significance Test describes exactly those Variants, which are the ones the
+ * graph draws. Empty sends `null`, which is every Variant.
  *
- * Nothing about the drawing crosses the seam: the simplification thresholds and
- * the layout are the frontend's, so moving a slider never calls this again.
+ * Nothing about the drawing crosses the seam: the layout and the measures on
+ * the faces are the frontend's.
  */
 export function dfg(
   project: Project,

@@ -87,5 +87,5 @@ Which of a node's cases' events a Distribution counts. `At this step` counts the
 _Avoid_: Variant scope — a node other than a leaf sits on many Variants, so "the Variant" names nothing there
 
 **Directly-Follows Graph**:
-A graph over an Event Log's activities, one node per activity and one edge per observed activity-to-activity transition, built from the compared Groups' Parquet files. Unlike the tree it has no root and no Variants: a case contributes every one of its transitions, so a node appears once no matter how many traces reach it. Simplification thresholds and layout are the frontend's and never re-run the command.
+A graph over an Event Log's activities, one node per activity and one edge per observed activity-to-activity transition, built from the compared Groups' Parquet files. Unlike the tree it has no root and no Variants: a case contributes every one of its transitions, so a node appears once no matter how many traces reach it. It is built from the Variants chosen in the Variants panel, whose Behaviour and Paths sliders choose them, so everything it draws is everything it counts and tests. Layout is the frontend's and never re-runs the command.
 _Avoid_: Process map, flow chart, DFG in user-facing copy (spell it out)
