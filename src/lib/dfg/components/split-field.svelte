@@ -15,7 +15,8 @@
 
 <SettingField
   icon={SplitIcon}
-  caption={available ? "Split by group" : "Split · needs 2 groups"}
+  caption="Split"
+  title={available ? "Split by group" : "Split needs 2 groups"}
   chevron={false}
   open={split}
   disabled={!available}

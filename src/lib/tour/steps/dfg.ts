@@ -1,4 +1,4 @@
-import { selected } from "$lib/dfg/state/view.svelte";
+import { tests } from "$lib/dfg/state/view.svelte";
 import type { TourStep } from "$lib/tour/types";
 
 const requestDocuments = { anchor: "dfg-node", key: "Request documents" };
@@ -17,16 +17,16 @@ export const dfgTour: TourStep[] = [
     side: "left"
   },
   {
-    target: [requestDocuments],
-    title: "Pick an activity",
-    body: "Click Request documents to see what each Group does there.",
-    side: "right",
-    until: () => selected.id !== null
+    target: [{ anchor: "dfg-tests" }],
+    title: "Where the groups differ",
+    body: "Open Tests to see every Significance Test the graph carries.",
+    side: "bottom",
+    until: () => tests.open
   },
   {
-    target: [{ anchor: "dfg-detail-panel" }],
-    title: "The activity in detail",
-    body: "How each Group reaches this activity and where it goes next, side by side.",
+    target: [{ anchor: "dfg-tests-panel" }],
+    title: "Tests by attribute",
+    body: "Each attribute says at how many activities or edges it differs. Open one to list them, and open an activity or edge to frame it on the graph.",
     side: "left"
   },
   {

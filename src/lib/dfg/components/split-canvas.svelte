@@ -3,12 +3,14 @@
    * The same graph twice, one Group to a panel. Both panels are cut by the one
    * pair of sliders in the toolbar and laid out from that whole cut, so an
    * activity sits at the same coordinates on either side, and they share one
-   * viewport, so panning or zooming either moves both.
+   * viewport, so panning or zooming either moves both. Only the left panel fits;
+   * either frames a place it draws, and the other follows through the viewport.
    */
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import type { FaceGroup } from "$lib/dfg/types";
   import { refit } from "$lib/dfg/state/view.svelte";
+  import type { LitPath } from "$lib/dfg/utils/fold";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Viewport } from "@xyflow/svelte";
@@ -17,12 +19,16 @@
     graph,
     simplified,
     groups,
-    stale
+    stale,
+    frameOn = null,
+    spotlight = null
   }: {
     graph: ResponseDfg;
     simplified: Simplified;
     groups: FaceGroup[];
     stale: boolean;
+    frameOn?: { ids: number[]; at: number } | null;
+    spotlight?: LitPath | null;
   } = $props();
 
   let viewport = $state<Viewport>({ x: 0, y: 0, zoom: 1 });
@@ -74,6 +80,8 @@
             focus={groups[0].id}
             layoutFrom={simplified}
             refitAt={refit.at}
+            {frameOn}
+            {spotlight}
             bind:viewport
             exportName="directly-follows-graph-{groups[0].name}"
           />
@@ -98,6 +106,8 @@
             focus={groups[1].id}
             layoutFrom={simplified}
             fits={false}
+            {frameOn}
+            {spotlight}
             bind:viewport
             exportName="directly-follows-graph-{groups[1].name}"
           />
