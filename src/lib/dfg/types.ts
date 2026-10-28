@@ -94,6 +94,7 @@ export interface DfgEdgeData {
   shaft: string;
   head: string;
   width: number;
+  stroke: string | null;
   waits: EdgeWait[];
   dotted: boolean;
   labelAt: Point;

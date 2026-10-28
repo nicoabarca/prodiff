@@ -20,6 +20,7 @@
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
+    edgeStroke,
     edgeWait,
     edgeWidth,
     faceCounts,
@@ -265,7 +266,13 @@
             boxes.get(edge.target) ?? null,
             view.direction
           );
-        return { edge, key, waits: edgeWait(waits.get(key), shown), route: prepareRoute(points) };
+        return {
+          edge,
+          key,
+          waits: edgeWait(waits.get(key), shown),
+          stroke: edgeStroke(edge.counts, waits.get(key), groups),
+          route: prepareRoute(points)
+        };
       });
 
     // ELK reserves each label's room beside its edge; a label is drawn on the
@@ -288,7 +295,7 @@
       simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
       view.measure
     );
-    const edges: Edge[] = drawn.map(({ edge, key, waits, route }) => {
+    const edges: Edge[] = drawn.map(({ edge, key, waits, stroke, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       const clickable = edgeInspectable(edge.source, edge.target, edge.counts);
@@ -302,6 +309,7 @@
           shaft: shape.shaft,
           head: shape.head,
           width,
+          stroke,
           waits,
           dotted: shown.length > 1,
           labelAt: settled.get(key) ?? along(route, 0.5),

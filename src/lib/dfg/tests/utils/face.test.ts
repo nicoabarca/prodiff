@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Summary } from "$lib/analysis/types";
-import { edgeWait, faceCounts, shadeValue } from "$lib/dfg/utils/face";
+import type { Test } from "$lib/analysis/types";
+import { edgeStroke, edgeWait, faceCounts, shadeValue } from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
   it("keys displayed counts by Group id", () => {
@@ -86,5 +87,40 @@ describe("edgeWait", () => {
     expect(
       edgeWait(wait({ a: mean(0), b: mean(5_000) }), groups).map((line) => line.value)
     ).toEqual(["0s", "5s"]);
+  });
+});
+
+describe("edgeStroke", () => {
+  const groups = [
+    { id: "a", name: "Day", color: "group-2" },
+    { id: "b", name: "Night", color: "group-6" }
+  ];
+  const both = { a: { cases: 3, events: 3 }, b: { cases: 2, events: 2 } };
+  const test = (effectSize: number, significant = true): Test => ({
+    test: "mannwhitney",
+    statistic: 0,
+    pValue: significant ? 0.001 : 0.4,
+    effectSize,
+    effectSigned: effectSize,
+    significant,
+    higher: "a"
+  });
+  const wait = (t: Test | null) => ({ summaries: {}, test: t });
+
+  it("takes the colour of the one Group that follows the edge", () => {
+    expect(
+      edgeStroke({ a: { cases: 0, events: 0 }, b: { cases: 2, events: 2 } }, undefined, groups)
+    ).toBe("var(--group-6)");
+  });
+
+  it("stays grey with one Group compared or no significant Waiting Time", () => {
+    expect(edgeStroke({ a: both.a }, undefined, groups.slice(0, 1))).toBeNull();
+    expect(edgeStroke(both, wait(test(0.6, false)), groups)).toBeNull();
+    expect(edgeStroke(both, undefined, groups)).toBeNull();
+  });
+
+  it("reddens with the effect of a significant Waiting Time", () => {
+    expect(edgeStroke(both, wait(test(0.05)), groups)).toContain("var(--effect-4) 25%");
+    expect(edgeStroke(both, wait(test(0.6)), groups)).toContain("var(--effect-4) 100%");
   });
 });

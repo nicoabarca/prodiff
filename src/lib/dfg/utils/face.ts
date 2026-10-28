@@ -8,6 +8,7 @@ import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
@@ -64,6 +65,27 @@ export function edgeWidth(
 export function membership(counts: Record<string, Counts>, groups: FaceGroup[]): string | null {
   const reached = groups.filter((group) => (counts[group.id]?.cases ?? 0) > 0);
   return reached.length === 1 ? reached[0].id : null;
+}
+
+/**
+ * The colour an edge is stroked in, as a CSS colour. An edge one compared
+ * Group alone follows takes that Group's colour. An edge whose Waiting Time
+ * differs significantly runs from grey to `--effect-4` in four steps of its
+ * effect, negligible to large. `null` for the default grey.
+ */
+export function edgeStroke(
+  counts: Record<string, Counts>,
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[]
+): string | null {
+  if (groups.length > 1) {
+    const owner = groups.find((group) => group.id === membership(counts, groups));
+    if (owner) return `var(--${owner.color})`;
+  }
+  const test = wait?.test;
+  if (!test?.significant) return null;
+  const share = effectStep(test.effectSize) * 25;
+  return `color-mix(in oklab, var(--effect-4) ${share}%, var(--muted-foreground))`;
 }
 
 /**
