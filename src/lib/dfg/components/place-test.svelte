@@ -4,9 +4,8 @@
    * the place, its verdict and its magnitude, and opening on both Groups'
    * figures. Clicking anywhere on the card but its chevron frames and lights
    * the place on the canvas; a click that ends a text selection does not.
-   * Each time `reveal` moves on past 0 the card opens and scrolls into view.
-   * It opens or closes as the last Collapse all or Expand all says, `fold`,
-   * when mounted and each time `fold.at` moves on.
+   * Each time `reveal` moves on past 0 the card opens and scrolls into view;
+   * each time `collapse` moves on after the card mounts, it closes.
    */
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -30,15 +29,15 @@
     finding,
     named = "place",
     reveal = 0,
-    fold = { at: 0, open: false }
+    collapse = 0
   }: {
     finding: Finding;
     named?: "place" | "attribute";
     reveal?: number;
-    fold?: { at: number; open: boolean };
+    collapse?: number;
   } = $props();
 
-  let open = $state(untrack(() => fold.open));
+  let open = $state(false);
   let card = $state<HTMLElement | null>(null);
 
   $effect(() => {
@@ -49,12 +48,12 @@
     );
   });
 
-  // A card mounted after the last fold keeps what `reveal` opened.
-  let foldedAt = untrack(() => fold.at);
+  // A card mounted after the last Collapse all keeps what `reveal` opened.
+  let collapsedAt = untrack(() => collapse);
   $effect(() => {
-    if (fold.at === foldedAt) return;
-    foldedAt = fold.at;
-    open = fold.open;
+    if (collapse === collapsedAt) return;
+    collapsedAt = collapse;
+    open = false;
   });
 
   const groups = $derived(comparedGroups());
