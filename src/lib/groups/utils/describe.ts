@@ -10,7 +10,7 @@ import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.s
 export function describeGroupFilter(filter: Filter): { title: string; detail: string } {
   const described = describeFilter(filter);
   if (filter.kind === "numeric") return { ...described, title: attributeLabel(filter.column) };
-  if (filter.kind !== "case_not_in_group") return described;
-  const excluded = groups.find((group) => group.id === filter.groupId);
-  return { ...described, detail: excluded?.name ?? "a deleted group" };
+  if (filter.kind !== "case_not_in_group" && filter.kind !== "case_in_group") return described;
+  const named = groups.find((group) => group.id === filter.groupId);
+  return { ...described, detail: named?.name ?? "a deleted group" };
 }

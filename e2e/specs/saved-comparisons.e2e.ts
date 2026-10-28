@@ -138,6 +138,30 @@ describe("saved comparisons", () => {
     await expect($("p*=removed from Event Log")).toBeDisplayed({ wait: 30_000 });
   });
 
+  it("opens the cases a contained pair removed from the outer side", async () => {
+    const chips = $$('button[aria-label*="cases removed from"]');
+    await expect(chips).toBeElementsArrayOfSize(1);
+    const chip = chips[0];
+    await expect(chip).toHaveAttribute(
+      "aria-label",
+      expect.stringMatching(/removed from Event Log$/)
+    );
+    await expect(chip).toHaveText(expect.stringMatching(/^\u2212[\d,]+$/));
+    await chip.click();
+    const card = $('[data-slot="hover-card-content"]');
+    await expect(card).toHaveText(
+      expect.stringContaining("Every Approved case is also in Event Log.")
+    );
+    await card.$("button*=View removed cases").click();
+    const table = $('[data-tour="event-data-table"]');
+    await expect(table).toHaveText(expect.stringContaining("removed cases, also in Approved"), {
+      wait: 30_000
+    });
+    await expect(table.$("tbody tr")).toBeDisplayed({ wait: 30_000 });
+    await browser.keys("Escape");
+    await expect(table).not.toBeExisting();
+  });
+
   it("says nothing extra for a disjoint pair", async () => {
     await field().click();
     await $("button*=New comparison").click();

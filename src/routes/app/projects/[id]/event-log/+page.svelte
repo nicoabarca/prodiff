@@ -3,7 +3,7 @@
   import { readersByColumn } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { allGroups, isApplied } from "$lib/groups/state/groups.svelte";
   import EventLogPage from "$lib/event-log/components/page/event-log-page.svelte";
-  import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
+  import EventDataTable from "$lib/groups/components/event-data-table.svelte";
 
   const project = $derived(currentProject());
 </script>

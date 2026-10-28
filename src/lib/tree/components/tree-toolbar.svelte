@@ -37,7 +37,7 @@
     {#if error}
       <p class="text-destructive truncate text-xs" title={error}>{error}</p>
     {:else}
-      <ComparisonNote />
+      <ComparisonNote {project} />
     {/if}
   </div>
 

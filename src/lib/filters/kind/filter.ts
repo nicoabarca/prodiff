@@ -7,6 +7,11 @@
  * copy, and its arms of the two functions below.
  */
 import {
+  describeCaseInGroup,
+  isCaseInGroupComplete,
+  type CaseInGroupFilter
+} from "$lib/filters/kind/case-in-group";
+import {
   describeCaseNotInGroup,
   isCaseNotInGroupComplete,
   type CaseNotInGroupFilter
@@ -45,7 +50,8 @@ export type Filter =
   | EndpointFilter
   | DurationFilter
   | FollowerFilter
-  | CaseNotInGroupFilter;
+  | CaseNotInGroupFilter
+  | CaseInGroupFilter;
 export type FilterKind = Filter["kind"];
 
 /** The column a filter reads, or `null` for filters not tied to one. */
@@ -72,6 +78,8 @@ export function describeFilter(filter: Filter): { title: string; detail: string 
       return describeFollower(filter);
     case "case_not_in_group":
       return describeCaseNotInGroup(filter);
+    case "case_in_group":
+      return describeCaseInGroup(filter);
   }
 }
 
@@ -92,5 +100,7 @@ export function isFilterComplete(filter: Filter): boolean {
       return isFollowerComplete(filter);
     case "case_not_in_group":
       return isCaseNotInGroupComplete(filter);
+    case "case_in_group":
+      return isCaseInGroupComplete(filter);
   }
 }

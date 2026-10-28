@@ -58,7 +58,7 @@
       })
     }))
   );
-  import GroupName from "$lib/statistics/components/group-name.svelte";
+  import GroupName from "$lib/groups/components/group-name.svelte";
 </script>
 
 <div class="bg-card flex flex-col">

@@ -175,7 +175,7 @@
         class="border-border flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2"
       >
         <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
-        <ComparisonNote />
+        <ComparisonNote {project} />
         {#if loaded.data && !stale}
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
             <!-- Colours come from the Group's own palette token as inline
