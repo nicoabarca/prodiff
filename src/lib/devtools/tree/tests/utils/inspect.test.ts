@@ -22,7 +22,6 @@ const tree: ResponseDirectedTree = {
     { id: "aB3dE5gH", caseCount: 1, caseLevel: {} }
   ],
   caseLevelTests: {},
-  overlapCases: 0,
   variantsTotal: 1,
   variantsIncluded: 1,
   caseCoverage: 1,

@@ -5,8 +5,10 @@
 //! Nothing here knows about trees, graphs or nodes. The views build their own
 //! structure and hang these types off it.
 
+pub mod reduction;
 pub mod stats;
 
+use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
 use crate::groups::storage::read_group;
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -46,7 +48,12 @@ pub struct GroupLog {
 }
 
 /// The Groups a command was asked for, read from their files, in the order asked.
-pub fn read_groups(project_dir: &Path, groups: &[String]) -> Result<Vec<GroupLog>, String> {
+/// Two Groups come back with their shared cases removed (`reduction`).
+pub fn read_groups(
+    project_dir: &Path,
+    groups: &[String],
+    columns: &[ColumnMapping],
+) -> Result<Vec<GroupLog>, String> {
     if groups.is_empty() {
         return Err("A comparison needs at least one group.".to_string());
     }
@@ -56,7 +63,7 @@ pub fn read_groups(project_dir: &Path, groups: &[String]) -> Result<Vec<GroupLog
             groups.len()
         ));
     }
-    groups
+    let logs = groups
         .iter()
         .map(|id| {
             Ok(GroupLog {
@@ -64,7 +71,11 @@ pub fn read_groups(project_dir: &Path, groups: &[String]) -> Result<Vec<GroupLog
                 df: read_group(project_dir, id)?,
             })
         })
-        .collect()
+        .collect::<Result<Vec<_>, String>>()?;
+    if logs.len() == 1 {
+        return Ok(logs);
+    }
+    reduction::reduce(logs, require_role(columns, ColumnRole::CaseId)?)
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

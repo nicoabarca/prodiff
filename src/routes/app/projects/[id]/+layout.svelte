@@ -5,6 +5,7 @@
   import { currentProject, projectsLoaded } from "$lib/event-log/state/projects.svelte";
   import { markOpened } from "$lib/event-log/state/opened.svelte";
   import { groupsLoaded, loadGroups } from "$lib/groups/state/groups.svelte";
+  import { comparison, comparisonKey, loadRelation } from "$lib/groups/state/comparison.svelte";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
   import AppSidebar from "$lib/components/layout/sidebar.svelte";
   import ProjectTopbar from "$lib/components/layout/topbar.svelte";
@@ -53,6 +54,17 @@
   // Groups are project-scoped, so they reload when the addressed project changes.
   $effect(() => {
     if (project && groupsLoaded.projectId !== project.id) loadGroups(project.id);
+  });
+
+  // Every comparison view waits on this before it builds.
+  $effect(() => {
+    if (!project || groupsLoaded.projectId !== project.id) return;
+    if (comparison.projectId !== project.id || customAttributesLoaded.projectId !== project.id) {
+      return;
+    }
+    comparisonKey();
+    const current = project;
+    untrack(() => loadRelation(current));
   });
 
   $effect(() => {

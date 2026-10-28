@@ -43,6 +43,27 @@ pub(crate) fn read_group(project_dir: &Path, group_id: &str) -> Result<DataFrame
     ParquetReader::new(file).finish().map_err(|e| e.to_string())
 }
 
+/// One column of a Group's cases, read without the rest of the file.
+pub(crate) fn read_case_column(
+    project_dir: &Path,
+    group_id: &str,
+    case_col: &str,
+) -> Result<DataFrame, String> {
+    let path = if group_id == ORIGINAL {
+        crate::event_log::storage::event_log_path(project_dir)?
+    } else {
+        group_path(project_dir, group_id)
+    };
+    if !path.exists() {
+        return Err(format!("Group {group_id} has not been applied yet."));
+    }
+    let file = fs::File::open(&path).map_err(|e| e.to_string())?;
+    ParquetReader::new(file)
+        .with_columns(Some(vec![case_col.to_string()]))
+        .finish()
+        .map_err(|e| e.to_string())
+}
+
 /// Deletes a Group's file. No-op when it was never applied.
 pub(crate) fn delete_group(project_dir: &Path, group_id: &str) -> Result<(), String> {
     let path = group_path(project_dir, group_id);

@@ -24,7 +24,6 @@ export interface ResponseDfg {
   variants: Variant[];
   transitions: Transition[];
   groups: GroupBlock[];
-  overlapCases: number;
   caseLevel: Record<string, AttributeBlock>;
 }
 

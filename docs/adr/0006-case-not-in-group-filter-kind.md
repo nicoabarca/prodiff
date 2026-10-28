@@ -1,5 +1,7 @@
 # Exclude a Group with a filter kind, not by negating its Filter List
 
+**Status:** Its overlap premise is superseded by [ADR 0019](0019-disjoint-comparisons-by-a-fixed-rule.md): a Comparison removes Shared cases itself, and no Difference Group is offered. The filter kind stands.
+
 Two Groups may overlap, and the most common comparison in the app — a Group against the whole Event Log — always does, because one side contains the other. The app reports the shared case count when a Comparison is chosen and offers to build a Group without those cases instead. This decides how that Group is built.
 
 The obvious construction is to negate the other Group's Filter List: if A is `premium = gold`, offer `premium ≠ gold`. It works for exactly one filter and breaks at two. A Filter List is an AND pipeline, so `[premium = gold, region = north]` means *gold AND north*, whose complement is *not-gold OR not-north* — and there is no OR anywhere in the filter model. The negated list `[premium ≠ gold, region ≠ north]` is a different and strictly smaller set, silently dropping every gold-but-south case with no error to notice. The `keep_selected`/`trim` modes have no complement to write down at all: they cut events out of surviving traces rather than selecting cases, so "the cases this did not select" is not a predicate over columns.

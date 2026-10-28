@@ -1,5 +1,7 @@
 # Saved Comparisons sit beside the Comparison, and "in use" is derived
 
+**Status:** Amended by [ADR 0019](0019-disjoint-comparisons-by-a-fixed-rule.md): no Difference Group writes `comparisons` any more.
+
 Switching what the tree and the DFG compare meant opening a modal and picking both Groups again, every time. A project with four Groups has a handful of pairs worth looking at, and the reader moves between them constantly. The Compare field now opens a popover with those pairs kept in a list on the left and an editor over the selected one on the right, so a pair is chosen once and reached in one click afterwards.
 
 **The `comparisons` table stays the only thing the views read.** A Saved Comparison is a row in a new `saved_comparisons` table: an id, the project, an ordered list of one or two Group ids, and a creation time that orders the list. `comparedGroups()` and `comparedIds()` are unchanged and never look at it. Comparing a Saved Comparison copies its ids into `comparisons` through `saveComparison`, the same write the modal made.

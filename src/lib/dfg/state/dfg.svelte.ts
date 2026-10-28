@@ -3,7 +3,7 @@ import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { dfgKey, GRAPH_ATTRIBUTES } from "$lib/dfg/types";
 import { attributeOptions } from "$lib/analysis/attributes";
 import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { comparedIds, comparisonKey, relationReady } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/dfg/state/view.svelte";
 import {
   loadVariants,
@@ -44,7 +44,11 @@ export function selectedAttributes(project: Project): string[] {
 
 /** The key the graph on screen would need to match to still be current. */
 export function currentKey(project: Project): string {
-  return dfgKey(comparedIds(), selectedAttributes(project), variantSettings.value.selectedVariants);
+  return dfgKey(
+    comparisonKey(),
+    selectedAttributes(project),
+    variantSettings.value.selectedVariants
+  );
 }
 
 export function isStale(project: Project | null): boolean {
@@ -58,6 +62,7 @@ export function isStale(project: Project | null): boolean {
  * the Variants the panel shows as applied.
  */
 export async function load(project: Project, force = false) {
+  if (!relationReady()) return;
   if (
     built.building ||
     (!force && built.projectId === project.id && built.key === currentKey(project))
@@ -72,7 +77,7 @@ export async function load(project: Project, force = false) {
     await loadVariants(project);
     const attributes = selectedAttributes(project);
     const variants = variantSettings.value.selectedVariants;
-    const key = dfgKey(comparedIds(), attributes, variants);
+    const key = dfgKey(comparisonKey(), attributes, variants);
     built.graph = await dfg(project, comparedIds(), attributes, variants);
     built.projectId = project.id;
     built.key = key;
