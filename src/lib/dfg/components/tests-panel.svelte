@@ -88,7 +88,10 @@
     });
   });
 
-  /** The last Collapse all or Expand all: `at` moves on each time, `open` is which one it was. */
+  /**
+   * The last Collapse all or Expand all, `open` saying which. Either one
+   * closes every card: `at` moves on each time.
+   */
   let fold = $state({ at: 0, open: false });
   const expanding = $derived(fold.at > 0 && !fold.open);
 
@@ -184,7 +187,7 @@
   {:else if activity}
     <ScrollArea.Root class="min-h-0 flex-1">
       {#each differences as finding (finding.key)}
-        <PlaceTest {finding} named="attribute" {fold} />
+        <PlaceTest {finding} named="attribute" collapse={fold.at} />
       {:else}
         <p class="text-muted-foreground px-4 py-3 text-xs">
           No attribute differs significantly at {activity.label}.
@@ -243,7 +246,7 @@
               <PlaceTest
                 {finding}
                 reveal={finding.key === edgeFinding?.key ? inspected.at : 0}
-                {fold}
+                collapse={fold.at}
               />
             {:else}
               <p class="text-muted-foreground border-border border-t px-6 py-2.5 text-[0.6875rem]">
