@@ -10,7 +10,6 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import { formatNumber } from "$lib/format";
   import type { AttributeBlock, Summary } from "$lib/analysis/types";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
@@ -19,17 +18,14 @@
   import { cn } from "$lib/utils";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import Info from "@lucide/svelte/icons/info";
-  import TriangleAlert from "@lucide/svelte/icons/triangle-alert";
 
   let {
     caseLevel,
     groupIds,
-    overlapCases = 0,
     cappedByCeiling = false
   }: {
     caseLevel: Record<string, AttributeBlock>;
     groupIds: string[];
-    overlapCases?: number;
     cappedByCeiling?: boolean;
   } = $props();
 
@@ -61,7 +57,7 @@
 
   let expanded = $state(true);
 
-  const hasContent = $derived(overlapCases > 0 || cappedByCeiling || attributes.length > 0);
+  const hasContent = $derived(cappedByCeiling || attributes.length > 0);
 </script>
 
 {#if hasContent}
@@ -171,23 +167,6 @@
           <Tooltip.Content class="max-w-64 text-[0.6875rem]">
             The log has more Variants than a build ships. The rarest ones are not in this tree at
             all, whatever the slider says.
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
-    {/if}
-
-    {#if overlapCases > 0}
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Badge variant="destructive" class="h-6 cursor-help">
-              <TriangleAlert data-icon="inline-start" />
-              {formatNumber(overlapCases)} shared cases
-            </Badge>
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-64 text-[0.6875rem]">
-            {formatNumber(overlapCases)} cases are in both groups. Both Significance Tests assume
-            the two groups are independent samples. Overlapping cases make every p-value on screen optimistic.
           </Tooltip.Content>
         </Tooltip.Root>
       </Tooltip.Provider>

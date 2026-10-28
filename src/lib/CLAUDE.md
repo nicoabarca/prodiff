@@ -12,7 +12,9 @@ Paths below are relative to `src/lib/`.
 
 The Original is not a row: it is the whole Event Log, synthesized by `originalGroup()`, answering to the id `original` everywhere including in Rust.
 
-**Which Groups are compared** is the compare modal's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. `groups` is ordered and holds one or two ids; `comparedIds()` falls back to `original`, which is the tree the user opens on. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the views degrade to the Original, which is also what a project with no Groups opens on. The modal reports the shared case count at selection time and offers to build a Difference Group instead of removing the overlap.
+**Which Groups are compared** is the Compare popover's decision, persisted per project in the `comparisons` table and read through `comparedGroups()` / `comparedIds()`. `groups` is ordered and holds one or two ids; `comparedIds()` falls back to `original`, which is the tree the user opens on. A selection naming a Group that has since been deleted or un-applied falls away rather than failing the build, so the views degrade to the Original, which is also what a project with no Groups opens on.
+
+**No case is counted on both sides** (see `docs/adr/0019`). Rust removes shared cases when it reads two Groups; the frontend never filters anything. `comparisonKey()` is what is compared down to each Parquet: a Group's in-memory `revision` moves on every Apply and never on a rename. The project layout loads `relation` (`comparison_relation`) whenever that key changes, and every comparison view's build waits on `relationReady()`. A refused pair (`relationRefused()`) renders `comparison-refused.svelte` in place of the canvas; `comparison-note.svelte` is the always-visible sentence saying what was removed; `checkAfterApply` warns after an Apply in Group Filters.
 
 ## filters
 

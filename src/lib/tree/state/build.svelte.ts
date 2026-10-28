@@ -1,6 +1,11 @@
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-import { comparedGroups, comparison } from "$lib/groups/state/comparison.svelte";
+import {
+  comparedGroups,
+  comparison,
+  comparisonKey,
+  relationReady
+} from "$lib/groups/state/comparison.svelte";
 import { groupsLoaded } from "$lib/groups/state/groups.svelte";
 import {
   resetBuildView,
@@ -10,7 +15,7 @@ import {
 } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 import type { TreeSettings } from "$lib/tree/types";
-import { groupKey, treeKey, treeKeyFromGroupKeys } from "$lib/tree/utils/settings";
+import { treeKey } from "$lib/tree/utils/settings";
 import { sameSelection } from "$lib/tree/utils/variants";
 
 export const built = $state<{
@@ -23,7 +28,7 @@ export const built = $state<{
 
 interface BuildRequest {
   key: string;
-  groupKeys: string[];
+  comparisonKey: string;
   groupIds: string[];
   settings: TreeSettings;
 }
@@ -39,17 +44,17 @@ function snapshot(): BuildRequest {
     selectedVariants: [...value.selectedVariants],
     attributesChosen: value.attributesChosen
   };
-  const groupKeys = groups.map(groupKey);
+  const compared = comparisonKey();
   return {
-    key: treeKeyFromGroupKeys(groupKeys, buildSettings),
-    groupKeys,
+    key: treeKey(compared, buildSettings),
+    comparisonKey: compared,
     groupIds: groups.map((group) => group.id),
     settings: buildSettings
   };
 }
 
 function matchesCurrentKey(key: string): boolean {
-  return treeKey(comparedGroups(), settings.value) === key;
+  return treeKey(comparisonKey(), settings.value) === key;
 }
 
 function includedVariants(tree: ResponseDirectedTree, request: BuildRequest): TreeSettings {
@@ -62,7 +67,7 @@ function includedVariants(tree: ResponseDirectedTree, request: BuildRequest): Tr
 }
 
 export function isStale(): boolean {
-  return built.tree !== null && built.key !== treeKey(comparedGroups(), settings.value);
+  return built.tree !== null && built.key !== treeKey(comparisonKey(), settings.value);
 }
 
 export async function build(project: Project) {
@@ -77,7 +82,7 @@ export async function build(project: Project) {
     if (mine !== generation || !matchesCurrentKey(request.key)) return;
 
     const adoptedSettings = includedVariants(tree, request);
-    const adoptedKey = treeKeyFromGroupKeys(request.groupKeys, adoptedSettings);
+    const adoptedKey = treeKey(request.comparisonKey, adoptedSettings);
     if (!sameSelection(adoptedSettings.selectedVariants, request.settings.selectedVariants)) {
       await saveSettings(project.id, adoptedSettings);
     }
@@ -105,7 +110,8 @@ export function inputsReady(projectId: string): boolean {
   return (
     groupsLoaded.projectId === projectId &&
     settings.projectId === projectId &&
-    comparison.projectId === projectId
+    comparison.projectId === projectId &&
+    relationReady()
   );
 }
 
@@ -117,7 +123,7 @@ export function inputsReady(projectId: string): boolean {
 export function autoBuild(project: Project) {
   if (built.building || !inputsReady(project.id)) return;
   if (!settings.value.attributesChosen) return;
-  const key = treeKey(comparedGroups(), settings.value);
+  const key = treeKey(comparisonKey(), settings.value);
   if (built.key === key || failedKey === key) return;
   void build(project);
 }

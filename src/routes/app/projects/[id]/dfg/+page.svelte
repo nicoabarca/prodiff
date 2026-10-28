@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ComparisonRefused from "$lib/groups/components/comparison-refused.svelte";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
@@ -16,7 +17,12 @@
   import { simplify } from "$lib/dfg/utils/simplify";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { comparedGroups, comparison, loadComparison } from "$lib/groups/state/comparison.svelte";
+  import {
+    comparedGroups,
+    comparison,
+    loadComparison,
+    relationRefused
+  } from "$lib/groups/state/comparison.svelte";
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Waypoints from "@lucide/svelte/icons/waypoints";
@@ -78,14 +84,16 @@
       bind:comparing
     />
 
-    {#if built.graph}
+    {#if built.graph && !relationRefused()}
       <CaseStrip
         caseLevel={built.graph.caseLevel}
         groupIds={built.graph.groups.map((group) => group.id)}
       />
     {/if}
 
-    {#if built.graph && simplified}
+    {#if relationRefused()}
+      <ComparisonRefused {project} />
+    {:else if built.graph && simplified}
       <div class="flex min-h-0 flex-1">
         {#if variantsOpen}
           <VariantPanel {project} {simplified} onClose={() => (variantsOpen = false)} />

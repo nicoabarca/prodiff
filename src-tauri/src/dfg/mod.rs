@@ -76,7 +76,6 @@ pub struct Dfg {
     pub transitions: Vec<Transition>,
     pub groups: Vec<GroupBlock>,
     pub comparing: bool,
-    pub overlap_cases: i64,
     pub transition_time_basis: &'static str,
     pub has_activity_duration: bool,
     pub case_level: HashMap<String, AttributeBlock>,
@@ -124,7 +123,6 @@ pub fn build(
             })
             .collect(),
         comparing: ids.len() > 1,
-        overlap_cases: aggregates.overlap_cases,
         transition_time_basis: if has_start {
             "startComplete"
         } else {
@@ -716,15 +714,6 @@ mod tests {
         let block = &node(&dfg, "A").attributes["cost"];
         assert_eq!(block.summaries.len(), 2);
         assert!(block.test.is_none());
-    }
-
-    #[test]
-    fn overlapping_groups_are_counted_rather_than_rejected() {
-        let a = log(&[("1", &[("A", 0, 10)]), ("2", &[("A", 0, 10)])]);
-        let b = log(&[("2", &[("A", 0, 90)]), ("3", &[("A", 0, 90)])]);
-        let dfg = dfg_with(&a, Some(&b), &[], false);
-
-        assert_eq!(dfg.overlap_cases, 1);
     }
 
     #[test]

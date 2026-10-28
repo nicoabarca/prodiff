@@ -36,7 +36,6 @@ const graph = {
     { source: 3, target: 4, wait: block(test(0.7, 0.001)) }
   ],
   groups: [{ id: "a" }, { id: "b" }],
-  overlapCases: 0,
   caseLevel: {}
 } as ResponseDfg;
 

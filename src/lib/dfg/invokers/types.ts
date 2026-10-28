@@ -11,16 +11,13 @@
 import type { AttributeBlock } from "$lib/analysis/types";
 
 export type RequestDfgAttribute =
-  | { kind: "column"; name: string }
-  | { kind: "activityDuration" }
-  | { kind: "transitionTime" };
+  { kind: "column"; name: string } | { kind: "activityDuration" } | { kind: "transitionTime" };
 
 export interface ResponseDfg {
   nodes: DfgNode[];
   variants: Variant[];
   transitions: Transition[];
   groups: GroupBlock[];
-  overlapCases: number;
   caseLevel: Record<string, AttributeBlock>;
 }
 
