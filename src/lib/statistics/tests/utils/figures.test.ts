@@ -4,10 +4,29 @@ vi.mock("$lib/custom-attributes/state/custom-attributes.svelte", () => ({
   attributeLabel: (name: string) => name
 }));
 
+import type { ResponseEventLogStats } from "$lib/groups/invokers/types";
 import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
 import { activityFigures, biggestDifferences, valueShares } from "$lib/statistics/utils/figures";
 
 const ids = ["a", "b"];
+
+function stats(cases: number): ResponseEventLogStats {
+  return {
+    events: cases,
+    cases,
+    activities: 2,
+    variants: 2,
+    avgEventsPerCase: 1,
+    avgCaseDurationMs: null,
+    medianCaseDurationMs: null,
+    minCaseDurationMs: null,
+    maxCaseDurationMs: null,
+    startActivities: 2,
+    endActivities: 2,
+    timespanStart: null,
+    timespanEnd: null
+  };
+}
 
 function comparison(): ResponseGroupComparison {
   return {
@@ -19,7 +38,8 @@ function comparison(): ResponseGroupComparison {
         durationP10: null,
         durationP90: null,
         startActivities: {},
-        endActivities: {}
+        endActivities: {},
+        stats: stats(10)
       },
       {
         id: "b",
@@ -28,7 +48,8 @@ function comparison(): ResponseGroupComparison {
         durationP10: null,
         durationP90: null,
         startActivities: {},
-        endActivities: {}
+        endActivities: {},
+        stats: stats(4)
       }
     ],
     durationTest: null,

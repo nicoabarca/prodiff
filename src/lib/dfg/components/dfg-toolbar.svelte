@@ -3,6 +3,7 @@
    * The graph's settings as a row of fields: what is compared, which Variants,
    * which attributes are tested, whether it is split, and how it is drawn.
    */
+  import ComparisonNote from "$lib/groups/components/comparison-note.svelte";
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
@@ -12,7 +13,6 @@
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import { formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
 
   let {
@@ -42,7 +42,11 @@
 
 <div class="border-border bg-background flex shrink-0 flex-nowrap items-stretch border-b">
   <CompareField {project} bind:open={comparing} />
-  <VariantSummary {simplified} open={variantsOpen} onToggle={() => (variantsOpen = !variantsOpen)} />
+  <VariantSummary
+    {simplified}
+    open={variantsOpen}
+    onToggle={() => (variantsOpen = !variantsOpen)}
+  />
   <BuildSettings {project} bind:open={buildSettingsOpen} />
   <SplitField groupCount={groups.length} />
 
@@ -51,11 +55,8 @@
       <p class="text-destructive truncate text-xs" title={error}>{error}</p>
     {:else if stale && building}
       <p class="text-muted-foreground text-xs">Rebuilding…</p>
-    {/if}
-    {#if graph && graph.overlapCases > 0}
-      <p class="text-muted-foreground truncate text-xs">
-        {formatNumber(graph.overlapCases)} cases in both groups
-      </p>
+    {:else}
+      <ComparisonNote />
     {/if}
     {#if graph?.skippedCaseLevel.length}
       <p class="text-muted-foreground truncate text-xs">

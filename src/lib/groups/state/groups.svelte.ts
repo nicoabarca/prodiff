@@ -8,7 +8,6 @@ import { appliedGroups } from "$lib/groups/invokers/applied-groups";
 import { applyGroup as applyGroupFile } from "$lib/groups/invokers/apply-group";
 import { deleteGroupFile } from "$lib/groups/invokers/delete-group-file";
 import { filtersImpact } from "$lib/groups/invokers/filters-impact";
-import { fetchSharedCases } from "$lib/groups/invokers/shared-cases";
 import { groupStats } from "$lib/groups/invokers/group-stats";
 import type { ResponseEventLogStats, ResponseFilterStep } from "$lib/groups/invokers/types";
 import { defaultColor, ORIGINAL_COLOR } from "$lib/groups/colors";
@@ -119,10 +118,21 @@ async function patch(id: string, changes: Partial<Group>) {
   if (group) Object.assign(group, changes);
 }
 
+/**
+ * How many times each Group's Parquet has been written while the app is open.
+ * The comparison views key on it, so a rename or a recolour never rebuilds them.
+ */
+export const revisions = $state<Record<string, number>>({});
+
+export function revisionOf(id: string): number {
+  return revisions[id] ?? 0;
+}
+
 /** Writes a Group's Parquet and stores the figures that pass returned. */
 export async function applyGroup(project: Project, group: Group, filters: Filter[]) {
   if (filters.length === 0) throw new Error("A group needs at least one filter.");
   const stats = await applyGroupFile(project, group.id, filters);
+  revisions[group.id] = revisionOf(group.id) + 1;
   await patch(group.id, { filters, stats });
 }
 
@@ -258,30 +268,6 @@ export function groupCases(group: Group, filters = group.filters): number | null
 export function groupEvents(group: Group, filters = group.filters): number | null {
   const steps = groupSteps(group, filters);
   return steps ? (steps[steps.length - 1]?.events ?? null) : null;
-}
-
-/** Cases in every Group at once, keyed by the set and by what each one holds. */
-const sharedCasesCache = $state<Record<string, number>>({});
-
-function sharedCasesKey(entries: Group[]): string {
-  return entries.map((group) => `${group.id}:${filtersKey(group.filters)}`).join("|");
-}
-
-/** Unapplied Groups have no Parquet to intersect, so there is nothing to ask. */
-export async function loadSharedCases(project: Project, entries: Group[]) {
-  if (entries.length < 2 || !entries.every(isApplied)) return;
-  const key = sharedCasesKey(entries);
-  if (key in sharedCasesCache) return;
-  sharedCasesCache[key] = await fetchSharedCases(
-    project,
-    entries.map((group) => group.id)
-  );
-}
-
-/** Cases shared by every Group, or null while unmeasured. */
-export function sharedCases(entries: Group[]): number | null {
-  const key = sharedCasesKey(entries);
-  return key in sharedCasesCache ? sharedCasesCache[key] : null;
 }
 
 /** Statistics per Group id, in one round trip. Unapplied Groups are skipped. */

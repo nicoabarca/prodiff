@@ -643,14 +643,14 @@ mod tests {
         let df = cast_to_declared(df, &mapping("amount", "float")).unwrap();
         let amounts = df.column("amount").unwrap().f64().unwrap().clone();
         assert_eq!(
-            amounts.into_iter().collect::<Vec<_>>(),
+            amounts.iter().collect::<Vec<_>>(),
             [Some(1234.56), Some(12000.0), Some(7.5)]
         );
 
         let df = text_column("count", &["1,234", "56"]);
         let df = cast_to_declared(df, &mapping("count", "integer")).unwrap();
         let counts = df.column("count").unwrap().i64().unwrap().clone();
-        assert_eq!(counts.into_iter().collect::<Vec<_>>(), [Some(1234), Some(56)]);
+        assert_eq!(counts.iter().collect::<Vec<_>>(), [Some(1234), Some(56)]);
     }
 
     #[test]

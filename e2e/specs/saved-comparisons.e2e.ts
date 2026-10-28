@@ -6,6 +6,37 @@ const popover = () => $('[data-slot="popover-content"]');
 const rows = () => $$('[data-slot="popover-content"] button[aria-current]');
 const edits = () => $$('[data-slot="popover-content"] button[aria-label="Edit comparison"]');
 
+/** Picks a Group in one of the editor's two selects, with the keyboard. */
+async function pick(side: 0 | 1, name: string) {
+  await browser.execute((index) => {
+    document
+      .querySelectorAll<HTMLElement>('[data-slot="popover-content"] [data-slot="select-trigger"]')
+      [index].focus();
+  }, side);
+  await browser.keys("Enter");
+  await expect($('[data-slot="select-content"]')).toBeDisplayed();
+  const items = await browser.execute(() =>
+    [...document.querySelectorAll('[data-slot="select-item"]')].map(
+      (item) => item.textContent?.replace(/\s+/g, " ").trim() ?? ""
+    )
+  );
+  const position = items.findIndex((text) => text.includes(name));
+  if (position < 0) throw new Error(`No "${name}" in the select: ${items.join(" | ")}`);
+  for (let i = 0; i < items.length; i++) await browser.keys("ArrowUp");
+  for (let i = 0; i < position; i++) await browser.keys("ArrowDown");
+  await browser.keys("Enter");
+  await expect($('[data-slot="select-content"]')).not.toBeExisting();
+}
+
+/** Clicks the editor's primary button, whichever label it carries. */
+async function confirm() {
+  for (const label of ["Save & compare", "Compare", "Comparing"]) {
+    const button = $(`button=${label}`);
+    if (await button.isExisting()) return button.click();
+  }
+  throw new Error("No primary button in the comparison editor");
+}
+
 describe("saved comparisons", () => {
   before(async () => {
     await $("button*=sample").click();
@@ -91,6 +122,33 @@ describe("saved comparisons", () => {
     await browser.keys("Escape");
     await expect(popover()).not.toBeExisting();
     await expect(field()).toHaveText(expect.stringContaining("Compare groups"));
+  });
+
+  it("says what a contained pair removes before and after comparing", async () => {
+    await field().click();
+    await $("button*=New comparison").click();
+    await pick(0, "Event Log");
+    await pick(1, "Approved");
+    await expect(popover()).toHaveText(
+      expect.stringContaining("Every Approved case is also in Event Log."),
+      { wait: 30_000 }
+    );
+    await confirm();
+    await expect(popover()).not.toBeExisting();
+    await expect($("p*=removed from Event Log")).toBeDisplayed({ wait: 30_000 });
+  });
+
+  it("says nothing extra for a disjoint pair", async () => {
+    await field().click();
+    await $("button*=New comparison").click();
+    await pick(1, "Rejected");
+    await pick(0, "Approved");
+    await expect(popover()).toHaveText(expect.stringContaining("Groups don't share common cases"), {
+      wait: 30_000
+    });
+    await confirm();
+    await expect(popover()).not.toBeExisting();
+    await expect($("p*=removed from")).not.toBeExisting();
   });
 
   after(async () => {

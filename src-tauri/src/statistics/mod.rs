@@ -57,6 +57,7 @@ pub struct GroupFigures {
     pub duration_p90: Option<f64>,
     pub start_activities: HashMap<String, i64>,
     pub end_activities: HashMap<String, i64>,
+    pub stats: crate::stats::EventLogStats,
 }
 
 /// One activity across the Groups. `cases` counts the cases touching it at
@@ -248,6 +249,7 @@ fn pass(
             duration_p90: (!sorted.is_empty()).then(|| quantile(&sorted, 0.9)),
             start_activities: starts,
             end_activities: ends,
+            stats: crate::stats::summarize(&log.df, mapping)?,
         },
         durations,
         activities: per_activity,

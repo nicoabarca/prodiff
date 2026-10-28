@@ -50,3 +50,6 @@ export interface Test {
   significant: boolean;
   higher: string | null;
 }
+
+/** Mirrors `MIN_GROUP_CASES` in `src-tauri/src/analysis/mod.rs`: neither test says anything below it. */
+export const MIN_GROUP_CASES = 5;

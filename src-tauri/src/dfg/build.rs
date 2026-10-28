@@ -21,7 +21,6 @@ const EVENTS: &str = "__dfg_events";
 const CASES: &str = "__dfg_cases";
 const VALUE: &str = "__dfg_value";
 const SEQUENCE: &str = "__dfg_sequence";
-const GROUPS_PER_CASE: &str = "__dfg_groups_per_case";
 
 pub(super) struct EventAttr {
     pub name: String,
@@ -47,7 +46,6 @@ pub(super) struct Aggregates {
     pub variants: Vec<VariantAgg>,
     pub transitions: Transitions,
     pub case_counts: HashMap<String, i64>,
-    pub overlap_cases: i64,
     pub attributes: Vec<EventAttr>,
     pub skipped_case_level: Vec<String>,
 }
@@ -208,7 +206,6 @@ pub(super) fn aggregate(
             HashMap::new()
         },
         case_counts: case_counts(&lf)?,
-        overlap_cases: overlap(&lf)?,
         attributes,
         skipped_case_level,
     })
@@ -398,22 +395,6 @@ fn case_counts(lf: &LazyFrame) -> Result<HashMap<String, i64>, String> {
     let groups = strings(&df, GROUP)?;
     let cases = ints(&df, CASES)?;
     Ok(groups.into_iter().zip(cases).collect())
-}
-
-fn overlap(lf: &LazyFrame) -> Result<i64, String> {
-    let df = lf
-        .clone()
-        .group_by([col(CASE)])
-        .agg([col(GROUP)
-            .n_unique()
-            .cast(DataType::Int64)
-            .alias(GROUPS_PER_CASE)])
-        .filter(col(GROUPS_PER_CASE).gt(lit(1i64)))
-        .select([len().cast(DataType::Int64).alias(CASES)])
-        .collect()
-        .map_err(|e| e.to_string())?;
-
-    Ok(ints(&df, CASES)?.first().copied().unwrap_or(0))
 }
 
 fn strings(df: &DataFrame, name: &str) -> Result<Vec<String>, String> {

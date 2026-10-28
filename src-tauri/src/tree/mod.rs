@@ -64,7 +64,6 @@ pub struct DirectedTree {
     pub nodes: Vec<TreeNode>,
     pub groups: Vec<GroupBlock>,
     pub case_level_tests: HashMap<String, Test>,
-    pub overlap_cases: i64,
     pub variants_total: usize,
     pub variants_included: usize,
     pub case_coverage: f64,
@@ -604,7 +603,6 @@ pub fn build(
         nodes: out_nodes,
         groups: group_blocks,
         case_level_tests,
-        overlap_cases: overlap(&groups),
         variants_total,
         variants_included: included.len(),
         case_coverage,
@@ -645,14 +643,6 @@ fn read_logs(
         .collect::<Result<Vec<_>, String>>()?
         .into_iter();
     Ok([read.next(), read.next()])
-}
-
-fn overlap(groups: &[Option<GroupRows>; 2]) -> i64 {
-    let (Some(a), Some(b)) = (&groups[0], &groups[1]) else {
-        return 0;
-    };
-    let ids: std::collections::HashSet<&String> = a.case_ids.iter().collect();
-    b.case_ids.iter().filter(|id| ids.contains(id)).count() as i64
 }
 
 /// Case-level attributes aggregate per Group, not per node: one value per case,
@@ -1133,13 +1123,6 @@ mod tests {
         assert_eq!(test.higher.as_deref(), Some("b"));
         assert!(test.effect_signed.unwrap() < 0.0);
         assert!(test.significant, "10 vs 90 with n=8 each is a real gap");
-    }
-
-    #[test]
-    fn overlapping_groups_are_counted_rather_than_rejected() {
-        let df = log(&[("1", &["A"], &[10]), ("2", &["A"], &[20])]);
-        let tree = build_with(&df, Some(&df), &[]);
-        assert_eq!(tree.overlap_cases, 2);
     }
 
     #[test]

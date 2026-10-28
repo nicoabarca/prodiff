@@ -1,4 +1,4 @@
-import { comparedIds } from "$lib/groups/state/comparison.svelte";
+import { comparedIds, comparisonKey, relationReady } from "$lib/groups/state/comparison.svelte";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 import { DEFAULT_COVERAGE } from "$lib/tree/types";
@@ -50,7 +50,7 @@ export function createVariantSelection(options: VariantSelectionOptions) {
 
   /** The Groups the Variant list would have to be built from to still be current. */
   function variantsKey(): string {
-    return comparedIds().join("|");
+    return comparisonKey();
   }
 
   function selectedVariants(): Set<string> {
@@ -67,6 +67,7 @@ export function createVariantSelection(options: VariantSelectionOptions) {
    */
   async function loadVariants(project: Project, force = false) {
     const key = variantsKey();
+    if (!relationReady()) return;
     if (variants.loading || (!force && variants.key === key)) return;
 
     variants.loading = true;
