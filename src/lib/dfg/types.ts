@@ -52,8 +52,12 @@ export const defaultDfgSettings: DfgSettings = { selectedVariants: [] };
  * Identifies the numbers a build produces, for the in-memory cache. Nothing
  * from `DfgView` belongs here: the view never reaches the backend.
  */
-export function dfgKey(groups: string[], attributes: string[], selectedVariants: string[]): string {
-  return JSON.stringify([groups, [...attributes].sort(), [...selectedVariants].sort()]);
+export function dfgKey(
+  comparisonKey: string,
+  attributes: string[],
+  selectedVariants: string[]
+): string {
+  return JSON.stringify([comparisonKey, [...attributes].sort(), [...selectedVariants].sort()]);
 }
 
 /** One Group as the canvas needs it: what to call it and what colour to use. */

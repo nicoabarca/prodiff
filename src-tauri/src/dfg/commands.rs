@@ -15,7 +15,7 @@ pub async fn dfg(
 ) -> Result<Dfg, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
-        let logs = read_groups(&dir, &groups)?;
+        let logs = read_groups(&dir, &groups, &columns)?;
         build(&logs, &columns, &attributes, variants.as_deref())
     })
     .await

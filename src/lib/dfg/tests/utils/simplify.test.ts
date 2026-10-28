@@ -53,7 +53,6 @@ function graphOf(variants: [number[], Record<string, number>][]): ResponseDfg {
     variants: built,
     transitions: [],
     groups,
-    overlapCases: 0,
     skippedCaseLevel: []
   };
 }

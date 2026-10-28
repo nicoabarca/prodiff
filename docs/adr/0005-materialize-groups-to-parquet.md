@@ -1,5 +1,7 @@
 # Materialize Groups to Parquet, with the Filter List still the source of truth
 
+**Status:** Amended by [ADR 0019](0019-disjoint-comparisons-by-a-fixed-rule.md): the comparison commands read each Group's Parquet with the Shared cases removed.
+
 A Slice used to be a filter chain and nothing else: a row in `slices` holding `Filter[]`, plus an optional `base` chain silently prepended to every other. Nothing was stored for it, so every view re-read `event_log.parquet` and re-ran the whole chain — the tree, the distributions, the statistics table and the per-step impact funnel, each on its own. A Slice existed only as a recipe, and the cost of that recipe was paid again on every render that needed it.
 
 Groups replace Slices, and applying a Group's Filter List now writes `{app_data}/projects/{project_id}/groups/{group_id}.parquet`. Downstream commands take Group ids and read those files; they no longer receive filter chains at all. The Filter List stays the source of truth — the Parquet is its product, and is never edited, never treated as an independent object, and never the thing a Filter List is recovered from.

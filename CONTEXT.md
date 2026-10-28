@@ -60,16 +60,23 @@ The Group of the whole, unfiltered Event Log — the one Group with an empty Fil
 _Avoid_: Raw, base, unfiltered log
 
 **Comparison**:
-Two or more Groups selected to be measured against each other. Groups may overlap: a case belonging to both sides is counted on both, and the count of such cases is reported when the Comparison is chosen so the reader knows the sides are not independent. A Comparison of one Group is a description rather than a comparison, and carries no Significance Test. The model admits N Groups; a given release may cap what the interface offers.
+Two Groups selected to be measured against each other. No case is counted on both sides: when the Groups share cases, the Shared cases are removed by a fixed rule (both Groups lose them in a partial overlap; the outer Group loses them when one Group contains the other), and identical Groups cannot be compared. A Comparison of one Group is a description rather than a comparison, and carries no Significance Test.
 _Avoid_: A/B, versus
 
 **Saved Comparison**:
-A Comparison a Project keeps so it can be compared again in one click. It is an ordered list of one or two Groups and nothing else: it has no name of its own and reads as its Groups' names. The one whose Groups are the ones being compared is in use; that is read off the Comparison, never stored. Deleting a Saved Comparison changes nothing about what is compared, and deleting a Group deletes every Saved Comparison naming it.
+A Comparison a Project keeps so it can be compared again in one click. It is an ordered list of one or two Groups and nothing else: it has no name of its own and reads as its Groups' names. The one whose Groups are the ones being compared is in use; that is read off the Comparison, never stored. Deleting a Saved Comparison changes nothing about what is compared, and deleting a Group deletes every Saved Comparison naming it. A Saved Comparison whose Groups have become identical cannot be compared.
 _Avoid_: Preset, favourite, bookmark
 
 **Difference Group**:
-A Group created from another Group's Filter List plus one Filter excluding the cases of a second Group, so the two no longer overlap. Offered when a Comparison reports shared cases. It is an ordinary Group once created, and depends on the Group it excludes: deleting that one deletes this one too.
-_Avoid_: Complement, exclusive group, negation
+Retired. Groups created this way before Comparisons removed Shared cases on their own are ordinary Groups.
+
+**Shared cases**:
+The cases whose case ID is in both Groups of a Comparison.
+_Avoid_: Overlap cases, common cases
+
+**Reduced side**:
+A Group as a Comparison reads it, with the Shared cases removed. The Group itself, its Filter List and its Parquet are unchanged.
+_Avoid_: Complement, subset, trimmed Group
 
 **Distribution**:
 The counts of one attribute's values over a chosen set of a node's events, split by Group — one bar per value for a categorical attribute, one bar per bin for a numeric one. A Distribution describes a shape; it never compares two Groups the way a Significance Test does, so it carries no p-value and no Effect Direction.

@@ -27,3 +27,17 @@ export interface ResponsePreviewTable {
   rows: string[][];
   totalEvents: number;
 }
+
+/**
+ * How two compared Groups relate and what the rule removes from each. Mirrors
+ * `RelationSummary` in `src-tauri/src/analysis/reduction.rs`; every map is keyed
+ * by Group id, and `inner` names the contained Group.
+ */
+export interface ResponseRelation {
+  status: "ok" | "identical" | "empty";
+  relation: "disjoint" | "partial" | "contained" | "identical" | null;
+  inner: string | null;
+  cases: Record<string, number>;
+  kept: Record<string, number>;
+  removed: Record<string, number>;
+}

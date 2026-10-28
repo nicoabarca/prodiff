@@ -25,7 +25,6 @@ function treeOf(nodes: TreeNode[]): ResponseDirectedTree {
     nodes,
     groups: [],
     caseLevelTests: {},
-    overlapCases: 0,
     variantsTotal: 0,
     variantsIncluded: 0,
     caseCoverage: 0,
