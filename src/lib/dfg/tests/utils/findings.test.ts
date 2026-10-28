@@ -2,7 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
 import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
-import { byAttribute, graphFindings, rank } from "$lib/dfg/utils/findings";
+import {
+  activityDifferences,
+  byAttribute,
+  graphFindings,
+  nodeDifferences,
+  rank
+} from "$lib/dfg/utils/findings";
 
 const test = (effectSize: number, pValue: number, significant = true): Test => ({
   test: "mannwhitney",
@@ -30,8 +36,7 @@ const graph = {
     { source: 3, target: 4, wait: block(test(0.7, 0.001)) }
   ],
   groups: [{ id: "a" }, { id: "b" }],
-  overlapCases: 0,
-  skippedCaseLevel: []
+  caseLevel: {}
 } as ResponseDfg;
 
 const simplified = {
@@ -49,29 +54,93 @@ describe("graphFindings", () => {
     expect(findings.map((f) => f.place.label)).toEqual(["Review", "Approve", "Review → Approve"]);
   });
 
+  it("leaves out an activity and an edge one Group alone reaches", () => {
+    const lone = {
+      ...graph,
+      nodes: [
+        ...graph.nodes,
+        {
+          id: 5,
+          label: "Escalate",
+          counts: { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } },
+          attributes: { Amount: block(test(0.8, 0.001)) }
+        }
+      ],
+      transitions: [
+        ...graph.transitions,
+        { source: 2, target: 5, wait: block(test(0.4, 0.01)) },
+        { source: 5, target: 3, wait: block(test(0.4, 0.01)) }
+      ]
+    } as ResponseDfg;
+    const drawn = {
+      ...simplified,
+      nodes: [
+        ...simplified.nodes,
+        { id: 5, label: "Escalate", kind: "activity", counts: lone.nodes[3].counts }
+      ],
+      edges: [
+        ...simplified.edges,
+        { source: 2, target: 5, counts },
+        { source: 5, target: 3, counts: lone.nodes[3].counts }
+      ]
+    } as unknown as Simplified;
+    const found = graphFindings(lone, drawn);
+    expect(found.map((f) => f.place.label)).toEqual([
+      "Review",
+      "Approve",
+      "Review → Approve",
+      "Review → Escalate"
+    ]);
+    expect(nodeDifferences(found).has(5)).toBe(false);
+  });
+
   it("tests an edge on its Waiting Time", () => {
     expect(findings[2].attribute).toBe("Transition Time");
   });
 
-  it("ranks significant tests first, then by effect or by p-value", () => {
-    expect(rank(findings, "effect").map((f) => f.place.label)).toEqual([
+  it("ranks significant tests first, then by effect", () => {
+    expect(rank(findings).map((f) => f.place.label)).toEqual([
       "Review → Approve",
       "Review",
-      "Approve"
-    ]);
-    expect(rank(findings, "pValue").map((f) => f.place.label)).toEqual([
-      "Review",
-      "Review → Approve",
       "Approve"
     ]);
   });
 
   it("lists every place under its attribute, with how many differ", () => {
-    const rows = byAttribute(findings, "effect");
+    const rows = byAttribute(findings);
     expect(rows.map((row) => row.attribute)).toEqual(["Transition Time", "Amount"]);
     const amount = rows[1];
     expect(amount).toMatchObject({ tested: 2, significant: 1 });
     expect(amount.places.map((f) => f.place.label)).toEqual(["Review", "Approve"]);
     expect(amount.peak?.place.label).toBe("Review");
+  });
+});
+
+describe("nodeDifferences", () => {
+  it("counts each activity's significant findings and keeps the strongest effect", () => {
+    const review = { kind: "node" as const, id: 2, label: "Review" };
+    const differences = nodeDifferences([
+      { key: "1", place: review, attribute: "Amount", block: block(test(0.2, 0.01)) },
+      { key: "2", place: review, attribute: "Region", block: block(test(0.6, 0.01)) },
+      { key: "3", place: review, attribute: "Cost", block: block(test(0.9, 0.5, false)) },
+      ...graphFindings(graph, simplified).filter((f) => f.place.kind === "edge")
+    ]);
+    expect([...differences.entries()]).toEqual([[2, { count: 2, peak: 0.6 }]]);
+  });
+});
+
+describe("activityDifferences", () => {
+  it("lists one activity's significant findings, strongest effect first", () => {
+    const review = { kind: "node" as const, id: 2, label: "Review" };
+    const found = activityDifferences(
+      [
+        { key: "1", place: review, attribute: "Amount", block: block(test(0.2, 0.01)) },
+        { key: "2", place: review, attribute: "Region", block: block(test(0.6, 0.04)) },
+        { key: "3", place: review, attribute: "Cost", block: block(test(0.9, 0.5, false)) },
+        ...graphFindings(graph, simplified).filter((f) => f.place.label !== "Review")
+      ],
+      2
+    );
+    expect(found.map((f) => f.attribute)).toEqual(["Region", "Amount"]);
   });
 });

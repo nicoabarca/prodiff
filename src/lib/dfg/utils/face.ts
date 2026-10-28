@@ -5,9 +5,10 @@
  */
 import { formatDuration, formatNumber } from "$lib/format";
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { Counts, DfgNode, ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
@@ -67,6 +68,27 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
 }
 
 /**
+ * The colour an edge is stroked in, as a CSS colour. An edge one compared
+ * Group alone follows takes that Group's colour. An edge whose Waiting Time
+ * differs significantly runs from grey to `--effect-4` in four steps of its
+ * effect, negligible to large. `null` for the default grey.
+ */
+export function edgeStroke(
+  counts: Record<string, Counts>,
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[]
+): string | null {
+  if (groups.length > 1) {
+    const owner = groups.find((group) => group.id === membership(counts, groups));
+    if (owner) return `var(--${owner.color})`;
+  }
+  const test = wait?.test;
+  if (!test?.significant) return null;
+  const share = effectStep(test.effectSize) * 25;
+  return `color-mix(in oklab, var(--effect-4) ${share}%, var(--muted-foreground))`;
+}
+
+/**
  * The waits Rust measured, by `source->target`. Only pairs the log holds have
  * one, and only when Transition Time was among the attributes asked for, so a
  * pair that only exists because an activity is hidden is absent by design.
@@ -80,12 +102,18 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
   );
 }
 
-/** Under this many milliseconds a wait prints as 0s. */
-export const INSTANT_MS = 500;
+/** Under this many milliseconds `formatDuration` rounds a wait to 0s. */
+const SUB_SECOND_MS = 500;
+
+/** A mean wait as its edge prints it. A wait too short to round to a second prints in ms. */
+function waitLabel(mean: number): string {
+  if (mean <= 0 || mean >= SUB_SECOND_MS) return formatDuration(mean);
+  return `${Math.max(1, Math.round(mean))}ms`;
+}
 
 /**
  * The mean wait on an edge, one line per Group, in the order compared. Empty
- * when every Group's wait is instant: the canvas leaves that edge unlabelled.
+ * when no Group waited at all: the canvas leaves that edge unlabelled.
  */
 export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): EdgeWait[] {
   if (!wait) return [];
@@ -93,18 +121,12 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
     const summary = wait.summaries[group.id];
     return summary?.type === "numerical" ? [{ group, mean: summary.mean }] : [];
   });
-  if (means.every(({ mean }) => Math.abs(mean) < INSTANT_MS)) return [];
+  if (means.every(({ mean }) => mean <= 0)) return [];
   return means.map(({ group, mean }) => ({
     id: group.id,
     color: group.color,
-    value: formatDuration(mean)
+    value: waitLabel(mean)
   }));
-}
-
-/** How many of a node's attributes came back a significant difference. */
-export function findings(node: DfgNode | undefined): number {
-  if (!node) return 0;
-  return Object.values(node.attributes).filter((block) => block.test?.significant).length;
 }
 
 /** The busiest of a set, for scaling every other one against. */

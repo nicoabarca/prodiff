@@ -5,6 +5,7 @@
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
   import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
   import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
+  import CaseStrip from "$lib/tree/components/case-strip.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
   import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
   import { pointed, pointedPlace, refit, splitting, tests } from "$lib/dfg/state/view.svelte";
@@ -83,6 +84,13 @@
       bind:comparing
     />
 
+    {#if built.graph && !relationRefused()}
+      <CaseStrip
+        caseLevel={built.graph.caseLevel}
+        groupIds={built.graph.groups.map((group) => group.id)}
+      />
+    {/if}
+
     {#if relationRefused()}
       <ComparisonRefused {project} />
     {:else if built.graph && simplified}
@@ -95,6 +103,7 @@
             <SplitCanvas
               graph={built.graph}
               {simplified}
+              {findings}
               groups={graphGroupsForView}
               {stale}
               {frameOn}
@@ -104,6 +113,7 @@
             <Canvas
               graph={built.graph}
               {simplified}
+              {findings}
               groups={graphGroupsForView}
               {stale}
               refitAt={refit.at}

@@ -78,7 +78,7 @@ pub struct Dfg {
     pub comparing: bool,
     pub transition_time_basis: &'static str,
     pub has_activity_duration: bool,
-    pub skipped_case_level: Vec<String>,
+    pub case_level: HashMap<String, AttributeBlock>,
 }
 
 pub fn build(
@@ -103,6 +103,13 @@ pub fn build(
     correct(&mut nodes, &aggregates);
     let mut transitions = transitions(&ids, &node_id, &aggregates);
     correct_transitions(&mut transitions);
+    let mut case_level: HashMap<String, AttributeBlock> = aggregates
+        .case_level
+        .iter()
+        .map(|attr| (attr.name.clone(), block(&ids, &attr.accs, attr.numeric)))
+        .collect();
+    // Case-level attributes are their own family: one test each, no nodes.
+    correct_blocks(case_level.values_mut());
 
     Ok(Dfg {
         nodes,
@@ -122,7 +129,7 @@ pub fn build(
             "completeOnly"
         },
         has_activity_duration: has_start,
-        skipped_case_level: aggregates.skipped_case_level,
+        case_level,
     })
 }
 
@@ -532,17 +539,61 @@ mod tests {
     }
 
     #[test]
-    fn a_case_level_attribute_is_reported_rather_than_measured() {
+    fn a_case_level_attribute_is_measured_per_case_rather_than_per_activity() {
         let dfg = dfg_with(
-            &log(&[("1", &[("A", 0, 10)])]),
+            &log(&[
+                ("1", &[("A", 0, 10), ("B", 1, 20)]),
+                ("22", &[("A", 0, 10)]),
+            ]),
             None,
             &["region", "cost"],
             false,
         );
 
-        assert_eq!(dfg.skipped_case_level, vec!["region".to_string()]);
         assert!(node(&dfg, "A").attributes.contains_key("cost"));
         assert!(!node(&dfg, "A").attributes.contains_key("region"));
+        let region = &dfg.case_level["region"];
+        let Summary::Categorical { n, counts } = &region.summaries["a"] else {
+            panic!("region is categorical");
+        };
+        assert_eq!(*n, 2);
+        assert_eq!(counts["south"], 1);
+        assert_eq!(counts["north"], 1);
+        assert!(region.test.is_none());
+    }
+
+    #[test]
+    fn a_case_level_attribute_is_tested_between_groups_on_the_cases_drawn() {
+        let south: Vec<Trace> = vec![
+            ("1", &[("A", 0, 10)]),
+            ("2", &[("A", 0, 10)]),
+            ("3", &[("A", 0, 10)]),
+            ("4", &[("A", 0, 10)]),
+            ("5", &[("A", 0, 10)]),
+            ("6", &[("A", 0, 10)]),
+        ];
+        let north: Vec<Trace> = vec![
+            ("11", &[("A", 0, 10)]),
+            ("12", &[("A", 0, 10)]),
+            ("13", &[("A", 0, 10)]),
+            ("14", &[("A", 0, 10)]),
+            ("15", &[("A", 0, 10)]),
+            ("16", &[("A", 0, 10), ("B", 1, 10)]),
+        ];
+        let only_a = ["A".to_string()];
+        let dfg = dfg_with_selection(
+            &log(&south),
+            Some(&log(&north)),
+            &["region"],
+            false,
+            Some(&only_a),
+        );
+
+        let region = &dfg.case_level["region"];
+        assert_eq!(n_of(&region.summaries["a"]), 6);
+        assert_eq!(n_of(&region.summaries["b"]), 5);
+        let test = region.test.as_ref().expect("both Groups hold enough cases");
+        assert!(test.significant);
     }
 
     #[test]
