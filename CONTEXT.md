@@ -40,8 +40,20 @@ A column in an Event Log the user has excluded from all analysis — filtering, 
 _Avoid_: Excluded column, disabled column
 
 **Custom Attribute**:
-A user-named formula over the Event Log's visible number columns, computed for every event and written into the Event Log's Parquet as one more column, so every view, Filter and Group can read it like a column of the uploaded file. It is identified by its id, never its name: the column is `fx_{id}`, so renaming it rewrites nothing. A formula reads raw columns only, never another Custom Attribute, and a column a formula reads cannot be hidden or retyped. Edits are drafts until Apply, which writes the column into the Event Log and into every applied Group's Parquet.
-_Avoid_: Computed column, derived field, metric, formula column
+A user-named formula over the Event Log's visible number columns, written into the Event Log's Parquet as one more column, so every view, Filter and Group can read it like a column of the uploaded file. Its scope, Event or Case, is chosen when it is created and never changes. It is identified by its id, never its name: the column is `fx_{id}`, so renaming it rewrites nothing. A formula reads raw columns only, never another Custom Attribute, and a column a formula reads cannot be hidden, retyped or rescoped. Edits are drafts until Apply, which writes the column into the Event Log and into every applied Group's Parquet.
+_Avoid_: Computed column, derived field, metric, case metric, formula column
+
+**Event Attribute**:
+A Custom Attribute of Event scope: computed for every event from that event's own event-scoped columns.
+_Avoid_: Row formula
+
+**Case Attribute**:
+A Custom Attribute of Case scope: one value per case, from the case's case-scoped columns, per-case aggregates of its event-scoped columns, `count()` and `duration()`. It is computed once per case on the whole Event Log and copied into every Group by case id, so a case has the same value everywhere, including in a Trimmed Group. Views read it like an imported case-scoped column.
+_Avoid_: Case metric, aggregate attribute
+
+**Trimmed Group**:
+A Group whose applied Filter List keeps only some events of a case: an attribute Filter in `keep_selected` mode or a timeframe Filter in `trim` mode. Its Case Attributes still describe whole cases.
+_Avoid_: Partial Group
 
 **Filter**:
 One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. A Filter is a definition, never a destructive edit of the Event Log.
@@ -76,7 +88,7 @@ _Avoid_: Overlap cases, common cases
 
 **Reduced side**:
 A Group as a Comparison reads it, with the Shared cases removed. The Group itself, its Filter List and its Parquet are unchanged.
-_Avoid_: Complement, subset, trimmed Group
+_Avoid_: Complement, subset
 
 **Distribution**:
 The counts of one attribute's values over a chosen set of a node's events, split by Group — one bar per value for a categorical attribute, one bar per bin for a numeric one. A Distribution describes a shape; it never compares two Groups the way a Significance Test does, so it carries no p-value and no Effect Direction.
