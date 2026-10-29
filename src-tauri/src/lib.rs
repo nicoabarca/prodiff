@@ -7,6 +7,7 @@ pub mod event_log;
 mod filters;
 pub mod groups;
 mod parsing;
+pub mod project_import;
 mod sample_project;
 mod statistics;
 mod stats;
@@ -44,6 +45,8 @@ pub fn run() {
             event_log::commands::delete_project_files,
             event_log::commands::column_profiles,
             sample_project::commands::create_sample_project,
+            project_import::commands::open_bundle,
+            project_import::commands::import_project,
             groups::commands::apply_group,
             groups::commands::delete_group_file,
             groups::commands::applied_groups,

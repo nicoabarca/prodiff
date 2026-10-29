@@ -1,4 +1,5 @@
 <script lang="ts">
+  import ImportStudyProject from "$lib/project-import/components/import-study-project.svelte";
   import ResetTours from "$lib/tour/components/reset-tours.svelte";
 </script>
 
@@ -6,4 +7,5 @@
 
 <main class="min-h-0 w-full max-w-2xl flex-1 overflow-auto px-6 py-6">
   <ResetTours />
+  <ImportStudyProject />
 </main>

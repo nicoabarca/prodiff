@@ -40,6 +40,12 @@ export async function saveComparison(projectId: string, groupIds: string[]) {
   });
 }
 
+/** Forgets what a project compares. */
+export async function deleteComparison(projectId: string) {
+  await db().delete(comparisonsTable).where(eq(comparisonsTable.projectId, projectId));
+  if (comparison.projectId === projectId) comparison.groupIds = [];
+}
+
 /**
  * The Groups being compared: what the popover picked, resolved to the Groups
  * themselves. Only applied Groups can be read, and anything the selection names

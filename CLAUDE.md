@@ -34,7 +34,7 @@ The domain vocabulary — Project, Event Log, Column Mapping, Filter, Filter Lis
 
 Dependencies run one way — `statistics | tree | dfg | distributions → groups → filters → event-log` — plus `distributions | dfg → tree` and `sample-project → tree | groups`. Nothing points back up. `analysis` sits below all of them and depends on nothing (in Rust it reads Group files through `groups::storage`): it holds the payload types more than one comparison view ships, and its Rust counterpart `src-tauri/src/analysis/` holds the same types plus `read_groups` and the Significance Test machinery.
 
-`home` sits above `event-log`, `filters`, `groups` and `sample-project`, and only the Projects route imports it.
+`home` sits above `event-log`, `filters`, `groups` and `sample-project`, and only the Projects route imports it. `project-import` sits above `event-log`, `filters`, `groups`, `custom-attributes`, `tree` and `dfg`, and only the Settings route imports it.
 
 `tour` sits above every domain (see `docs/adr/0013`). It may import any of them; only the `[id]` layout and the Settings page import it. A step points at an element through a `data-tour` attribute, plus `data-tour-key` when the element repeats, written as a plain string in the component. Never select a Tour target by class or text, and keep the attribute when moving the element.
 
