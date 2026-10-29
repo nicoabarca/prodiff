@@ -213,6 +213,15 @@ export async function removeCustomAttribute(
   );
 }
 
+/** Stores Custom Attributes built elsewhere, positions and empty counts included. */
+export async function addCustomAttributes(rows: CustomAttribute[]) {
+  if (rows.length === 0) return;
+  await db().insert(customAttributesTable).values(rows);
+  if (customAttributesLoaded.projectId !== rows[0].projectId) return;
+  customAttributes.push(...rows);
+  customAttributes.sort((a, b) => a.position - b.position);
+}
+
 /** Drops every Custom Attribute of a project. Its files go with the project's directory. */
 export async function removeCustomAttributesForProject(projectId: string) {
   await db().delete(customAttributesTable).where(eq(customAttributesTable.projectId, projectId));

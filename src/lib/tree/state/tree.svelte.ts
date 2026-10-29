@@ -82,6 +82,11 @@ export async function saveSettings(projectId: string, value: TreeSettings) {
   settings.value = value;
   settings.projectId = projectId;
 }
+export async function deleteSettings(projectId: string) {
+  await db().delete(settingsTable).where(eq(settingsTable.projectId, projectId));
+  if (settings.projectId === projectId) settings.value = { ...defaultTreeSettings };
+}
+
 export function resetBuildView() {
   selected.id = null;
   view.collapsed = new Set();
