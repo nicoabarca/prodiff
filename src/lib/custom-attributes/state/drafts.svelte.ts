@@ -1,8 +1,10 @@
+import type { AttributeScope } from "$lib/custom-attributes/invokers/types";
 import type { CustomAttribute } from "$lib/custom-attributes/types";
 
-/** What the editor changes on a Custom Attribute. */
+/** What the editor changes on a Custom Attribute. A saved attribute's scope never changes. */
 export interface CustomAttributeDraft {
   name: string;
+  scope: AttributeScope;
   formula: string;
 }
 
@@ -14,7 +16,13 @@ const drafts = $state<Record<string, CustomAttributeDraft>>({});
 
 /** The version being edited: the draft when there is one, the applied one otherwise. */
 export function draftOf(attribute: CustomAttribute): CustomAttributeDraft {
-  return drafts[attribute.id] ?? { name: attribute.name, formula: attribute.formula };
+  return (
+    drafts[attribute.id] ?? {
+      name: attribute.name,
+      scope: attribute.scope,
+      formula: attribute.formula
+    }
+  );
 }
 
 /** Whether an attribute has edits that Apply has not written yet. */

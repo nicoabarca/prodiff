@@ -19,6 +19,13 @@ function driver(sqlite: BetterSqlite.Database): MigrationDriver {
   };
 }
 
+interface ColumnInfo {
+  name: string;
+  type: string;
+  notnull: number;
+  dflt_value: string | null;
+}
+
 function tables(sqlite: BetterSqlite.Database): string[] {
   return sqlite
     .prepare("SELECT name FROM sqlite_master WHERE type = 'table' ORDER BY name")
@@ -88,6 +95,12 @@ describe("migrate", () => {
   });
 });
 
+function shippedMigrations(): Migration[] {
+  const dir = join(import.meta.dirname, "migrations");
+  const journal: Journal = JSON.parse(readFileSync(join(dir, "meta", "_journal.json"), "utf8"));
+  return journalMigrations(journal, (tag) => readFileSync(join(dir, `${tag}.sql`), "utf8"));
+}
+
 describe("journalMigrations", () => {
   it("rejects a journal with a gap", () => {
     const journal: Journal = {
@@ -105,11 +118,7 @@ describe("journalMigrations", () => {
   });
 
   it("builds the schema from the shipped migrations", async () => {
-    const dir = join(import.meta.dirname, "migrations");
-    const journal: Journal = JSON.parse(readFileSync(join(dir, "meta", "_journal.json"), "utf8"));
-    const migrations = journalMigrations(journal, (tag) =>
-      readFileSync(join(dir, `${tag}.sql`), "utf8")
-    );
+    const migrations = shippedMigrations();
     const sqlite = new BetterSqlite(":memory:");
     await migrate(driver(sqlite), migrations);
     expect(tables(sqlite)).toEqual([
@@ -122,5 +131,28 @@ describe("journalMigrations", () => {
       "saved_comparisons",
       "tree_settings"
     ]);
+  });
+
+  it("reads every Custom Attribute saved before scopes existed as Event scope", async () => {
+    const migrations = shippedMigrations();
+    const sqlite = new BetterSqlite(":memory:");
+    await migrate(driver(sqlite), migrations.slice(0, 5));
+    expect(sqlite.pragma("user_version", { simple: true })).toBe(5);
+    sqlite
+      .prepare(
+        `INSERT INTO custom_attributes (id, project_id, name, formula, position, created_at, edited_at)
+         VALUES ('a1', 'p', 'Per point', '[expense] / [points]', 0, '', '')`
+      )
+      .run();
+
+    await migrate(driver(sqlite), migrations.slice(0, 6));
+
+    const scope = (sqlite.pragma("table_info(custom_attributes)") as ColumnInfo[]).find(
+      (column) => column.name === "scope"
+    );
+    expect(scope).toMatchObject({ type: "TEXT", notnull: 1, dflt_value: "'event'" });
+    expect(sqlite.prepare("SELECT scope FROM custom_attributes").get()).toEqual({
+      scope: "event"
+    });
   });
 });

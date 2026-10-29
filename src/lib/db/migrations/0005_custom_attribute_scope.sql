@@ -1,0 +1,1 @@
+ALTER TABLE `custom_attributes` ADD `scope` text DEFAULT 'event' NOT NULL;

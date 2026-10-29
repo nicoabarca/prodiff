@@ -1,5 +1,7 @@
 # Custom Attributes are Parquet columns named by id, parsed once in TypeScript
 
+**Status:** Amended by [ADR 0020](0020-case-attributes-are-whole-case-values-from-the-event-log.md): Case Attributes are computed once per case on the Event Log and joined into every Group by case id.
+
 A Custom Attribute is a formula such as `[expense] / [points]` that the user names and then picks in the tree, the graph, the data table and the Filters like any other attribute. This records how it gets there.
 
 **Materialized, not computed on read.** Every read command takes the Column Mapping from the frontend and resolves attributes by column name, and the numeric filter bounds any column it is given. A formula written into the Parquet as a real Float64 column, plus one synthetic `role: "other"` entry in the Column Mapping the views send, reaches every one of those paths without any of them learning that the column is not from the uploaded file. Computing the column on read instead would put a formula evaluator in front of `read_event_log` and `read_group` and make every command pay for it on every call.

@@ -1,46 +1,135 @@
-import type { Formula } from "$lib/custom-attributes/invokers/types";
-import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
+import type { AttributeScope, Formula } from "$lib/custom-attributes/invokers/types";
+import type { ColumnScope, RequestColumnMapping } from "$lib/event-log/invokers/types";
 import type { Project } from "$lib/event-log/types";
 import { ACTIVITY_DURATION, builtInLabel, TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { CustomAttribute } from "$lib/custom-attributes/types";
 import { columnReference } from "$lib/custom-attributes/utils/print";
 
-/** Columns a formula may read: visible number columns with no process-mining role. */
-export function operandColumns(project: Project): RequestColumnMapping[] {
+/** A node that reads the case or its columns. Numbers and operators are allowed in every scope. */
+type Operand = Extract<Formula, { kind: "column" | "aggregate" | "count" | "duration" }>;
+
+/** What an operand needs in one scope. `reads` wants a visible number column with no role, of that column scope. */
+type Rule = { reads: ColumnScope } | "allowed" | "refused";
+
+/**
+ * The validation table, mirrored by `rule` in
+ * `src-tauri/src/custom_attributes/formula.rs`.
+ */
+const RULES: Record<Operand["kind"], Record<AttributeScope, Rule>> = {
+  column: { event: { reads: "event" }, case: { reads: "case" } },
+  aggregate: { event: "refused", case: { reads: "event" } },
+  count: { event: "refused", case: "allowed" },
+  duration: { event: "refused", case: "allowed" }
+};
+
+/**
+ * Columns a formula of `scope` may read, by name: as a direct `[x]` operand,
+ * or as an aggregate's argument.
+ */
+export function allowedColumns(
+  project: Project,
+  scope: AttributeScope,
+  operand: "column" | "aggregate"
+): RequestColumnMapping[] {
+  const rule = RULES[operand][scope];
+  if (typeof rule === "string") return [];
   return project.columns
     .filter(
       (c) =>
         c.role === "other" &&
         (c.type === "integer" || c.type === "float") &&
+        c.scope === rule.reads &&
         !project.hiddenColumns.includes(c.name)
     )
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/** Every column a formula reads, each once, in the order they first appear. */
-export function referencedColumns(formula: Formula): string[] {
-  const names = new Set<string>();
-  const visit = (node: Formula) => {
-    if (node.kind === "column") names.add(node.name);
-    else if (node.kind === "negate") visit(node.operand);
-    else if (node.kind === "binary") {
-      visit(node.left);
-      visit(node.right);
-    }
-  };
-  visit(formula);
-  return [...names];
+/** The operands in the order they are written. */
+function operands(formula: Formula): Operand[] {
+  switch (formula.kind) {
+    case "number":
+      return [];
+    case "negate":
+      return operands(formula.operand);
+    case "binary":
+      return [...operands(formula.left), ...operands(formula.right)];
+    default:
+      return [formula];
+  }
 }
 
-/** Why a formula cannot be computed on this project, or null when it can. */
-export function formulaColumnError(formula: Formula, project: Project): string | null {
-  const operands = new Set(operandColumns(project).map((c) => c.name));
-  for (const name of referencedColumns(formula)) {
-    if (operands.has(name)) continue;
-    const column = project.columns.find((c) => c.name === name);
-    if (!column) return `${columnReference(name)} matches no column`;
-    if (project.hiddenColumns.includes(name)) return `${columnReference(name)} is hidden`;
-    return `${columnReference(name)} is not a number column`;
+function columnOf(operand: Operand): string | null {
+  if (operand.kind === "column") return operand.name;
+  if (operand.kind === "aggregate") return operand.column;
+  return null;
+}
+
+/** Every column a formula reads, aggregate arguments included, each once, in order. */
+export function referencedColumns(formula: Formula): string[] {
+  return [...new Set(operands(formula).flatMap((o) => columnOf(o) ?? []))];
+}
+
+/** The columns a formula reads as direct `[x]` operands, each once, in order. */
+export function directColumns(formula: Formula): string[] {
+  return [...new Set(operands(formula).flatMap((o) => (o.kind === "column" ? [o.name] : [])))];
+}
+
+/**
+ * Why a formula cannot be computed. `operand` names what to highlight: the
+ * column, or the function written as `sum()` when the function itself is
+ * refused.
+ */
+export interface FormulaRefusal {
+  operand: string;
+  message: string;
+}
+
+function functionName(operand: Operand): string {
+  return operand.kind === "aggregate" ? operand.fn : operand.kind;
+}
+
+function columnRefusal(
+  operand: Operand,
+  name: string,
+  wanted: ColumnScope,
+  project: Project
+): string | null {
+  const reference = columnReference(name);
+  const column = project.columns.find((c) => c.name === name);
+  if (!column) return `${reference} matches no column`;
+  if (project.hiddenColumns.includes(name)) return `${reference} is hidden`;
+  if (column.role !== "other" || (column.type !== "integer" && column.type !== "float")) {
+    return `${reference} is not a number column`;
+  }
+  if (column.scope === wanted) return null;
+  if (operand.kind === "aggregate") {
+    return `${operand.fn}() reads event columns, and ${reference} is a case column. Use ${reference} on its own`;
+  }
+  return wanted === "case"
+    ? `${reference} is an event column. Wrap it in a function, as in sum(${reference}), or make an Event attribute instead`
+    : `${reference} is a case column. Only a Case attribute can read it`;
+}
+
+/** The first operand a formula of `scope` may not read on this project, or null when it can be computed. */
+export function formulaColumnError(
+  formula: Formula,
+  project: Project,
+  scope: AttributeScope
+): FormulaRefusal | null {
+  for (const operand of operands(formula)) {
+    const rule = RULES[operand.kind][scope];
+    if (rule === "allowed") continue;
+    if (rule === "refused") {
+      const name = functionName(operand);
+      return {
+        operand: `${name}()`,
+        message: `${name}() is only available for Case attributes`
+      };
+    }
+    const name = columnOf(operand);
+    if (name === null) continue;
+    const message = columnRefusal(operand, name, rule.reads, project);
+    if (message) return { operand: name, message };
   }
   return null;
 }

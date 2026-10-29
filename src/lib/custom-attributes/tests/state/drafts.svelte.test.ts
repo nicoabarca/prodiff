@@ -12,7 +12,8 @@ function attribute(): CustomAttribute {
     id: crypto.randomUUID(),
     projectId: "p",
     name: "Expense per point",
-    formula: "[expense] / [points]",
+    scope: "case",
+    formula: "sum([expense]) / count()",
     position: 0,
     emptyCount: 2,
     createdAt: "",
@@ -23,13 +24,17 @@ function attribute(): CustomAttribute {
 describe("custom attribute drafts", () => {
   it("reads the applied version until something is edited", () => {
     const subject = attribute();
-    expect(draftOf(subject)).toEqual({ name: subject.name, formula: subject.formula });
+    expect(draftOf(subject)).toEqual({
+      name: subject.name,
+      scope: "case",
+      formula: subject.formula
+    });
     expect(isDirty(subject)).toBe(false);
   });
 
   it("holds an edit until it is discarded", () => {
     const subject = attribute();
-    setDraft(subject, { name: "Cost per point", formula: subject.formula });
+    setDraft(subject, { name: "Cost per point", scope: "case", formula: subject.formula });
     expect(draftOf(subject).name).toBe("Cost per point");
     expect(isDirty(subject)).toBe(true);
 
@@ -40,14 +45,14 @@ describe("custom attribute drafts", () => {
 
   it("is clean when the draft matches the applied version again", () => {
     const subject = attribute();
-    setDraft(subject, { name: subject.name, formula: subject.formula });
+    setDraft(subject, { name: subject.name, scope: "case", formula: subject.formula });
     expect(isDirty(subject)).toBe(false);
   });
 
   it("keeps each attribute's draft apart", () => {
     const first = attribute();
     const second = attribute();
-    setDraft(first, { name: first.name, formula: "[points] * 2" });
+    setDraft(first, { name: first.name, scope: "case", formula: "max([points]) * 2" });
     expect(isDirty(first)).toBe(true);
     expect(isDirty(second)).toBe(false);
   });

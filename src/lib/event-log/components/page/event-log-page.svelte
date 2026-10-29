@@ -16,10 +16,12 @@
   let {
     project,
     readers = {},
+    directReaders = {},
     data
   }: {
     project: Project;
     readers?: Record<string, string[]>;
+    directReaders?: Record<string, string[]>;
     data: Snippet<[() => void]>;
   } = $props();
 
@@ -128,7 +130,7 @@
 
   {#if tab === "columns"}
     <main class="bg-sidebar min-h-0 flex-1 overflow-auto">
-      <ColumnsEditor {project} {readers} bind:edits />
+      <ColumnsEditor {project} {readers} {directReaders} bind:edits />
     </main>
   {:else}
     <main class="bg-sidebar flex min-h-0 flex-1 flex-col p-5">

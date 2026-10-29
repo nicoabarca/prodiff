@@ -1,6 +1,9 @@
 <script lang="ts">
   import { currentProject } from "$lib/event-log/state/projects.svelte";
-  import { readersByColumn } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import {
+    directReadersByColumn,
+    readersByColumn
+  } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { allGroups, isApplied } from "$lib/groups/state/groups.svelte";
   import EventLogPage from "$lib/event-log/components/page/event-log-page.svelte";
   import EventDataTable from "$lib/statistics/components/event-data-table.svelte";
@@ -9,7 +12,11 @@
 </script>
 
 {#if project}
-  <EventLogPage {project} readers={readersByColumn(project)}>
+  <EventLogPage
+    {project}
+    readers={readersByColumn(project)}
+    directReaders={directReadersByColumn(project)}
+  >
     {#snippet data(showColumns)}
       <EventDataTable {project} groups={allGroups(project.id).filter(isApplied)}>
         {#snippet columns({ shown, total })}
