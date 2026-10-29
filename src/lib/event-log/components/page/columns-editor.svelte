@@ -3,7 +3,8 @@
    * The Columns tab: per column its visibility, scope, case resolution and data
    * type, edited as a draft until Save. Required columns (case id, activity,
    * timestamps) are shown but locked. A column in `readers` is read by the
-   * Custom Attributes it names, so it can be neither hidden nor retyped.
+   * Custom Attributes it names, so it can be neither hidden, retyped nor
+   * rescoped; one in `directReaders` keeps its case resolution too.
    */
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -33,14 +34,21 @@
     SCOPE_OPTIONS,
     type ExtraFieldType
   } from "$lib/event-log/utils/field-settings";
+  import { columnLocks, lockMessage } from "$lib/event-log/utils/column-locks";
   import { roleMeta, type AssignableRole } from "$lib/event-log/utils/roles";
   import { invalidateTree } from "$lib/tree/state/build.svelte";
 
   let {
     project,
     readers = {},
+    directReaders = {},
     edits = $bindable({})
-  }: { project: Project; readers?: Record<string, string[]>; edits?: ColumnEdits } = $props();
+  }: {
+    project: Project;
+    readers?: Record<string, string[]>;
+    directReaders?: Record<string, string[]>;
+    edits?: ColumnEdits;
+  } = $props();
 
   /** Below this share of events carrying a value, the fill rate is flagged. */
   const LOW_FILL = 0.9;
@@ -103,8 +111,8 @@
 
 {#snippet row(column: EditableColumn)}
   {@const locked = column.role !== "other"}
-  {@const readBy = readers[column.name] ?? []}
-  {@const read = readBy.length > 0}
+  {@const locks = columnLocks(column.name, readers, directReaders)}
+  {@const read = locks.settings}
   {@const filled = fill(column.name)}
   <div class="flex flex-col border-b last:border-b-0 {column.changed ? 'bg-primary/5' : ''}">
     <div
@@ -152,7 +160,7 @@
           value={column.scope}
           onValueChange={(value) => edit(column.name, { scope: value as ColumnScope })}
         >
-          <Select.Trigger size="sm" class="bg-background h-6.5! w-24" disabled={locked}>
+          <Select.Trigger size="sm" class="bg-background h-6.5! w-24" disabled={locked || read}>
             {SCOPE_LABELS[column.scope]}
           </Select.Trigger>
           <Select.Content>
@@ -170,7 +178,11 @@
             onValueChange={(value) =>
               edit(column.name, { caseResolution: value as CaseResolution })}
           >
-            <Select.Trigger size="sm" class="bg-background h-6.5! w-32" disabled={locked}>
+            <Select.Trigger
+              size="sm"
+              class="bg-background h-6.5! w-32"
+              disabled={locked || locks.resolution}
+            >
               {CASE_RESOLUTION_LABELS[column.caseResolution]}
             </Select.Trigger>
             <Select.Content>
@@ -201,11 +213,7 @@
       </span>
     </div>
     {#if read}
-      <p class="text-muted-foreground pb-2 pl-44 text-[0.6875rem]">
-        Read by the custom attribute{readBy.length === 1 ? "" : "s"}
-        {readBy.join(", ")}. Edit {readBy.length === 1 ? "that formula" : "those formulas"} to hide or
-        retype it.
-      </p>
+      <p class="text-muted-foreground pb-2 pl-44 text-[0.6875rem]">{lockMessage(locks)}</p>
     {/if}
   </div>
 {/snippet}
