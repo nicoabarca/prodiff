@@ -145,9 +145,17 @@ fn open_zip(path: &Path, imports_dir: &Path) -> Result<OpenedBundle, String> {
     fs::create_dir_all(imports_dir).map_err(|e| e.to_string())?;
     let csv_file_name = file_name(&paths[csv]);
     let csv_path = imports_dir.join(&csv_file_name);
-    let mut entry = archive.by_index(indices[csv]).map_err(|e| e.to_string())?;
-    let mut out = fs::File::create(&csv_path).map_err(|e| e.to_string())?;
-    io::copy(&mut entry, &mut out).map_err(|e| format!("{csv_file_name}: {e}"))?;
+    let extracted = archive
+        .by_index(indices[csv])
+        .map_err(|e| e.to_string())
+        .and_then(|mut entry| {
+            let mut out = fs::File::create(&csv_path).map_err(|e| e.to_string())?;
+            io::copy(&mut entry, &mut out).map_err(|e| format!("{csv_file_name}: {e}"))
+        });
+    if let Err(error) = extracted {
+        let _ = fs::remove_dir_all(imports_dir);
+        return Err(error);
+    }
 
     Ok(OpenedBundle {
         manifest_text,

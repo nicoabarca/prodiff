@@ -4,13 +4,13 @@ import {
 } from "$lib/custom-attributes/state/custom-attributes.svelte";
 import { deleteSettings as deleteDfgSettings } from "$lib/dfg/state/variants.svelte";
 import { addProject, forgetProjectRow, projects } from "$lib/event-log/state/projects.svelte";
-import type { Project } from "$lib/event-log/types";
 import { deleteComparison } from "$lib/groups/state/comparison.svelte";
 import { addGroups, removeGroupsForProject } from "$lib/groups/state/groups.svelte";
 import { deleteSavedComparisonsForProject } from "$lib/groups/state/saved-comparisons.svelte";
 import { importProject } from "$lib/project-import/invokers/import-project";
+import { discardBundle } from "$lib/project-import/invokers/discard-bundle";
 import { openBundle } from "$lib/project-import/invokers/open-bundle";
-import type { ResolvedManifest } from "$lib/project-import/types";
+import type { ImportedProject, ImportFailure, PreparedImport } from "$lib/project-import/types";
 import {
   importedProjectId,
   importedRows,
@@ -20,32 +20,14 @@ import {
 } from "$lib/project-import/utils/manifest";
 import { deleteSettings as deleteTreeSettings } from "$lib/tree/state/tree.svelte";
 
-/** A bundle read and checked, with nothing written yet. */
-export interface PreparedImport {
-  projectId: string;
-  resolved: ResolvedManifest;
-  csvPath: string;
-  csvFileName: string;
-  replaces: boolean;
-}
-
-export interface ImportedProject {
-  project: Project;
-  groups: number;
-}
-
-/** What a failed import shows: one sentence to act on, and the error itself. */
-export interface ImportFailure {
-  sentence: string;
-  detail: string;
-}
-
 /** Thrown by `prepareImport` when the bundle cannot be opened or read. */
 class UnreadableBundle extends Error {}
 
 /**
  * Opens the bundle at `path`, reads and resolves its manifest, and says whether
- * importing it would replace a Project. Writes nothing.
+ * importing it would replace a Project. Writes no Project; a zip's CSV stays
+ * extracted until `runImport` or `cancelImport`, and is removed if the manifest
+ * fails.
  */
 export async function prepareImport(path: string): Promise<PreparedImport> {
   let opened;
@@ -54,8 +36,13 @@ export async function prepareImport(path: string): Promise<PreparedImport> {
   } catch (error) {
     throw new UnreadableBundle(String(error));
   }
-  const manifest = readManifest(opened.manifestText);
-  const resolved = resolveManifest(manifest);
+  let resolved;
+  try {
+    resolved = resolveManifest(readManifest(opened.manifestText));
+  } catch (error) {
+    await discardBundle();
+    throw error;
+  }
   const projectId = importedProjectId(resolved.name);
   return {
     projectId,
@@ -64,6 +51,11 @@ export async function prepareImport(path: string): Promise<PreparedImport> {
     csvFileName: opened.csvFileName,
     replaces: projects.some((project) => project.id === projectId)
   };
+}
+
+/** Drops a prepared import that will not run, and what it extracted. */
+export function cancelImport(): Promise<void> {
+  return discardBundle();
 }
 
 /** Every row a Project owns. Its files stay. */

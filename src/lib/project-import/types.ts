@@ -1,6 +1,7 @@
 import type { Formula } from "$lib/custom-attributes/invokers/types";
 import type { CustomAttribute } from "$lib/custom-attributes/types";
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
+import type { Project } from "$lib/event-log/types";
 import type { CaseNotInGroupFilter } from "$lib/filters/kind/case-not-in-group";
 import type { Filter } from "$lib/filters/kind/filter";
 import type { Group } from "$lib/groups/types";
@@ -45,4 +46,24 @@ export interface ResolvedManifest {
   hiddenColumns: string[];
   customAttributes: ResolvedCustomAttribute[];
   groups: ResolvedGroup[];
+}
+
+/** A bundle read and checked, with no Project written yet. */
+export interface PreparedImport {
+  projectId: string;
+  resolved: ResolvedManifest;
+  csvPath: string;
+  csvFileName: string;
+  replaces: boolean;
+}
+
+export interface ImportedProject {
+  project: Project;
+  groups: number;
+}
+
+/** What a failed import shows: one sentence to act on, and the error itself. */
+export interface ImportFailure {
+  sentence: string;
+  detail: string;
 }

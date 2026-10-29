@@ -6,6 +6,7 @@ const calls = vi.hoisted(() => ({
   projects: [] as { id: string }[],
   order: [] as string[],
   openBundle: vi.fn(),
+  discardBundle: vi.fn(),
   importProject: vi.fn(),
   addProject: vi.fn(),
   addCustomAttributes: vi.fn(),
@@ -18,6 +19,9 @@ const record = (name: string) => () => {
 };
 
 vi.mock("$lib/project-import/invokers/open-bundle", () => ({ openBundle: calls.openBundle }));
+vi.mock("$lib/project-import/invokers/discard-bundle", () => ({
+  discardBundle: calls.discardBundle
+}));
 vi.mock("$lib/project-import/invokers/import-project", () => ({
   importProject: calls.importProject
 }));
@@ -43,7 +47,7 @@ vi.mock("$lib/groups/state/comparison.svelte", () => ({
 vi.mock("$lib/tree/state/tree.svelte", () => ({ deleteSettings: vi.fn(record("tree")) }));
 vi.mock("$lib/dfg/state/variants.svelte", () => ({ deleteSettings: vi.fn(record("dfg")) }));
 
-const { importFailure, prepareImport, runImport } =
+const { cancelImport, importFailure, prepareImport, runImport } =
   await import("$lib/project-import/utils/import");
 const { importedProjectId, ManifestError } = await import("$lib/project-import/utils/manifest");
 
@@ -109,6 +113,25 @@ describe("prepareImport", () => {
     calls.projects.push({ id: importedProjectId("Study") });
     expect((await prepareImport("/study.zip")).replaces).toBe(true);
     expect(calls.importProject).not.toHaveBeenCalled();
+  });
+});
+
+describe("discarding the extracted CSV", () => {
+  it("discards it when the manifest fails, and rethrows", async () => {
+    calls.openBundle.mockResolvedValue({
+      manifestText: JSON.stringify({ ...manifest, formatVersion: 2 }),
+      csvPath: "/imports/fines.csv",
+      csvFileName: "fines.csv"
+    });
+    await expect(prepareImport("/study.zip")).rejects.toBeInstanceOf(ManifestError);
+    expect(calls.discardBundle).toHaveBeenCalledOnce();
+  });
+
+  it("keeps it for a manifest that resolves, and discards it on cancel", async () => {
+    await prepareImport("/study.zip");
+    expect(calls.discardBundle).not.toHaveBeenCalled();
+    await cancelImport();
+    expect(calls.discardBundle).toHaveBeenCalledOnce();
   });
 });
 

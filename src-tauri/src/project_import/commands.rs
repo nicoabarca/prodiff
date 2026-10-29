@@ -21,6 +21,17 @@ pub async fn open_bundle(app: tauri::AppHandle, path: String) -> Result<OpenedBu
     off_main_thread(move || bundle::open(Path::new(&path), &imports)).await
 }
 
+/// Removes whatever `open_bundle` extracted, for an import that will not run.
+#[tauri::command]
+pub async fn discard_bundle(app: tauri::AppHandle) -> Result<(), String> {
+    let imports = imports_dir(&app)?;
+    off_main_thread(move || match fs::remove_dir_all(&imports) {
+        Err(error) if error.kind() != std::io::ErrorKind::NotFound => Err(error.to_string()),
+        _ => Ok(()),
+    })
+    .await
+}
+
 /// Builds the Project `project_id` from the CSV at `csv_path`, replacing it
 /// only if every step succeeds, then removes whatever `open_bundle` extracted.
 #[tauri::command]

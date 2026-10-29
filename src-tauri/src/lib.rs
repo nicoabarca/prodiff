@@ -47,6 +47,7 @@ pub fn run() {
             sample_project::commands::create_sample_project,
             project_import::commands::open_bundle,
             project_import::commands::import_project,
+            project_import::commands::discard_bundle,
             groups::commands::apply_group,
             groups::commands::delete_group_file,
             groups::commands::applied_groups,

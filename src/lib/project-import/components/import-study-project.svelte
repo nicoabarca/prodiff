@@ -3,13 +3,12 @@
   import * as AlertDialog from "$lib/components/ui/alert-dialog/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
+  import type { ImportedProject, ImportFailure, PreparedImport } from "$lib/project-import/types";
   import {
+    cancelImport,
     importFailure,
     prepareImport,
-    runImport,
-    type ImportedProject,
-    type ImportFailure,
-    type PreparedImport
+    runImport
   } from "$lib/project-import/utils/import";
   import Copy from "@lucide/svelte/icons/copy";
   import FileArchive from "@lucide/svelte/icons/file-archive";
@@ -55,6 +54,7 @@
 
   function cancel() {
     step = { kind: "idle" };
+    cancelImport();
   }
 </script>
 
