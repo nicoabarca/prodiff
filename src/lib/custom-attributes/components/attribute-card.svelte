@@ -29,6 +29,7 @@
   const draft = $derived(draftOf(attribute));
   const dirty = $derived(isDirty(attribute));
   const applied = $derived(isApplied(attribute));
+  const scopeLabel = $derived(attribute.scope === "case" ? "Case" : "Event");
 </script>
 
 <Card.Root class={editing ? "ring-primary ring-1" : ""}>
@@ -50,10 +51,13 @@
       {:else if !applied}
         Views cannot pick it until it is applied.
       {:else if attribute.emptyCount === 0}
-        Event · Number · Every value was calculated.
+        {scopeLabel} · Number · Every {attribute.scope} was calculated.
       {:else}
-        Event · Number · {formatNumber(attribute.emptyCount ?? 0)}
-        {attribute.emptyCount === 1 ? "value" : "values"} could not be calculated and are empty.
+        {scopeLabel} · Number · {formatNumber(attribute.emptyCount ?? 0)}
+        {attribute.scope}{attribute.emptyCount === 1 ? "" : "s"} could not be calculated and {attribute.emptyCount ===
+        1
+          ? "is"
+          : "are"} empty.
       {/if}
     </Card.Description>
     <Card.Action>

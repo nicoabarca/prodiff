@@ -102,8 +102,8 @@
         <h1 class="text-sm font-semibold">Custom attributes</h1>
         <p class="text-muted-foreground text-xs">
           Each one is a formula over the event log's visible number columns, calculated for every
-          event. The graph, the tree, the data table and the filters can pick them like any other
-          column. Edits are a draft until you apply them.
+          event or once per case. The graph, the tree, the data table and the filters can pick them
+          like any other column. Edits are a draft until you apply them.
         </p>
       </div>
 
@@ -171,7 +171,9 @@
               <AttributeEditor
                 {project}
                 attribute={editingAttribute}
-                draft={editingAttribute ? draftOf(editingAttribute) : { name: "", formula: "" }}
+                draft={editingAttribute
+                  ? draftOf(editingAttribute)
+                  : { name: "", scope: "event", formula: "" }}
                 onsave={save}
                 oncancel={() => (editing = null)}
               />

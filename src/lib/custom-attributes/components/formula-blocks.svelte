@@ -2,13 +2,22 @@
   import type { Block, BlockEdit } from "$lib/custom-attributes/utils/blocks";
   import { moveCaret, removeBefore } from "$lib/custom-attributes/utils/blocks";
 
+  /** `flagged` is the refused operand: a column name, or a function written as `sum()`. */
   let {
     edit,
+    flagged = null,
     onchange
   }: {
     edit: BlockEdit;
+    flagged?: string | null;
     onchange: (edit: BlockEdit) => void;
   } = $props();
+
+  function isFlagged(block: Block): boolean {
+    if (block.kind === "column") return block.name === flagged;
+    if (block.kind === "function") return `${block.name}()` === flagged;
+    return false;
+  }
 
   const OPERATOR_LABELS = { "+": "+", "-": "−", "*": "×", "/": "÷" };
 
@@ -18,6 +27,8 @@
         return block.name;
       case "number":
         return String(block.value);
+      case "function":
+        return `${block.name}(`;
       case "operator":
         return OPERATOR_LABELS[block.op];
       case "open":
@@ -70,10 +81,11 @@
       type="button"
       tabindex="-1"
       onclick={() => onchange(moveCaret(edit, index + 1))}
-      class="border-border bg-background hover:bg-muted h-6 shrink-0 border px-1.5 text-xs {block.kind ===
-      'column'
+      class="bg-background hover:bg-muted h-6 shrink-0 border px-1.5 text-xs {isFlagged(block)
+        ? 'border-destructive text-destructive'
+        : 'border-border'} {block.kind === 'column'
         ? 'text-primary font-medium'
-        : block.kind === 'number'
+        : block.kind === 'number' || block.kind === 'function'
           ? 'font-mono'
           : 'font-bold'}"
     >

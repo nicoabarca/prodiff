@@ -55,7 +55,8 @@ type ManifestGroup = Pick<Group, "name"> &
 
 type SeedGroup = Pick<Group, "id" | "name" | "filters"> & Partial<Pick<Group, "color">>;
 
-type ManifestCustomAttribute = Pick<CustomAttribute, "name" | "formula">;
+type ManifestCustomAttribute = Pick<CustomAttribute, "name" | "formula"> &
+  Partial<Pick<CustomAttribute, "scope">>;
 
 type SeedCustomAttribute = RequestCustomAttribute & { name: string; text: string };
 
@@ -185,23 +186,29 @@ function seedInput(slug: string, { seedDir, available, appDataDir }: SeedContext
   const csvPath = join(seedDir, `${slug}.csv`);
   const manifest = JSON.parse(readFileSync(join(seedDir, `${slug}.json`), "utf8")) as Manifest;
   const id = uuidv5(`prodiff:seed:${slug}`, uuidv5.URL);
-  const scope = { id, columns: manifest.columns, hiddenColumns: manifest.hiddenColumns } as Project;
+  const project = {
+    id,
+    columns: manifest.columns,
+    hiddenColumns: manifest.hiddenColumns
+  } as Project;
   const customAttributes: SeedCustomAttribute[] = [];
   for (const attribute of manifest.customAttributes ?? []) {
+    const scope = attribute.scope ?? "event";
     const parsed = parseFormula(attribute.formula);
     const problem =
       nameError(
         attribute.name,
-        scope,
+        project,
         customAttributes.map(({ id, name }) => ({ id, name }) as CustomAttribute),
         null
-      ) ?? (parsed.ok ? formulaColumnError(parsed.formula, scope) : parsed.error);
+      ) ?? (parsed.ok ? formulaColumnError(parsed.formula, project, scope)?.message : parsed.error);
     if (problem || !parsed.ok) {
       throw new Error(`Custom attribute "${attribute.name}": ${problem}.`);
     }
     customAttributes.push({
       id: customAttributeId(),
       name: attribute.name,
+      scope,
       text: attribute.formula,
       formula: parsed.formula
     });
@@ -300,6 +307,7 @@ function seededCustomAttributes(input: SeedInput, counts: ResponseEmptyCount[]):
     id: attribute.id,
     projectId: input.id,
     name: attribute.name,
+    scope: attribute.scope,
     formula: attribute.text,
     position,
     emptyCount: counts.find((count) => count.id === attribute.id)?.empty ?? null,
@@ -363,7 +371,7 @@ function seedSlug(slug: string, context: SeedContext) {
       staging,
       input.csvPath,
       input.manifest.columns,
-      input.customAttributes.map(({ id, formula }) => ({ id, formula })),
+      input.customAttributes.map(({ id, scope, formula }) => ({ id, scope, formula })),
       input.groups
     );
     const project = seededProject(input, imported.eventLog);

@@ -1,13 +1,15 @@
 import type { BinaryOperator } from "$lib/custom-attributes/invokers/types";
-import { tokenize } from "$lib/custom-attributes/utils/parser";
+import { tokenize, type FunctionName } from "$lib/custom-attributes/utils/parser";
 import { columnReference } from "$lib/custom-attributes/utils/print";
 
 /**
  * One chip of the block editor. Blocks are the formula's tokens, so they can
- * hold an unfinished formula: `[a] /` is two blocks that do not parse yet.
+ * hold an unfinished formula: `[a] /` is two blocks that do not parse yet. A
+ * `function` block is a call's name and its `(`; the call ends at a `close`.
  */
 export type Block =
   | { kind: "column"; name: string }
+  | { kind: "function"; name: FunctionName }
   | { kind: "number"; value: number }
   | { kind: "operator"; op: BinaryOperator }
   | { kind: "open" }
@@ -28,6 +30,8 @@ export function toBlocks(text: string): Block[] | null {
           return { kind: "column", name: token.name };
         case "number":
           return { kind: "number", value: token.value };
+        case "function":
+          return { kind: "function", name: token.name };
         case "operator":
           return { kind: "operator", op: token.op };
         case "open":
@@ -47,6 +51,8 @@ function blockText(block: Block): string {
       return columnReference(block.name);
     case "number":
       return String(block.value);
+    case "function":
+      return `${block.name}(`;
     case "operator":
       return block.op;
     case "open":
@@ -72,6 +78,22 @@ export function insertAt(edit: BlockEdit, inserted: Block[]): BlockEdit {
 export function insertParentheses(edit: BlockEdit): BlockEdit {
   const { blocks } = insertAt(edit, [{ kind: "open" }, { kind: "close" }]);
   return { blocks, caret: edit.caret + 1 };
+}
+
+/** Inserts a call to `name` with the caret where its column goes. */
+export function insertCall(edit: BlockEdit, name: FunctionName): BlockEdit {
+  const { blocks } = insertAt(edit, [{ kind: "function", name }, { kind: "close" }]);
+  return { blocks, caret: edit.caret + 1 };
+}
+
+/** Whether the caret sits directly inside a call's parentheses, where its column goes. */
+export function insideCall(edit: BlockEdit): boolean {
+  const opened: Block["kind"][] = [];
+  for (const block of edit.blocks.slice(0, edit.caret)) {
+    if (block.kind === "function" || block.kind === "open") opened.push(block.kind);
+    else if (block.kind === "close") opened.pop();
+  }
+  return opened.at(-1) === "function";
 }
 
 /** Removes the block before the caret, as Backspace does. */

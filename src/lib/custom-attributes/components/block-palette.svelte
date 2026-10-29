@@ -3,14 +3,26 @@
   import { Input } from "$lib/components/ui/input/index.js";
   import type { BinaryOperator } from "$lib/custom-attributes/invokers/types";
   import type { Block } from "$lib/custom-attributes/utils/blocks";
+  import { isAggregate, type FunctionName } from "$lib/custom-attributes/utils/parser";
 
+  /**
+   * `columns` are the ones the caret's position may read: a function's argument
+   * when `insideCall`, a direct operand otherwise. `functions` is empty where
+   * the scope allows none.
+   */
   let {
     columns,
+    insideCall = false,
+    functions = [],
     oninsert,
+    oncall,
     onparentheses
   }: {
     columns: string[];
+    insideCall?: boolean;
+    functions?: readonly FunctionName[];
     oninsert: (blocks: Block[]) => void;
+    oncall: (fn: FunctionName) => void;
     onparentheses: () => void;
   } = $props();
 
@@ -35,9 +47,15 @@
 
 <div class="flex flex-col gap-3">
   <div class="flex flex-col gap-1.5">
-    <span class="text-muted-foreground text-xs font-medium">Columns</span>
+    <span class="text-muted-foreground text-xs font-medium">
+      {insideCall ? "Event columns for this function" : "Columns"}
+    </span>
     {#if columns.length === 0}
-      <p class="text-muted-foreground text-xs">The event log has no visible number columns.</p>
+      <p class="text-muted-foreground text-xs">
+        The event log has no visible number columns {insideCall
+          ? "of event scope"
+          : "this scope can read"}.
+      </p>
     {:else}
       <div class="flex flex-wrap gap-1">
         {#each columns as name (name)}
@@ -54,6 +72,24 @@
       </div>
     {/if}
   </div>
+
+  {#if functions.length > 0}
+    <div class="flex flex-col gap-1.5">
+      <span class="text-muted-foreground text-xs font-medium">Functions</span>
+      <div class="flex flex-wrap gap-1">
+        {#each functions as fn (fn)}
+          <Button
+            variant="outline"
+            size="sm"
+            class="h-7 px-2 font-mono text-xs"
+            onclick={() => oncall(fn)}
+          >
+            {fn}({isAggregate(fn) ? "[ ]" : ""})
+          </Button>
+        {/each}
+      </div>
+    </div>
+  {/if}
 
   <div class="flex flex-col gap-1.5">
     <span class="text-muted-foreground text-xs font-medium">Operators</span>
