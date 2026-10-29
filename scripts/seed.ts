@@ -25,6 +25,7 @@ import { defaultColor } from "../src/lib/groups/colors";
 import type { ResponseEventLogStats } from "../src/lib/groups/invokers/types";
 import type { CaseNotInGroupFilter } from "../src/lib/filters/kind/case-not-in-group";
 import type { Filter } from "../src/lib/filters/kind/filter";
+import type { NumericFilter } from "../src/lib/filters/kind/numeric";
 import type { Group } from "../src/lib/groups/types";
 import { groupId } from "../src/lib/groups/utils/group-id";
 import type {
@@ -32,7 +33,10 @@ import type {
   ResponseEmptyCount
 } from "../src/lib/custom-attributes/invokers/types";
 import type { CustomAttribute } from "../src/lib/custom-attributes/types";
-import { customAttributeId } from "../src/lib/custom-attributes/utils/custom-attribute-id";
+import {
+  customAttributeColumn,
+  customAttributeId
+} from "../src/lib/custom-attributes/utils/custom-attribute-id";
 import { parseFormula } from "../src/lib/custom-attributes/utils/parser";
 import { formulaColumnError, nameError } from "../src/lib/custom-attributes/utils/validate";
 
@@ -47,8 +51,15 @@ const SEED_BIN = join(
   platform() === "win32" ? "seed-project.exe" : "seed-project"
 );
 
+/**
+ * A Filter as the app stores it, except that `case_not_in_group` names an
+ * earlier Group and a numeric Filter may name a Custom Attribute instead of a
+ * column.
+ */
 type ManifestFilter =
-  Exclude<Filter, CaseNotInGroupFilter> | { kind: "case_not_in_group"; group: string };
+  | Exclude<Filter, CaseNotInGroupFilter>
+  | { kind: "case_not_in_group"; group: string }
+  | (Omit<NumericFilter, "column"> & { attribute: string });
 
 type ManifestGroup = Pick<Group, "name"> &
   Partial<Pick<Group, "color">> & { filters: ManifestFilter[] };
@@ -220,15 +231,29 @@ function seedInput(slug: string, { seedDir, available, appDataDir }: SeedContext
     projectDir: join(appDataDir, "projects", id),
     manifest,
     customAttributes,
-    groups: seedGroups(manifest.groups ?? [])
+    groups: seedGroups(manifest.groups ?? [], customAttributes)
   };
 }
 
-/** Gives each manifest Group an id and points its `case_not_in_group` filters at an earlier one. */
-function seedGroups(manifestGroups: ManifestGroup[]): SeedGroup[] {
+/**
+ * Gives each manifest Group an id, points its `case_not_in_group` filters at an
+ * earlier one and its Custom Attribute filters at that attribute's column.
+ */
+function seedGroups(
+  manifestGroups: ManifestGroup[],
+  customAttributes: SeedCustomAttribute[]
+): SeedGroup[] {
   const ids = new Map<string, string>();
   return manifestGroups.map((group) => {
     const filters = group.filters.map((filter): Filter => {
+      if ("attribute" in filter) {
+        const { attribute: name, ...numeric } = filter;
+        const attribute = customAttributes.find((a) => a.name === name);
+        if (!attribute) {
+          throw new Error(`Group "${group.name}": no Custom Attribute is called "${name}".`);
+        }
+        return { ...numeric, column: customAttributeColumn(attribute.id) };
+      }
       if (filter.kind !== "case_not_in_group") return filter;
       const excluded = ids.get(filter.group);
       if (!excluded) {
