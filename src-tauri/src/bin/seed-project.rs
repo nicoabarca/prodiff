@@ -1,7 +1,7 @@
 //! `seed-project <project_dir> <source>`: imports one Event Log outside the app,
 //! writes its Custom Attributes and applies Groups to it through
 //! `project_import::build`. Reads `{ columns, customAttributes, groups }` as
-//! JSON on stdin, where each Custom Attribute is `{ id, formula }` and each
+//! JSON on stdin, where each Custom Attribute is `{ id, scope, formula }` and each
 //! Group is `{ id, filters }`. Groups may filter on the Custom Attributes'
 //! columns. Prints `{ eventLog, customAttributes, groups }` as JSON on stdout;
 //! an error goes to stderr with a non-zero exit.

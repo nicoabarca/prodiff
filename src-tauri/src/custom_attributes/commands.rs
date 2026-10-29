@@ -2,7 +2,7 @@
 //! `custom_attributes` table and hands over ids and parsed formulas; Rust owns
 //! the columns those ids name.
 
-use super::formula::Formula;
+use super::formula::{AttributeScope, Formula};
 use super::{CustomAttribute, EmptyCount, Impact};
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::project_dir_for_app;
@@ -31,11 +31,12 @@ pub async fn update_custom_attributes(
 pub async fn custom_attribute_impact(
     app: tauri::AppHandle,
     project_id: String,
+    scope: AttributeScope,
     formula: Formula,
     columns: Vec<ColumnMapping>,
 ) -> Result<Impact, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
-    tauri::async_runtime::spawn_blocking(move || super::impact(&dir, &formula, &columns))
+    tauri::async_runtime::spawn_blocking(move || super::impact(&dir, scope, &formula, &columns))
         .await
         .map_err(|e| e.to_string())?
 }

@@ -86,6 +86,23 @@ pub enum CaseResolution {
     Last,
 }
 
+/// The row a case-scoped attribute is read from. Rows run in timestamp order
+/// within a case, so `First` is its earliest event with a value and `Last` its
+/// latest; `present` says whether a row holds one. A case with no value reads
+/// its first row, which is empty.
+pub fn resolve_row(
+    bounds: (usize, usize),
+    resolution: CaseResolution,
+    present: impl Fn(usize) -> bool,
+) -> usize {
+    let mut rows = bounds.0..bounds.1;
+    match resolution {
+        CaseResolution::Constant | CaseResolution::First => rows.find(|&row| present(row)),
+        CaseResolution::Last => rows.rev().find(|&row| present(row)),
+    }
+    .unwrap_or(bounds.0)
+}
+
 /// Event-scoped attributes produce Node Aggregates; case-scoped ones aggregate
 /// per Group. A resolution exists only under `Case`: an event-scoped column has
 /// no row to pick.

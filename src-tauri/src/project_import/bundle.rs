@@ -62,7 +62,11 @@ fn locate(paths: &[Vec<String>]) -> Result<(usize, usize), String> {
         .copied()
         .filter(|&i| paths[i].last().is_some_and(|name| name == MANIFEST_FILE))
         .collect();
-    let csvs: Vec<usize> = kept.iter().copied().filter(|&i| is_csv(&paths[i])).collect();
+    let csvs: Vec<usize> = kept
+        .iter()
+        .copied()
+        .filter(|&i| is_csv(&paths[i]))
+        .collect();
     match (manifests.as_slice(), csvs.as_slice()) {
         ([], _) => Err("The study file has no manifest.json.".to_string()),
         (_, []) => Err("The study file has no CSV file.".to_string()),
@@ -235,13 +239,19 @@ mod tests {
     fn rejects_a_second_csv_a_missing_manifest_and_an_escaping_path() {
         let scratch = Scratch::new("bad");
         let two = scratch.zip(&[("manifest.json", "{}"), ("a.csv", ""), ("b.csv", "")]);
-        assert!(open(&two, &scratch.imports()).unwrap_err().contains("2 CSV files"));
+        assert!(open(&two, &scratch.imports())
+            .unwrap_err()
+            .contains("2 CSV files"));
 
         let none = scratch.zip(&[("a.csv", "")]);
-        assert!(open(&none, &scratch.imports()).unwrap_err().contains("no manifest.json"));
+        assert!(open(&none, &scratch.imports())
+            .unwrap_err()
+            .contains("no manifest.json"));
 
         let escaping = scratch.zip(&[("manifest.json", "{}"), ("../a.csv", "")]);
-        assert!(open(&escaping, &scratch.imports()).unwrap_err().contains("unsafe path"));
+        assert!(open(&escaping, &scratch.imports())
+            .unwrap_err()
+            .contains("unsafe path"));
     }
 
     #[test]
@@ -249,7 +259,9 @@ mod tests {
         let scratch = Scratch::new("text");
         let path = scratch.0.join("study.txt");
         fs::write(&path, "hello").unwrap();
-        assert!(open(&path, &scratch.imports()).unwrap_err().contains("not a zip"));
+        assert!(open(&path, &scratch.imports())
+            .unwrap_err()
+            .contains("not a zip"));
     }
 
     #[test]
@@ -260,7 +272,10 @@ mod tests {
         fs::write(root.join("study/manifest.json"), "{}").unwrap();
         fs::write(root.join("study/fines.csv"), "x\n").unwrap();
         let opened = open(&root, &scratch.imports()).unwrap();
-        assert_eq!(PathBuf::from(&opened.csv_path), root.join("study/fines.csv"));
+        assert_eq!(
+            PathBuf::from(&opened.csv_path),
+            root.join("study/fines.csv")
+        );
         assert!(!scratch.imports().exists());
     }
 }

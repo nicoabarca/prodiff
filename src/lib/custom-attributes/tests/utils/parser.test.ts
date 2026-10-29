@@ -65,6 +65,22 @@ describe("parseFormula", () => {
     expect(parsed("[a]]b]")).toEqual(col("a]b"));
   });
 
+  it("reads calls as atoms", () => {
+    expect(parsed("sum([cost]) / duration()")).toEqual({
+      kind: "binary",
+      op: "/",
+      left: { kind: "aggregate", fn: "sum", column: "cost" },
+      right: { kind: "duration" }
+    });
+    expect(parsed("-count () * 2")).toEqual({
+      kind: "binary",
+      op: "*",
+      left: { kind: "negate", operand: { kind: "count" } },
+      right: num(2)
+    });
+    expect(parsed("last( [a]]b] )")).toEqual({ kind: "aggregate", fn: "last", column: "a]b" });
+  });
+
   it("ignores whitespace between tokens", () => {
     expect(parsed("  [a]*2 ")).toEqual(parsed("[a] * 2"));
   });
@@ -78,8 +94,22 @@ describe("parseFormula", () => {
     ["[a])", "This ) has no matching (", 3],
     ["[a] [b]", "Add an operator here", 4],
     ["[a] % 2", '"%" is not part of a formula', 4],
-    ["* [a]", "Expected a column, a number or ( here", 0],
-    ["1.", '"." is not part of a formula', 1]
+    ["* [a]", "Expected a column, a number, a function or ( here", 0],
+    ["1.", '"." is not part of a formula', 1],
+    [
+      "total([a])",
+      "total is not a function. Use sum, mean, median, min, max, first, last, count or duration",
+      0
+    ],
+    ["2 * Sum([a])", "Write sum in lowercase", 4],
+    ["sum [a]", "Call sum with parentheses, as in sum([column])", 0],
+    ["sum()", "sum() needs one column, like sum([column])", 0],
+    ["sum(2)", "sum() needs one column, like sum([column])", 0],
+    ["sum([a] [b])", "sum() takes exactly one column, like sum([column])", 8],
+    ["sum([a], [b])", '"," is not part of a formula', 7],
+    ["sum([a]", "sum() takes exactly one column, like sum([column])", 0],
+    ["count([a])", "count() takes no column", 6],
+    ["duration(", "duration() takes no column", 0]
   ])("rejects %j", (text, error, at) => {
     expect(parseFormula(text)).toEqual({ ok: false, error, at });
   });

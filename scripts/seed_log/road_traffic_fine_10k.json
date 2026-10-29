@@ -60,7 +60,12 @@
   ],
   "customAttributes": [
     { "name": "Points per 100 amount", "formula": "[points] / [amount] * 100" },
-    { "name": "Paid share", "formula": "[totalPaymentAmount] / [amount]" }
+    {
+      "name": "Paid share",
+      "scope": "case",
+      "formula": "[totalPaymentAmount] / sum([amount])"
+    },
+    { "name": "Amount per day", "scope": "case", "formula": "sum([amount]) / duration()" }
   ],
   "groups": [
     {
@@ -78,6 +83,12 @@
           "mode": "mandatory",
           "values": ["#", "5", "G", "3", "N", "K"]
         }
+      ]
+    },
+    {
+      "name": "High amount per day",
+      "filters": [
+        { "kind": "numeric", "attribute": "Amount per day", "mode": "above", "min": 1, "max": null }
       ]
     }
   ]

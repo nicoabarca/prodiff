@@ -112,7 +112,7 @@ The manifest is the `pnpm seed` manifest plus one field:
 Filters use the exact JSON the app stores, with two name references:
 
 *   A `case_not_in_group` Filter names an earlier Group: `{ kind: "case_not_in_group", group: "<Group name>" }`. `pnpm seed` already supports this.
-*   The `column` field of an `attribute`, `numeric` or `follower` Filter may hold a Custom Attribute's name. The import replaces it with `fx_{id}`. A name cannot also be a column, because `nameError` refuses a Custom Attribute named like any column, ignoring case. So no marker is needed.
+*   A `numeric` Filter may name a Custom Attribute as `attribute: "<name>"` in place of `column`. The import replaces it with `column: "fx_{id}"`. This is the form `pnpm seed` reads on `main` since case-level Custom Attributes landed; an earlier draft let `column` hold the name.
 
 The manifest carries no ids. The import generates every Group id with `groupId()` and every Custom Attribute id with `customAttributeId()`, then resolves the names above to those ids.
 
@@ -301,7 +301,7 @@ The work lands in five steps. Each one passes `pnpm check`, `pnpm test` and `car
         Everything else is left to Rust deserialization.
     *   **`resolveManifest(manifest: Manifest): ResolvedManifest`** is the old `seedInput` Custom Attribute loop plus `seedGroups`, generalized:
         1.  For each Custom Attribute: generate an id with `customAttributeId()`, run `parseFormula`, then `nameError` and `formulaColumnError` against a Project scope built from `columns` and `hiddenColumns`. Throw `Custom attribute "<name>": <problem>.` on failure.
-        2.  For each Group in order: generate an id with `groupId()`. Rewrite a `case_not_in_group` Group name to the id of an earlier Group, or throw the existing seed message. Rewrite a `column` that equals a Custom Attribute name to `customAttributeColumn(id)`, which is the `fx_{id}` helper the custom-attributes domain already uses. Leave any other `column` untouched.
+        2.  For each Group in order: generate an id with `groupId()`. Rewrite a `case_not_in_group` Group name to the id of an earlier Group, or throw the existing seed message. Rewrite a numeric Filter's `attribute` to `column: customAttributeColumn(id)`, which is the `fx_{id}` helper the custom-attributes domain already uses, or throw when no Custom Attribute has that name.
     *   **`importedRows(projectId, resolved, built, fileName, now)`** returns `{ project, customAttributes, groups }` rows. It merges the old `seededProject`, `seededCustomAttributes` and `seededGroups` from `seed.ts`, so the seed and the app build identical rows. The colour defaults to `defaultColor(position)`, and every Group carries its stats.
     *   **`importedProjectId(name)`** returns `uuidv5("prodiff:import:" + name, uuidv5.URL)`.
 
@@ -447,7 +447,7 @@ The work lands in five steps. Each one passes `pnpm check`, `pnpm test` and `car
 
 #### Step 5: docs and the decision record
 
-##### 26. `docs/adr/0020-import-a-study-project-from-a-bundle.md` (Create)
+##### 26. `docs/adr/0021-import-a-study-project-from-a-bundle.md` (Create)
 
 *   **Type / Scope**: ADR.
 *   **Proposed Changes**: record that a study Project ships as a zip of CSV plus seed manifest, imported through the code `pnpm seed` runs. Cover:

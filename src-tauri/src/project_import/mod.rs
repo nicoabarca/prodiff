@@ -5,6 +5,7 @@ pub mod bundle;
 pub mod commands;
 
 use crate::column_mapping::ColumnMapping;
+use crate::custom_attributes::formula::AttributeScope;
 use crate::custom_attributes::{self, CustomAttribute, EmptyCount};
 use crate::event_log::importer::{
     import_event_log, sibling_dir, swap_into_place, CreateEventLogResult,
@@ -32,17 +33,21 @@ pub struct Built {
     pub groups: Vec<serde_json::Value>,
 }
 
-/// The Column Mapping with one number column per Custom Attribute, as the app
-/// sends it when a Group is applied.
+/// The Column Mapping with one number column per Custom Attribute, scoped like
+/// the attribute, as the app sends it when a Group is applied.
 fn analysis_columns(input: &BuildInput) -> Result<Vec<ColumnMapping>, String> {
     let mut columns = input.columns.clone();
     for attribute in &input.custom_attributes {
-        let entry = serde_json::json!({
+        let mut entry = serde_json::json!({
             "name": custom_attributes::column_name(&attribute.id),
             "role": "other",
             "scope": "event",
             "type": "float"
         });
+        if attribute.scope == AttributeScope::Case {
+            entry["scope"] = "case".into();
+            entry["caseResolution"] = "constant".into();
+        }
         columns.push(serde_json::from_value(entry).map_err(|e| e.to_string())?);
     }
     Ok(columns)
@@ -127,7 +132,7 @@ B,Send Fine,2006-09-10 14:30,6,20
         {"name":"Activity","role":"activity_name","type":"string","scope":"event"},
         {"name":"Complete Timestamp","role":"complete_timestamp","type":"datetime","scope":"event","timestampFormat":"YYYY-MM-DD HH:mm"},
         {"name":"points","role":"other","type":"integer","scope":"event"},
-        {"name":"amount","role":"other","type":"float","scope":"case","caseResolution":"first"}
+        {"name":"amount","role":"other","type":"float","scope":"event"}
       ],
       "customAttributes": [
         {"id":"ratio001","formula":{"kind":"binary","op":"/","left":{"kind":"column","name":"points"},"right":{"kind":"column","name":"amount"}}}

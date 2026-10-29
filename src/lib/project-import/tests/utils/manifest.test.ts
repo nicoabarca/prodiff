@@ -32,11 +32,11 @@ function manifest(overrides: Partial<Manifest> = {}): Manifest {
     name: "Study",
     columns,
     hiddenColumns: [],
-    customAttributes: [{ name: "Ratio", formula: "[points] / [amount]" }],
+    customAttributes: [{ name: "Ratio", formula: "[points] / [expense]" }],
     groups: [
       {
         name: "High ratio",
-        filters: [{ kind: "numeric", column: "Ratio", mode: "above", min: 0.5, max: null }]
+        filters: [{ kind: "numeric", attribute: "Ratio", mode: "above", min: 0.5, max: null }]
       },
       {
         name: "Large",
@@ -116,7 +116,7 @@ describe("readManifest", () => {
 });
 
 describe("resolveManifest", () => {
-  it("points a Custom Attribute name in a column at its fx_ column", () => {
+  it("points a numeric Filter's attribute at its fx_ column", () => {
     const resolved = resolveManifest(manifest());
     const [ratio] = resolved.customAttributes;
     expect(resolved.groups[0].filters[0]).toMatchObject({ column: `fx_${ratio.id}` });
@@ -125,6 +125,26 @@ describe("resolveManifest", () => {
   it("leaves a raw column name alone", () => {
     const resolved = resolveManifest(manifest());
     expect(resolved.groups[1].filters[0]).toMatchObject({ column: "amount" });
+  });
+
+  it("refuses an attribute that names no Custom Attribute", () => {
+    const groups = [
+      {
+        name: "Odd",
+        filters: [
+          {
+            kind: "numeric" as const,
+            attribute: "Missing",
+            mode: "above" as const,
+            min: 1,
+            max: null
+          }
+        ]
+      }
+    ];
+    expect(() => resolveManifest(manifest({ groups }))).toThrow(
+      /Group "Odd", filter 1: no Custom Attribute is called "Missing"/
+    );
   });
 
   it("points case_not_in_group at an earlier Group's id", () => {
@@ -167,7 +187,8 @@ describe("importedRows", () => {
 
     expect(rows.project).toMatchObject({ id, name: "Study", fileName: "fines.csv", cases: 9 });
     expect(rows.customAttributes[0]).toMatchObject({
-      formula: "[points] / [amount]",
+      formula: "[points] / [expense]",
+      scope: "event",
       emptyCount: 2
     });
     expect(rows.groups.map((group) => [group.position, group.stats?.cases])).toEqual([

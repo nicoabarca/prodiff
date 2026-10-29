@@ -65,7 +65,7 @@ const manifest: Manifest = {
   groups: [
     {
       name: "High",
-      filters: [{ kind: "numeric", column: "Double", mode: "above", min: 4, max: null }]
+      filters: [{ kind: "numeric", attribute: "Double", mode: "above", min: 4, max: null }]
     }
   ]
 };

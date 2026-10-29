@@ -1,6 +1,6 @@
 import type { Formula } from "$lib/custom-attributes/invokers/types";
 
-/** How tightly each node binds. An atom never needs parentheses. */
+/** How tightly each node binds. An atom, calls included, never needs parentheses. */
 function precedence(formula: Formula): number {
   if (formula.kind === "binary") return formula.op === "+" || formula.op === "-" ? 1 : 2;
   if (formula.kind === "negate") return 3;
@@ -22,6 +22,11 @@ export function printFormula(formula: Formula): string {
       return columnReference(formula.name);
     case "number":
       return String(formula.value);
+    case "aggregate":
+      return `${formula.fn}(${columnReference(formula.column)})`;
+    case "count":
+    case "duration":
+      return `${formula.kind}()`;
     case "negate": {
       const operand = printFormula(formula.operand);
       return precedence(formula.operand) < 3 ? `-(${operand})` : `-${operand}`;

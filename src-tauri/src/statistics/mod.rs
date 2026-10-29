@@ -7,7 +7,8 @@ pub mod commands;
 use crate::analysis::stats::{self, quantile};
 use crate::analysis::{Acc, GroupLog, Summary, Test, ALPHA, MIN_GROUP_CASES};
 use crate::column_mapping::{
-    find_role, require_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
+    find_role, require_role, resolve_row, CaseResolution, ColumnMapping, ColumnRole, ColumnScope,
+    ColumnType,
 };
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -264,20 +265,25 @@ fn attribute_values(
     rows: &[usize],
     bounds: &[(usize, usize)],
 ) -> Result<Acc, String> {
-    let picked: Vec<usize> = match plan.resolution {
-        Some(CaseResolution::Last) => bounds.iter().map(|&(_, to)| rows[to - 1]).collect(),
-        Some(_) => bounds.iter().map(|&(from, _)| rows[from]).collect(),
-        None => rows.to_vec(),
+    let pick = |present: &dyn Fn(usize) -> bool| -> Vec<usize> {
+        match plan.resolution {
+            Some(resolution) => bounds
+                .iter()
+                .map(|&b| rows[resolve_row(b, resolution, |i| present(rows[i]))])
+                .collect(),
+            None => rows.to_vec(),
+        }
     };
     let mut acc = Acc::new(plan.numeric);
     match &mut acc {
         Acc::Num(out) => {
             let values = floats(df, plan.name)?;
+            let picked = pick(&|r| values[r].is_some());
             out.extend(picked.iter().filter_map(|&r| values[r]));
         }
         Acc::Cat(out) => {
             let values = strings(df, plan.name)?;
-            for &r in &picked {
+            for &r in &pick(&|r| values[r].is_some()) {
                 if let Some(value) = &values[r] {
                     *out.entry(value.clone()).or_default() += 1;
                 }

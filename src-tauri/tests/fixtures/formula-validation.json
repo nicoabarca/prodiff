@@ -1,0 +1,517 @@
+{
+  "columns": [
+    {
+      "name": "case",
+      "role": "case_id",
+      "type": "integer",
+      "scope": "case",
+      "caseResolution": "constant"
+    },
+    {
+      "name": "activity",
+      "role": "activity_name",
+      "type": "string",
+      "scope": "event"
+    },
+    {
+      "name": "ts",
+      "role": "complete_timestamp",
+      "type": "datetime",
+      "timestampFormat": null,
+      "scope": "event"
+    },
+    {
+      "name": "amount",
+      "role": "other",
+      "type": "float",
+      "scope": "event"
+    },
+    {
+      "name": "points",
+      "role": "other",
+      "type": "integer",
+      "scope": "event"
+    },
+    {
+      "name": "resource",
+      "role": "other",
+      "type": "string",
+      "scope": "event"
+    },
+    {
+      "name": "secret",
+      "role": "other",
+      "type": "float",
+      "scope": "event"
+    },
+    {
+      "name": "budget",
+      "role": "other",
+      "type": "float",
+      "scope": "case",
+      "caseResolution": "constant"
+    },
+    {
+      "name": "paid",
+      "role": "other",
+      "type": "float",
+      "scope": "case",
+      "caseResolution": "last"
+    },
+    {
+      "name": "region",
+      "role": "other",
+      "type": "string",
+      "scope": "case",
+      "caseResolution": "first"
+    }
+  ],
+  "hidden": ["secret"],
+  "cases": [
+    {
+      "name": "event reads event number columns",
+      "scope": "event",
+      "text": "[amount] / [points]",
+      "formula": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "column",
+          "name": "amount"
+        },
+        "right": {
+          "kind": "column",
+          "name": "points"
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "event allows numbers, negation and operators",
+      "scope": "event",
+      "text": "-[amount] + 2 * 3",
+      "formula": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "negate",
+          "operand": {
+            "kind": "column",
+            "name": "amount"
+          }
+        },
+        "right": {
+          "kind": "binary",
+          "op": "*",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "event refuses a case column",
+      "scope": "event",
+      "text": "[budget] * 2",
+      "formula": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "column",
+          "name": "budget"
+        },
+        "right": {
+          "kind": "number",
+          "value": 2
+        }
+      },
+      "expected": {
+        "refused": "budget"
+      }
+    },
+    {
+      "name": "event refuses an aggregate",
+      "scope": "event",
+      "text": "sum([amount])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "sum",
+        "column": "amount"
+      },
+      "expected": {
+        "refused": "sum()"
+      }
+    },
+    {
+      "name": "event refuses count()",
+      "scope": "event",
+      "text": "count()",
+      "formula": {
+        "kind": "count"
+      },
+      "expected": {
+        "refused": "count()"
+      }
+    },
+    {
+      "name": "event refuses duration()",
+      "scope": "event",
+      "text": "[amount] / duration()",
+      "formula": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "column",
+          "name": "amount"
+        },
+        "right": {
+          "kind": "duration"
+        }
+      },
+      "expected": {
+        "refused": "duration()"
+      }
+    },
+    {
+      "name": "event refuses an unknown column",
+      "scope": "event",
+      "text": "[missing] + 1",
+      "formula": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "column",
+          "name": "missing"
+        },
+        "right": {
+          "kind": "number",
+          "value": 1
+        }
+      },
+      "expected": {
+        "refused": "missing"
+      }
+    },
+    {
+      "name": "event refuses a text column",
+      "scope": "event",
+      "text": "[resource] + 1",
+      "formula": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "column",
+          "name": "resource"
+        },
+        "right": {
+          "kind": "number",
+          "value": 1
+        }
+      },
+      "expected": {
+        "refused": "resource"
+      }
+    },
+    {
+      "name": "event refuses a column with a role",
+      "scope": "event",
+      "text": "[case] + 1",
+      "formula": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "column",
+          "name": "case"
+        },
+        "right": {
+          "kind": "number",
+          "value": 1
+        }
+      },
+      "expected": {
+        "refused": "case"
+      }
+    },
+    {
+      "name": "event refuses a hidden column",
+      "scope": "event",
+      "text": "[secret] * 2",
+      "formula": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "column",
+          "name": "secret"
+        },
+        "right": {
+          "kind": "number",
+          "value": 2
+        }
+      },
+      "expected": {
+        "refused": "secret"
+      },
+      "typescriptOnly": true
+    },
+    {
+      "name": "case reads case columns and aggregates",
+      "scope": "case",
+      "text": "[budget] / sum([amount])",
+      "formula": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "column",
+          "name": "budget"
+        },
+        "right": {
+          "kind": "aggregate",
+          "fn": "sum",
+          "column": "amount"
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case divides by duration()",
+      "scope": "case",
+      "text": "sum([amount]) / duration()",
+      "formula": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "aggregate",
+          "fn": "sum",
+          "column": "amount"
+        },
+        "right": {
+          "kind": "duration"
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case accepts every aggregate",
+      "scope": "case",
+      "text": "mean([points]) + median([points]) + min([amount]) + max([amount]) + first([amount]) - last([amount])",
+      "formula": {
+        "kind": "binary",
+        "op": "-",
+        "left": {
+          "kind": "binary",
+          "op": "+",
+          "left": {
+            "kind": "binary",
+            "op": "+",
+            "left": {
+              "kind": "binary",
+              "op": "+",
+              "left": {
+                "kind": "binary",
+                "op": "+",
+                "left": {
+                  "kind": "aggregate",
+                  "fn": "mean",
+                  "column": "points"
+                },
+                "right": {
+                  "kind": "aggregate",
+                  "fn": "median",
+                  "column": "points"
+                }
+              },
+              "right": {
+                "kind": "aggregate",
+                "fn": "min",
+                "column": "amount"
+              }
+            },
+            "right": {
+              "kind": "aggregate",
+              "fn": "max",
+              "column": "amount"
+            }
+          },
+          "right": {
+            "kind": "aggregate",
+            "fn": "first",
+            "column": "amount"
+          }
+        },
+        "right": {
+          "kind": "aggregate",
+          "fn": "last",
+          "column": "amount"
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case accepts count()",
+      "scope": "case",
+      "text": "count() * 2",
+      "formula": {
+        "kind": "binary",
+        "op": "*",
+        "left": {
+          "kind": "count"
+        },
+        "right": {
+          "kind": "number",
+          "value": 2
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case reads columns of any resolution",
+      "scope": "case",
+      "text": "[paid] - [budget]",
+      "formula": {
+        "kind": "binary",
+        "op": "-",
+        "left": {
+          "kind": "column",
+          "name": "paid"
+        },
+        "right": {
+          "kind": "column",
+          "name": "budget"
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case allows numbers, negation and operators",
+      "scope": "case",
+      "text": "-(2 + 3)",
+      "formula": {
+        "kind": "negate",
+        "operand": {
+          "kind": "binary",
+          "op": "+",
+          "left": {
+            "kind": "number",
+            "value": 2
+          },
+          "right": {
+            "kind": "number",
+            "value": 3
+          }
+        }
+      },
+      "expected": "ok"
+    },
+    {
+      "name": "case refuses an event column outside a function",
+      "scope": "case",
+      "text": "[amount] / duration()",
+      "formula": {
+        "kind": "binary",
+        "op": "/",
+        "left": {
+          "kind": "column",
+          "name": "amount"
+        },
+        "right": {
+          "kind": "duration"
+        }
+      },
+      "expected": {
+        "refused": "amount"
+      }
+    },
+    {
+      "name": "case refuses an aggregate over a case column",
+      "scope": "case",
+      "text": "sum([budget])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "sum",
+        "column": "budget"
+      },
+      "expected": {
+        "refused": "budget"
+      }
+    },
+    {
+      "name": "case refuses an aggregate over a text column",
+      "scope": "case",
+      "text": "sum([resource])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "sum",
+        "column": "resource"
+      },
+      "expected": {
+        "refused": "resource"
+      }
+    },
+    {
+      "name": "case refuses an aggregate over an unknown column",
+      "scope": "case",
+      "text": "sum([missing])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "sum",
+        "column": "missing"
+      },
+      "expected": {
+        "refused": "missing"
+      }
+    },
+    {
+      "name": "case refuses a text case column",
+      "scope": "case",
+      "text": "[region] + 1",
+      "formula": {
+        "kind": "binary",
+        "op": "+",
+        "left": {
+          "kind": "column",
+          "name": "region"
+        },
+        "right": {
+          "kind": "number",
+          "value": 1
+        }
+      },
+      "expected": {
+        "refused": "region"
+      }
+    },
+    {
+      "name": "case refuses an aggregate over a column with a role",
+      "scope": "case",
+      "text": "max([case])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "max",
+        "column": "case"
+      },
+      "expected": {
+        "refused": "case"
+      }
+    },
+    {
+      "name": "case refuses an aggregate over a hidden column",
+      "scope": "case",
+      "text": "sum([secret])",
+      "formula": {
+        "kind": "aggregate",
+        "fn": "sum",
+        "column": "secret"
+      },
+      "expected": {
+        "refused": "secret"
+      },
+      "typescriptOnly": true
+    }
+  ]
+}

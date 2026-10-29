@@ -3,6 +3,7 @@
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
+  import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { linearAxis } from "$lib/statistics/utils/axis";
   import { effectLabel, formatP, formatSigned, isGap } from "$lib/statistics/utils/change";
   import { valueShares } from "$lib/statistics/utils/figures";
@@ -145,6 +146,7 @@
               : "Share of events per value"}
         </span>
       </div>
+      <TrimmedNote {groups} attribute={selected.name} class="px-4.5" />
       {#if numeric}
         <div class="px-4.5 pt-3.5 pb-4.5">
           <BoxRows {groups} {boxes} {axis} format={formatValue} />

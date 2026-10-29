@@ -249,7 +249,7 @@ function seedSlug(slug: string, context: SeedContext) {
       staging,
       input.csvPath,
       input.resolved.columns,
-      input.resolved.customAttributes.map(({ id, formula }) => ({ id, formula })),
+      input.resolved.customAttributes.map(({ id, scope, formula }) => ({ id, scope, formula })),
       input.resolved.groups.map(({ id, filters }) => ({ id, filters }))
     );
     const { eventLog } = imported;

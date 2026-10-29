@@ -132,7 +132,10 @@ mod tests {
 
     #[test]
     fn a_point_is_decimal_where_either_reading_works() {
-        assert_eq!(plain_values(&["1.234", "1,234"]).unwrap(), ["1.234", "1234"]);
+        assert_eq!(
+            plain_values(&["1.234", "1,234"]).unwrap(),
+            ["1.234", "1234"]
+        );
     }
 
     #[test]

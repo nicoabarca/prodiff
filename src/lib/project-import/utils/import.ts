@@ -77,7 +77,11 @@ export async function runImport(prepared: PreparedImport): Promise<ImportedProje
   const { projectId, resolved } = prepared;
   const built = await importProject(projectId, prepared.csvPath, {
     columns: resolved.columns,
-    customAttributes: resolved.customAttributes.map(({ id, formula }) => ({ id, formula })),
+    customAttributes: resolved.customAttributes.map(({ id, scope, formula }) => ({
+      id,
+      scope,
+      formula
+    })),
     groups: resolved.groups.map(({ id, filters }) => ({ id, filters }))
   });
   const rows = importedRows(

@@ -107,23 +107,25 @@ export function readManifest(text: string): Manifest {
 }
 
 function resolveCustomAttributes(manifest: Manifest): ResolvedCustomAttribute[] {
-  const scope = { columns: manifest.columns, hiddenColumns: manifest.hiddenColumns } as Project;
+  const project = { columns: manifest.columns, hiddenColumns: manifest.hiddenColumns } as Project;
   const resolved: ResolvedCustomAttribute[] = [];
   for (const attribute of manifest.customAttributes ?? []) {
+    const scope = attribute.scope ?? "event";
     const parsed = parseFormula(attribute.formula);
     const problem =
       nameError(
         attribute.name,
-        scope,
+        project,
         resolved.map(({ id, name }) => ({ id, name }) as CustomAttribute),
         null
-      ) ?? (parsed.ok ? formulaColumnError(parsed.formula, scope) : parsed.error);
+      ) ?? (parsed.ok ? formulaColumnError(parsed.formula, project, scope)?.message : parsed.error);
     if (problem || !parsed.ok) {
       throw new Error(`Custom attribute "${attribute.name}": ${problem}.`);
     }
     resolved.push({
       id: customAttributeId(),
       name: attribute.name,
+      scope,
       text: attribute.formula,
       formula: parsed.formula
     });
@@ -133,8 +135,8 @@ function resolveCustomAttributes(manifest: Manifest): ResolvedCustomAttribute[] 
 
 /**
  * Generates every id, checks each formula, and points each `case_not_in_group`
- * at an earlier Group and each Custom Attribute name in a Filter's `column` at
- * its `fx_{id}` column.
+ * at an earlier Group and each numeric Filter's `attribute` at that Custom
+ * Attribute's `fx_{id}` column.
  */
 export function resolveManifest(manifest: Manifest): ResolvedManifest {
   const customAttributes = resolveCustomAttributes(manifest);
@@ -151,8 +153,15 @@ export function resolveManifest(manifest: Manifest): ResolvedManifest {
       }
       return { kind: "case_not_in_group", groupId: excluded };
     }
-    if (filter.kind === "attribute" || filter.kind === "numeric" || filter.kind === "follower") {
-      return { ...filter, column: columnOf.get(filter.column) ?? filter.column };
+    if ("attribute" in filter) {
+      const { attribute, ...numeric } = filter;
+      const column = columnOf.get(attribute);
+      if (!column) {
+        throw new Error(
+          `Group "${groupName}", filter ${index + 1}: no Custom Attribute is called "${attribute}".`
+        );
+      }
+      return { ...numeric, column };
     }
     return filter;
   };
@@ -219,6 +228,7 @@ export function importedRows(
       id: attribute.id,
       projectId,
       name: attribute.name,
+      scope: attribute.scope,
       formula: attribute.text,
       position,
       emptyCount: built.customAttributes.find((count) => count.id === attribute.id)?.empty ?? null,
