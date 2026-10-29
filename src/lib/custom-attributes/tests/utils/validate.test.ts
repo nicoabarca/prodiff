@@ -54,8 +54,8 @@ describe("allowedColumns", () => {
     ["event", "aggregate", []],
     ["case", "column", ["budget", "paid"]],
     ["case", "aggregate", ["amount", "points"]]
-  ] as const)("offers %s scope's visible number %s operands, by name", (scope, as, names) => {
-    expect(allowedColumns(project, scope, as).map((c) => c.name)).toEqual(names);
+  ] as const)("offers %s scope's visible number %s operands, by name", (scope, operand, names) => {
+    expect(allowedColumns(project, scope, operand).map((c) => c.name)).toEqual(names);
   });
 });
 

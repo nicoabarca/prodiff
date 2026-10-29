@@ -29,9 +29,9 @@ const RULES: Record<Operand["kind"], Record<AttributeScope, Rule>> = {
 export function allowedColumns(
   project: Project,
   scope: AttributeScope,
-  as: "column" | "aggregate"
+  operand: "column" | "aggregate"
 ): RequestColumnMapping[] {
-  const rule = RULES[as][scope];
+  const rule = RULES[operand][scope];
   if (typeof rule === "string") return [];
   return project.columns
     .filter(
