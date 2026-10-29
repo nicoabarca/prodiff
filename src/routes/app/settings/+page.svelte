@@ -9,3 +9,10 @@
   <ResetTours />
   <ImportStudyProject />
 </main>
+
+<a
+  href="/app/projects"
+  class="text-muted-foreground/60 hover:text-muted-foreground fixed right-6 bottom-4 text-xs"
+>
+  Back to Projects
+</a>
