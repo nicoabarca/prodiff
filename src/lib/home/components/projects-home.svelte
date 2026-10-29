@@ -109,3 +109,12 @@
     </main>
   {/if}
 {/if}
+
+{#if projectsLoaded.value && welcome.loaded}
+  <a
+    href="/app/settings"
+    class="text-muted-foreground/60 hover:text-muted-foreground fixed right-6 bottom-4 text-xs"
+  >
+    Settings
+  </a>
+{/if}
