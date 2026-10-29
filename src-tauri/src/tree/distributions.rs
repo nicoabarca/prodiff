@@ -3,10 +3,10 @@
 //! A node is named by the Variant keys of the leaves in its subtree plus its
 //! depth, so nothing here re-derives node identity by joining activity labels.
 
-use super::{read_group, resolved_row, variant_key, AttrSpec, GroupRows, Source};
+use super::{read_group, variant_key, AttrSpec, GroupRows, Source};
 use crate::analysis::stats::{quantile, tukey};
 use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
-use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole};
+use crate::column_mapping::{find_role, resolve_row, CaseResolution, ColumnMapping, ColumnRole};
 use std::collections::{HashMap, HashSet};
 
 /// How many categories ship at most. The frontend cuts to its own top-N and
@@ -240,7 +240,13 @@ fn accumulate(
             // A case-level column is read once, whatever the Scope asked for.
             let read = match plan.case_resolution {
                 Some(resolution) => {
-                    let row = resolved_row(bounds, resolution);
+                    let row = resolve_row(bounds, resolution, |r| match plan.value_index {
+                        Some(index) => match &rows.values[index] {
+                            super::Values::Num(v) => v[r].is_some(),
+                            super::Values::Cat(v) => v[r].is_some(),
+                        },
+                        None => rows.transition[r].is_some(),
+                    });
                     row..row + 1
                 }
                 None => range.clone(),

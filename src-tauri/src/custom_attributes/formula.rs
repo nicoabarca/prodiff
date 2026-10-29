@@ -254,8 +254,8 @@ impl Formula {
                     .find(|c| &c.name == name)
                     .and_then(|c| c.scope.resolution());
                 match resolution {
-                    Some(CaseResolution::Last) => number(name).last(),
-                    _ => number(name).first(),
+                    Some(CaseResolution::Last) => number(name).last_non_null(),
+                    _ => number(name).first_non_null(),
                 }
             }
             (Formula::Aggregate { function, column }, AttributeScope::Case) => {
@@ -393,7 +393,7 @@ mod tests {
         let mut df = df!(
             "case" => ["a", "a", "a", "b", "c", "c"],
             "x" => [Some(1i64), None, Some(4), None, Some(3), Some(5)],
-            "first_x" => [Some(7i64), Some(7), Some(7), Some(2), Some(6), Some(6)],
+            "first_x" => [None, Some(7i64), Some(7), Some(2), Some(6), Some(6)],
             "last_x" => [Some(1i64), Some(2), None, Some(2), Some(6), Some(6)]
         )
         .unwrap();
@@ -583,12 +583,15 @@ mod tests {
     }
 
     #[test]
-    fn a_case_column_reads_the_row_its_resolution_names_even_when_empty() {
+    fn a_case_column_reads_its_first_or_latest_value_skipping_empty_events() {
         assert_eq!(
             per_case(&column("first_x")),
             [Some(7.0), Some(2.0), Some(6.0)]
         );
-        assert_eq!(per_case(&column("last_x")), [None, Some(2.0), Some(6.0)]);
+        assert_eq!(
+            per_case(&column("last_x")),
+            [Some(2.0), Some(2.0), Some(6.0)]
+        );
     }
 
     #[derive(Deserialize)]
