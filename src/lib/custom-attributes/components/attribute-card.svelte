@@ -6,6 +6,7 @@
   import { isApplied } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { discardDraft, draftOf, isDirty } from "$lib/custom-attributes/state/drafts.svelte";
   import type { CustomAttribute } from "$lib/custom-attributes/types";
+  import GranularityIcon from "$lib/custom-attributes/components/granularity-icon.svelte";
   import { formatNumber } from "$lib/format";
   import Check from "@lucide/svelte/icons/check";
   import Pencil from "@lucide/svelte/icons/pencil";
@@ -36,6 +37,10 @@
   <Card.Header>
     <Card.Title>
       <span class="flex items-center gap-2">
+        <Badge variant="secondary" title="Granularity">
+          <GranularityIcon scope={attribute.scope} />
+          {scopeLabel}
+        </Badge>
         <span class="text-primary font-mono text-xs font-bold" aria-hidden="true">ƒx</span>
         {draft.name}
         {#if dirty}
@@ -51,9 +56,9 @@
       {:else if !applied}
         Views cannot pick it until it is applied.
       {:else if attribute.emptyCount === 0}
-        {scopeLabel} · Number · Every {attribute.scope} was calculated.
+        Number · Every {attribute.scope} was calculated.
       {:else}
-        {scopeLabel} · Number · {formatNumber(attribute.emptyCount ?? 0)}
+        Number · {formatNumber(attribute.emptyCount ?? 0)}
         {attribute.scope}{attribute.emptyCount === 1 ? "" : "s"} could not be calculated and {attribute.emptyCount ===
         1
           ? "is"

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
+  import GranularityIcon from "$lib/custom-attributes/components/granularity-icon.svelte";
+  import type { ColumnScope } from "$lib/event-log/invokers/types";
   import type { BinaryOperator } from "$lib/custom-attributes/invokers/types";
   import type { Block } from "$lib/custom-attributes/utils/blocks";
   import { isAggregate, type FunctionName } from "$lib/custom-attributes/utils/parser";
@@ -12,6 +14,7 @@
    */
   let {
     columns,
+    columnScope,
     insideCall = false,
     functions = [],
     oninsert,
@@ -19,6 +22,7 @@
     onparentheses
   }: {
     columns: string[];
+    columnScope: ColumnScope;
     insideCall?: boolean;
     functions?: readonly FunctionName[];
     oninsert: (blocks: Block[]) => void;
@@ -48,13 +52,17 @@
 <div class="flex flex-col gap-3">
   <div class="flex flex-col gap-1.5">
     <span class="text-muted-foreground text-xs font-medium">
-      {insideCall ? "Event columns for this function" : "Columns"}
+      {insideCall
+        ? "Event columns for this function"
+        : columnScope === "case"
+          ? "Case columns"
+          : "Event columns"}
     </span>
     {#if columns.length === 0}
       <p class="text-muted-foreground text-xs">
         The event log has no visible number columns {insideCall
-          ? "of event scope"
-          : "this scope can read"}.
+          ? "at event granularity"
+          : "this granularity can read"}.
       </p>
     {:else}
       <div class="flex flex-wrap gap-1">
@@ -63,9 +71,10 @@
             variant="outline"
             size="sm"
             class="text-primary h-7 px-2 text-xs"
+            title="{columnScope === 'case' ? 'Case' : 'Event'} column"
             onclick={() => oninsert([{ kind: "column", name }])}
           >
-            <span class="text-muted-foreground" aria-hidden="true">#</span>
+            <GranularityIcon scope={columnScope} class="text-muted-foreground" />
             {name}
           </Button>
         {/each}

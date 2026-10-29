@@ -17,6 +17,7 @@
   import type { CustomAttribute } from "$lib/custom-attributes/types";
   import BlockPalette from "$lib/custom-attributes/components/block-palette.svelte";
   import FormulaBlocks from "$lib/custom-attributes/components/formula-blocks.svelte";
+  import GranularityIcon from "$lib/custom-attributes/components/granularity-icon.svelte";
   import {
     fromBlocks,
     insertAt,
@@ -89,6 +90,7 @@
   );
   const directColumns = $derived(allowedColumns(project, scope, "column").map((c) => c.name));
   const aggregateColumns = $derived(allowedColumns(project, scope, "aggregate").map((c) => c.name));
+  const columnScopes = $derived(Object.fromEntries(project.columns.map((c) => [c.name, c.scope])));
 
   function changeBlocks(next: BlockEdit) {
     text = fromBlocks(next.blocks);
@@ -159,8 +161,17 @@
 
 <Field.FieldGroup>
   <Field.Field data-invalid={name !== "" && nameProblem ? true : undefined}>
-    <Field.FieldLabel for="custom-attribute-name">Name</Field.FieldLabel>
-    <Input id="custom-attribute-name" bind:value={name} placeholder="Expense per point" />
+    <Field.FieldLabel for="custom-attribute-name">
+      Name
+      <span class="text-muted-foreground font-normal">(required)</span>
+    </Field.FieldLabel>
+    <Input
+      id="custom-attribute-name"
+      bind:value={name}
+      required
+      placeholder="Ex. expenses per point"
+      class="placeholder:text-muted-foreground/50"
+    />
     {#if name !== "" && nameProblem}
       <Field.FieldError>{nameProblem}</Field.FieldError>
     {/if}
@@ -168,23 +179,24 @@
 
   {#if attribute}
     <Field.Field>
-      <Field.FieldLabel>Scope</Field.FieldLabel>
+      <Field.FieldLabel>Granularity</Field.FieldLabel>
       <Field.FieldDescription>
-        <span class="text-foreground font-medium">
-          {scope === "case" ? "Case attribute" : "Event attribute"}.
+        <span class="text-foreground inline-flex items-center gap-1 font-medium">
+          <GranularityIcon {scope} />
+          {scope === "case" ? "Case attribute" : "Event attribute"}
         </span>
-        Scope is fixed once saved.
       </Field.FieldDescription>
     </Field.Field>
   {:else}
     <Field.FieldSet>
-      <Field.FieldLegend variant="label">Scope</Field.FieldLegend>
+      <Field.FieldLegend variant="label">Granularity</Field.FieldLegend>
       <RadioGroup.Root value={scope} onValueChange={(next) => (scope = next as AttributeScope)}>
         {#each SCOPES as option (option.value)}
           <Field.Field orientation="horizontal">
             <RadioGroup.Item value={option.value} id="custom-attribute-scope-{option.value}" />
             <Field.FieldContent>
               <Field.FieldLabel for="custom-attribute-scope-{option.value}">
+                <GranularityIcon scope={option.value} class="text-muted-foreground" />
                 {option.label}
               </Field.FieldLabel>
               <Field.FieldDescription>{option.description}</Field.FieldDescription>
@@ -197,7 +209,10 @@
 
   <Field.Field data-invalid={text !== "" && formulaProblem ? true : undefined}>
     <div class="flex items-center justify-between gap-2">
-      <Field.FieldLabel for="custom-attribute-formula">Formula</Field.FieldLabel>
+      <Field.FieldLabel for="custom-attribute-formula">
+        Formula
+        <span class="text-muted-foreground font-normal">(required)</span>
+      </Field.FieldLabel>
       {#if editingText}
         <Button
           variant="ghost"
@@ -219,13 +234,19 @@
       <Input
         id="custom-attribute-formula"
         bind:value={text}
+        required
         placeholder="[expense] / [points]"
-        class="font-mono"
+        class="placeholder:text-muted-foreground/50 font-mono"
         spellcheck={false}
         autocomplete="off"
       />
     {:else}
-      <FormulaBlocks edit={blockEdit} flagged={refusal?.operand ?? null} onchange={changeBlocks} />
+      <FormulaBlocks
+        edit={blockEdit}
+        scopes={columnScopes}
+        flagged={refusal?.operand ?? null}
+        onchange={changeBlocks}
+      />
       {#if text !== ""}
         <p class="text-muted-foreground font-mono text-xs break-all">{text}</p>
       {/if}
@@ -250,6 +271,7 @@
       <BlockPalette
         columns={insideCall(blockEdit) ? aggregateColumns : directColumns}
         insideCall={insideCall(blockEdit)}
+        columnScope={insideCall(blockEdit) ? "event" : scope}
         functions={scope === "case" ? FUNCTIONS : []}
         oninsert={insertBlocks}
         oncall={(fn) => blockEdit && changeBlocks(insertCall(blockEdit, fn))}

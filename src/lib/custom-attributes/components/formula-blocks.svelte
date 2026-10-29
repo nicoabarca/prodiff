@@ -1,14 +1,18 @@
 <script lang="ts">
+  import GranularityIcon from "$lib/custom-attributes/components/granularity-icon.svelte";
+  import type { ColumnScope } from "$lib/event-log/invokers/types";
   import type { Block, BlockEdit } from "$lib/custom-attributes/utils/blocks";
   import { moveCaret, removeBefore } from "$lib/custom-attributes/utils/blocks";
 
   /** `flagged` is the refused operand: a column name, or a function written as `sum()`. */
   let {
     edit,
+    scopes,
     flagged = null,
     onchange
   }: {
     edit: BlockEdit;
+    scopes: Record<string, ColumnScope>;
     flagged?: string | null;
     onchange: (edit: BlockEdit) => void;
   } = $props();
@@ -80,8 +84,13 @@
     <button
       type="button"
       tabindex="-1"
+      title={block.kind === "column" && scopes[block.name]
+        ? `${scopes[block.name] === "case" ? "Case" : "Event"} column`
+        : undefined}
       onclick={() => onchange(moveCaret(edit, index + 1))}
-      class="bg-background hover:bg-muted h-6 shrink-0 border px-1.5 text-xs {isFlagged(block)
+      class="bg-background hover:bg-muted inline-flex h-6 shrink-0 items-center gap-1 border px-1.5 text-xs {isFlagged(
+        block
+      )
         ? 'border-destructive text-destructive'
         : 'border-border'} {block.kind === 'column'
         ? 'text-primary font-medium'
@@ -89,9 +98,10 @@
           ? 'font-mono'
           : 'font-bold'}"
     >
-      {#if block.kind === "column"}<span class="text-muted-foreground mr-1" aria-hidden="true"
-          >#</span
-        >{/if}{label(block)}
+      {#if block.kind === "column" && scopes[block.name]}
+        <GranularityIcon scope={scopes[block.name]} class="text-muted-foreground" />
+      {/if}
+      {label(block)}
     </button>
   {/each}
   {@render caret(edit.blocks.length)}
