@@ -1,12 +1,13 @@
 //! `seed-project <project_dir> <source>`: imports one Event Log outside the app,
 //! writes its Custom Attributes and applies Groups to it. Reads
 //! `{ columns, customAttributes, groups }` as JSON on stdin, where each Custom
-//! Attribute is `{ id, formula }` and each Group is `{ id, filters }`. Groups may
+//! Attribute is `{ id, scope, formula }` and each Group is `{ id, filters }`. Groups may
 //! filter on the Custom Attributes' columns. Prints
 //! `{ eventLog, customAttributes, groups }` as JSON on stdout; an error goes to
 //! stderr with a non-zero exit.
 
 use prodiff_lib::column_mapping::ColumnMapping;
+use prodiff_lib::custom_attributes::formula::AttributeScope;
 use prodiff_lib::custom_attributes::{self, CustomAttribute, EmptyCount};
 use prodiff_lib::event_log::importer::{import_event_log, CreateEventLogResult};
 use prodiff_lib::groups::{self, GroupFilters};
@@ -40,17 +41,21 @@ fn read_seed() -> Result<Seed, String> {
     serde_json::from_str(&text).map_err(|e| format!("stdin: {e}"))
 }
 
-/// The Column Mapping with one number column per Custom Attribute, as the app
-/// sends it when a Group is applied.
+/// The Column Mapping with one number column per Custom Attribute, scoped like
+/// the attribute, as the app sends it when a Group is applied.
 fn analysis_columns(seed: &Seed) -> Result<Vec<ColumnMapping>, String> {
     let mut columns = seed.columns.clone();
     for attribute in &seed.custom_attributes {
-        let entry = serde_json::json!({
+        let mut entry = serde_json::json!({
             "name": custom_attributes::column_name(&attribute.id),
             "role": "other",
             "scope": "event",
             "type": "float"
         });
+        if attribute.scope == AttributeScope::Case {
+            entry["scope"] = "case".into();
+            entry["caseResolution"] = "constant".into();
+        }
         columns.push(serde_json::from_value(entry).map_err(|e| e.to_string())?);
     }
     Ok(columns)
