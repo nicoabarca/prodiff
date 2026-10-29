@@ -113,8 +113,12 @@ mod tests {
     #[test]
     fn spaces_and_apostrophes_group_thousands_too() {
         assert_eq!(
-            plain_values(&["1 234,5", "1\u{a0}234,5", "1'234.5"]).unwrap(),
+            plain_values(&["1 234,5", "1\u{a0}234,5", "1\u{202f}234,5"]).unwrap(),
             ["1234.5", "1234.5", "1234.5"]
+        );
+        assert_eq!(
+            plain_values(&["1'234.5", "12'345'678"]).unwrap(),
+            ["1234.5", "12345678"]
         );
     }
 
