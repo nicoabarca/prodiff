@@ -1,6 +1,29 @@
+import type { AttributeBlock } from "$lib/analysis/types";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
+
+/**
+ * The tree's case attributes as one block each, its Group summaries keyed by
+ * Group id beside its test, which is the shape the DFG ships them in.
+ */
+export function caseLevelBlocks(tree: ResponseDirectedTree): Record<string, AttributeBlock> {
+  const names = new Set(tree.groups.flatMap((group) => Object.keys(group.caseLevel)));
+  return Object.fromEntries(
+    [...names].map((name) => [
+      name,
+      {
+        summaries: Object.fromEntries(
+          tree.groups.flatMap((group) => {
+            const summary = group.caseLevel[name];
+            return summary ? [[group.id, summary]] : [];
+          })
+        ),
+        test: tree.caseLevelTests[name] ?? null
+      }
+    ])
+  );
+}
 
 /** Cases reaching a node, summed over every Group on the tree. */
 export function nodeCases(node: TreeNode): number {

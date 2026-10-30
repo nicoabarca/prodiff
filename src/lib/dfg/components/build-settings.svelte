@@ -1,19 +1,15 @@
 <script lang="ts">
   /** The shared attributes field over the graph's build settings. */
   import AttributesField from "$lib/custom-attributes/components/attributes-field.svelte";
-  import { attributeOptions } from "$lib/analysis/attributes";
-  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
+  import { graphAttributeOptions, selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
   import type { Project } from "$lib/event-log/types";
 
   const NOTE =
-    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested. The graph rebuilds on each change. A Waiting Time under 0.5s is not drawn on its edge.";
+    "Each attribute is corrected within its own family, so adding one never weakens the findings of another. Unselected attributes are never tested. The graph rebuilds on each change.";
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
-  const options = $derived(
-    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
-  );
+  const options = $derived(graphAttributeOptions(project));
 
   // An attribute hidden or retyped out of the project leaves the selection.
   $effect(() => {

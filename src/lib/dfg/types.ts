@@ -1,9 +1,16 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
+import type { NodeDifferences } from "$lib/dfg/utils/findings";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
 export const START_ID = 0;
 export const END_ID = 1;
+
+/** Derived attributes only the DFG offers. Mirrors `src-tauri/src/dfg/mod.rs`. */
+export const ACTIVITY_FREQUENCY = "Activity Frequency";
+export const EDGE_FREQUENCY = "Edge Frequency";
+export const REPETITIONS = "Repetitions";
+export const GRAPH_ATTRIBUTES = [ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS];
 
 export type NodeKind = "start" | "end" | "activity";
 
@@ -79,7 +86,7 @@ export interface DfgNodeData {
   groups: FaceGroup[];
   counts: Record<string, string | null>;
   shadeStep: number | null;
-  findings: number;
+  differences: NodeDifferences | null;
   membership: string | null;
   selected: boolean;
   direction: Direction;
@@ -93,10 +100,12 @@ export interface DfgEdgeData {
   shaft: string;
   head: string;
   width: number;
+  stroke: string | null;
   waits: EdgeWait[];
   dotted: boolean;
   labelAt: Point;
   boundary: boolean;
+  clickable: boolean;
   highlighted: boolean;
   dimmed: boolean;
   [key: string]: unknown;

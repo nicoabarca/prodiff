@@ -49,6 +49,7 @@ export interface Test {
   effectSigned: number | null;
   significant: boolean;
   higher: string | null;
+  approximate: boolean;
 }
 
 /** Mirrors `MIN_GROUP_CASES` in `src-tauri/src/analysis/mod.rs`: neither test says anything below it. */

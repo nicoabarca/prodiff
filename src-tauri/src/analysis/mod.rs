@@ -113,6 +113,7 @@ pub struct Test {
     pub effect_signed: Option<f64>,
     pub significant: bool,
     pub higher: Option<String>,
+    pub approximate: bool,
 }
 
 #[derive(serde::Serialize, Debug, Clone)]

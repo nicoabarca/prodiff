@@ -16,22 +16,32 @@
   import Frame from "$lib/dfg/components/frame.svelte";
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-  import { selected, view } from "$lib/dfg/state/view.svelte";
+  import { inspect, selected, view } from "$lib/dfg/state/view.svelte";
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
+    busiestPerCase,
+    edgeStroke,
     edgeWait,
     edgeWidth,
     faceCounts,
-    findings,
     membership,
+    perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
-  import { END_ID, START_ID, type FaceGroup } from "$lib/dfg/types";
+  import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
+  import {
+    edgePlace,
+    nodeDifferences,
+    placeKey,
+    testedPlaces,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
+  import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -39,6 +49,7 @@
   let {
     graph,
     simplified,
+    findings,
     groups,
     stale,
     focus = null,
@@ -52,6 +63,7 @@
   }: {
     graph: ResponseDfg;
     simplified: Simplified;
+    findings: Finding[];
     groups: FaceGroup[];
     stale: boolean;
     focus?: string | null;
@@ -81,15 +93,15 @@
       place on either side. */
   const placedGraph = $derived(layoutFrom ?? ownGraph);
 
-  const NO_COUNTS: Counts = { cases: 0, events: 0 };
+  const caseCounts = $derived(new Map(graph.groups.map((group) => [group.id, group.caseCount])));
 
   /**
-   * The counts a panel prints from. A split panel narrows them to its one
-   * Group, so every figure, shade and thickness below ranks within that Group
-   * instead of across the comparison.
+   * The counts a panel shades and thickens by. A split panel narrows them to
+   * its one Group, per case of that Group, and ranks them against every
+   * Group's, so both panels draw on one scale.
    */
   const facing = (counts: Record<string, Counts>): Record<string, Counts> =>
-    focus === null ? counts : { [focus]: counts[focus] ?? NO_COUNTS };
+    focus === null ? counts : { [focus]: perCase(counts, focus, caseCounts) };
 
   const shown = $derived(focus === null ? groups : groups.filter((group) => group.id === focus));
 
@@ -97,8 +109,30 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
-  const measured = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
+  const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
+  const tested = $derived(testedPlaces(findings));
+
+  /** Whether a click on an edge opens the tests panel: some test was run on it. */
+  const edgeInspectable = (source: number, target: number) =>
+    tested.has(placeKey({ kind: "edge", source, target, label: "" }));
+
+  /** A click on an activity some test was run on opens the tests panel on it; any other node only selects. */
+  function clickNode(id: number) {
+    const label = drawnLabels.get(id);
+    if (label === undefined || !tested.has(placeKey({ kind: "node", id, label }))) {
+      selected.id = id;
+      return;
+    }
+    inspect({ kind: "node", id, label });
+  }
+
+  /** A click on an inspectable edge opens the tests panel on it. */
+  function clickEdge(edge: Edge) {
+    if (!(edge.data as DfgEdgeData).clickable) return;
+    inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
+  }
 
   /** Every edge label's box, sized for every compared Group, so both split
       panels reserve the same room and place it in the same spot. */
@@ -112,10 +146,13 @@
     )
   );
 
-  /** What `spotlight` lights, or else the nodes and edges of the Variant a row's
-      eye lit, if it is still on the graph. */
+  /** The Variant a row's eye lit, if it is still on the graph, over the place
+      `spotlight` names. */
   const highlight = $derived(
-    spotlight ?? litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus)
+    light({
+      variant: litPath(graph.variants, shownVariant.key, simplified.variants.keys, labels, focus),
+      finding: spotlight
+    })
   );
 
   // ELK is asynchronous, so the placement lands a tick after the topology
@@ -172,11 +209,26 @@
       })
     );
 
-    const steps = shadeSteps(
-      simplified.nodes.map((node) =>
-        shadeValue({ ...node, counts: facing(node.counts) }, view.measure)
+    // A split panel shades against every Group's figures, then keeps its own.
+    const shadedIds: (string | null)[] = focus === null ? [null] : [...caseCounts.keys()];
+    const allSteps = shadeSteps(
+      shadedIds.flatMap((id) =>
+        simplified.nodes.map((node) =>
+          shadeValue(
+            {
+              ...node,
+              counts: id === null ? node.counts : { [id]: perCase(node.counts, id, caseCounts) }
+            },
+            view.measure
+          )
+        )
       ),
       "log"
+    );
+    const own = focus === null ? 0 : shadedIds.indexOf(focus);
+    const steps = allSteps.slice(
+      own * simplified.nodes.length,
+      (own + 1) * simplified.nodes.length
     );
 
     // A split panel draws only what its own Group reaches. The box stays in the
@@ -205,7 +257,7 @@
             groups: shown,
             counts: faceCounts(node.counts, shown, view.measure),
             shadeStep: steps[index],
-            findings: findings(measured.get(node.id)),
+            differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,
             direction: view.direction,
@@ -230,7 +282,13 @@
             boxes.get(edge.target) ?? null,
             view.direction
           );
-        return { edge, key, waits: edgeWait(waits.get(key), shown), route: prepareRoute(points) };
+        return {
+          edge,
+          key,
+          waits: edgeWait(waits.get(key), shown),
+          stroke: edgeStroke(edge.counts, waits.get(key), groups),
+          route: prepareRoute(points)
+        };
       });
 
     // ELK reserves each label's room beside its edge; a label is drawn on the
@@ -249,15 +307,17 @@
       [...boxes.values()]
     );
 
-    const busiestEdge = busiest(
-      simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
-      view.measure
-    );
-    const edges: Edge[] = drawn.map(({ edge, key, waits, route }) => {
+    const busiestEdge =
+      focus === null
+        ? busiest(simplified.edges, view.measure)
+        : busiestPerCase(simplified.edges, caseCounts, view.measure);
+    const edges: Edge[] = drawn.map(({ edge, key, waits, stroke, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
+      const clickable = edgeInspectable(edge.source, edge.target);
       return {
         id: key,
+        class: clickable ? "cursor-pointer" : undefined,
         source: String(edge.source),
         target: String(edge.target),
         type: "routed",
@@ -265,10 +325,12 @@
           shaft: shape.shaft,
           head: shape.head,
           width,
+          stroke,
           waits,
           dotted: shown.length > 1,
           labelAt: settled.get(key) ?? along(route, 0.5),
           boundary: edge.source === START_ID || edge.target === END_ID,
+          clickable,
           highlighted: false,
           dimmed: false
         }
@@ -336,7 +398,8 @@
     nodesDraggable={false}
     elementsSelectable={false}
     onlyRenderVisibleElements={!exporting}
-    onnodeclick={({ node }) => (selected.id = Number(node.id))}
+    onnodeclick={({ node }) => clickNode(Number(node.id))}
+    onedgeclick={({ edge }) => clickEdge(edge)}
     onpaneclick={() => (selected.id = null)}
   >
     <Background />

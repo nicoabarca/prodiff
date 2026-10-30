@@ -68,8 +68,37 @@ export function isPointed(place: Place): boolean {
   return current !== null && placeKey(current) === placeKey(place);
 }
 
+/**
+ * The place a click on the canvas opened the tests panel on: an activity, whose
+ * differences the panel narrows to, or an edge, whose Waiting Time it opens and
+ * scrolls to. `at` moves on with each click, so clicking the same edge again
+ * scrolls back to it.
+ */
+export const inspected = $state<{ place: Place | null; at: number }>({ place: null, at: 0 });
+
+/**
+ * Opens the tests panel on a place clicked on the canvas. An activity is
+ * selected; an edge is lit as if the panel pointed at it, without reframing.
+ */
+export function inspect(place: Place) {
+  inspected.place = place;
+  inspected.at += 1;
+  tests.open = true;
+  selected.id = place.kind === "node" ? place.id : null;
+  if (place.kind === "edge") {
+    pointed.place = place;
+    pointed.with = null;
+  }
+}
+
+/** Back to every test on the graph. */
+export function clearInspected() {
+  inspected.place = null;
+}
+
 export function reset() {
   Object.assign(view, defaultDfgView);
   selected.id = null;
   pointed.place = null;
+  inspected.place = null;
 }

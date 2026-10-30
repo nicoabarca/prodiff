@@ -21,6 +21,7 @@ function testResult(effectSize: number, significant = true): Test {
     effectSize,
     effectSigned: null,
     significant,
+    approximate: false,
     direction: null
   };
 }

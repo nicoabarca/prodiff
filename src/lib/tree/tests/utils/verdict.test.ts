@@ -33,6 +33,7 @@ function test(overrides: Partial<Test> = {}): Test {
     effectSize: 0.34,
     effectSigned: null,
     significant: true,
+    approximate: false,
     higher: "r",
     ...overrides
   };
