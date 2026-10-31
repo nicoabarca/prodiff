@@ -63,6 +63,11 @@
     {:else}
       <ComparisonNote />
     {/if}
+    {#if graph?.skippedCaseLevel.length}
+      <p class="text-muted-foreground truncate text-xs">
+        Case-level attributes left out: {graph.skippedCaseLevel.join(", ")}
+      </p>
+    {/if}
   </div>
 
   <div class="flex shrink-0 items-center px-3">

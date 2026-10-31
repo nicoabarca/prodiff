@@ -3,8 +3,6 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import type { DfgNodeData } from "$lib/dfg/types";
   import { shade } from "$lib/groups/utils/shade";
-  import SignificanceBadge from "$lib/tree/components/significance-badge.svelte";
-  import { effectBand, effectStep } from "$lib/tree/utils/effect";
 
   let { data }: { data: DfgNodeData } = $props();
 
@@ -106,12 +104,17 @@
       {/each}
     </div>
 
-    {#if data.differences}
-      <SignificanceBadge
-        count={data.differences.count}
-        step={effectStep(data.differences.peak)}
-        band={effectBand(data.differences.peak)}
-      />
+    {#if data.findings > 0}
+      <Tooltip.Root>
+        <Tooltip.Trigger
+          class="bg-effect-3 text-effect-3-foreground ring-foreground/20 absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold ring-1"
+        >
+          {data.findings}
+        </Tooltip.Trigger>
+        <Tooltip.Content>
+          {data.findings} significant difference{data.findings === 1 ? "" : "s"} here
+        </Tooltip.Content>
+      </Tooltip.Root>
     {/if}
   </div>
 {/if}

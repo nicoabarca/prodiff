@@ -9,7 +9,6 @@
   import Canvas from "$lib/dfg/components/canvas.svelte";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import type { FaceGroup } from "$lib/dfg/types";
-  import type { Finding } from "$lib/dfg/utils/findings";
   import { refit } from "$lib/dfg/state/view.svelte";
   import type { LitPath } from "$lib/dfg/utils/fold";
   import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -19,7 +18,6 @@
   let {
     graph,
     simplified,
-    findings,
     groups,
     stale,
     frameOn = null,
@@ -27,7 +25,6 @@
   }: {
     graph: ResponseDfg;
     simplified: Simplified;
-    findings: Finding[];
     groups: FaceGroup[];
     stale: boolean;
     frameOn?: { ids: number[]; at: number } | null;
@@ -78,7 +75,6 @@
           <Canvas
             {graph}
             {simplified}
-            {findings}
             {groups}
             {stale}
             focus={groups[0].id}
@@ -105,7 +101,6 @@
           <Canvas
             {graph}
             {simplified}
-            {findings}
             {groups}
             {stale}
             focus={groups[1].id}

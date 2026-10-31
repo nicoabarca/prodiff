@@ -18,7 +18,7 @@ export interface ResponseDfg {
   variants: Variant[];
   transitions: Transition[];
   groups: GroupBlock[];
-  caseLevel: Record<string, AttributeBlock>;
+  skippedCaseLevel: string[];
 }
 
 export interface DfgNode {

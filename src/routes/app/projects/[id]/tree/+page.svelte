@@ -22,7 +22,6 @@
   import Canvas from "$lib/tree/components/canvas.svelte";
   import DetailPanel from "$lib/tree/components/detail-panel.svelte";
   import CaseStrip from "$lib/tree/components/case-strip.svelte";
-  import { caseLevelBlocks } from "$lib/tree/utils/tree";
   import TreeToolbar from "$lib/tree/components/tree-toolbar.svelte";
   import VariantPanel from "$lib/tree/components/variant-panel.svelte";
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
@@ -92,11 +91,7 @@
       <AttributePrompt {project} />
 
       {#if built.tree}
-        <CaseStrip
-          caseLevel={caseLevelBlocks(built.tree)}
-          groupIds={built.tree.groups.map((group) => group.id)}
-          cappedByCeiling={built.tree.cappedByCeiling}
-        />
+        <CaseStrip tree={built.tree} />
       {/if}
 
       <div class="flex min-h-0 flex-1">

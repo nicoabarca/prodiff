@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { stableKeys } from "$lib/tree/utils/flow";
-import { caseLevelBlocks } from "$lib/tree/utils/tree";
-import type { Summary, Test } from "$lib/analysis/types";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 
 function node(
@@ -82,33 +80,5 @@ describe("stableKeys", () => {
       treeOf([node(0, null, "Start", null), node(1, 0, "Ship", "Ship"), node(2, 0, "Pay", "Pay")])
     );
     expect(second.get(2)).toBe(first.get(1));
-  });
-});
-
-describe("caseLevelBlocks", () => {
-  const north = (n: number): Summary => ({ type: "categorical", n, counts: { north: n } });
-  const chi: Test = {
-    test: "chi2",
-    statistic: 4,
-    pValue: 0.01,
-    effectSize: 0.4,
-    effectSigned: null,
-    significant: true,
-    higher: null
-  };
-
-  it("joins each Group's summary and the test into one block per attribute", () => {
-    const tree = {
-      ...treeOf([]),
-      groups: [
-        { id: "a", caseCount: 3, caseLevel: { region: north(3) } },
-        { id: "b", caseCount: 2, caseLevel: { region: north(2), channel: north(2) } }
-      ],
-      caseLevelTests: { region: chi }
-    };
-    expect(caseLevelBlocks(tree)).toEqual({
-      region: { summaries: { a: north(3), b: north(2) }, test: chi },
-      channel: { summaries: { b: north(2) }, test: null }
-    });
   });
 });

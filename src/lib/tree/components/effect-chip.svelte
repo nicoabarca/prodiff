@@ -18,7 +18,7 @@
   }: { test: Test | null | undefined; tooltip?: boolean; class?: string } = $props();
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
-  const label = $derived(!test ? "" : !test.significant ? "not enough evidence" : (band ?? ""));
+  const label = $derived(!test ? "" : !test.significant ? "no difference" : (band ?? ""));
   // A failed test has no magnitude to place on the ramp, so it stays neutral.
   const step = $derived(test?.significant ? effectStep(test.effectSize) : null);
 </script>
