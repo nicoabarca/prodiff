@@ -1,15 +1,14 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity on screen that more than one Group
- * reaches, plus the Waiting Time of every edge on screen that more than one
- * Group follows. A place one Group alone reaches has nothing to compare against.
+ * every attribute block of every activity and every edge on screen that more
+ * than one Group reaches. A place one Group alone reaches has nothing to
+ * compare against.
  */
-import { TRANSITION_TIME } from "$lib/analysis/attributes";
-import type { AttributeBlock } from "$lib/analysis/types";
-import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, Method, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
-import { transitionsById } from "$lib/dfg/utils/face";
 import type { Simplified } from "$lib/dfg/utils/simplify";
+import { formatPValue } from "$lib/tree/utils/verdict";
 
 export type Place =
   | { kind: "node"; id: number; label: string }
@@ -19,7 +18,7 @@ export interface Finding {
   key: string;
   place: Place;
   attribute: string;
-  block: AttributeBlock;
+  block: PlaceBlock;
 }
 
 /** The node ids a place covers, for framing it on the canvas. */
@@ -57,31 +56,147 @@ export function comparable(counts: Record<string, Counts>, groupIds: string[]): 
 export function graphFindings(graph: ResponseDfg, simplified: Simplified): Finding[] {
   const measured = new Map(graph.nodes.map((node) => [node.id, node]));
   const labels = new Map(simplified.nodes.map((node) => [node.id, node.label]));
-  const waits = transitionsById(graph);
+  const pairs = new Map(
+    graph.transitions.map((transition) => [
+      edgeId(transition.source, transition.target),
+      transition.attributes
+    ])
+  );
   const groupIds = graph.groups.map((group) => group.id);
 
-  const nodes = simplified.nodes.flatMap((node) => {
-    if (!comparable(measured.get(node.id)?.counts ?? {}, groupIds)) return [];
-    const blocks = measured.get(node.id)?.attributes ?? {};
-    const place: Place = { kind: "node", id: node.id, label: node.label };
+  const at = (
+    place: Place,
+    blocks: Record<string, PlaceBlock>,
+    counts: Record<string, Counts>
+  ): Finding[] => {
+    if (!comparable(counts, groupIds)) return [];
     return Object.entries(blocks).map(([attribute, block]) => ({
       key: `${placeKey(place)}:${attribute}`,
       place,
       attribute,
       block
     }));
+  };
+
+  const nodes = simplified.nodes.flatMap((node) => {
+    const activity = measured.get(node.id);
+    if (!activity) return [];
+    return at(
+      { kind: "node", id: node.id, label: node.label },
+      activity.attributes,
+      activity.counts
+    );
   });
 
   const edges = simplified.edges.flatMap((edge) => {
-    const block = waits.get(edgeId(edge.source, edge.target));
-    if (!block || !comparable(edge.counts, groupIds)) return [];
-    const place = edgePlace(edge.source, edge.target, labels);
-    return [
-      { key: `${placeKey(place)}:${TRANSITION_TIME}`, place, attribute: TRANSITION_TIME, block }
-    ];
+    const blocks = pairs.get(edgeId(edge.source, edge.target));
+    if (!blocks) return [];
+    return at(edgePlace(edge.source, edge.target, labels), blocks, edge.counts);
   });
 
   return [...nodes, ...edges];
+}
+
+/** The category a frequency counts its hits under. Mirrors `src-tauri/src/dfg/mod.rs`. */
+const HIT: Record<string, string> = {
+  [ACTIVITY_FREQUENCY]: "Reached",
+  [EDGE_FREQUENCY]: "Followed",
+  [REPETITIONS]: "More than once"
+};
+
+const VERB: Record<string, string> = {
+  [ACTIVITY_FREQUENCY]: "more often",
+  [EDGE_FREQUENCY]: "more often",
+  [REPETITIONS]: "more often runs it more than once"
+};
+
+/**
+ * The value whose share of each Group's cases moves most, in percentage points
+ * from the first Group to the last. Shares are of `n`, so a case that held
+ * several values counts under each.
+ */
+function largestGap(block: PlaceBlock, groups: { id: string; name: string }[]) {
+  const shares = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    return (name: string) =>
+      summary?.type === "categorical" && summary.n > 0
+        ? ((summary.counts[name] ?? 0) / summary.n) * 100
+        : 0;
+  });
+  const names = new Set(
+    groups.flatMap((group) => {
+      const summary = block.summaries[group.id];
+      return summary?.type === "categorical" ? Object.keys(summary.counts) : [];
+    })
+  );
+  return [...names]
+    .map((name) => ({ name, gap: shares[shares.length - 1](name) - shares[0](name) }))
+    .reduce<{ name: string; gap: number } | null>(
+      (best, row) => (best && Math.abs(best.gap) >= Math.abs(row.gap) ? best : row),
+      null
+    );
+}
+
+/**
+ * The verdict of a test the DFG words on its own, with the figures in the order
+ * the Groups are compared: "Group 2 more often · 72% vs 65%" for a frequency,
+ * "Group 1 more often runs it more than once · 42% vs 18%" for Repetitions,
+ * "Different mix · Ana +22.0 pp" for a per-value test. `null` for any other
+ * attribute or a test that did not come out significant.
+ */
+export function builtInVerdict(
+  attribute: string,
+  block: PlaceBlock,
+  groups: { id: string; name: string }[]
+): string | null {
+  if (!block.test?.significant) return null;
+  if (block.method === "perValue") {
+    const top = largestGap(block, groups);
+    if (!top) return null;
+    const sign = top.gap >= 0 ? "+" : "−";
+    return `Different mix · ${top.name} ${sign}${Math.abs(top.gap).toFixed(1)} pp`;
+  }
+  const hit = HIT[attribute];
+  const higher = groups.find((group) => group.id === block.test?.higher);
+  if (hit === undefined || !higher) return null;
+  const shares = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    if (summary?.type !== "categorical" || summary.n === 0) return "0%";
+    return `${Math.round(((summary.counts[hit] ?? 0) / summary.n) * 100)}%`;
+  });
+  return `${higher.name} ${VERB[attribute]} · ${shares.join(" vs ")}`;
+}
+
+const METHOD_NAMES: Record<Method, string> = {
+  mannWhitney: "Mann-Whitney U",
+  chi2: "Chi-square",
+  fisher: "Fisher's exact test",
+  perValue: "Each value tested alone"
+};
+
+/** The Significance Test in full. The p shown is before the correction across places. */
+export function placeTestLine(block: PlaceBlock, groups: { id: string; name: string }[]): string {
+  const test = block.test;
+  if (!test) return "";
+  const name = METHOD_NAMES[block.method ?? (test.test === "chi2" ? "chi2" : "mannWhitney")];
+  const effect = test.test === "chi2" ? "phi or Cramér's V" : "rank-biserial r";
+  const higher = groups.find((group) => group.id === test.higher);
+  const direction = higher ? ` · ${higher.name} higher` : "";
+  return `${name} · p = ${formatPValue(test.pValue)} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
+}
+
+/** Whether some case held several values, so a Group's value counts sum above its cases. */
+export function heldSeveral(block: PlaceBlock): boolean {
+  return Object.values(block.summaries).some(
+    (summary) =>
+      summary?.type === "categorical" &&
+      Object.values(summary.counts).reduce((sum, n) => sum + n, 0) > summary.n
+  );
+}
+
+/** Every place that carries at least one finding, by `placeKey`. */
+export function testedPlaces(findings: Finding[]): Set<string> {
+  return new Set(findings.map((finding) => placeKey(finding.place)));
 }
 
 /** One activity's significant findings, strongest effect first. */

@@ -21,6 +21,7 @@ const EVENTS: &str = "__dfg_events";
 const CASES: &str = "__dfg_cases";
 const VALUE: &str = "__dfg_value";
 const SEQUENCE: &str = "__dfg_sequence";
+const OCCURRENCES: &str = "__dfg_occurrences";
 
 pub(super) struct EventAttr {
     pub name: String,
@@ -48,6 +49,8 @@ pub(super) struct CaseLevelAgg {
 pub(super) struct NodeAgg {
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, HashMap<String, Acc>>,
+    pub attribute_cases: HashMap<String, HashMap<String, i64>>,
+    pub occurrences: HashMap<String, Acc>,
 }
 
 pub(super) struct VariantAgg {
@@ -89,6 +92,9 @@ pub(super) fn plan(
                 column: DURATION.to_string(),
             }),
             RequestedAttribute::ActivityDuration => {}
+            RequestedAttribute::ActivityFrequency
+            | RequestedAttribute::EdgeFrequency
+            | RequestedAttribute::Repetitions => {}
             RequestedAttribute::Column { name } => {
                 let Some(column) = mapping.iter().find(|column| &column.name == name) else {
                     continue;
@@ -242,23 +248,33 @@ pub(super) fn aggregate(
     })
 }
 
+/// Event and case counts per activity, how many times each case that reaches
+/// it runs it, and each numeric attribute as one value per case: the mean of
+/// that case's events at the activity, so a case that repeats an activity is
+/// one observation.
 fn node_counts(
     lf: &LazyFrame,
     attributes: &[EventAttr],
     nodes: &mut HashMap<String, NodeAgg>,
 ) -> Result<(), String> {
-    let mut aggs = vec![
-        len().cast(DataType::Int64).alias(EVENTS),
-        col(CASE).n_unique().cast(DataType::Int64).alias(CASES),
+    let numeric = || attributes.iter().filter(|a| a.numeric);
+
+    let mut per_case = vec![len().cast(DataType::Int64).alias(EVENTS)];
+    per_case.extend(numeric().map(|attr| col(&attr.column).mean().alias(&attr.column)));
+
+    let mut per_activity = vec![
+        col(EVENTS).sum().cast(DataType::Int64).alias(EVENTS),
+        len().cast(DataType::Int64).alias(CASES),
+        col(EVENTS).cast(DataType::Float64).alias(OCCURRENCES),
     ];
-    for attr in attributes.iter().filter(|a| a.numeric) {
-        aggs.push(col(&attr.column).drop_nulls().alias(&attr.column));
-    }
+    per_activity.extend(numeric().map(|attr| col(&attr.column).drop_nulls().alias(&attr.column)));
 
     let df = lf
         .clone()
+        .group_by([col(GROUP), col(ACT), col(CASE)])
+        .agg(per_case)
         .group_by([col(GROUP), col(ACT)])
-        .agg(aggs)
+        .agg(per_activity)
         .collect()
         .map_err(|e| e.to_string())?;
 
@@ -267,7 +283,7 @@ fn node_counts(
     let events = ints(&df, EVENTS)?;
     let cases = ints(&df, CASES)?;
 
-    for attr in attributes.iter().filter(|a| a.numeric) {
+    for attr in numeric() {
         for (row, values) in float_lists(&df, &attr.column)?.into_iter().enumerate() {
             nodes
                 .entry(labels[row].clone())
@@ -277,6 +293,13 @@ fn node_counts(
                 .or_default()
                 .insert(groups[row].clone(), Acc::Num(values));
         }
+    }
+    for (row, values) in float_lists(&df, OCCURRENCES)?.into_iter().enumerate() {
+        nodes
+            .entry(labels[row].clone())
+            .or_default()
+            .occurrences
+            .insert(groups[row].clone(), Acc::Num(values));
     }
     for row in 0..df.height() {
         nodes.entry(labels[row].clone()).or_default().counts.insert(
@@ -290,6 +313,10 @@ fn node_counts(
     Ok(())
 }
 
+/// Each value of a categorical attribute counted in cases that ever had it at
+/// the activity, and how many cases had any value there. A case whose repeats
+/// carry different values counts once under each of them, so the value counts
+/// can sum above that.
 fn categorical(
     lf: &LazyFrame,
     attr: &EventAttr,
@@ -299,14 +326,14 @@ fn categorical(
         .clone()
         .filter(col(&attr.column).is_not_null())
         .group_by([col(GROUP), col(ACT), col(&attr.column).alias(VALUE)])
-        .agg([len().cast(DataType::Int64).alias(EVENTS)])
+        .agg([col(CASE).n_unique().cast(DataType::Int64).alias(CASES)])
         .collect()
         .map_err(|e| e.to_string())?;
 
     let groups = strings(&df, GROUP)?;
     let labels = strings(&df, ACT)?;
     let values = strings(&df, VALUE)?;
-    let events = ints(&df, EVENTS)?;
+    let cases = ints(&df, CASES)?;
 
     for row in 0..df.height() {
         let acc = nodes
@@ -318,8 +345,28 @@ fn categorical(
             .entry(groups[row].clone())
             .or_insert_with(|| Acc::new(false));
         if let Acc::Cat(counts) = acc {
-            *counts.entry(values[row].clone()).or_insert(0) += events[row];
+            *counts.entry(values[row].clone()).or_insert(0) += cases[row];
         }
+    }
+
+    let df = lf
+        .clone()
+        .filter(col(&attr.column).is_not_null())
+        .group_by([col(GROUP), col(ACT)])
+        .agg([col(CASE).n_unique().cast(DataType::Int64).alias(CASES)])
+        .collect()
+        .map_err(|e| e.to_string())?;
+    let groups = strings(&df, GROUP)?;
+    let labels = strings(&df, ACT)?;
+    let cases = ints(&df, CASES)?;
+    for row in 0..df.height() {
+        nodes
+            .entry(labels[row].clone())
+            .or_default()
+            .attribute_cases
+            .entry(attr.name.clone())
+            .or_default()
+            .insert(groups[row].clone(), cases[row]);
     }
     Ok(())
 }
@@ -364,8 +411,8 @@ fn filter_by_variants(lf: LazyFrame, keys: &[String]) -> Result<LazyFrame, Strin
 }
 
 /// Each case-scoped attribute, one value per case and Group, from the case's
-/// first or last row as its resolution says. Rows run in timestamp order within
-/// a case, so `First` is its earliest event and `Last` its latest. Read after
+/// first or last non-empty value as its resolution says. Rows run in timestamp
+/// order within a case, so `First` is its earliest event and `Last` its latest. Read after
 /// the Variant cut, so it describes the same cases the graph draws.
 fn case_level(lf: &LazyFrame, attrs: &[CaseAttr]) -> Result<Vec<CaseLevelAgg>, String> {
     if attrs.is_empty() {
@@ -375,8 +422,10 @@ fn case_level(lf: &LazyFrame, attrs: &[CaseAttr]) -> Result<Vec<CaseLevelAgg>, S
         .iter()
         .map(|attr| {
             let value = match attr.resolution {
-                CaseResolution::Constant | CaseResolution::First => col(&attr.column).first(),
-                CaseResolution::Last => col(&attr.column).last(),
+                CaseResolution::Constant | CaseResolution::First => {
+                    col(&attr.column).drop_nulls().first()
+                }
+                CaseResolution::Last => col(&attr.column).drop_nulls().last(),
             };
             value.alias(&attr.column)
         })
@@ -454,10 +503,13 @@ fn variants(lf: &LazyFrame) -> Result<Vec<VariantAgg>, String> {
     Ok(variants)
 }
 
+/// Each pair's wait as one value per case: the mean of the case's waits on it.
 fn transitions(lf: &LazyFrame) -> Result<Transitions, String> {
     let df = lf
         .clone()
         .filter(col(PREVIOUS).is_not_null())
+        .group_by([col(GROUP), col(PREVIOUS), col(ACT), col(CASE)])
+        .agg([col(DELTA).mean().alias(DELTA)])
         .group_by([col(GROUP), col(PREVIOUS), col(ACT)])
         .agg([col(DELTA).drop_nulls().alias(DELTA)])
         .collect()
