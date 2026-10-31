@@ -202,6 +202,19 @@ describe("builtInVerdict", () => {
     );
   });
 
+  it("keeps a decimal on a share below 10%, so a rare step keeps its ratio", () => {
+    const rare: PlaceBlock = {
+      ...reach("a"),
+      summaries: {
+        a: { type: "categorical", n: 1000, counts: { Reached: 26, "Not reached": 974 } },
+        b: { type: "categorical", n: 1000, counts: { Reached: 9, "Not reached": 991 } }
+      }
+    };
+    expect(builtInVerdict(ACTIVITY_FREQUENCY, rare, groups)).toMatch(
+      /^Day more often · 2[.,]6% vs 0[.,]9%$/
+    );
+  });
+
   it("says nothing for a frequency that is not significant or another attribute", () => {
     expect(builtInVerdict(ACTIVITY_FREQUENCY, reach("a", false), groups)).toBeNull();
     expect(builtInVerdict("Amount", reach("a"), groups)).toBeNull();
@@ -273,6 +286,27 @@ describe("placeTestLine", () => {
     expect(line("fisher")).toContain("Fisher's exact test");
     expect(line("perValue")).toContain("Each value tested alone");
     expect(line("chi2")).toContain("Chi-square");
+  });
+
+  it("names a higher Group only on a significant test", () => {
+    const named = { ...test(0.3, 0.02), higher: "a" };
+    expect(placeTestLine({ summaries: {}, test: named, method: "mannWhitney" }, groups)).toContain(
+      "Day higher"
+    );
+    expect(
+      placeTestLine(
+        { summaries: {}, test: { ...named, significant: false }, method: "mannWhitney" },
+        groups
+      )
+    ).not.toContain("higher");
+  });
+
+  it("does not print a p too small to compute as zero", () => {
+    const line = placeTestLine(
+      { summaries: {}, test: { ...test(0.3, 0), test: "chi2", higher: null }, method: "chi2" },
+      groups
+    );
+    expect(line).toContain("p < 1e-15");
   });
 
   it("says the p shown comes before the correction", () => {

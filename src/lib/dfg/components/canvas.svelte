@@ -21,6 +21,7 @@
   import {
     busiest,
     busiestPerCase,
+    edgeBlocks,
     edgeStroke,
     edgeWait,
     edgeWidth,
@@ -109,6 +110,7 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
+  const measured = $derived(edgeBlocks(graph));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
@@ -286,7 +288,7 @@
           edge,
           key,
           waits: edgeWait(waits.get(key), shown),
-          stroke: edgeStroke(edge.counts, waits.get(key), groups),
+          stroke: edgeStroke(edge.counts, measured.get(key) ?? [], groups),
           route: prepareRoute(points)
         };
       });

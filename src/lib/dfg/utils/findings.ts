@@ -8,6 +8,7 @@ import type { Counts, Method, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/
 import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
+import { formatDecimal } from "$lib/format";
 import { formatPValue } from "$lib/tree/utils/verdict";
 
 export type Place =
@@ -162,7 +163,8 @@ export function builtInVerdict(
   const shares = groups.map((group) => {
     const summary = block.summaries[group.id];
     if (summary?.type !== "categorical" || summary.n === 0) return "0%";
-    return `${Math.round(((summary.counts[hit] ?? 0) / summary.n) * 100)}%`;
+    const share = ((summary.counts[hit] ?? 0) / summary.n) * 100;
+    return `${share < 10 ? formatDecimal(share, 1) : Math.round(share)}%`;
   });
   return `${higher.name} ${VERB[attribute]} · ${shares.join(" vs ")}`;
 }
@@ -181,8 +183,9 @@ export function placeTestLine(block: PlaceBlock, groups: { id: string; name: str
   const name = METHOD_NAMES[block.method ?? (test.test === "chi2" ? "chi2" : "mannWhitney")];
   const effect = test.test === "chi2" ? "phi or Cramér's V" : "rank-biserial r";
   const higher = groups.find((group) => group.id === test.higher);
-  const direction = higher ? ` · ${higher.name} higher` : "";
-  return `${name} · p = ${formatPValue(test.pValue)} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
+  const direction = higher && test.significant ? ` · ${higher.name} higher` : "";
+  const p = test.pValue === 0 ? "p < 1e-15" : `p = ${formatPValue(test.pValue)}`;
+  return `${name} · ${p} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
 }
 
 /** Whether some case held several values, so a Group's value counts sum above its cases. */
