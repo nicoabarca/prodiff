@@ -6,6 +6,9 @@
   let { data }: EdgeProps = $props();
 
   const edge = $derived(data as DfgEdgeData);
+  const color = $derived(
+    edge.highlighted ? "var(--color-indigo-500)" : (edge.stroke ?? "var(--muted-foreground)")
+  );
 </script>
 
 <g
@@ -18,7 +21,7 @@
     path={edge.shaft}
     style="stroke-width:{(edge.highlighted ? Math.max(edge.width, 2) : edge.width).toFixed(
       2
-    )};stroke:{edge.highlighted ? 'var(--color-indigo-500)' : 'var(--muted-foreground)'}"
+    )};stroke:{color}"
     class={edge.boundary && !edge.highlighted ? "opacity-60 [stroke-dasharray:4_4]" : undefined}
   />
 
@@ -26,7 +29,7 @@
        stroke shows through the tip at any weight. -->
   <path
     d={edge.head}
-    fill={edge.highlighted ? "var(--color-indigo-500)" : "var(--muted-foreground)"}
+    fill={color}
     stroke="none"
     class={edge.boundary && !edge.highlighted ? "opacity-60" : undefined}
   />

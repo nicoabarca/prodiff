@@ -18,7 +18,7 @@ const graph: ResponseDfg = {
     { source: 3, target: 1, wait: WAIT }
   ],
   groups: [{ id: "original" }, { id: "aB3dE5gH" }],
-  skippedCaseLevel: []
+  caseLevel: {}
 };
 
 describe("findNode", () => {

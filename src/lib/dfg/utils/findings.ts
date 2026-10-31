@@ -1,11 +1,12 @@
 /**
  * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity on screen, plus the Waiting Time of
- * every edge on screen whose pair the log holds.
+ * every attribute block of every activity on screen that more than one Group
+ * reaches, plus the Waiting Time of every edge on screen that more than one
+ * Group follows. A place one Group alone reaches has nothing to compare against.
  */
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import { transitionsById } from "$lib/dfg/utils/face";
 import type { Simplified } from "$lib/dfg/utils/simplify";
@@ -21,8 +22,6 @@ export interface Finding {
   block: AttributeBlock;
 }
 
-export type Ranking = "effect" | "pValue";
-
 /** The node ids a place covers, for framing it on the canvas. */
 export function placeIds(place: Place): number[] {
   return place.kind === "node" ? [place.id] : [place.source, place.target];
@@ -36,16 +35,33 @@ export function placeLight(place: Place): LitPath {
   };
 }
 
+/** An edge as a place, named by the labels of its two ends. */
+export function edgePlace(source: number, target: number, labels: Map<number, string>): Place {
+  return {
+    kind: "edge",
+    source,
+    target,
+    label: `${labels.get(source) ?? source} → ${labels.get(target) ?? target}`
+  };
+}
+
 export function placeKey(place: Place): string {
   return place.kind === "node" ? `n${place.id}` : `e${edgeId(place.source, place.target)}`;
+}
+
+/** Whether a place's counts leave something to compare: more than one Group reaches it, or only one Group is compared. */
+export function comparable(counts: Record<string, Counts>, groupIds: string[]): boolean {
+  return groupIds.length < 2 || groupIds.filter((id) => (counts[id]?.cases ?? 0) > 0).length > 1;
 }
 
 export function graphFindings(graph: ResponseDfg, simplified: Simplified): Finding[] {
   const measured = new Map(graph.nodes.map((node) => [node.id, node]));
   const labels = new Map(simplified.nodes.map((node) => [node.id, node.label]));
   const waits = transitionsById(graph);
+  const groupIds = graph.groups.map((group) => group.id);
 
   const nodes = simplified.nodes.flatMap((node) => {
+    if (!comparable(measured.get(node.id)?.counts ?? {}, groupIds)) return [];
     const blocks = measured.get(node.id)?.attributes ?? {};
     const place: Place = { kind: "node", id: node.id, label: node.label };
     return Object.entries(blocks).map(([attribute, block]) => ({
@@ -58,13 +74,8 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
 
   const edges = simplified.edges.flatMap((edge) => {
     const block = waits.get(edgeId(edge.source, edge.target));
-    if (!block) return [];
-    const place: Place = {
-      kind: "edge",
-      source: edge.source,
-      target: edge.target,
-      label: `${labels.get(edge.source) ?? edge.source} → ${labels.get(edge.target) ?? edge.target}`
-    };
+    if (!block || !comparable(edge.counts, groupIds)) return [];
+    const place = edgePlace(edge.source, edge.target, labels);
     return [
       { key: `${placeKey(place)}:${TRANSITION_TIME}`, place, attribute: TRANSITION_TIME, block }
     ];
@@ -73,18 +84,45 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
   return [...nodes, ...edges];
 }
 
-/** Significant first, then strongest effect or smallest p. Untested last. */
-export function rank(findings: Finding[], by: Ranking): Finding[] {
-  const score = (finding: Finding) => {
-    const test = finding.block.test;
-    if (!test) return -Infinity;
-    return by === "effect" ? test.effectSize : -test.pValue;
-  };
+/** One activity's significant findings, strongest effect first. */
+export function activityDifferences(findings: Finding[], id: number): Finding[] {
+  return rank(
+    findings.filter(
+      (finding) =>
+        finding.place.kind === "node" && finding.place.id === id && finding.block.test?.significant
+    )
+  );
+}
+
+/** Significant first, then strongest effect. Untested last. */
+export function rank(findings: Finding[]): Finding[] {
+  const score = (finding: Finding) => finding.block.test?.effectSize ?? -Infinity;
   return [...findings].sort(
     (x, y) =>
       Number(y.block.test?.significant ?? false) - Number(x.block.test?.significant ?? false) ||
       score(y) - score(x)
   );
+}
+
+/** How many significant differences an activity carries, and the strongest effect among them. */
+export interface NodeDifferences {
+  count: number;
+  peak: number;
+}
+
+/** Each activity's significant findings, by node id. Activities with none are absent. */
+export function nodeDifferences(findings: Finding[]): Map<number, NodeDifferences> {
+  const out = new Map<number, NodeDifferences>();
+  for (const finding of findings) {
+    const test = finding.block.test;
+    if (finding.place.kind !== "node" || !test?.significant) continue;
+    const current = out.get(finding.place.id);
+    out.set(finding.place.id, {
+      count: (current?.count ?? 0) + 1,
+      peak: Math.max(current?.peak ?? 0, test.effectSize)
+    });
+  }
+  return out;
 }
 
 export interface AttributeTests {
@@ -99,18 +137,15 @@ export interface AttributeTests {
  * Every place that measured an attribute, ranked, with how many of them differ
  * and the strongest one. Attributes that differ in more places come first.
  */
-export function byAttribute(findings: Finding[], by: Ranking): AttributeTests[] {
+export function byAttribute(findings: Finding[]): AttributeTests[] {
   const grouped = new Map<string, Finding[]>();
   for (const finding of findings) {
     grouped.set(finding.attribute, [...(grouped.get(finding.attribute) ?? []), finding]);
   }
   return [...grouped.entries()]
     .map(([attribute, all]) => {
-      const places = rank(all, by);
-      const differing = rank(
-        all.filter((finding) => finding.block.test?.significant),
-        "effect"
-      );
+      const places = rank(all);
+      const differing = rank(all.filter((finding) => finding.block.test?.significant));
       return {
         attribute,
         places,

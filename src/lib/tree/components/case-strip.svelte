@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
-   * The case attributes as one row of chips above the tree: each names the
-   * attribute, its headline and its magnitude, and opens its chart. Measured
-   * once per case across each whole Group, so no node changes them.
+   * The case attributes as one row of chips above the tree or the graph: each
+   * names the attribute, its headline and its magnitude, and opens its chart.
+   * Measured once per case across each Group, so no node changes them.
    */
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -11,8 +11,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import type { Summary } from "$lib/analysis/types";
-  import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
+  import type { AttributeBlock, Summary } from "$lib/analysis/types";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand, effectStep } from "$lib/tree/utils/effect";
@@ -21,24 +20,33 @@
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import Info from "@lucide/svelte/icons/info";
 
-  let { tree }: { tree: ResponseDirectedTree } = $props();
+  let {
+    caseLevel,
+    groupIds,
+    cappedByCeiling = false
+  }: {
+    caseLevel: Record<string, AttributeBlock>;
+    groupIds: string[];
+    cappedByCeiling?: boolean;
+  } = $props();
 
   const groups = $derived(comparedGroups());
-  const comparing = $derived(tree.groups.length > 1);
+  const comparing = $derived(groupIds.length > 1);
 
   const attributes = $derived(
-    Object.keys(tree.groups[0]?.caseLevel ?? {}).map((name) => {
-      const summaries: Record<string, Summary | null> = Object.fromEntries(
-        tree.groups.map((group) => [group.id, group.caseLevel[name] ?? null])
-      );
-      const test = tree.caseLevelTests[name] ?? null;
-      return {
-        name,
-        summaries,
-        test,
-        headline: headline(summaries, comparing ? groups : groups.slice(0, 1), false)
-      };
-    })
+    Object.entries(caseLevel)
+      .sort(([x], [y]) => x.localeCompare(y))
+      .map(([name, block]) => {
+        const summaries: Record<string, Summary | null> = Object.fromEntries(
+          groupIds.map((id) => [id, block.summaries[id] ?? null])
+        );
+        return {
+          name,
+          summaries,
+          test: block.test,
+          headline: headline(summaries, comparing ? groups : groups.slice(0, 1), false)
+        };
+      })
   );
 
   const significant = $derived(attributes.filter((a) => a.test?.significant));
@@ -50,7 +58,7 @@
 
   let expanded = $state(true);
 
-  const hasContent = $derived(tree.cappedByCeiling || attributes.length > 0);
+  const hasContent = $derived(cappedByCeiling || attributes.length > 0);
 </script>
 
 {#if hasContent}
@@ -149,7 +157,7 @@
       <span class="flex-1"></span>
     {/if}
 
-    {#if tree.cappedByCeiling}
+    {#if cappedByCeiling}
       <Tooltip.Provider>
         <Tooltip.Root>
           <Tooltip.Trigger>
