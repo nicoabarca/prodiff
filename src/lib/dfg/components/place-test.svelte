@@ -11,11 +11,17 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand } from "$lib/tree/utils/effect";
-  import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
+  import { higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { isDurationAttribute } from "$lib/analysis/attributes";
+  import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
+  import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
-  import type { Finding } from "$lib/dfg/utils/findings";
+  import {
+    builtInVerdict,
+    heldSeveral,
+    placeTestLine,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -60,6 +66,23 @@
   const duration = $derived(isDurationAttribute(finding.attribute));
   const higher = $derived(higherGroup(block.test, groups));
   const differs = $derived(block.test?.significant ?? false);
+
+  /** What the attribute measures at this place, for the ones whose name does not say. */
+  const caption = $derived.by(() => {
+    const label = finding.place.label;
+    switch (finding.attribute) {
+      case TRANSITION_TIME:
+        return `Time waited on the edge ${label}.`;
+      case ACTIVITY_FREQUENCY:
+        return `Share of each group's cases that reach ${label}.`;
+      case EDGE_FREQUENCY:
+        return `Share of each group's cases that follow ${label}.`;
+      case REPETITIONS:
+        return `Share of the cases that reach ${label} and run it more than once.`;
+      default:
+        return null;
+    }
+  });
 
   const selecting = () => (window.getSelection()?.toString() ?? "") !== "";
 </script>
@@ -130,7 +153,10 @@
               aria-hidden="true"
             ></span>
           {/if}
-          <span class="truncate">{verdict(block, groups, duration)}</span>
+          <span class="truncate"
+            >{builtInVerdict(finding.attribute, block, groups) ??
+              verdict(block, groups, duration)}</span
+          >
         </span>
       </span>
       {#if block.test}
@@ -140,10 +166,8 @@
       {/if}
     </div>
     <Collapsible.Content class="flex flex-col gap-2 pr-4 pb-3.5 pl-11.5">
-      {#if finding.place.kind === "edge"}
-        <p class="text-muted-foreground text-[0.625rem]">
-          Time waited on the edge {finding.place.label}.
-        </p>
+      {#if caption}
+        <p class="text-muted-foreground text-[0.625rem]">{caption}</p>
       {/if}
       <SummaryCompare summaries={block.summaries} {duration} />
       {#if !block.test}
@@ -154,8 +178,14 @@
             The test is confident this gap is real, but it is too small to act on.
           </p>
         {/if}
+        {#if heldSeveral(block)}
+          <p class="text-muted-foreground text-[0.625rem]">
+            Some cases held several values here. The bars split each group's mentions, so read the
+            test and verdict for shares of cases.
+          </p>
+        {/if}
         <p class="text-muted-foreground font-mono text-[0.625rem] text-pretty">
-          {testLine(block.test, groups)}
+          {placeTestLine(block, groups)}
         </p>
       {/if}
     </Collapsible.Content>

@@ -4,6 +4,7 @@
  * touches the backend and never moves a box.
  */
 import { formatDuration, formatNumber } from "$lib/format";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
@@ -95,10 +96,10 @@ export function edgeStroke(
  */
 export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock> {
   return new Map(
-    graph.transitions.map((transition) => [
-      edgeId(transition.source, transition.target),
-      transition.wait
-    ])
+    graph.transitions.flatMap((transition) => {
+      const wait = transition.attributes[TRANSITION_TIME];
+      return wait ? [[edgeId(transition.source, transition.target), wait] as const] : [];
+    })
   );
 }
 
@@ -132,4 +133,36 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
 /** The busiest of a set, for scaling every other one against. */
 export function busiest(of: { counts: Record<string, Counts> }[], measure: Measure): number {
   return of.reduce((top, one) => Math.max(top, unionCount(one.counts, measure)), 0);
+}
+
+/**
+ * One Group's counts divided by how many cases that Group holds: the share of
+ * its cases for `cases`, events per case for `events`. What a split panel
+ * shades and thickens by, so a Group ten times larger does not draw ten times
+ * thicker.
+ */
+export function perCase(
+  counts: Record<string, Counts>,
+  id: string,
+  caseCounts: Map<string, number>
+): Counts {
+  const n = Math.max(caseCounts.get(id) ?? 0, 1);
+  const own = counts[id];
+  return own ? { cases: own.cases / n, events: own.events / n } : { cases: 0, events: 0 };
+}
+
+/** The busiest of a set per case of each Group, across every Group, so all split panels share it. */
+export function busiestPerCase(
+  of: { counts: Record<string, Counts> }[],
+  caseCounts: Map<string, number>,
+  measure: Measure
+): number {
+  return of.reduce(
+    (top, one) =>
+      Math.max(
+        top,
+        ...[...caseCounts.keys()].map((id) => perCase(one.counts, id, caseCounts)[measure])
+      ),
+    0
+  );
 }

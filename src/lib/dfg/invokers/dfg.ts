@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { ACTIVITY_DURATION, TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { Project } from "$lib/event-log/types";
 import type { RequestDfgAttribute, ResponseDfg } from "$lib/dfg/invokers/types";
+import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { analysisColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
 
 /**
@@ -34,5 +35,8 @@ export function dfg(
 function requestAttribute(name: string): RequestDfgAttribute {
   if (name === ACTIVITY_DURATION) return { kind: "activityDuration" };
   if (name === TRANSITION_TIME) return { kind: "transitionTime" };
+  if (name === ACTIVITY_FREQUENCY) return { kind: "activityFrequency" };
+  if (name === EDGE_FREQUENCY) return { kind: "edgeFrequency" };
+  if (name === REPETITIONS) return { kind: "repetitions" };
   return { kind: "column", name };
 }
