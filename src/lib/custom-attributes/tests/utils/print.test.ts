@@ -18,13 +18,21 @@ describe("printFormula", () => {
     ["[a] / ([b] * [c])", "[a] / ([b] * [c])"],
     ["-([a] + 1)", "-([a] + 1)"],
     ["-[a] * 2", "-[a] * 2"],
-    ["[a]]b] + 0.25", "[a]]b] + 0.25"]
+    ["[a]]b] + 0.25", "[a]]b] + 0.25"],
+    ["sum( [a] )/duration ()", "sum([a]) / duration()"],
+    ["-count()", "-count()"],
+    ["(max([a]) - min([a])) * 2", "(max([a]) - min([a])) * 2"]
   ])("prints %j as %j", (text, printed) => {
     expect(roundTrip(text)).toBe(printed);
   });
 
   it("prints text that parses back to the same tree", () => {
-    for (const text of ["[a] - ([b] - [c]) * -(2 + [d])", "((([x])))", "[a] / [b] / [c]"]) {
+    for (const text of [
+      "[a] - ([b] - [c]) * -(2 + [d])",
+      "((([x])))",
+      "[a] / [b] / [c]",
+      "[b] / sum([a]]x]) - -count()"
+    ]) {
       const first = parseFormula(text);
       const again = parseFormula(roundTrip(text));
       expect(again).toEqual(first);

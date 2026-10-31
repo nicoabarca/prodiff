@@ -12,7 +12,8 @@ import {
 import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import { draftOf } from "$lib/custom-attributes/state/drafts.svelte";
 import { parseFormula } from "$lib/custom-attributes/utils/parser";
-import { referencedColumns } from "$lib/custom-attributes/utils/validate";
+import { directColumns, referencedColumns } from "$lib/custom-attributes/utils/validate";
+import type { Formula } from "$lib/custom-attributes/invokers/types";
 import type { Project } from "$lib/event-log/types";
 import { builtInLabel } from "$lib/analysis/attributes";
 
@@ -37,17 +38,22 @@ export function customColumns(project: Project): string[] {
 
 /**
  * The Column Mapping every analysis command is sent: the project's own columns
- * plus one number column per applied Custom Attribute. Drafts never appear:
- * views read the last applied formula.
+ * plus one number column per applied Custom Attribute, scoped like the
+ * attribute. A Case attribute holds one value per case, so it reads as a
+ * constant case column. Drafts never appear: views read the last applied
+ * formula.
  */
 export function analysisColumns(project: Project): RequestColumnMapping[] {
+  if (customAttributesLoaded.projectId !== project.id) return project.columns;
   return [
     ...project.columns,
-    ...customColumns(project).map((name): RequestColumnMapping => ({
-      name,
+    ...customAttributes.filter(isApplied).map((attribute): RequestColumnMapping => ({
+      name: customAttributeColumn(attribute.id),
       role: "other",
-      scope: "event",
-      type: "float"
+      type: "float",
+      ...(attribute.scope === "case"
+        ? { scope: "case", caseResolution: "constant" }
+        : { scope: "event" })
     }))
   ];
 }
@@ -61,6 +67,12 @@ export function isCustomAttribute(name: string): boolean {
   return attributeOf(name) !== undefined;
 }
 
+/** Whether an attribute name is an applied Case attribute's column. */
+export function isCaseAttribute(name: string): boolean {
+  const attribute = attributeOf(name);
+  return attribute !== undefined && isApplied(attribute) && attribute.scope === "case";
+}
+
 /**
  * What the user sees for an attribute: a Custom Attribute's name, a derived
  * attribute's label, or the name itself.
@@ -69,25 +81,38 @@ export function attributeLabel(name: string): string {
   return attributeOf(name)?.name ?? builtInLabel(name);
 }
 
-/**
- * The names of the Custom Attributes that read each column, by column. Both the
- * applied formula and an unapplied draft count: either would break if the
- * column were hidden or retyped under it.
- */
-export function readersByColumn(project: Project): Record<string, string[]> {
+function readers(project: Project, read: (formula: Formula) => string[]): Record<string, string[]> {
   if (customAttributesLoaded.projectId !== project.id) return {};
-  const readers: Record<string, string[]> = {};
+  const byColumn: Record<string, string[]> = {};
   for (const attribute of customAttributes) {
     const draft = draftOf(attribute);
     const columns = new Set(
       [attribute.formula, draft.formula].flatMap((text) => {
         const parsed = parseFormula(text);
-        return parsed.ok ? referencedColumns(parsed.formula) : [];
+        return parsed.ok ? read(parsed.formula) : [];
       })
     );
-    for (const column of columns) (readers[column] ??= []).push(draft.name);
+    for (const column of columns) (byColumn[column] ??= []).push(draft.name);
   }
-  return readers;
+  return byColumn;
+}
+
+/**
+ * The names of the Custom Attributes that read each column, by column,
+ * aggregate arguments included. Both the applied formula and an unapplied
+ * draft count: either would break if the column were hidden, retyped or
+ * rescoped under it.
+ */
+export function readersByColumn(project: Project): Record<string, string[]> {
+  return readers(project, referencedColumns);
+}
+
+/**
+ * Like `readersByColumn`, counting only direct `[x]` operands. A Case attribute
+ * reads such a column from the row its case resolution names.
+ */
+export function directReadersByColumn(project: Project): Record<string, string[]> {
+  return readers(project, directColumns);
 }
 
 export async function loadCustomAttributes(projectId: string) {
@@ -109,6 +134,7 @@ export async function createCustomAttribute(
     id: customAttributeId(),
     projectId,
     name: draft.name.trim(),
+    scope: draft.scope,
     formula: draft.formula,
     position: customAttributes.length,
     emptyCount: null,
@@ -159,7 +185,7 @@ export async function applyCustomAttribute(
   const [count] = await whileApplying(message, () =>
     updateCustomAttributes(
       project,
-      [{ id: attribute.id, formula: parsed.formula }],
+      [{ id: attribute.id, scope: attribute.scope, formula: parsed.formula }],
       [],
       appliedGroupIds
     )
@@ -185,6 +211,15 @@ export async function removeCustomAttribute(
       other.position === position ? Promise.resolve() : patch(other.id, { position })
     )
   );
+}
+
+/** Stores Custom Attributes built elsewhere, positions and empty counts included. */
+export async function addCustomAttributes(rows: CustomAttribute[]) {
+  if (rows.length === 0) return;
+  await db().insert(customAttributesTable).values(rows);
+  if (customAttributesLoaded.projectId !== rows[0].projectId) return;
+  customAttributes.push(...rows);
+  customAttributes.sort((a, b) => a.position - b.position);
 }
 
 /** Drops every Custom Attribute of a project. Its files go with the project's directory. */

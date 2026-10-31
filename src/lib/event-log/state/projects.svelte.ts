@@ -36,6 +36,13 @@ export async function updateProject(id: string, changes: Partial<Project>) {
   if (project) Object.assign(project, changes);
 }
 
+/** Drops a project's row and nothing else: its files and the rows of its parts stay. */
+export async function forgetProjectRow(id: string) {
+  await db().delete(projectsTable).where(eq(projectsTable.id, id));
+  const index = projects.findIndex((p) => p.id === id);
+  if (index !== -1) projects.splice(index, 1);
+}
+
 export async function removeProject(id: string) {
   await deleteProjectFiles(id);
   await removeGroupsForProject(id);

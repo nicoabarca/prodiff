@@ -9,6 +9,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock, Summary } from "$lib/analysis/types";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -114,6 +115,7 @@
                   <EffectChip test={attribute.test} tooltip={false} />
                 </div>
                 <SummaryCompare summaries={attribute.summaries} compare={comparing} />
+                <TrimmedNote {groups} attribute={attribute.name} />
                 {#if attribute.test}
                   <p
                     class="border-border text-muted-foreground border-t pt-1.5 font-mono text-[0.625rem] text-pretty"

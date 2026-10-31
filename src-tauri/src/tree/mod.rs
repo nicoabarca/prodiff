@@ -18,7 +18,9 @@ use crate::analysis::{
     stats, transition_time, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
     MIN_GROUP_CASES, TRANSITION_TIME, VARIANT_KEY_SEP,
 };
-use crate::column_mapping::{find_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope};
+use crate::column_mapping::{
+    find_role, resolve_row, CaseResolution, ColumnMapping, ColumnRole, ColumnScope,
+};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -194,15 +196,6 @@ fn plan_attributes(
         }
     }
     (event, case_level, wants_transition)
-}
-
-/// The row a case-scoped attribute is read from. Rows run in timestamp order
-/// within a case, so `First` is its earliest event and `Last` its latest.
-fn resolved_row(bounds: (usize, usize), resolution: CaseResolution) -> usize {
-    match resolution {
-        CaseResolution::Constant | CaseResolution::First => bounds.0,
-        CaseResolution::Last => bounds.1 - 1,
-    }
 }
 
 fn read_group(
@@ -665,17 +658,16 @@ fn case_level_blocks(
                 if attr.spec.numeric {
                     let values = column_floats(df, name)?;
                     if let Acc::Num(out) = &mut acc {
-                        out.extend(
-                            rows.bounds
-                                .iter()
-                                .filter_map(|&b| values[resolved_row(b, attr.resolution)]),
-                        );
+                        out.extend(rows.bounds.iter().filter_map(|&b| {
+                            values[resolve_row(b, attr.resolution, |r| values[r].is_some())]
+                        }));
                     }
                 } else {
                     let values = column_strings(df, name)?;
                     if let Acc::Cat(out) = &mut acc {
                         for &bounds in &rows.bounds {
-                            if let Some(value) = &values[resolved_row(bounds, attr.resolution)] {
+                            let row = resolve_row(bounds, attr.resolution, |r| values[r].is_some());
+                            if let Some(value) = &values[row] {
                                 *out.entry(value.clone()).or_default() += 1;
                             }
                         }
@@ -753,14 +745,28 @@ mod tests {
     #[test]
     fn the_resolution_policy_picks_which_end_of_the_case_is_read() {
         let bounds = (4, 9);
-        assert_eq!(resolved_row(bounds, CaseResolution::First), 4);
-        assert_eq!(resolved_row(bounds, CaseResolution::Last), 8);
-        assert_eq!(resolved_row(bounds, CaseResolution::Constant), 4);
+        let every = |_| true;
+        assert_eq!(resolve_row(bounds, CaseResolution::First, every), 4);
+        assert_eq!(resolve_row(bounds, CaseResolution::Last, every), 8);
+        assert_eq!(resolve_row(bounds, CaseResolution::Constant, every), 4);
+    }
+
+    #[test]
+    fn first_and_last_skip_events_without_a_value() {
+        let present = |row| (5..=6).contains(&row);
+        assert_eq!(resolve_row((4, 9), CaseResolution::First, present), 5);
+        assert_eq!(resolve_row((4, 9), CaseResolution::Last, present), 6);
+        assert_eq!(resolve_row((4, 9), CaseResolution::Constant, present), 5);
+    }
+
+    #[test]
+    fn a_case_with_no_value_reads_its_first_row() {
+        assert_eq!(resolve_row((4, 9), CaseResolution::Last, |_| false), 4);
     }
 
     #[test]
     fn a_single_event_case_resolves_to_its_one_row() {
-        assert_eq!(resolved_row((7, 8), CaseResolution::Last), 7);
+        assert_eq!(resolve_row((7, 8), CaseResolution::Last, |_| true), 7);
     }
 
     #[test]

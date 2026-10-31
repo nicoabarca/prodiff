@@ -1,0 +1,13 @@
+# Import a study Project from a bundle
+
+The thesis user study runs on participants' own macOS and Windows laptops, which have the public release installed and nothing else. Every participant must start from the same Project: the Road Traffic Fine Management log (about 47 MB of CSV), its Column Mapping, Hidden Columns, Custom Attributes and Groups. Building it by hand takes too long and would not be identical across laptops. `pnpm seed` builds exactly this kind of Project but needs the repository, Node and a Rust build. Bundling the CSV as a resource, as the Sample Project is (ADR 0012), would add 47 MB to every release. Copying the app data folder fails, because the `projects` rows store absolute paths.
+
+The study Project therefore ships as a bundle: a `.zip`, or the folder it unzips into, holding `manifest.json` and one `.csv`. "Import study Project" in Settings reads it. The manifest is the seed manifest with a `formatVersion`. It carries no ids. A `case_not_in_group` Filter names an earlier Group, and a numeric Filter names a Custom Attribute in `attribute` in place of `column`, the form `pnpm seed` already read. The import generates every id and rewrites those names to ids.
+
+The seed and the import share their code on both sides. In Rust, `project_import::build` imports the CSV, writes the Custom Attributes and then applies the Groups, so a Group can filter on an `fx_` column. The `seed-project` binary and the `import_project` command both call it. In TypeScript, `src/lib/project-import/utils/manifest.ts` reads and resolves the manifest and builds the rows, and `scripts/seed.ts` imports it. A manifest that seeds correctly therefore imports correctly.
+
+`import_project` builds the whole Project in a sibling folder and swaps it in only after every step has succeeded, so a failed import leaves the previous Project untouched. The rows are written from the frontend after the swap (ADR 0001). The Project id is `uuidv5("prodiff:import:" + name)`, so importing the bundle again replaces the Project after a confirmation; that is the reset.
+
+The bundle holds no Saved Comparisons, no comparison, no tree or DFG settings and no Tours: participants build their Comparisons from the Groups. There is no export, since the manifest is written by hand and checked with `pnpm seed`. There is no minimum app version, since participants download the release the author names and the updater keeps it current.
+
+**Consequence:** the file swap and the row writes are not one transaction. If the app stops between them, the folder holds the new files and the rows describe the old Project; importing again repairs it, as with the Sample Project. The feature exists for the study and is removed after it.

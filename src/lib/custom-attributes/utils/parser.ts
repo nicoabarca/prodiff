@@ -1,22 +1,42 @@
-import type { BinaryOperator, Formula } from "$lib/custom-attributes/invokers/types";
+import {
+  AGGREGATE_FUNCTIONS,
+  type AggregateFunction,
+  type BinaryOperator,
+  type Formula
+} from "$lib/custom-attributes/invokers/types";
 
 /**
  * The formula language: number columns in brackets, decimal numbers, `+ - * /`,
- * unary minus and parentheses. A `]` inside a column name is written `]]`.
+ * unary minus, parentheses and function calls. A `]` inside a column name is
+ * written `]]`. A call is one token from its lowercase name to its `(`, so
+ * `sum (` reads the same as `sum(`.
  *
  *   sum     := product (("+" | "-") product)*
  *   product := unary (("*" | "/") unary)*
  *   unary   := "-" unary | atom
- *   atom    := number | "[" name "]" | "(" sum ")"
+ *   atom    := number | "[" name "]" | "(" sum ")" | call
+ *   call    := aggregate "(" "[" name "]" ")" | ("count" | "duration") "(" ")"
  *
  * `at` is the character offset the error points at.
  */
+export const FUNCTIONS = [...AGGREGATE_FUNCTIONS, "count", "duration"] as const;
+export type FunctionName = (typeof FUNCTIONS)[number];
+
+export function isAggregate(name: FunctionName): name is AggregateFunction {
+  return (AGGREGATE_FUNCTIONS as readonly string[]).includes(name);
+}
+
+function isFunction(name: string): name is FunctionName {
+  return (FUNCTIONS as readonly string[]).includes(name);
+}
+
 export type ParseResult = { ok: true; formula: Formula } | { ok: false; error: string; at: number };
 
 export type Token =
   | { kind: "column"; name: string; at: number; end: number }
   | { kind: "number"; value: number; at: number; end: number }
   | { kind: "operator"; op: BinaryOperator; at: number; end: number }
+  | { kind: "function"; name: FunctionName; at: number; end: number }
   | { kind: "open"; at: number; end: number }
   | { kind: "close"; at: number; end: number };
 
@@ -58,6 +78,20 @@ export function tokenize(text: string): Token[] {
       }
       if (name.trim() === "") throw new FormulaError("Name a column between the brackets", start);
       tokens.push({ kind: "column", name, at: start, end: i });
+    } else if (/[A-Za-z_]/.test(char)) {
+      const match = /^([A-Za-z_][A-Za-z0-9_]*)\s*(\()?/.exec(text.slice(i))!;
+      const [whole, name, open] = match;
+      const lower = name.toLowerCase();
+      if (!isFunction(lower)) {
+        throw new FormulaError(
+          `${name} is not a function. Use ${FUNCTIONS.slice(0, -1).join(", ")} or ${FUNCTIONS.at(-1)}`,
+          i
+        );
+      }
+      if (lower !== name) throw new FormulaError(`Write ${lower} in lowercase`, i);
+      if (!open) throw new FormulaError(`Call ${name} with parentheses, as in ${example(name)}`, i);
+      tokens.push({ kind: "function", name, at: i, end: i + whole.length });
+      i += whole.length;
     } else if (/[0-9]/.test(char)) {
       const match = /^[0-9]+(\.[0-9]+)?/.exec(text.slice(i))!;
       tokens.push({ kind: "number", value: Number(match[0]), at: i, end: i + match[0].length });
@@ -76,6 +110,11 @@ export function tokenize(text: string): Token[] {
     }
   }
   return tokens;
+}
+
+/** How a call to `name` is written, for messages. */
+function example(name: FunctionName): string {
+  return isAggregate(name) ? `${name}([column])` : `${name}()`;
 }
 
 class Parser {
@@ -140,6 +179,8 @@ class Parser {
         return { kind: "column", name: token.name };
       case "number":
         return { kind: "number", value: token.value };
+      case "function":
+        return this.call(token.name, token.at);
       case "open": {
         const inner = this.sum();
         const close = this.peek();
@@ -150,8 +191,29 @@ class Parser {
         return inner;
       }
       default:
-        throw new FormulaError("Expected a column, a number or ( here", token.at);
+        throw new FormulaError("Expected a column, a number, a function or ( here", token.at);
     }
+  }
+
+  /** The rest of a call whose `name(` token starts at `at`. */
+  private call(name: FunctionName, at: number): Formula {
+    if (!isAggregate(name)) {
+      this.closeCall(at, `${name}() takes no column`);
+      return name === "count" ? { kind: "count" } : { kind: "duration" };
+    }
+    const argument = this.peek();
+    if (argument?.kind !== "column") {
+      throw new FormulaError(`${name}() needs one column, like ${example(name)}`, at);
+    }
+    this.index++;
+    this.closeCall(at, `${name}() takes exactly one column, like ${example(name)}`);
+    return { kind: "aggregate", fn: name, column: argument.name };
+  }
+
+  private closeCall(at: number, message: string) {
+    const close = this.peek();
+    if (close?.kind !== "close") throw new FormulaError(message, close?.at ?? at);
+    this.index++;
   }
 }
 

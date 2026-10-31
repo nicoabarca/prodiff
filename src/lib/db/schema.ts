@@ -84,6 +84,9 @@ export const customAttributes = sqliteTable("custom_attributes", {
   projectId: text("project_id").notNull(),
   name: text("name").notNull(),
   formula: text("formula").notNull(),
+  scope: text("scope", { enum: ["event", "case"] })
+    .notNull()
+    .default("event"),
   position: integer("position").notNull(),
   emptyCount: integer("empty_count"),
   createdAt: text("created_at").notNull(),

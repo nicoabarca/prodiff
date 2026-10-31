@@ -227,7 +227,7 @@ fn previous_dir(project_dir: &Path) -> PathBuf {
     sibling_dir(project_dir, "old")
 }
 
-fn sibling_dir(project_dir: &Path, suffix: &str) -> PathBuf {
+pub(crate) fn sibling_dir(project_dir: &Path, suffix: &str) -> PathBuf {
     let name = project_dir
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -237,7 +237,7 @@ fn sibling_dir(project_dir: &Path, suffix: &str) -> PathBuf {
 
 /// Replaces `project_dir` with `staging`, both siblings, so the directory is
 /// either the old import or the new one and never partly written.
-fn swap_into_place(staging: &Path, project_dir: &Path) -> Result<(), String> {
+pub(crate) fn swap_into_place(staging: &Path, project_dir: &Path) -> Result<(), String> {
     let previous = previous_dir(project_dir);
     if previous.exists() {
         fs::remove_dir_all(&previous).map_err(|e| e.to_string())?;

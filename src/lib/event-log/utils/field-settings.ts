@@ -33,14 +33,14 @@ export const CASE_RESOLUTION_OPTIONS: CaseResolution[] = ["constant", "first", "
 
 export const CASE_RESOLUTION_LABELS: Record<CaseResolution, string> = {
   constant: "Constant",
-  first: "First event",
-  last: "Last event"
+  first: "First value",
+  last: "Last value"
 };
 
 export const CASE_RESOLUTION_DESCRIPTIONS: Record<CaseResolution, string> = {
   constant: "Reads the one value each case holds across its events, ignoring empty ones.",
-  first: "Reads the value on the earliest event of each case.",
-  last: "Reads the value on the latest event of each case."
+  first: "Reads the earliest value each case holds, ignoring empty ones.",
+  last: "Reads the latest value each case holds, ignoring empty ones."
 };
 
 /** The scoping a picked scope and a picked resolution amount to. */
