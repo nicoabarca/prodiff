@@ -6,6 +6,12 @@ import type { EdgeWait } from "$lib/tree/utils/flow";
 export const START_ID = 0;
 export const END_ID = 1;
 
+/** Derived attributes only the DFG offers. Mirrors `src-tauri/src/dfg/mod.rs`. */
+export const ACTIVITY_FREQUENCY = "Activity Frequency";
+export const EDGE_FREQUENCY = "Edge Frequency";
+export const REPETITIONS = "Repetitions";
+export const GRAPH_ATTRIBUTES = [ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS];
+
 export type NodeKind = "start" | "end" | "activity";
 
 /** Which figure a node or an edge prints on its face, and ranks by. */

@@ -4,6 +4,7 @@
  * touches the backend and never moves a box.
  */
 import { formatDuration, formatNumber } from "$lib/format";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
@@ -67,25 +68,40 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
   return reached.length === 1 ? reached[0].id : null;
 }
 
+/** How much of `--effect-3` an edge takes over `--effect-2` at each effect step, negligible to large. */
+const EFFECT_SHARE = { 1: 45, 2: 65, 3: 85, 4: 100 };
+
 /**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
- * Group alone follows takes that Group's colour. An edge whose Waiting Time
- * differs significantly runs from grey to `--effect-4` in four steps of its
- * effect, negligible to large. `null` for the default grey.
+ * Group alone follows takes that Group's colour. An edge where any test differs
+ * significantly is red, stronger with its strongest effect, whichever Group is
+ * higher. `null` for the default grey.
  */
 export function edgeStroke(
   counts: Record<string, Counts>,
-  wait: AttributeBlock | undefined,
+  blocks: AttributeBlock[],
   groups: FaceGroup[]
 ): string | null {
   if (groups.length > 1) {
     const owner = groups.find((group) => group.id === membership(counts, groups));
     if (owner) return `var(--${owner.color})`;
   }
-  const test = wait?.test;
-  if (!test?.significant) return null;
-  const share = effectStep(test.effectSize) * 25;
-  return `color-mix(in oklab, var(--effect-4) ${share}%, var(--muted-foreground))`;
+  const effects = blocks.flatMap((block) =>
+    block.test?.significant ? [block.test.effectSize] : []
+  );
+  if (effects.length === 0) return null;
+  const share = EFFECT_SHARE[effectStep(Math.max(...effects))];
+  return `color-mix(in oklab, var(--effect-3) ${share}%, var(--effect-2))`;
+}
+
+/** Every attribute block measured on each pair, by `source->target`. */
+export function edgeBlocks(graph: ResponseDfg): Map<string, AttributeBlock[]> {
+  return new Map(
+    graph.transitions.map((transition) => [
+      edgeId(transition.source, transition.target),
+      Object.values(transition.attributes)
+    ])
+  );
 }
 
 /**
@@ -95,10 +111,10 @@ export function edgeStroke(
  */
 export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock> {
   return new Map(
-    graph.transitions.map((transition) => [
-      edgeId(transition.source, transition.target),
-      transition.wait
-    ])
+    graph.transitions.flatMap((transition) => {
+      const wait = transition.attributes[TRANSITION_TIME];
+      return wait ? [[edgeId(transition.source, transition.target), wait] as const] : [];
+    })
   );
 }
 
@@ -132,4 +148,36 @@ export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]):
 /** The busiest of a set, for scaling every other one against. */
 export function busiest(of: { counts: Record<string, Counts> }[], measure: Measure): number {
   return of.reduce((top, one) => Math.max(top, unionCount(one.counts, measure)), 0);
+}
+
+/**
+ * One Group's counts divided by how many cases that Group holds: the share of
+ * its cases for `cases`, events per case for `events`. What a split panel
+ * shades and thickens by, so a Group ten times larger does not draw ten times
+ * thicker.
+ */
+export function perCase(
+  counts: Record<string, Counts>,
+  id: string,
+  caseCounts: Map<string, number>
+): Counts {
+  const n = Math.max(caseCounts.get(id) ?? 0, 1);
+  const own = counts[id];
+  return own ? { cases: own.cases / n, events: own.events / n } : { cases: 0, events: 0 };
+}
+
+/** The busiest of a set per case of each Group, across every Group, so all split panels share it. */
+export function busiestPerCase(
+  of: { counts: Record<string, Counts> }[],
+  caseCounts: Map<string, number>,
+  measure: Measure
+): number {
+  return of.reduce(
+    (top, one) =>
+      Math.max(
+        top,
+        ...[...caseCounts.keys()].map((id) => perCase(one.counts, id, caseCounts)[measure])
+      ),
+    0
+  );
 }

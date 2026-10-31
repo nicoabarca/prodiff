@@ -14,11 +14,13 @@
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
+  import { EDGE_FREQUENCY } from "$lib/dfg/types";
   import { clearInspected, inspected } from "$lib/dfg/state/view.svelte";
   import {
     activityDifferences,
     byAttribute,
     placeKey,
+    rank,
     type Finding
   } from "$lib/dfg/utils/findings";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -53,24 +55,24 @@
   );
   const attributes = $derived(byAttribute(findings));
 
-  /** Attributes the user flipped from how they start: the first open, the rest closed. */
-  const flipped = new SvelteSet<string>();
-  const isOpen = (attribute: string) =>
-    (attribute === attributes[0]?.attribute) !== flipped.has(attribute);
+  /** The attributes open. Every one starts closed. */
+  const opened = new SvelteSet<string>();
+  const isOpen = (attribute: string) => opened.has(attribute);
 
   /** The activity the panel is narrowed to, from a click on the canvas. */
   const activity = $derived(inspected.place?.kind === "node" ? inspected.place : null);
   const differences = $derived(activity ? activityDifferences(findings, activity.id) : []);
 
-  /** The Waiting Time finding of the edge clicked on the canvas, if it has one. */
+  /** The finding of the edge clicked on the canvas: its strongest difference, else its Waiting Time, else how often it is followed. */
   const edgeFinding = $derived.by(() => {
     const place = inspected.place;
     if (place?.kind !== "edge") return null;
+    const on = findings.filter((finding) => placeKey(finding.place) === placeKey(place));
     return (
-      findings.find(
-        (finding) =>
-          finding.attribute === TRANSITION_TIME && placeKey(finding.place) === placeKey(place)
-      ) ?? null
+      rank(on).find((finding) => finding.block.test?.significant) ??
+      on.find((finding) => finding.attribute === TRANSITION_TIME) ??
+      on.find((finding) => finding.attribute === EDGE_FREQUENCY) ??
+      null
     );
   });
 
@@ -80,10 +82,8 @@
     const finding = edgeFinding;
     if (!finding) return;
     untrack(() => {
-      if (!isOpen(TRANSITION_TIME)) {
-        if (flipped.has(TRANSITION_TIME)) flipped.delete(TRANSITION_TIME);
-        else flipped.add(TRANSITION_TIME);
-      }
+      const attribute = finding.attribute;
+      opened.add(attribute);
       if (!finding.block.test?.significant) onlyDifferences = false;
     });
   });
@@ -93,14 +93,12 @@
    * closes every card: `at` moves on each time.
    */
   let fold = $state({ at: 0, open: false });
-  const expanding = $derived(fold.at > 0 && !fold.open);
+  const expanding = $derived(!fold.open);
 
   function toggleAll() {
     const open = expanding;
-    flipped.clear();
-    for (const row of attributes) {
-      if ((row.attribute === attributes[0]?.attribute) !== open) flipped.add(row.attribute);
-    }
+    opened.clear();
+    if (open) for (const row of attributes) opened.add(row.attribute);
     fold = { at: fold.at + 1, open };
   }
 
@@ -108,7 +106,7 @@
   $effect(() => () => clearInspected());
 
   const where = (attribute: string, count: number) =>
-    attribute === TRANSITION_TIME
+    attribute === TRANSITION_TIME || attribute === EDGE_FREQUENCY
       ? `${count} edge${count === 1 ? "" : "s"}`
       : `${count} activit${count === 1 ? "y" : "ies"}`;
 </script>
@@ -137,6 +135,10 @@
           <p class="text-muted-foreground text-[0.6875rem]">
             {formatNumber(significant)} significant of {formatNumber(tested)} tests on what the graph
             shows
+          </p>
+          <p class="text-muted-foreground text-[0.625rem]">
+            A red edge has a significant difference, redder when larger. It does not say which group
+            is higher. Thicker edges and darker activities carry more cases.
           </p>
         {/if}
       </div>
@@ -214,7 +216,7 @@
         <Collapsible.Root
           {open}
           onOpenChange={() =>
-            flipped.has(row.attribute) ? flipped.delete(row.attribute) : flipped.add(row.attribute)}
+            opened.has(row.attribute) ? opened.delete(row.attribute) : opened.add(row.attribute)}
           class={cn("border-border border-b", open && "bg-background")}
         >
           <Collapsible.Trigger

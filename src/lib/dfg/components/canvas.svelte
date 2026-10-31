@@ -20,18 +20,27 @@
   import { shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
+    busiestPerCase,
+    edgeBlocks,
     edgeStroke,
     edgeWait,
     edgeWidth,
     faceCounts,
     membership,
+    perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { comparable, edgePlace, nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
+  import {
+    edgePlace,
+    nodeDifferences,
+    placeKey,
+    testedPlaces,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
@@ -85,15 +94,15 @@
       place on either side. */
   const placedGraph = $derived(layoutFrom ?? ownGraph);
 
-  const NO_COUNTS: Counts = { cases: 0, events: 0 };
+  const caseCounts = $derived(new Map(graph.groups.map((group) => [group.id, group.caseCount])));
 
   /**
-   * The counts a panel prints from. A split panel narrows them to its one
-   * Group, so every figure, shade and thickness below ranks within that Group
-   * instead of across the comparison.
+   * The counts a panel shades and thickens by. A split panel narrows them to
+   * its one Group, per case of that Group, and ranks them against every
+   * Group's, so both panels draw on one scale.
    */
   const facing = (counts: Record<string, Counts>): Record<string, Counts> =>
-    focus === null ? counts : { [focus]: counts[focus] ?? NO_COUNTS };
+    focus === null ? counts : { [focus]: perCase(counts, focus, caseCounts) };
 
   const shown = $derived(focus === null ? groups : groups.filter((group) => group.id === focus));
 
@@ -101,33 +110,27 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
+  const measured = $derived(edgeBlocks(graph));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
-  const groupIds = $derived(groups.map((group) => group.id));
-  const inspectable = $derived(
-    new Set(
-      simplified.nodes
-        .filter((node) => node.kind === "activity" && comparable(node.counts, groupIds))
-        .map((node) => node.id)
-    )
-  );
+  const tested = $derived(testedPlaces(findings));
 
-  /** Whether a click on an edge opens the tests panel: it joins two activities and more than one Group follows it. */
-  const edgeInspectable = (source: number, target: number, counts: Record<string, Counts>) =>
-    source !== START_ID && target !== END_ID && comparable(counts, groupIds);
+  /** Whether a click on an edge opens the tests panel: some test was run on it. */
+  const edgeInspectable = (source: number, target: number) =>
+    tested.has(placeKey({ kind: "edge", source, target, label: "" }));
 
-  /** A click on an activity more than one Group reaches opens the tests panel on it; any other node only selects. */
+  /** A click on an activity some test was run on opens the tests panel on it; any other node only selects. */
   function clickNode(id: number) {
     const label = drawnLabels.get(id);
-    if (!inspectable.has(id) || label === undefined) {
+    if (label === undefined || !tested.has(placeKey({ kind: "node", id, label }))) {
       selected.id = id;
       return;
     }
     inspect({ kind: "node", id, label });
   }
 
-  /** A click on an inspectable edge opens the tests panel on its Waiting Time. */
+  /** A click on an inspectable edge opens the tests panel on it. */
   function clickEdge(edge: Edge) {
     if (!(edge.data as DfgEdgeData).clickable) return;
     inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
@@ -208,11 +211,26 @@
       })
     );
 
-    const steps = shadeSteps(
-      simplified.nodes.map((node) =>
-        shadeValue({ ...node, counts: facing(node.counts) }, view.measure)
+    // A split panel shades against every Group's figures, then keeps its own.
+    const shadedIds: (string | null)[] = focus === null ? [null] : [...caseCounts.keys()];
+    const allSteps = shadeSteps(
+      shadedIds.flatMap((id) =>
+        simplified.nodes.map((node) =>
+          shadeValue(
+            {
+              ...node,
+              counts: id === null ? node.counts : { [id]: perCase(node.counts, id, caseCounts) }
+            },
+            view.measure
+          )
+        )
       ),
       "log"
+    );
+    const own = focus === null ? 0 : shadedIds.indexOf(focus);
+    const steps = allSteps.slice(
+      own * simplified.nodes.length,
+      (own + 1) * simplified.nodes.length
     );
 
     // A split panel draws only what its own Group reaches. The box stays in the
@@ -270,7 +288,7 @@
           edge,
           key,
           waits: edgeWait(waits.get(key), shown),
-          stroke: edgeStroke(edge.counts, waits.get(key), groups),
+          stroke: edgeStroke(edge.counts, measured.get(key) ?? [], groups),
           route: prepareRoute(points)
         };
       });
@@ -291,14 +309,14 @@
       [...boxes.values()]
     );
 
-    const busiestEdge = busiest(
-      simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
-      view.measure
-    );
+    const busiestEdge =
+      focus === null
+        ? busiest(simplified.edges, view.measure)
+        : busiestPerCase(simplified.edges, caseCounts, view.measure);
     const edges: Edge[] = drawn.map(({ edge, key, waits, stroke, route }) => {
       const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
-      const clickable = edgeInspectable(edge.source, edge.target, edge.counts);
+      const clickable = edgeInspectable(edge.source, edge.target);
       return {
         id: key,
         class: clickable ? "cursor-pointer" : undefined,
