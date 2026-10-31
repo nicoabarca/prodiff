@@ -68,25 +68,40 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
   return reached.length === 1 ? reached[0].id : null;
 }
 
+/** How much of `--effect-3` an edge takes over `--effect-2` at each effect step, negligible to large. */
+const EFFECT_SHARE = { 1: 45, 2: 65, 3: 85, 4: 100 };
+
 /**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
- * Group alone follows takes that Group's colour. An edge whose Waiting Time
- * differs significantly runs from grey to `--effect-4` in four steps of its
- * effect, negligible to large. `null` for the default grey.
+ * Group alone follows takes that Group's colour. An edge where any test differs
+ * significantly is red, stronger with its strongest effect, whichever Group is
+ * higher. `null` for the default grey.
  */
 export function edgeStroke(
   counts: Record<string, Counts>,
-  wait: AttributeBlock | undefined,
+  blocks: AttributeBlock[],
   groups: FaceGroup[]
 ): string | null {
   if (groups.length > 1) {
     const owner = groups.find((group) => group.id === membership(counts, groups));
     if (owner) return `var(--${owner.color})`;
   }
-  const test = wait?.test;
-  if (!test?.significant) return null;
-  const share = effectStep(test.effectSize) * 25;
-  return `color-mix(in oklab, var(--effect-4) ${share}%, var(--muted-foreground))`;
+  const effects = blocks.flatMap((block) =>
+    block.test?.significant ? [block.test.effectSize] : []
+  );
+  if (effects.length === 0) return null;
+  const share = EFFECT_SHARE[effectStep(Math.max(...effects))];
+  return `color-mix(in oklab, var(--effect-3) ${share}%, var(--effect-2))`;
+}
+
+/** Every attribute block measured on each pair, by `source->target`. */
+export function edgeBlocks(graph: ResponseDfg): Map<string, AttributeBlock[]> {
+  return new Map(
+    graph.transitions.map((transition) => [
+      edgeId(transition.source, transition.target),
+      Object.values(transition.attributes)
+    ])
+  );
 }
 
 /**

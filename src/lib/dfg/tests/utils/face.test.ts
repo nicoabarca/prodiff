@@ -116,19 +116,25 @@ describe("edgeStroke", () => {
 
   it("takes the colour of the one Group that follows the edge", () => {
     expect(
-      edgeStroke({ a: { cases: 0, events: 0 }, b: { cases: 2, events: 2 } }, undefined, groups)
+      edgeStroke({ a: { cases: 0, events: 0 }, b: { cases: 2, events: 2 } }, [], groups)
     ).toBe("var(--group-6)");
   });
 
-  it("stays grey with one Group compared or no significant Waiting Time", () => {
-    expect(edgeStroke({ a: both.a }, undefined, groups.slice(0, 1))).toBeNull();
-    expect(edgeStroke(both, wait(test(0.6, false)), groups)).toBeNull();
-    expect(edgeStroke(both, undefined, groups)).toBeNull();
+  it("stays grey with one Group compared or no significant test", () => {
+    expect(edgeStroke({ a: both.a }, [], groups.slice(0, 1))).toBeNull();
+    expect(edgeStroke(both, [wait(test(0.6, false))], groups)).toBeNull();
+    expect(edgeStroke(both, [], groups)).toBeNull();
   });
 
-  it("reddens with the effect of a significant Waiting Time", () => {
-    expect(edgeStroke(both, wait(test(0.05)), groups)).toContain("var(--effect-4) 25%");
-    expect(edgeStroke(both, wait(test(0.6)), groups)).toContain("var(--effect-4) 100%");
+  it("reddens with the strongest effect among its significant tests", () => {
+    expect(edgeStroke(both, [wait(test(0.05))], groups)).toContain("var(--effect-3) 45%");
+    expect(edgeStroke(both, [wait(test(0.6))], groups)).toContain("var(--effect-3) 100%");
+    expect(edgeStroke(both, [wait(test(0.05)), wait(test(0.6))], groups)).toContain(
+      "var(--effect-3) 100%"
+    );
+    expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toContain(
+      "var(--effect-3) 45%"
+    );
   });
 });
 
