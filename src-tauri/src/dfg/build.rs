@@ -364,9 +364,10 @@ fn filter_by_variants(lf: LazyFrame, keys: &[String]) -> Result<LazyFrame, Strin
 }
 
 /// Each case-scoped attribute, one value per case and Group, from the case's
-/// first or last row as its resolution says. Rows run in timestamp order within
-/// a case, so `First` is its earliest event and `Last` its latest. Read after
-/// the Variant cut, so it describes the same cases the graph draws.
+/// first or last non-empty value as its resolution says. Rows run in timestamp
+/// order within a case, so `First` is its earliest event with a value and `Last`
+/// its latest. Read after the Variant cut, so it describes the same cases the
+/// graph draws.
 fn case_level(lf: &LazyFrame, attrs: &[CaseAttr]) -> Result<Vec<CaseLevelAgg>, String> {
     if attrs.is_empty() {
         return Ok(Vec::new());
@@ -375,8 +376,10 @@ fn case_level(lf: &LazyFrame, attrs: &[CaseAttr]) -> Result<Vec<CaseLevelAgg>, S
         .iter()
         .map(|attr| {
             let value = match attr.resolution {
-                CaseResolution::Constant | CaseResolution::First => col(&attr.column).first(),
-                CaseResolution::Last => col(&attr.column).last(),
+                CaseResolution::Constant | CaseResolution::First => {
+                    col(&attr.column).first_non_null()
+                }
+                CaseResolution::Last => col(&attr.column).last_non_null(),
             };
             value.alias(&attr.column)
         })
