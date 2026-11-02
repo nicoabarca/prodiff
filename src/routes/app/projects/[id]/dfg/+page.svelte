@@ -26,6 +26,7 @@
   import { groupsLoaded } from "$lib/groups/state/groups.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Waypoints from "@lucide/svelte/icons/waypoints";
+  import PrototypeSwitcher from "$lib/dfg/prototype/switcher.svelte";
 
   const project = $derived(currentProject());
   const stale = $derived(isStale(project));
@@ -68,6 +69,10 @@
     }
   });
 </script>
+
+{#if import.meta.env.DEV}
+  <PrototypeSwitcher />
+{/if}
 
 {#if project}
   <div class="flex min-h-0 flex-1 flex-col">

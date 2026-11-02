@@ -35,7 +35,9 @@
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
-  import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
+  import { edgeKey, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
+  import { prototype } from "$lib/dfg/prototype/engine.svelte";
+  import { prototypeLayout } from "$lib/dfg/prototype/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
   let {
@@ -167,7 +169,7 @@
       measure: view.measure,
       labels: labelSizes
     };
-    layout(wanted.graph, wanted.direction, wanted.measure, wanted.labels).then((laid) => {
+    prototypeLayout(prototype.engine, wanted.graph, wanted.direction, wanted.measure, wanted.labels).then((laid) => {
       if (request !== pending) return;
       placement = laid;
       placedAt += 1;
@@ -279,8 +281,8 @@
     // edge's own line, at the first spot along it that covers nothing else.
     const settled = settleLabels(
       drawn.flatMap(({ edge, key, waits, route }) => {
-        const reserved = placed.labels.get(key);
         const size = labelSizes.get(key);
+        const reserved = placed.labels.get(key) ?? along(route, 0.5);
         if (waits.length === 0 || !reserved || !size) return [];
         const onLine =
           edge.source === edge.target
