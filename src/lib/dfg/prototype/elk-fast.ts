@@ -7,6 +7,8 @@
  * labels stop reserving room past `LABELS_UP_TO` edges (a label is still drawn,
  * on its edge's line), and the cache key only carries label sizes when they
  * enter the layout, so toggling Waiting Time on a big graph re-runs nothing.
+ * `layering` also hands the weights to layer assignment as shortness, the way
+ * dot minimizes weight times edge length, so busy edges stay one layer long.
  */
 import ELK from "elkjs/lib/elk-api.js";
 import elkWorkerUrl from "elkjs/lib/elk-worker.min.js?url";
@@ -30,7 +32,7 @@ const OPTIONS: Record<string, string> = {
 };
 
 const elk = new ELK({ workerFactory: () => new Worker(elkWorkerUrl) });
-const cache = new Map<string, Placement>();
+const caches = { plain: new Map<string, Placement>(), layering: new Map<string, Placement>() };
 const NO_LABELS = new Map<string, Size>();
 
 export const labelsInLayout = (edges: number) => edges <= LABELS_UP_TO;
@@ -39,8 +41,10 @@ export async function elkFastLayout(
   graph: Simplified,
   direction: Direction,
   measure: Measure,
-  labels: Map<string, Size>
+  labels: Map<string, Size>,
+  layering = false
 ): Promise<{ placement: Placement; cached: boolean }> {
+  const cache = caches[layering ? "layering" : "plain"];
   const reserved = labelsInLayout(graph.edges.length) ? labels : NO_LABELS;
   const key = topologyKey(graph, direction, measure, reserved);
   const hit = cache.get(key);
@@ -58,9 +62,10 @@ export async function elkFastLayout(
     ])
   );
   for (const edge of input.edges ?? []) {
-    edge.layoutOptions = {
-      "elk.layered.priority.straightness": String(weights.get(edge.id) ?? 1)
-    };
+    const weight = String(weights.get(edge.id) ?? 1);
+    edge.layoutOptions = layering
+      ? { "elk.layered.priority.straightness": weight, "elk.layered.priority.shortness": weight }
+      : { "elk.layered.priority.straightness": weight };
   }
   const placement = placementFromElk(graph, await elk.layout(input), direction, reserved);
   if (cache.size >= 12) cache.delete(cache.keys().next().value as string);

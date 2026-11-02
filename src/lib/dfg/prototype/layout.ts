@@ -25,8 +25,14 @@ export async function prototypeLayout(
   let cached = false;
   if (engine === "elk") {
     placement = await layout(graph, direction, measure, labels);
-  } else if (engine === "elk-fast") {
-    ({ placement, cached } = await elkFastLayout(graph, direction, measure, labels));
+  } else if (engine === "elk-fast" || engine === "elk-layered") {
+    ({ placement, cached } = await elkFastLayout(
+      graph,
+      direction,
+      measure,
+      labels,
+      engine === "elk-layered"
+    ));
   } else {
     const key = JSON.stringify([
       direction,
@@ -46,7 +52,8 @@ export async function prototypeLayout(
     nodes: graph.nodes.length,
     edges: graph.edges.length,
     labelsInLayout:
-      labels.size > 0 && (engine !== "elk-fast" || labelsInLayout(graph.edges.length))
+      labels.size > 0 &&
+      (engine === "elk" || engine === "dot" || labelsInLayout(graph.edges.length))
   });
   return placement;
 }

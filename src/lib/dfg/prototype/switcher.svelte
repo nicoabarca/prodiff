@@ -34,7 +34,7 @@
     <ChevronLeft class="size-4" />
   </button>
   <span>
-    <b>{["A", "B", "C"][index]}</b> · {ENGINES[index].name}
+    <b>{["A", "B", "C", "D"][index]}</b> · {ENGINES[index].name}
     · {prototype.ms === null ? "…" : `${prototype.ms} ms${prototype.cached ? " (cache)" : ""}`}
     · {prototype.nodes} nodos / {prototype.edges} edges
     · labels {prototype.labelsInLayout ? "en el layout" : "fuera del layout"}

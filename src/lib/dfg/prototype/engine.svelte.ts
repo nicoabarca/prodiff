@@ -3,12 +3,13 @@
  * `?variant=` search param and the floating switcher, and how long the last
  * layout took. Dev only.
  */
-export type Engine = "elk" | "elk-fast" | "dot";
+export type Engine = "elk" | "elk-fast" | "dot" | "elk-layered";
 
 export const ENGINES: { key: Engine; name: string }[] = [
   { key: "elk", name: "ELK actual" },
   { key: "elk-fast", name: "ELK mejorado" },
-  { key: "dot", name: "Graphviz dot (Celonis)" }
+  { key: "dot", name: "Graphviz dot (Celonis)" },
+  { key: "elk-layered", name: "ELK con pesos en las capas" }
 ];
 
 const fromUrl = (): Engine => {
