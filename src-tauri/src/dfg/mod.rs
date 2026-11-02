@@ -563,6 +563,43 @@ mod tests {
     }
 
     #[test]
+    fn a_case_level_attribute_reads_past_empty_rows_as_its_resolution_says() {
+        let df = DataFrame::new(
+            2,
+            vec![
+                Column::new("case".into(), vec!["1".to_string(), "1".to_string()]),
+                Column::new("act".into(), vec!["A".to_string(), "B".to_string()]),
+                datetime_column("ts", vec![10_000, 20_000]),
+                Column::new("opened".into(), [None, Some(7.0f64)]),
+                Column::new("paid".into(), [Some(9.0f64), None]),
+            ],
+        )
+        .unwrap();
+        let columns: Vec<Mapping> = serde_json::from_str(
+            r#"[
+              {"name":"case","role":"case_id","type":"string","scope":"case","caseResolution":"constant"},
+              {"name":"act","role":"activity_name","type":"string","scope":"event"},
+              {"name":"ts","role":"complete_timestamp","type":"datetime","scope":"event"},
+              {"name":"opened","role":"other","type":"float","scope":"case","caseResolution":"first"},
+              {"name":"paid","role":"other","type":"float","scope":"case","caseResolution":"last"}
+            ]"#,
+        )
+        .unwrap();
+        let requested = ["opened", "paid"].map(|name| RequestedAttribute::Column {
+            name: name.to_string(),
+        });
+
+        let dfg = build(&logs(&df, None), &columns, &requested, None).unwrap();
+
+        let value = |name: &str| match &dfg.case_level[name].summaries["a"] {
+            Summary::Numerical { min, .. } => *min,
+            _ => panic!("{name} is numeric"),
+        };
+        assert_eq!(value("opened"), 7.0);
+        assert_eq!(value("paid"), 9.0);
+    }
+
+    #[test]
     fn a_case_level_attribute_is_tested_between_groups_on_the_cases_drawn() {
         let south: Vec<Trace> = vec![
             ("1", &[("A", 0, 10)]),

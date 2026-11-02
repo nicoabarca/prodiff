@@ -9,6 +9,20 @@ export interface DurationFilter {
   max: number | null;
 }
 
+/** The explanatory text shown beside each mode in the filter editor. */
+export const DURATION_MODE_INFO: Record<NumericMode, { label: string; description: string }> = {
+  above: { label: "Above", description: "Keeps cases that last at least this long." },
+  below: { label: "Below", description: "Keeps cases that last at most this long." },
+  between: {
+    label: "In range",
+    description: "Keeps cases whose duration is inside the range. Limits are included."
+  },
+  outside: {
+    label: "Outside range",
+    description: "Keeps cases whose duration is outside the range. Limits are excluded."
+  }
+};
+
 const DAY_MS = 86_400_000;
 
 export function describeDuration(filter: DurationFilter): { title: string; detail: string } {
