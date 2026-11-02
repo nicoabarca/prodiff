@@ -7,7 +7,7 @@ use super::queries::{
 };
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTable};
 use super::Endpoint;
-use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
+use crate::column_mapping::{case_resolution, require_role, ColumnMapping, ColumnRole};
 use crate::event_log::storage::project_dir_for_app;
 use crate::filters::Filter;
 use crate::parsing::commands::off_main_thread;
@@ -111,7 +111,8 @@ pub async fn group_preview(
 }
 
 /// Distinct values of a column, alphabetical. `endpoint` narrows them to the
-/// activities cases begin (or end) with.
+/// activities cases begin (or end) with, and a case-scoped column to the values
+/// cases resolve to.
 #[tauri::command]
 pub async fn distinct_values(
     app: tauri::AppHandle,
@@ -125,7 +126,8 @@ pub async fn distinct_values(
     off_main_thread(move || {
         let df = read_event_log(&dir)?;
         let case_col = require_role(&columns, ColumnRole::CaseId)?;
-        count_values(df, &column, case_col, endpoint, limit)
+        let resolution = case_resolution(&columns, &column);
+        count_values(df, &column, case_col, endpoint, resolution, limit)
     })
     .await
 }

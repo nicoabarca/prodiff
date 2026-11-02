@@ -5,7 +5,12 @@ import type {
   TemporalColumnType
 } from "$lib/event-log/invokers/types";
 import type { Project } from "$lib/event-log/types";
-import { categoricalColumns, eventLevelColumns, numericColumns } from "$lib/filters/utils/columns";
+import {
+  categoricalColumns,
+  eventLevelColumns,
+  isCaseLevel,
+  numericColumns
+} from "$lib/filters/utils/columns";
 
 function column(
   name: string,
@@ -71,5 +76,20 @@ describe("column lists", () => {
       "region",
       "zone"
     ]);
+  });
+});
+
+describe("isCaseLevel", () => {
+  it("is true only for a usable case-scoped column", () => {
+    const columns = [
+      column("fine", "float", { scope: "case", caseResolution: "first" }),
+      column("hidden", "float", { scope: "case", caseResolution: "first" }),
+      column("expense", "float")
+    ];
+    const p = project(columns, ["hidden"]);
+    expect(isCaseLevel(p, "fine")).toBe(true);
+    expect(isCaseLevel(p, "expense")).toBe(false);
+    expect(isCaseLevel(p, "hidden")).toBe(false);
+    expect(isCaseLevel(p, "missing")).toBe(false);
   });
 });

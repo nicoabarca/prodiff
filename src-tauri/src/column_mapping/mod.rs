@@ -144,6 +144,15 @@ pub fn find_role(mapping: &[ColumnMapping], role: ColumnRole) -> Option<&str> {
         .map(|c| c.name.as_str())
 }
 
+/// How a case-scoped column resolves to one value per case. `None` for an
+/// event-scoped column and for a name the mapping does not hold.
+pub fn case_resolution(mapping: &[ColumnMapping], column: &str) -> Option<CaseResolution> {
+    mapping
+        .iter()
+        .find(|c| c.name == column)
+        .and_then(|c| c.scope.resolution())
+}
+
 /// Looks up a role that the event log cannot be summarized without. The importer
 /// validates this before anything reads it, so a failure here means a caller
 /// skipped the import.

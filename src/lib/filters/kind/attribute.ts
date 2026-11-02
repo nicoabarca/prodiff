@@ -27,6 +27,26 @@ export const ATTRIBUTE_MODE_INFO: Record<AttributeMode, { label: string; descrip
   }
 };
 
+/** The same modes on a case-level column, where a case holds one value. */
+export const ATTRIBUTE_CASE_MODE_INFO: Record<
+  AttributeMode,
+  { label: string; description: string }
+> = {
+  mandatory: {
+    label: "Mandatory",
+    description: "Removes cases whose value is not selected. Retained cases are kept whole."
+  },
+  forbidden: {
+    label: "Forbidden",
+    description: "Removes cases whose value is selected. Non-matching cases are retained whole."
+  },
+  keep_selected: {
+    label: "Keep selected",
+    description:
+      "Removes cases whose value is not selected. On a case-level column this is the same as Mandatory: retained cases are kept whole."
+  }
+};
+
 export function describeAttribute(filter: AttributeFilter): { title: string; detail: string } {
   return {
     title: `${filter.column} — ${ATTRIBUTE_MODE_INFO[filter.mode].label.toLowerCase()}`,

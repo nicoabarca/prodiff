@@ -1,7 +1,9 @@
 //! The `Filter` payload and its per-kind mode enums, deserialized straight off
 //! the frontend's filter chain JSON.
 
-/// How an event-level predicate is lifted to whole cases.
+/// How an event-level predicate is lifted to whole cases. On a case-scoped
+/// column the predicate reads the case's resolved value, so `KeepSelected` keeps
+/// or drops the whole case, the same as `Mandatory`.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum AttributeMode {
@@ -10,8 +12,9 @@ pub enum AttributeMode {
     KeepSelected,
 }
 
-/// Numeric filters are always case-level "at least one event satisfies"; the
-/// mode picks the comparison.
+/// The comparison a numeric or duration filter makes. A numeric filter keeps
+/// whole cases: it tests the resolved value of a case-scoped column, and "at
+/// least one event satisfies" on an event-scoped one.
 #[derive(serde::Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum NumericMode {

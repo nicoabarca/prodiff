@@ -26,6 +26,20 @@ export const NUMERIC_MODE_INFO: Record<NumericMode, { label: string; description
   }
 };
 
+/** The same modes on a case-level column, where a case holds one value. */
+export const NUMERIC_CASE_MODE_INFO: Record<NumericMode, { label: string; description: string }> = {
+  above: { label: "Above", description: "Keeps cases whose value is at or above the limit." },
+  below: { label: "Below", description: "Keeps cases whose value is at or below the limit." },
+  between: {
+    label: "In range",
+    description: "Keeps cases whose value is inside the range. Limits are included."
+  },
+  outside: {
+    label: "Outside range",
+    description: "Keeps cases whose value is outside the range. Limits are excluded."
+  }
+};
+
 /**
  * The bounds of a `NumericMode` as text, given each bound already formatted.
  * Shared with the duration kind, which formats its bounds as durations.

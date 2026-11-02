@@ -52,11 +52,11 @@ A Custom Attribute of Case scope: one value per case, from the case's case-scope
 _Avoid_: Case metric, aggregate attribute
 
 **Trimmed Group**:
-A Group whose applied Filter List keeps only some events of a case: an attribute Filter in `keep_selected` mode or a timeframe Filter in `trim` mode. Its Case Attributes still describe whole cases.
+A Group whose applied Filter List keeps only some events of a case: an attribute Filter in `keep_selected` mode on an event-scoped column or a timeframe Filter in `trim` mode. Its Case Attributes still describe whole cases.
 _Avoid_: Partial Group
 
 **Filter**:
-One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. A Filter is a definition, never a destructive edit of the Event Log.
+One condition narrowing an Event Log, applied after the Event Log exists rather than at creation. Every filter is an event-level predicate lifted to whole cases; its `mode` picks the lift — `mandatory` keeps cases with a matching event, `forbidden` drops them, `keep_selected`/`trim` keeps only the matching events so surviving cases carry a sub-sequence of their original trace. An attribute or numeric Filter on a case-scoped column tests instead the one value the case resolves to, its first or last non-empty value by the column's resolution, so every mode keeps or drops whole cases. A Filter is a definition, never a destructive edit of the Event Log.
 _Avoid_: Query, condition, rule
 
 **Filter List**:

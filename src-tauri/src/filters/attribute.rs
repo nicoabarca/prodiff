@@ -1,7 +1,10 @@
-//! The `Attribute` filter: matches events by an arbitrary column's value.
+//! The `Attribute` filter: matches events by an arbitrary column's value. A
+//! case-scoped column holds one resolved value per case, so there every mode
+//! keeps or drops whole cases.
 
 use super::enums::AttributeMode;
-use super::predicates::{matches_any, per_case};
+use super::predicates::{case_matches, matches_any, matches_any_of};
+use crate::column_mapping::CaseResolution;
 use polars::prelude::*;
 
 pub fn apply(
@@ -9,13 +12,18 @@ pub fn apply(
     column: &str,
     mode: AttributeMode,
     values: &[String],
+    resolution: Option<CaseResolution>,
     case_col: &str,
 ) -> Result<LazyFrame, String> {
-    let hit = matches_any(column, values);
-    Ok(match mode {
-        AttributeMode::Mandatory => lf.filter(per_case(hit, case_col, false)?),
-        AttributeMode::Forbidden => lf.filter(per_case(hit, case_col, false)?.not()),
-        AttributeMode::KeepSelected => lf.filter(hit),
+    let matched = || {
+        case_matches(col(column), resolution, case_col, |value| {
+            matches_any_of(value, values)
+        })
+    };
+    Ok(match (mode, resolution) {
+        (AttributeMode::KeepSelected, None) => lf.filter(matches_any(column, values)),
+        (AttributeMode::Forbidden, _) => lf.filter(matched()?.not()),
+        (AttributeMode::Mandatory | AttributeMode::KeepSelected, _) => lf.filter(matched()?),
     })
 }
 
@@ -26,7 +34,7 @@ mod tests {
 
     fn run(mode: AttributeMode, values: &[&str]) -> DataFrame {
         let values: Vec<String> = values.iter().map(|v| v.to_string()).collect();
-        apply(log().lazy(), "type", mode, &values, "case")
+        apply(log().lazy(), "type", mode, &values, None, "case")
             .unwrap()
             .collect()
             .unwrap()
@@ -86,6 +94,7 @@ mod tests {
             "flag",
             AttributeMode::Mandatory,
             &["true".to_string()],
+            None,
             "case",
         )
         .unwrap()

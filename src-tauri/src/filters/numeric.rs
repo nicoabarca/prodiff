@@ -1,8 +1,10 @@
-//! The `Numeric` filter: a case matches when at least one event's column
-//! value satisfies the comparison.
+//! The `Numeric` filter: a case matches when its value in the column satisfies
+//! the comparison. A case-scoped column holds one resolved value per case; on an
+//! event-scoped column one event satisfying it is enough.
 
 use super::enums::NumericMode;
-use super::predicates::{numeric_predicate, per_case};
+use super::predicates::{case_matches, numeric_predicate};
+use crate::column_mapping::CaseResolution;
 use polars::prelude::*;
 
 pub fn apply(
@@ -11,11 +13,15 @@ pub fn apply(
     mode: NumericMode,
     min: Option<f64>,
     max: Option<f64>,
+    resolution: Option<CaseResolution>,
     case_col: &str,
 ) -> Result<LazyFrame, String> {
     let value = col(column).cast(DataType::Float64);
-    let hit = numeric_predicate(value, mode, min, max);
-    Ok(lf.filter(per_case(hit, case_col, false)?))
+    Ok(
+        lf.filter(case_matches(value, resolution, case_col, |value| {
+            numeric_predicate(value, mode, min, max)
+        })?),
+    )
 }
 
 #[cfg(test)]
@@ -24,7 +30,7 @@ mod tests {
     use crate::filters::tests::support::{cases, log};
 
     fn run(mode: NumericMode, min: Option<f64>, max: Option<f64>) -> DataFrame {
-        apply(log().lazy(), "amount", mode, min, max, "case")
+        apply(log().lazy(), "amount", mode, min, max, None, "case")
             .unwrap()
             .collect()
             .unwrap()
