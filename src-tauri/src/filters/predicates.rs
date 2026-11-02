@@ -1,6 +1,7 @@
 //! Polars `Expr` builders behind the Filter-predicate seam: shared by the
 //! attribute/numeric/timeframe/duration/follower/endpoint modules.
 
+use crate::column_mapping::CaseResolution;
 use polars::prelude::*;
 
 /// `value` is one of `values`. An OR chain, so the expression is independent of
@@ -60,4 +61,32 @@ pub fn per_case(predicate: Expr, case_col: &str, all: bool) -> Result<Expr, Stri
         predicate.any(true)
     };
     quantified.over([col(case_col)]).map_err(|e| e.to_string())
+}
+
+/// The one value a case-scoped column holds for a case, as an aggregation over
+/// the case's rows. Rows run in timestamp order within a case.
+pub fn resolved_value(value: Expr, resolution: CaseResolution) -> Expr {
+    match resolution {
+        CaseResolution::Constant | CaseResolution::First => value.first_non_null(),
+        CaseResolution::Last => value.last_non_null(),
+    }
+}
+
+/// Whether each row's case satisfies `test`. A case-scoped column tests the
+/// case's resolved value, and a case with no value does not match. An
+/// event-scoped column (`resolution` is `None`) tests every event, and one match
+/// is enough.
+pub fn case_matches(
+    value: Expr,
+    resolution: Option<CaseResolution>,
+    case_col: &str,
+    test: impl FnOnce(Expr) -> Expr,
+) -> Result<Expr, String> {
+    match resolution {
+        None => per_case(test(value), case_col, false),
+        Some(resolution) => test(resolved_value(value, resolution))
+            .fill_null(lit(false))
+            .over([col(case_col)])
+            .map_err(|e| e.to_string()),
+    }
 }

@@ -26,6 +26,11 @@ export function usableColumns(project: Project): RequestColumnMapping[] {
   return analysisColumns(project).filter((c) => !project.hiddenColumns.includes(c.name));
 }
 
+/** Whether a Filter on this column tests one resolved value per case. */
+export function isCaseLevel(project: Project, column: string): boolean {
+  return usableColumns(project).some((c) => c.name === column && c.scope === "case");
+}
+
 /** The activity column's name, or `""` when the project has none usable. */
 export function activityColumn(project: Project): string {
   return usableColumns(project).find((c) => c.role === "activity_name")?.name ?? "";

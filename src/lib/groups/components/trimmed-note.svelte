@@ -4,6 +4,7 @@
    * the whole case's value, not one computed on the events it kept.
    */
   import { isCaseAttribute } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import { currentProject } from "$lib/event-log/state/projects.svelte";
   import { colorVar } from "$lib/format";
   import type { Group } from "$lib/groups/types";
   import { isTrimmed } from "$lib/groups/utils/trimmed";
@@ -15,7 +16,9 @@
   }: { groups: Group[]; attribute: string; class?: string } = $props();
 
   const trimmed = $derived(
-    isCaseAttribute(attribute) ? groups.filter((group) => isTrimmed(group.filters)) : []
+    isCaseAttribute(attribute)
+      ? groups.filter((group) => isTrimmed(group.filters, currentProject()?.columns ?? []))
+      : []
   );
 </script>
 

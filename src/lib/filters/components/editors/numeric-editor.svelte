@@ -5,17 +5,19 @@
   import type { Project } from "$lib/event-log/types";
   import type { Filter } from "$lib/filters/kind/filter";
   import {
+    NUMERIC_CASE_MODE_INFO,
     NUMERIC_MODES,
     NUMERIC_MODE_INFO,
     type NumericFilter,
     type NumericMode
   } from "$lib/filters/kind/numeric";
-  import { numericColumns } from "$lib/filters/utils/columns";
+  import { isCaseLevel, numericColumns } from "$lib/filters/utils/columns";
   import ColumnSelect from "../column-select.svelte";
   import ModePicker from "../mode-picker.svelte";
 
   /**
-   * The range a case's events cover in a numeric column. Bounds are kept as
+   * The range a case's value falls in on a numeric column: its one resolved
+   * value on a case-level column, any event's otherwise. Bounds are kept as
    * typed text so a half-entered number stays on screen; an empty box is an
    * unbounded side, which is what `null` means to the filter.
    */
@@ -60,7 +62,7 @@
 <ModePicker
   entries={NUMERIC_MODES}
   current={mode}
-  info={NUMERIC_MODE_INFO}
+  info={isCaseLevel(project, column) ? NUMERIC_CASE_MODE_INFO : NUMERIC_MODE_INFO}
   onselect={(v) => (mode = v)}
 />
 

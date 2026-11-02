@@ -2,6 +2,7 @@
   import { untrack } from "svelte";
   import type { Project } from "$lib/event-log/types";
   import {
+    ATTRIBUTE_CASE_MODE_INFO,
     ATTRIBUTE_MODES,
     ATTRIBUTE_MODE_INFO,
     type AttributeFilter,
@@ -9,12 +10,12 @@
   } from "$lib/filters/kind/attribute";
   import type { Filter } from "$lib/filters/kind/filter";
   import { columnValues, VALUE_LIMIT } from "$lib/filters/state/distinct-values.svelte";
-  import { categoricalColumns } from "$lib/filters/utils/columns";
+  import { categoricalColumns, isCaseLevel } from "$lib/filters/utils/columns";
   import ColumnSelect from "../column-select.svelte";
   import ModePicker from "../mode-picker.svelte";
   import ValuePicker from "../value-picker.svelte";
 
-  /** The values a case's events hold in a categorical column. */
+  /** The values a case holds in a categorical column: one on a case-level column. */
   let {
     project,
     initial = null,
@@ -63,7 +64,7 @@
     <ModePicker
       entries={ATTRIBUTE_MODES}
       current={mode}
-      info={ATTRIBUTE_MODE_INFO}
+      info={isCaseLevel(project, column) ? ATTRIBUTE_CASE_MODE_INFO : ATTRIBUTE_MODE_INFO}
       onselect={(v) => (mode = v)}
     />
   </div>

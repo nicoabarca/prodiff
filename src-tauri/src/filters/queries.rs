@@ -1,9 +1,10 @@
 //! Non-command support code for the filter commands: reading the log,
 //! applying a chain, and the per-command aggregations.
 
+use super::predicates::resolved_value;
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin};
 use super::{apply, timestamp_millis, Endpoint, ExcludedCases, Filter};
-use crate::column_mapping::{require_role, ColumnMapping, ColumnRole};
+use crate::column_mapping::{require_role, CaseResolution, ColumnMapping, ColumnRole};
 use crate::event_log::storage::event_log_path;
 use crate::groups::storage::read_group;
 use polars::prelude::*;
@@ -200,31 +201,34 @@ pub fn histogram(durations: &[i64]) -> Vec<DurationBin> {
 /// Distinct values of a column, alphabetical.
 ///
 /// `endpoint` narrows the picker to what an endpoint filter can match: only the
-/// activities cases begin (or end) with.
+/// activities cases begin (or end) with. `resolution` does the same for an
+/// attribute filter on a case-scoped column: only the values cases resolve to.
 pub fn count_values(
     df: DataFrame,
     column: &str,
     case_col: &str,
     endpoint: Option<Endpoint>,
+    resolution: Option<CaseResolution>,
     limit: usize,
 ) -> Result<DistinctValues, String> {
     if df.column(column).is_err() {
         return Err(format!("Column \"{column}\" is not in this event log."));
     }
 
-    // case group are the case's endpoints: one row per case, so a value only
-    // counts here when some case actually starts/ends with it.
-    let base = match endpoint {
+    // One row per case, so a value only counts here when some case actually
+    // starts/ends with it or resolves to it.
+    let pick = match (endpoint, resolution) {
+        (Some(Endpoint::Start), _) => Some(col(column).first()),
+        (Some(Endpoint::End), _) => Some(col(column).last()),
+        (None, Some(resolution)) => Some(resolved_value(col(column), resolution)),
+        (None, None) => None,
+    };
+    let base = match pick {
         None => df.lazy(),
-        Some(position) => {
-            let pick = match position {
-                Endpoint::Start => col(column).first(),
-                Endpoint::End => col(column).last(),
-            };
-            df.lazy()
-                .group_by([col(case_col)])
-                .agg([pick.alias(column)])
-        }
+        Some(pick) => df
+            .lazy()
+            .group_by([col(case_col)])
+            .agg([pick.alias(column)]),
     };
 
     let distinct = base
@@ -270,7 +274,7 @@ mod tests {
     }
 
     fn values(endpoint: Option<Endpoint>) -> Vec<String> {
-        let mut out = count_values(log(), "act", "case", endpoint, 100)
+        let mut out = count_values(log(), "act", "case", endpoint, None, 100)
             .unwrap()
             .values;
         out.sort();
@@ -321,5 +325,18 @@ mod tests {
         // its B is offered on both sides.
         assert_eq!(values(Some(Endpoint::Start)), ["A", "B"]);
         assert_eq!(values(Some(Endpoint::End)), ["B", "C"]);
+    }
+
+    #[test]
+    fn a_case_column_offers_only_the_values_cases_resolve_to() {
+        let offered = |resolution| {
+            let mut out = count_values(log(), "act", "case", None, Some(resolution), 100)
+                .unwrap()
+                .values;
+            out.sort();
+            out
+        };
+        assert_eq!(offered(CaseResolution::First), ["A", "B"]);
+        assert_eq!(offered(CaseResolution::Last), ["B", "C"]);
     }
 }
