@@ -36,7 +36,7 @@
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
-  import { prototype } from "$lib/dfg/prototype/engine.svelte";
+  import { prototype, run } from "$lib/dfg/prototype/engine.svelte";
   import { prototypeLayout } from "$lib/dfg/prototype/layout";
   import type { Simplified } from "$lib/dfg/utils/simplify";
 
@@ -173,6 +173,7 @@
       if (request !== pending) return;
       placement = laid;
       placedAt += 1;
+      requestAnimationFrame(() => requestAnimationFrame(() => (run.painted = performance.now())));
     });
   });
 

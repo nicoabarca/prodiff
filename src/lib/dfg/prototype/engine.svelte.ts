@@ -17,6 +17,30 @@ const fromUrl = (): Engine => {
   return ENGINES.some((engine) => engine.key === wanted) ? (wanted as Engine) : "elk";
 };
 
+/**
+ * Timestamps (performance.now) of the last DFG build, from the call to `load`
+ * to the frame after the canvas drew its placement.
+ */
+export const run = $state<{
+  start: number | null;
+  variants: number | null;
+  rust: number | null;
+  layoutStart: number | null;
+  layoutDone: number | null;
+  painted: number | null;
+}>({ start: null, variants: null, rust: null, layoutStart: null, layoutDone: null, painted: null });
+
+export function startRun() {
+  Object.assign(run, {
+    start: performance.now(),
+    variants: null,
+    rust: null,
+    layoutStart: null,
+    layoutDone: null,
+    painted: null
+  });
+}
+
 export const prototype = $state<{
   engine: Engine;
   ms: number | null;

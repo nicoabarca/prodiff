@@ -11,6 +11,7 @@ import {
   settings as variantSettings
 } from "$lib/dfg/state/variants.svelte";
 import type { Project } from "$lib/event-log/types";
+import { run, startRun } from "$lib/dfg/prototype/engine.svelte";
 
 /**
  * The graph as Rust built it, in memory only: it survives navigating between
@@ -66,13 +67,17 @@ export async function load(project: Project, force = false) {
 
   built.building = true;
   built.error = null;
+  startRun();
   selected.id = null;
   try {
     await loadVariants(project);
+    run.variants = performance.now();
     const attributes = selectedAttributes(project);
     const variants = variantSettings.value.selectedVariants;
     const key = dfgKey(comparisonKey(), attributes, variants);
-    built.graph = await dfg(project, comparedIds(), attributes, variants);
+    const graph = await dfg(project, comparedIds(), attributes, variants);
+    run.rust = performance.now();
+    built.graph = graph;
     built.projectId = project.id;
     built.key = key;
   } catch (cause) {

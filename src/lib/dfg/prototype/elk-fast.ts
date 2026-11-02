@@ -33,6 +33,11 @@ const OPTIONS: Record<string, string> = {
 
 const elk = new ELK({ workerFactory: () => new Worker(elkWorkerUrl) });
 const caches = { plain: new Map<string, Placement>(), layering: new Map<string, Placement>() };
+export function clearElkFastCache() {
+  caches.plain.clear();
+  caches.layering.clear();
+}
+
 const NO_LABELS = new Map<string, Size>();
 
 export const labelsInLayout = (edges: number) => edges <= LABELS_UP_TO;

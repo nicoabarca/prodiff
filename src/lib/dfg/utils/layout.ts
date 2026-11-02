@@ -29,6 +29,8 @@ const cache = new Map<string, Placement>();
 
 const CACHE_LIMIT = 12;
 
+export const clearLayoutCache = () => cache.clear();
+
 const LOOP_REACH = 36;
 
 export const edgeKey = edgeId;

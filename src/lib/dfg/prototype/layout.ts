@@ -9,9 +9,17 @@ import type { Simplified } from "$lib/dfg/utils/simplify";
 import type { Direction, Measure } from "$lib/dfg/types";
 import { dotLayout } from "$lib/dfg/prototype/dot";
 import { elkFastLayout, labelsInLayout } from "$lib/dfg/prototype/elk-fast";
-import { prototype, type Engine } from "$lib/dfg/prototype/engine.svelte";
+import { prototype, run, type Engine } from "$lib/dfg/prototype/engine.svelte";
+import { clearLayoutCache } from "$lib/dfg/utils/layout";
+import { clearElkFastCache } from "$lib/dfg/prototype/elk-fast";
 
 const cache = new Map<string, Placement>();
+
+export function clearAllLayoutCaches() {
+  cache.clear();
+  clearLayoutCache();
+  clearElkFastCache();
+}
 
 export async function prototypeLayout(
   engine: Engine,
@@ -21,6 +29,9 @@ export async function prototypeLayout(
   labels: Map<string, Size>
 ): Promise<Placement> {
   const started = performance.now();
+  run.layoutStart = started;
+  run.layoutDone = null;
+  run.painted = null;
   let placement: Placement;
   let cached = false;
   if (engine === "elk") {
@@ -46,6 +57,7 @@ export async function prototypeLayout(
     if (!hit) cache.set(key, placement);
   }
   const ms = Math.round(performance.now() - started);
+  run.layoutDone = performance.now();
   Object.assign(prototype, {
     ms,
     cached: cached || (engine === "elk" && ms < 5),
