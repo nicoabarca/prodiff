@@ -193,6 +193,7 @@ pub(super) fn aggregate(
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attributes, wants_transition, case_attributes) = plan(requested, mapping, has_start)?;
 
+    let at = std::time::Instant::now();
     let window = || [col(GROUP), col(CASE)];
     let prepared = combined(logs, mapping, &attributes, &case_attributes)?
         .with_columns([
@@ -214,6 +215,8 @@ pub(super) fn aggregate(
         )
         .collect()
         .map_err(|e| e.to_string())?;
+    eprintln!("[dfg timing]     prepare (combine, shift over case): {:?}", at.elapsed());
+    let at = std::time::Instant::now();
     let lf = prepared.lazy();
     // Cut before anything is accumulated, so every Node Aggregate and
     // Significance Test downstream describes exactly the Variants included.
@@ -221,24 +224,42 @@ pub(super) fn aggregate(
         Some(keys) => filter_by_variants(lf, keys)?,
         None => lf,
     };
+    eprintln!("[dfg timing]     variant cut (eager part): {:?}", at.elapsed());
+    let at = std::time::Instant::now();
 
     let mut nodes: HashMap<String, NodeAgg> = HashMap::new();
     node_counts(&lf, &attributes, &mut nodes)?;
+    eprintln!("[dfg timing]     node_counts: {:?}", at.elapsed());
     for attr in attributes.iter().filter(|a| !a.numeric) {
+        let at = std::time::Instant::now();
         categorical(&lf, attr, &mut nodes)?;
+        eprintln!("[dfg timing]     categorical {}: {:?}", attr.name, at.elapsed());
     }
+
+    let at = std::time::Instant::now();
+    let variants = variants(&lf)?;
+    eprintln!("[dfg timing]     variants: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
+    let transitions = if wants_transition {
+        transitions(&lf)?
+    } else {
+        HashMap::new()
+    };
+    eprintln!("[dfg timing]     transitions: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
+    let case_counts = case_counts(&lf)?;
+    eprintln!("[dfg timing]     case_counts: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
+    let case_level = case_level(&lf, &case_attributes)?;
+    eprintln!("[dfg timing]     case_level: {:?}", at.elapsed());
 
     Ok(Aggregates {
         nodes,
-        variants: variants(&lf)?,
-        transitions: if wants_transition {
-            transitions(&lf)?
-        } else {
-            HashMap::new()
-        },
-        case_counts: case_counts(&lf)?,
+        variants,
+        transitions,
+        case_counts,
         attributes,
-        case_level: case_level(&lf, &case_attributes)?,
+        case_level,
     })
 }
 

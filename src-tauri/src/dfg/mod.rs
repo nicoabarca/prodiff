@@ -89,7 +89,10 @@ pub fn build(
 ) -> Result<Dfg, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
+    let at = std::time::Instant::now();
     let aggregates = build::aggregate(logs, mapping, attributes, selection)?;
+    eprintln!("[dfg timing]   aggregate: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
 
     let mut labels: Vec<&String> = aggregates.nodes.keys().collect();
     labels.sort();
@@ -101,8 +104,12 @@ pub fn build(
 
     let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates);
     correct(&mut nodes, &aggregates);
+    eprintln!("[dfg timing]   node tests: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
     let mut transitions = transitions(&ids, &node_id, &aggregates);
     correct_transitions(&mut transitions);
+    eprintln!("[dfg timing]   transition tests: {:?}", at.elapsed());
+    let at = std::time::Instant::now();
     let mut case_level: HashMap<String, AttributeBlock> = aggregates
         .case_level
         .iter()
@@ -110,6 +117,7 @@ pub fn build(
         .collect();
     // Case-level attributes are their own family: one test each, no nodes.
     correct_blocks(case_level.values_mut());
+    eprintln!("[dfg timing]   case-level tests: {:?}", at.elapsed());
 
     Ok(Dfg {
         nodes,
