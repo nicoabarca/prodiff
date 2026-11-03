@@ -599,6 +599,28 @@ mod tests {
     }
 
     #[test]
+    fn interleaved_cases_build_the_same_graph_as_contiguous_ones() {
+        let contiguous = log(&[
+            ("1", &[("A", 0, 10), ("B", 2, 20), ("C", 4, 30)]),
+            ("2", &[("A", 1, 60), ("C", 3, 70)]),
+        ]);
+        let interleaved = contiguous
+            .sort(
+                ["ts"],
+                SortMultipleOptions::default().with_maintain_order(true),
+            )
+            .unwrap();
+        let attrs = [TRANSITION_TIME, "cost", "who", "region"];
+        let build =
+            |df: &DataFrame| serde_json::to_value(dfg_with(df, None, &attrs, false)).unwrap();
+
+        assert_eq!(build(&interleaved), build(&contiguous));
+        let dfg = dfg_with(&interleaved, None, &attrs, false);
+        transition(&dfg, "A", "C");
+        assert_eq!(dfg.variants.len(), 2);
+    }
+
+    #[test]
     fn cases_running_the_same_trace_fold_into_one_variant() {
         let dfg = dfg_with(
             &log(&[
