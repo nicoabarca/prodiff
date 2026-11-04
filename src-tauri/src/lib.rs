@@ -56,6 +56,7 @@ pub fn run() {
             filters::commands::group_preview,
             filters::commands::distinct_values,
             filters::commands::duration_histogram,
+            filters::commands::numeric_percentiles,
             filters::commands::daily_case_load,
             statistics::commands::group_comparison,
             statistics::commands::comparison_relation,
