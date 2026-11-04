@@ -3,7 +3,7 @@
 
 use super::queries::{
     case_durations, case_spans, cell_to_string, count_values, daily_load, filtered, histogram,
-    measure, read_event_log,
+    measure, numeric_values, percentile_points, read_event_log,
 };
 use super::structs::{ChainStep, DayLoad, DistinctValues, DurationBin, PreviewTable};
 use super::Endpoint;
@@ -51,6 +51,28 @@ pub async fn duration_histogram(
         let timestamp_col = require_role(&columns, ColumnRole::CompleteTimestamp)?;
         let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
         Ok(histogram(&case_durations(df, case_col, timestamp_col)?))
+    })
+    .await
+}
+
+/// The percentiles of a numeric column under a Filter List, empty when it holds
+/// no values. See `percentile_points`.
+#[tauri::command]
+pub async fn numeric_percentiles(
+    app: tauri::AppHandle,
+    project_id: String,
+    column: String,
+    chain: Vec<Filter>,
+    columns: Vec<ColumnMapping>,
+) -> Result<Vec<f64>, String> {
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let case_col = require_role(&columns, ColumnRole::CaseId)?;
+        let resolution = case_resolution(&columns, &column);
+        let df = filtered(&dir, &read_event_log(&dir)?, &chain, &columns)?;
+        Ok(percentile_points(&numeric_values(
+            df, &column, case_col, resolution,
+        )?))
     })
     .await
 }

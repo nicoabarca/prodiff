@@ -200,6 +200,7 @@
     <NumericEditor
       {project}
       initial={initial?.kind === "numeric" ? initial : null}
+      {precedingChain}
       {color}
       ondraft={(next) => (draft = next)}
     />

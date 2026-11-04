@@ -198,6 +198,59 @@ pub fn histogram(durations: &[i64]) -> Vec<DurationBin> {
         .collect()
 }
 
+/// How many points a numeric column's percentiles are read at, evenly spaced from
+/// its lowest value to its highest.
+pub const PERCENTILE_POINTS: usize = 1001;
+
+/// The observed value at each of `PERCENTILE_POINTS` evenly spaced ranks. Empty
+/// when there are no values.
+pub fn percentile_points(values: &[f64]) -> Vec<f64> {
+    if values.is_empty() {
+        return Vec::new();
+    }
+    let mut sorted = values.to_vec();
+    sorted.sort_by(f64::total_cmp);
+    let last = (sorted.len() - 1) as f64;
+    (0..PERCENTILE_POINTS)
+        .map(|point| {
+            let rank = point as f64 / (PERCENTILE_POINTS - 1) as f64 * last;
+            sorted[rank.round() as usize]
+        })
+        .collect()
+}
+
+/// The finite values a numeric filter tests: one resolved value per case on a
+/// case-scoped column, every event's otherwise.
+pub fn numeric_values(
+    df: DataFrame,
+    column: &str,
+    case_col: &str,
+    resolution: Option<CaseResolution>,
+) -> Result<Vec<f64>, String> {
+    if df.column(column).is_err() {
+        return Err(format!("Column \"{column}\" is not in this event log."));
+    }
+    let value = col(column).cast(DataType::Float64);
+    let selected = match resolution {
+        None => df.lazy().select([value.alias(column)]),
+        Some(resolution) => df
+            .lazy()
+            .group_by([col(case_col)])
+            .agg([resolved_value(value, resolution).alias(column)]),
+    }
+    .collect()
+    .map_err(|e| e.to_string())?;
+    Ok(selected
+        .column(column)
+        .map_err(|e| e.to_string())?
+        .f64()
+        .map_err(|e| e.to_string())?
+        .iter()
+        .flatten()
+        .filter(|v| v.is_finite())
+        .collect())
+}
+
 /// Distinct values of a column, alphabetical.
 ///
 /// `endpoint` narrows the picker to what an endpoint filter can match: only the
@@ -291,6 +344,69 @@ mod tests {
         // The longest case lands in the last bin, alongside the 999 that shares it.
         assert_eq!(bins.iter().map(|b| b.cases).sum::<i64>(), 5);
         assert_eq!(bins[DURATION_BINS - 1].cases, 2);
+    }
+
+    #[test]
+    fn percentile_points_run_from_the_lowest_value_to_the_highest() {
+        let values: Vec<f64> = (0..=1000).rev().map(f64::from).collect();
+        let points = percentile_points(&values);
+        assert_eq!(points.len(), PERCENTILE_POINTS);
+        assert_eq!(points[0], 0.0);
+        assert_eq!(points[500], 500.0);
+        assert_eq!(points[PERCENTILE_POINTS - 1], 1000.0);
+    }
+
+    #[test]
+    fn percentile_points_hold_only_observed_values_on_a_skewed_column() {
+        let mut values = vec![1.0; 90];
+        values.extend([20.0, 4351.0]);
+        let points = percentile_points(&values);
+        assert_eq!(points[0], 1.0);
+        assert_eq!(points[900], 1.0);
+        assert_eq!(points[PERCENTILE_POINTS - 1], 4351.0);
+        assert!(points.iter().all(|p| [1.0, 20.0, 4351.0].contains(p)));
+    }
+
+    #[test]
+    fn percentile_points_of_one_value_repeat_it_and_of_none_are_empty() {
+        assert!(percentile_points(&[7.0]).iter().all(|p| *p == 7.0));
+        assert!(percentile_points(&[]).is_empty());
+    }
+
+    fn amounts() -> DataFrame {
+        DataFrame::new(
+            4,
+            vec![
+                Column::new("case".into(), ["1", "1", "2", "3"]),
+                Column::new("amount".into(), [Some(10i64), Some(30), Some(20), None]),
+            ],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn numeric_values_read_every_event_on_an_event_column() {
+        let mut values = numeric_values(amounts(), "amount", "case", None).unwrap();
+        values.sort_by(f64::total_cmp);
+        assert_eq!(values, [10.0, 20.0, 30.0]);
+    }
+
+    #[test]
+    fn numeric_values_read_one_resolved_value_per_case_on_a_case_column() {
+        let sorted = |resolution| {
+            let mut values = numeric_values(amounts(), "amount", "case", Some(resolution)).unwrap();
+            values.sort_by(f64::total_cmp);
+            values
+        };
+        assert_eq!(sorted(CaseResolution::First), [10.0, 20.0]);
+        assert_eq!(sorted(CaseResolution::Last), [20.0, 30.0]);
+    }
+
+    #[test]
+    fn numeric_values_name_a_missing_column() {
+        assert!(numeric_values(amounts(), "nope", "case", None)
+            .unwrap_err()
+            .contains("nope"));
     }
 
     #[test]
