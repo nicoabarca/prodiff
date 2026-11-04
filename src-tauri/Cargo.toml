@@ -1,6 +1,6 @@
 [package]
 name = "prodiff"
-version = "0.3.1"
+version = "0.3.2"
 description = "ProDiff"
 authors = ["you"]
 edition = "2021"
