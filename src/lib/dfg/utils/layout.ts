@@ -29,6 +29,8 @@ const cache = new Map<string, Placement>();
 
 const CACHE_LIMIT = 12;
 
+export const clearLayoutCache = () => cache.clear();
+
 const LOOP_REACH = 36;
 
 export const edgeKey = edgeId;
@@ -125,7 +127,7 @@ function selfLoopLabel(corner: Point, id: number, direction: Direction, size: Si
   return { x: corner.x + width + reach + size.width / 2, y: corner.y + height / 2 };
 }
 
-function elkGraph(
+export function elkGraph(
   graph: Simplified,
   direction: Direction,
   measure: Measure,
@@ -178,7 +180,7 @@ function elkGraph(
   };
 }
 
-function placementFromElk(
+export function placementFromElk(
   graph: Simplified,
   laid: ElkNode,
   direction: Direction,

@@ -15,8 +15,14 @@ pub async fn dfg(
 ) -> Result<Dfg, String> {
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
+        let started = std::time::Instant::now();
         let logs = read_groups(&dir, &groups, &columns)?;
-        build(&logs, &columns, &attributes, variants.as_deref())
+        eprintln!("[dfg timing] read_groups (incl. shared-case reduction): {:?}", started.elapsed());
+        let at = std::time::Instant::now();
+        let out = build(&logs, &columns, &attributes, variants.as_deref());
+        eprintln!("[dfg timing] build: {:?}", at.elapsed());
+        eprintln!("[dfg timing] TOTAL in Rust: {:?}", started.elapsed());
+        out
     })
     .await
 }

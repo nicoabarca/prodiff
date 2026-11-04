@@ -39,3 +39,7 @@ flate2 = "1"
 
 [features]
 e2e = ["dep:tauri-plugin-wdio-webdriver"]
+
+# Dependencies (Polars above all) build optimized in dev too; the app crate stays debug.
+[profile.dev.package."*"]
+opt-level = 3
