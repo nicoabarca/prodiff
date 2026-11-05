@@ -17,7 +17,7 @@
   import Refit from "$lib/dfg/components/refit.svelte";
   import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
   import { inspect, selected, view } from "$lib/dfg/state/view.svelte";
-  import { shownVariant } from "$lib/dfg/state/variants.svelte";
+  import { flash, shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
     edgeStroke,
@@ -36,7 +36,8 @@
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
   import { edgeKey, layout, nodeSize, straightRoute, type Placement } from "$lib/dfg/utils/layout";
-  import type { Simplified } from "$lib/dfg/utils/simplify";
+  import { addedSince, type Simplified } from "$lib/dfg/utils/simplify";
+  import { onDestroy, untrack } from "svelte";
 
   let {
     graph,
@@ -154,6 +155,28 @@
     })
   );
 
+  /** How long what a slider adds glows before it has faded out, in milliseconds. Matches `dfg-added` in `app.css`. */
+  const FLASH_MS = 3000;
+
+  // What a slider adds glows once the placement drawing it lands, against the
+  // graph placed before it; a placement for the same graph lights nothing. `at`
+  // restarts the fade on a place that is added again.
+  let added = $state.raw<(LitPath & { at: number }) | null>(null);
+  let laidFor: Simplified | null = null;
+  let flashSeen = untrack(() => flash.at);
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
+  onDestroy(() => clearTimeout(flashTimer));
+
+  function lightAdded(before: Simplified | null, after: Simplified) {
+    if (before === null || before === after || flash.at === flashSeen) return;
+    flashSeen = flash.at;
+    const fresh = addedSince(before, after);
+    if (fresh.nodes.size === 0 && fresh.edges.size === 0) return;
+    clearTimeout(flashTimer);
+    added = { ...fresh, at: flash.at };
+    flashTimer = setTimeout(() => (added = null), FLASH_MS);
+  }
+
   // ELK is asynchronous, so the placement lands a tick after the topology
   // changes. The token drops a result whose request has already been superseded.
   let placement = $state.raw<Placement | null>(null);
@@ -169,6 +192,9 @@
     };
     layout(wanted.graph, wanted.direction, wanted.measure, wanted.labels).then((laid) => {
       if (request !== pending) return;
+      const before = laidFor;
+      laidFor = wanted.graph;
+      lightAdded(before, wanted.graph);
       placement = laid;
       placedAt += 1;
     });
@@ -247,6 +273,7 @@
             direction: view.direction,
             highlighted: false,
             dimmed: false,
+            added: 0,
             focus
           }
         }
@@ -316,7 +343,8 @@
           boundary: edge.source === START_ID || edge.target === END_ID,
           clickable,
           highlighted: false,
-          dimmed: false
+          dimmed: false,
+          added: 0
         }
       };
     });
@@ -326,38 +354,50 @@
 
   // Svelte Flow owns these arrays while the user pans, so they are local state
   // re-seeded from the layout and the lit Variant. The highlight is applied over
-  // the finished layout, so lighting a Variant never re-runs the layout.
+  // the finished layout, so lighting a Variant never re-runs the layout. What a
+  // slider added glows over any highlight, without dimming the rest.
   let nodes = $state.raw<Node[]>([]);
   let edges = $state.raw<Edge[]>([]);
   $effect(() => {
     const lit = highlight;
-    if (lit === null) {
+    const fresh = added;
+    if (lit === null && fresh === null) {
       nodes = flow.nodes;
       edges = flow.edges;
       return;
     }
     nodes = flow.nodes.map((node) => {
-      const on = lit.nodes.has(node.id);
-      return { ...node, data: { ...node.data, highlighted: on, dimmed: !on } };
+      const on = lit === null || lit.nodes.has(node.id);
+      const glow = fresh?.nodes.has(node.id) ? fresh.at : 0;
+      return {
+        ...node,
+        data: { ...node.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+      };
     });
     edges = flow.edges.map((edge) => {
-      const on = lit.edges.has(edge.id);
-      return { ...edge, data: { ...edge.data, highlighted: on, dimmed: !on } };
+      const on = lit === null || lit.edges.has(edge.id);
+      const glow = fresh?.edges.has(edge.id) ? fresh.at : 0;
+      return {
+        ...edge,
+        data: { ...edge.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+      };
     });
   });
 
   let exporting = $state(false);
 
-  // Svelte Flow's own Controls are drawn inside the flow's box, so a fit that
-  // only knows the box centres the graph underneath them. Insetting the left by
-  // what covers it leaves the graph in the part the user can actually see.
+  // Svelte Flow's own Controls are drawn inside the flow's box on the left, and
+  // the Behaviour and Paths sliders on the right, so a fit that only knows the
+  // box centres the graph underneath them. Insetting both sides by what covers
+  // them leaves the graph in the part the user can actually see.
   // Padding is in the CSS pixels Svelte Flow expects.
   const FIT_MARGIN = 24;
   const FLOW_CONTROLS_WIDTH = 52;
+  const CUTS_WIDTH = 64;
   const fitViewOptions: FitViewOptions = {
     padding: {
       top: `${FIT_MARGIN}px`,
-      right: `${FIT_MARGIN}px`,
+      right: `${CUTS_WIDTH + FIT_MARGIN}px`,
       bottom: `${FIT_MARGIN}px`,
       left: `${FLOW_CONTROLS_WIDTH + FIT_MARGIN}px`
     }
