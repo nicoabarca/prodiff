@@ -4,6 +4,7 @@ import { dfgSettings as settingsTable } from "$lib/db/schema";
 import { defaultDfgSettings, type DfgSettings } from "$lib/dfg/types";
 import { reframe } from "$lib/dfg/state/view.svelte";
 import { createVariantSelection } from "$lib/tree/state/variant-selection.svelte";
+import { sameSelection, variantsCovering } from "$lib/tree/utils/variants";
 import type { Project } from "$lib/event-log/types";
 
 /** Build inputs, persisted per project. Changing it invalidates the graph. */
@@ -36,26 +37,40 @@ export const {
 } = selection;
 
 /**
- * Where the Behaviour and Paths sliders sit, in memory only. A `coverage` of
- * `null` reads the coverage the staged Variants hold; `applied` is the Paths
- * share the graph on screen was staged with, which Reset returns to.
+ * Where the Behaviour and Paths sliders sit, in memory only, both in percent.
+ * A `coverage` of `null` reads the coverage the applied Variants hold, which is
+ * what a selection picked by hand in the Variants panel leaves it at.
  */
-export const cuts = $state<{ coverage: number | null; paths: number; applied: number }>({
+export const cuts = $state<{ coverage: number | null; paths: number }>({
   coverage: null,
-  paths: 1,
-  applied: 1
+  paths: 100
 });
 
-/** Drops the pending edit and puts both sliders back where the build left them. */
-export function resetCuts() {
-  resetStaged();
-  cuts.coverage = null;
-  cuts.paths = cuts.applied;
+/** Moves on each time a slider changes what the graph draws, so the canvas lights what it adds. */
+export const flash = $state<{ at: number }>({ at: 0 });
+
+/**
+ * Builds the graph from the most common Variants up to `coverage` percent of
+ * the cases, dropping any selection picked by hand, and reframes it.
+ */
+export async function setBehaviour(project: Project, coverage: number) {
+  cuts.coverage = coverage;
+  const keys = variantsCovering(selection.variants.rows, coverage / 100);
+  if (sameSelection(keys, selectedVariants())) return;
+  flash.at += 1;
+  setStaged(keys);
+  await applyStaged(project);
+  reframe();
 }
 
-/** Commits the staged Variants, which rebuilds the graph and reframes it. */
-export async function applyCuts(project: Project) {
-  cuts.applied = cuts.paths;
+export function setPaths(paths: number) {
+  if (paths === cuts.paths) return;
+  cuts.paths = paths;
+  flash.at += 1;
+}
+
+/** Commits the Variants staged in the panel, which rebuilds the graph and reframes it. */
+export async function applyPicked(project: Project) {
   cuts.coverage = null;
   await applyStaged(project);
   reframe();
@@ -64,8 +79,7 @@ export async function applyCuts(project: Project) {
 export function resetVariantsState() {
   selection.reset();
   cuts.coverage = null;
-  cuts.paths = 1;
-  cuts.applied = 1;
+  cuts.paths = 100;
 }
 
 export async function loadSettings(projectId: string) {
