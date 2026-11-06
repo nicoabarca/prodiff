@@ -13,7 +13,8 @@ import {
   placeTestLine,
   nodeDifferences,
   rank,
-  testedPlaces
+  testedPlaces,
+  unanimous
 } from "$lib/dfg/utils/findings";
 
 const test = (effectSize: number, pValue: number, significant = true): Test => ({
@@ -359,6 +360,30 @@ describe("edge tests", () => {
   it("never change the block Rust sent", () => {
     graphFindings(chain, drawing([[2, 3]]));
     expect(chain.transitions[0].attributes[TRANSITION_TIME].test?.significant).toBe(false);
+  });
+});
+
+describe("unanimous", () => {
+  const groups = [{ id: "a" }, { id: "b" }];
+  const split = (a: Record<string, number>, b: Record<string, number>): PlaceBlock => ({
+    summaries: {
+      a: { type: "categorical", n: 10, counts: a },
+      b: { type: "categorical", n: 10, counts: b }
+    },
+    test: null,
+    method: null
+  });
+
+  it("names the one category every case of each Group falls in", () => {
+    expect(unanimous(split({ Followed: 10, "Not followed": 0 }, { Followed: 10 }), groups)).toBe(
+      "Followed in every case of each group"
+    );
+  });
+
+  it("is null when the Groups split across categories", () => {
+    expect(
+      unanimous(split({ Followed: 10 }, { Followed: 4, "Not followed": 6 }), groups)
+    ).toBeNull();
   });
 });
 

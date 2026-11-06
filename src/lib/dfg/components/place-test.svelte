@@ -16,7 +16,7 @@
   import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
   import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
-  import { builtInVerdict, placeTestLine, type Finding } from "$lib/dfg/utils/findings";
+  import { builtInVerdict, placeTestLine, unanimous, type Finding } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -158,7 +158,9 @@
             ></span>
           {/if}
           <span class="truncate"
-            >{builtInVerdict(finding, groups) ?? verdict(block, groups, duration)}</span
+            >{builtInVerdict(finding, groups) ??
+              unanimous(block, groups) ??
+              verdict(block, groups, duration)}</span
           >
         </span>
       </span>
@@ -174,7 +176,9 @@
       {/if}
       <SummaryCompare summaries={block.summaries} {duration} />
       {#if !block.test}
-        <p class="text-muted-foreground text-[0.625rem]">{untestable(block, groups)}</p>
+        <p class="text-muted-foreground text-[0.625rem]">
+          {unanimous(block, groups) ?? untestable(block, groups)}
+        </p>
       {:else}
         {#if block.test.significant && effectBand(block.test.effectSize) === "negligible"}
           <p class="text-muted-foreground text-[0.625rem]">

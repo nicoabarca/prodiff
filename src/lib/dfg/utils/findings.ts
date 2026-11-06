@@ -185,6 +185,24 @@ export function builtInVerdict(
   return `${higher.name} ${verb} · ${shares.join(" vs ")}`;
 }
 
+/**
+ * Why a two-by-two carries no test although both Groups have cases: every case
+ * of every Group falls in the same category, "Followed in every case of each
+ * group". `null` for any other block.
+ */
+export function unanimous(block: PlaceBlock, groups: { id: string }[]): string | null {
+  if (block.test || groups.length < 2) return null;
+  const only = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    if (summary?.type !== "categorical" || summary.n === 0) return null;
+    const held = Object.entries(summary.counts).filter(([, count]) => count > 0);
+    return held.length === 1 ? held[0][0] : null;
+  });
+  const [first] = only;
+  if (first === null || only.some((category) => category !== first)) return null;
+  return `${first} in every case of each group`;
+}
+
 const METHOD_NAMES: Record<Method, string> = {
   mannWhitney: "Mann-Whitney U",
   chi2: "Chi-square",
