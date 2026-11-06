@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { Summary } from "$lib/analysis/types";
 import type { Test } from "$lib/analysis/types";
-import { edgeStroke, edgeWait, faceCounts, shadeValue } from "$lib/dfg/utils/face";
+import {
+  busiestPerCase,
+  edgeStroke,
+  edgeWait,
+  faceCounts,
+  perCase,
+  shadeValue
+} from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
   it("keys displayed counts by Group id", () => {
@@ -109,18 +116,49 @@ describe("edgeStroke", () => {
 
   it("takes the colour of the one Group that follows the edge", () => {
     expect(
-      edgeStroke({ a: { cases: 0, events: 0 }, b: { cases: 2, events: 2 } }, undefined, groups)
+      edgeStroke({ a: { cases: 0, events: 0 }, b: { cases: 2, events: 2 } }, [], groups)
     ).toBe("var(--group-6)");
   });
 
-  it("stays grey with one Group compared or no significant Waiting Time", () => {
-    expect(edgeStroke({ a: both.a }, undefined, groups.slice(0, 1))).toBeNull();
-    expect(edgeStroke(both, wait(test(0.6, false)), groups)).toBeNull();
-    expect(edgeStroke(both, undefined, groups)).toBeNull();
+  it("stays grey with one Group compared or no significant test", () => {
+    expect(edgeStroke({ a: both.a }, [], groups.slice(0, 1))).toBeNull();
+    expect(edgeStroke(both, [wait(test(0.6, false))], groups)).toBeNull();
+    expect(edgeStroke(both, [], groups)).toBeNull();
   });
 
-  it("reddens with the effect of a significant Waiting Time", () => {
-    expect(edgeStroke(both, wait(test(0.05)), groups)).toContain("var(--effect-4) 25%");
-    expect(edgeStroke(both, wait(test(0.6)), groups)).toContain("var(--effect-4) 100%");
+  it("reddens with the strongest effect among its significant tests", () => {
+    expect(edgeStroke(both, [wait(test(0.05))], groups)).toContain("var(--effect-3) 45%");
+    expect(edgeStroke(both, [wait(test(0.6))], groups)).toContain("var(--effect-3) 100%");
+    expect(edgeStroke(both, [wait(test(0.05)), wait(test(0.6))], groups)).toContain(
+      "var(--effect-3) 100%"
+    );
+    expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toContain(
+      "var(--effect-3) 45%"
+    );
+  });
+});
+
+describe("perCase", () => {
+  const caseCounts = new Map([
+    ["a", 1000],
+    ["b", 100]
+  ]);
+  const edges = [
+    { counts: { a: { cases: 900, events: 1800 }, b: { cases: 10, events: 10 } } },
+    { counts: { a: { cases: 100, events: 100 }, b: { cases: 50, events: 75 } } }
+  ];
+
+  it("divides one Group's counts by the cases that Group holds", () => {
+    expect(perCase(edges[0].counts, "a", caseCounts)).toEqual({ cases: 0.9, events: 1.8 });
+    expect(perCase(edges[0].counts, "b", caseCounts)).toEqual({ cases: 0.1, events: 0.1 });
+  });
+
+  it("reads a Group that never got there as zero", () => {
+    expect(perCase({}, "a", caseCounts)).toEqual({ cases: 0, events: 0 });
+  });
+
+  it("ranks against the busiest share of any Group, so both panels share one scale", () => {
+    expect(busiestPerCase(edges, caseCounts, "cases")).toBe(0.9);
+    expect(busiestPerCase(edges, caseCounts, "events")).toBe(1.8);
   });
 });

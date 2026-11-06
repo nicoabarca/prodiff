@@ -1,9 +1,7 @@
 <script lang="ts">
   /** The shared attributes field over the graph's build settings. */
   import AttributesField from "$lib/custom-attributes/components/attributes-field.svelte";
-  import { attributeOptions } from "$lib/analysis/attributes";
-  import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import { selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
+  import { graphAttributeOptions, selection, setAttributes } from "$lib/dfg/state/dfg.svelte";
   import type { Project } from "$lib/event-log/types";
 
   const NOTE =
@@ -11,9 +9,7 @@
 
   let { project, open = $bindable(false) }: { project: Project; open?: boolean } = $props();
 
-  const options = $derived(
-    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
-  );
+  const options = $derived(graphAttributeOptions(project));
 
   // An attribute hidden or retyped out of the project leaves the selection.
   $effect(() => {
