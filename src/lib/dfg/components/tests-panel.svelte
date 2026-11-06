@@ -21,6 +21,7 @@
     byAttribute,
     placeKey,
     rank,
+    type AttributeTests,
     type Finding
   } from "$lib/dfg/utils/findings";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -108,10 +109,16 @@
   // A panel opened later starts on every test again.
   $effect(() => () => clearInspected());
 
-  const where = (attribute: string, count: number) =>
-    attribute === TRANSITION_TIME || attribute === EDGE_FREQUENCY
+  /** What an attribute's tests are counted in: values for a categorical attribute, else its places. */
+  const where = (row: AttributeTests) => {
+    const count = row.tested;
+    if (row.places.some((finding) => finding.value !== null)) {
+      return `${count} value${count === 1 ? "" : "s"} across the activities`;
+    }
+    return row.attribute === TRANSITION_TIME || row.attribute === EDGE_FREQUENCY
       ? `${count} edge${count === 1 ? "" : "s"}`
       : `${count} activit${count === 1 ? "y" : "ies"}`;
+  };
 </script>
 
 {#snippet collapseButton()}
@@ -242,7 +249,7 @@
                 <span class="bg-primary absolute inset-y-0 left-0" style="width:{share}%"></span>
               </span>
               <span class="text-muted-foreground truncate text-[0.625rem]">
-                differs at {row.significant} of {where(row.attribute, row.tested)}
+                differs at {row.significant} of {where(row)}
               </span>
             </span>
             {#if row.peak}

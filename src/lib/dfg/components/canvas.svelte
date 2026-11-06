@@ -111,7 +111,7 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
-  const measured = $derived(edgeBlocks(graph));
+  const measured = $derived(edgeBlocks(findings));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));

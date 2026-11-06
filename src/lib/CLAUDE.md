@@ -46,6 +46,8 @@ The Variant vocabulary — `ResponseVariantRow`, `list_variants`, `utils/variant
 
 Applying a selection reframes the graph: `reframe()` bumps `refit.at`, the canvas holds that request until the ELK placement it is meant to frame has landed, and `refit.svelte` performs it from inside `SvelteFlow`, where `useSvelteFlow` resolves. In a split only the panel that fits runs it; the other follows through the shared viewport.
 
+**The DFG tests one observation per case** (see `docs/adr/0024`). `src-tauri/src/dfg/significance.rs` picks each method; a categorical attribute arrives in `DfgNode.values` as one two-by-two per value, and `graphFindings` makes each value its own `Finding`. Activity tests arrive corrected across the activities built. Edge tests arrive uncorrected: `graphFindings` corrects them across the edges the Paths cut draws, and the canvas colours edges from those findings (`edgeBlocks`), so a hidden edge weighs on nothing.
+
 ## db
 
 `db/client.ts` opens the database; `db/schema.ts` holds every table in one file.

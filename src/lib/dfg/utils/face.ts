@@ -8,6 +8,7 @@ import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
+import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
@@ -94,14 +95,15 @@ export function edgeStroke(
   return `color-mix(in oklab, var(--effect-3) ${share}%, var(--effect-2))`;
 }
 
-/** Every attribute block measured on each pair, by `source->target`. */
-export function edgeBlocks(graph: ResponseDfg): Map<string, AttributeBlock[]> {
-  return new Map(
-    graph.transitions.map((transition) => [
-      edgeId(transition.source, transition.target),
-      Object.values(transition.attributes)
-    ])
-  );
+/** The tested blocks of the edges drawn, by `source->target`, as `graphFindings` corrected them. */
+export function edgeBlocks(findings: Finding[]): Map<string, AttributeBlock[]> {
+  const out = new Map<string, AttributeBlock[]>();
+  for (const { place, block } of findings) {
+    if (place.kind !== "edge") continue;
+    const id = edgeId(place.source, place.target);
+    out.set(id, [...(out.get(id) ?? []), block]);
+  }
+  return out;
 }
 
 /**

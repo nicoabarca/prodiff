@@ -1,8 +1,8 @@
 /**
- * The Significance Tests a drawn graph carries, one per place and attribute:
- * every attribute block of every activity and every edge on screen that more
- * than one Group reaches. A place one Group alone reaches has nothing to
- * compare against.
+ * The Significance Tests a drawn graph carries, one per place and attribute,
+ * and one per value of a categorical attribute: every block of every activity
+ * and every edge on screen that more than one Group reaches. A place one Group
+ * alone reaches has nothing to compare against.
  */
 import type { Counts, Method, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
 import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
@@ -15,10 +15,12 @@ export type Place =
   | { kind: "node"; id: number; label: string }
   | { kind: "edge"; source: number; target: number; label: string };
 
+/** `value` names the value a categorical attribute's two-by-two tests, `null` for any other test. */
 export interface Finding {
   key: string;
   place: Place;
   attribute: string;
+  value: string | null;
   block: PlaceBlock;
 }
 
@@ -65,38 +67,84 @@ export function graphFindings(graph: ResponseDfg, simplified: Simplified): Findi
   );
   const groupIds = graph.groups.map((group) => group.id);
 
-  const at = (
+  const finding = (
     place: Place,
-    blocks: Record<string, PlaceBlock>,
-    counts: Record<string, Counts>
-  ): Finding[] => {
-    if (!comparable(counts, groupIds)) return [];
-    return Object.entries(blocks).map(([attribute, block]) => ({
-      key: `${placeKey(place)}:${attribute}`,
-      place,
-      attribute,
-      block
-    }));
-  };
+    attribute: string,
+    value: string | null,
+    block: PlaceBlock
+  ): Finding => ({
+    key: `${placeKey(place)}:${attribute}${value === null ? "" : `:${value}`}`,
+    place,
+    attribute,
+    value,
+    block
+  });
 
   const nodes = simplified.nodes.flatMap((node) => {
     const activity = measured.get(node.id);
-    if (!activity) return [];
-    return at(
-      { kind: "node", id: node.id, label: node.label },
-      activity.attributes,
-      activity.counts
-    );
+    if (!activity || !comparable(activity.counts, groupIds)) return [];
+    const place: Place = { kind: "node", id: node.id, label: node.label };
+    return [
+      ...Object.entries(activity.attributes).map(([attribute, block]) =>
+        finding(place, attribute, null, block)
+      ),
+      ...Object.entries(activity.values).flatMap(([attribute, values]) =>
+        Object.entries(values).map(([value, block]) => finding(place, attribute, value, block))
+      )
+    ];
   });
 
   const edges = simplified.edges.flatMap((edge) => {
     const blocks = pairs.get(edgeId(edge.source, edge.target));
-    if (!blocks) return [];
-    return at(edgePlace(edge.source, edge.target, labels), blocks, edge.counts);
+    if (!blocks || !comparable(edge.counts, groupIds)) return [];
+    const place = edgePlace(edge.source, edge.target, labels);
+    return Object.entries(blocks).map(([attribute, block]) =>
+      finding(place, attribute, null, block)
+    );
   });
 
-  return [...nodes, ...edges];
+  return [...nodes, ...correctAcross(edges)];
 }
+
+/** The false discovery rate each family is held to. Mirrors `analysis::ALPHA`. */
+const ALPHA = 0.05;
+
+/**
+ * The Benjamini-Hochberg cutoff of a family: the largest p-value under its
+ * rank's share of `alpha`, below zero when none is. Mirrors
+ * `analysis::stats::benjamini_hochberg`.
+ */
+export function benjaminiHochberg(pValues: number[], alpha: number = ALPHA): number {
+  const sorted = [...pValues].sort((a, b) => a - b);
+  for (let i = sorted.length - 1; i >= 0; i--) {
+    if (sorted[i] <= ((i + 1) / sorted.length) * alpha) return sorted[i];
+  }
+  return -1;
+}
+
+/**
+ * The findings with `significant` set by one Benjamini-Hochberg family per
+ * attribute across them. Copies each tested block.
+ */
+function correctAcross(findings: Finding[]): Finding[] {
+  const families = new Map<string, number[]>();
+  for (const { attribute, block } of findings) {
+    if (block.test)
+      families.set(attribute, [...(families.get(attribute) ?? []), block.test.pValue]);
+  }
+  const cutoffs = new Map(
+    [...families].map(([attribute, family]) => [attribute, benjaminiHochberg(family)])
+  );
+  return findings.map((finding) => {
+    const test = finding.block.test;
+    if (!test) return finding;
+    const significant = test.pValue <= (cutoffs.get(finding.attribute) ?? -1);
+    return { ...finding, block: { ...finding.block, test: { ...test, significant } } };
+  });
+}
+
+/** The category a value's two-by-two counts its hits under. Mirrors `src-tauri/src/dfg/significance.rs`. */
+const HELD = "Held";
 
 /** The category a frequency counts its hits under. Mirrors `src-tauri/src/dfg/mod.rs`. */
 const HIT: Record<string, string> = {
@@ -112,52 +160,19 @@ const VERB: Record<string, string> = {
 };
 
 /**
- * The value whose share of each Group's cases moves most, in percentage points
- * from the first Group to the last. Shares are of `n`, so a case that held
- * several values counts under each.
- */
-function largestGap(block: PlaceBlock, groups: { id: string; name: string }[]) {
-  const shares = groups.map((group) => {
-    const summary = block.summaries[group.id];
-    return (name: string) =>
-      summary?.type === "categorical" && summary.n > 0
-        ? ((summary.counts[name] ?? 0) / summary.n) * 100
-        : 0;
-  });
-  const names = new Set(
-    groups.flatMap((group) => {
-      const summary = block.summaries[group.id];
-      return summary?.type === "categorical" ? Object.keys(summary.counts) : [];
-    })
-  );
-  return [...names]
-    .map((name) => ({ name, gap: shares[shares.length - 1](name) - shares[0](name) }))
-    .reduce<{ name: string; gap: number } | null>(
-      (best, row) => (best && Math.abs(best.gap) >= Math.abs(row.gap) ? best : row),
-      null
-    );
-}
-
-/**
  * The verdict of a test the DFG words on its own, with the figures in the order
- * the Groups are compared: "Group 2 more often · 72% vs 65%" for a frequency,
- * "Group 1 more often runs it more than once · 42% vs 18%" for Repetitions,
- * "Different mix · Ana +22.0 pp" for a per-value test. `null` for any other
- * attribute or a test that did not come out significant.
+ * the Groups are compared: "Group 2 more often · 72% vs 65%" for a frequency
+ * or a value, "Group 1 more often runs it more than once · 42% vs 18%" for
+ * Repetitions. `null` for any other attribute or a test that did not come out
+ * significant.
  */
 export function builtInVerdict(
-  attribute: string,
-  block: PlaceBlock,
+  finding: Pick<Finding, "attribute" | "value" | "block">,
   groups: { id: string; name: string }[]
 ): string | null {
+  const { attribute, block } = finding;
   if (!block.test?.significant) return null;
-  if (block.method === "perValue") {
-    const top = largestGap(block, groups);
-    if (!top) return null;
-    const sign = top.gap >= 0 ? "+" : "−";
-    return `Different mix · ${top.name} ${sign}${Math.abs(top.gap).toFixed(1)} pp`;
-  }
-  const hit = HIT[attribute];
+  const hit = finding.value === null ? HIT[attribute] : HELD;
   const higher = groups.find((group) => group.id === block.test?.higher);
   if (hit === undefined || !higher) return null;
   const shares = groups.map((group) => {
@@ -166,14 +181,14 @@ export function builtInVerdict(
     const share = ((summary.counts[hit] ?? 0) / summary.n) * 100;
     return `${share < 10 ? formatDecimal(share, 1) : Math.round(share)}%`;
   });
-  return `${higher.name} ${VERB[attribute]} · ${shares.join(" vs ")}`;
+  const verb = finding.value === null ? VERB[attribute] : "more often";
+  return `${higher.name} ${verb} · ${shares.join(" vs ")}`;
 }
 
 const METHOD_NAMES: Record<Method, string> = {
   mannWhitney: "Mann-Whitney U",
   chi2: "Chi-square",
-  fisher: "Fisher's exact test",
-  perValue: "Each value tested alone"
+  fisher: "Fisher's exact test"
 };
 
 /** The Significance Test in full. The p shown is before the correction across places. */
@@ -186,15 +201,6 @@ export function placeTestLine(block: PlaceBlock, groups: { id: string; name: str
   const direction = higher && test.significant ? ` · ${higher.name} higher` : "";
   const p = test.pValue === 0 ? "p < 1e-15" : `p = ${formatPValue(test.pValue)}`;
   return `${name} · ${p} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
-}
-
-/** Whether some case held several values, so a Group's value counts sum above its cases. */
-export function heldSeveral(block: PlaceBlock): boolean {
-  return Object.values(block.summaries).some(
-    (summary) =>
-      summary?.type === "categorical" &&
-      Object.values(summary.counts).reduce((sum, n) => sum + n, 0) > summary.n
-  );
 }
 
 /** Every place that carries at least one finding, by `placeKey`. */

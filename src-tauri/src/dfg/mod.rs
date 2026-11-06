@@ -84,6 +84,7 @@ pub struct DfgNode {
     pub label: String,
     pub counts: HashMap<String, Counts>,
     pub attributes: HashMap<String, PlaceBlock>,
+    pub values: HashMap<String, HashMap<String, PlaceBlock>>,
 }
 
 #[derive(serde::Serialize, Debug)]
@@ -141,13 +142,10 @@ pub fn build(
 
     let measured = Measured::from(attributes);
     let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates, measured);
-    correct(nodes.iter_mut().map(|node| &mut node.attributes));
-    let mut transitions = transitions(&ids, &node_id, &aggregates, measured);
-    correct(
-        transitions
-            .iter_mut()
-            .map(|transition| &mut transition.attributes),
-    );
+    correct(&mut nodes);
+    // Edge tests ship uncorrected: their family is the edges drawn, which the
+    // frontend knows once the Paths cut has run.
+    let transitions = transitions(&ids, &node_id, &aggregates, measured);
     let mut case_level: HashMap<String, AttributeBlock> = aggregates
         .case_level
         .iter()
@@ -189,19 +187,18 @@ fn activity_nodes(
         .iter()
         .map(|label| {
             let node = &aggregates.nodes[*label];
-            let mut attributes: HashMap<String, PlaceBlock> = aggregates
-                .attributes
-                .iter()
-                .filter_map(|attr| {
-                    let accs = node.attributes.get(&attr.name)?;
-                    let place = if attr.numeric {
-                        significance::numeric(ids, accs)
-                    } else {
-                        significance::categorical(ids, accs, node.attribute_cases.get(&attr.name)?)
-                    };
-                    Some((attr.name.clone(), place))
-                })
-                .collect();
+            let mut attributes: HashMap<String, PlaceBlock> = HashMap::new();
+            let mut values: HashMap<String, HashMap<String, PlaceBlock>> = HashMap::new();
+            for attr in &aggregates.attributes {
+                let Some(accs) = node.attributes.get(&attr.name) else {
+                    continue;
+                };
+                if attr.numeric {
+                    attributes.insert(attr.name.clone(), significance::numeric(ids, accs));
+                } else if let Some(cases) = node.attribute_cases.get(&attr.name) {
+                    values.insert(attr.name.clone(), significance::per_value(ids, accs, cases));
+                }
+            }
             if measured.activity_frequency {
                 let reached = node
                     .counts
@@ -222,6 +219,7 @@ fn activity_nodes(
                 label: (*label).clone(),
                 counts: node.counts.clone(),
                 attributes,
+                values,
             }
         })
         .collect()
@@ -298,10 +296,10 @@ fn transitions(
         ) else {
             continue;
         };
-        pairs
-            .entry((source, target))
-            .or_default()
-            .insert(TRANSITION_TIME.to_string(), significance::numeric(ids, accs));
+        pairs.entry((source, target)).or_default().insert(
+            TRANSITION_TIME.to_string(),
+            significance::numeric(ids, accs),
+        );
     }
     let mut reaching: HashMap<usize, HashMap<String, i64>> =
         HashMap::from([(START_ID, aggregates.case_counts.clone())]);
@@ -405,13 +403,21 @@ fn block(ids: &[String], accs: &HashMap<String, Acc>, numeric: bool) -> Attribut
     AttributeBlock { summaries, test }
 }
 
-/// One Benjamini-Hochberg family per attribute name, across every place that
-/// measured it.
-fn correct<'a>(places: impl Iterator<Item = &'a mut HashMap<String, PlaceBlock>>) {
-    let mut families: HashMap<String, Vec<&'a mut AttributeBlock>> = HashMap::new();
-    for attributes in places {
-        for (name, block) in attributes.iter_mut() {
-            families.entry(name.clone()).or_default().push(&mut block.block);
+/// One Benjamini-Hochberg family per attribute name, across every activity
+/// that measured it. A categorical attribute's family is every value at every
+/// activity.
+fn correct(nodes: &mut [DfgNode]) {
+    let mut families: HashMap<String, Vec<&mut AttributeBlock>> = HashMap::new();
+    for node in nodes.iter_mut() {
+        for (name, block) in node.attributes.iter_mut() {
+            families
+                .entry(name.clone())
+                .or_default()
+                .push(&mut block.block);
+        }
+        for (name, values) in node.values.iter_mut() {
+            let family = families.entry(name.clone()).or_default();
+            family.extend(values.values_mut().map(|place| &mut place.block));
         }
     }
     for family in families.into_values() {
@@ -863,12 +869,16 @@ mod tests {
             false,
         );
 
-        let block = &node(&dfg, "A").attributes["who"];
-        let Summary::Categorical { counts, .. } = &block.summaries["a"] else {
-            panic!("who is text and summarizes as categories");
+        let held = |value: &str| {
+            let Summary::Categorical { counts, n } =
+                &node(&dfg, "A").values["who"][value].summaries["a"]
+            else {
+                panic!("who is text and summarizes as categories");
+            };
+            (counts["Held"], *n)
         };
-        assert_eq!(counts["Ana"], 2);
-        assert_eq!(counts["Bo"], 1);
+        assert_eq!(held("Ana"), (2, 3));
+        assert_eq!(held("Bo"), (1, 3));
     }
 
     #[test]
@@ -905,13 +915,17 @@ mod tests {
             false,
         );
 
-        let Summary::Categorical { counts, .. } = &node(&dfg, "A").attributes["who"].summaries["a"]
-        else {
-            panic!("who is categorical");
+        let held = |value: &str| {
+            let Summary::Categorical { counts, .. } =
+                &node(&dfg, "A").values["who"][value].summaries["a"]
+            else {
+                panic!("who is categorical");
+            };
+            counts["Held"]
         };
-        assert_eq!(counts["Ana"], 2);
-        assert_eq!(counts["Bo"], 1);
-        assert_eq!(n_of(&node(&dfg, "A").attributes["who"].summaries["a"]), 2);
+        assert_eq!(held("Ana"), 2);
+        assert_eq!(held("Bo"), 1);
+        assert_eq!(n_of(&node(&dfg, "A").values["who"]["Bo"].summaries["a"]), 2);
     }
 
     #[test]
@@ -1115,7 +1129,8 @@ mod tests {
             .test
             .as_ref()
             .unwrap();
-        assert!(follow.significant);
+        // Uncorrected: the frontend corrects edges over the ones drawn.
+        assert!(follow.p_value < ALPHA);
         assert_eq!(follow.higher.as_deref(), Some("a"));
     }
 

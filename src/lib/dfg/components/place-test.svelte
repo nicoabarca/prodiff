@@ -16,12 +16,7 @@
   import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
   import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
-  import {
-    builtInVerdict,
-    heldSeveral,
-    placeTestLine,
-    type Finding
-  } from "$lib/dfg/utils/findings";
+  import { builtInVerdict, placeTestLine, type Finding } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -70,6 +65,9 @@
   /** What the attribute measures at this place, for the ones whose name does not say. */
   const caption = $derived.by(() => {
     const label = finding.place.label;
+    if (finding.value !== null) {
+      return `Share of each group's cases at ${label} that ever had ${finding.value} there. A case with several values counts under each.`;
+    }
     switch (finding.attribute) {
       case TRANSITION_TIME:
         return `Time waited on the edge ${label}.`;
@@ -134,6 +132,9 @@
         >
           {#if named === "attribute"}
             <span class="truncate"><AttributeName name={finding.attribute} /></span>
+            {#if finding.value !== null}
+              <span class="truncate font-normal" title={finding.value}>· {finding.value}</span>
+            {/if}
           {:else}
             {#if finding.place.kind === "edge"}
               <ArrowRight class="size-3 shrink-0" aria-hidden="true" />
@@ -141,6 +142,9 @@
               <Square class="size-2.5 shrink-0" aria-hidden="true" />
             {/if}
             <span class="truncate" title={finding.place.label}>{finding.place.label}</span>
+            {#if finding.value !== null}
+              <span class="truncate font-normal" title={finding.value}>· {finding.value}</span>
+            {/if}
           {/if}
         </span>
         <span
@@ -154,8 +158,7 @@
             ></span>
           {/if}
           <span class="truncate"
-            >{builtInVerdict(finding.attribute, block, groups) ??
-              verdict(block, groups, duration)}</span
+            >{builtInVerdict(finding, groups) ?? verdict(block, groups, duration)}</span
           >
         </span>
       </span>
@@ -176,12 +179,6 @@
         {#if block.test.significant && effectBand(block.test.effectSize) === "negligible"}
           <p class="text-muted-foreground text-[0.625rem]">
             The test is confident this gap is real, but it is too small to act on.
-          </p>
-        {/if}
-        {#if heldSeveral(block)}
-          <p class="text-muted-foreground text-[0.625rem]">
-            Some cases held several values here. The bars split each group's mentions, so read the
-            test and verdict for shares of cases.
           </p>
         {/if}
         <p class="text-muted-foreground font-mono text-[0.625rem] text-pretty">

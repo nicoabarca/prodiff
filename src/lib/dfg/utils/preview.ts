@@ -32,7 +32,7 @@ export function previewGraph(
   return {
     nodes: labels.map((label) => {
       const id = ids.get(label) ?? END_ID;
-      return { id, label, counts: folded.nodes.get(id) ?? {}, attributes: {} };
+      return { id, label, counts: folded.nodes.get(id) ?? {}, attributes: {}, values: {} };
     }),
     variants,
     transitions: [],

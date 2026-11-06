@@ -8,6 +8,10 @@
  * re-links through it with counts the log actually holds. `transitions` is what
  * is measured per pair, Start and End included, and only the pairs the log
  * holds have one.
+ *
+ * Activity tests arrive corrected across the activities built. Edge tests
+ * arrive uncorrected, `significant` false: `graphFindings` corrects them across
+ * the edges drawn.
  */
 import type { AttributeBlock } from "$lib/analysis/types";
 
@@ -27,18 +31,24 @@ export interface ResponseDfg {
   caseLevel: Record<string, AttributeBlock>;
 }
 
-export type Method = "mannWhitney" | "chi2" | "fisher" | "perValue";
+export type Method = "mannWhitney" | "chi2" | "fisher";
 
-/** How `test.pValue` was computed: `test.test` reads `chi2` under `fisher` and `perValue`. */
+/** How `test.pValue` was computed: `test.test` reads `chi2` under `fisher`. */
 export interface PlaceBlock extends AttributeBlock {
   method: Method | null;
 }
 
+/**
+ * `values` holds each categorical attribute as one two-by-two per value, keyed
+ * by attribute then value: of the cases reaching the activity with a value,
+ * how many ever held that one there, under "Held" and "Not held".
+ */
 export interface DfgNode {
   id: number;
   label: string;
   counts: Record<string, Counts>;
   attributes: Record<string, PlaceBlock>;
+  values: Record<string, Record<string, PlaceBlock>>;
 }
 
 export interface Variant {
