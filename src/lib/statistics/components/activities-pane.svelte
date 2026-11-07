@@ -11,7 +11,7 @@
   } from "$lib/statistics/utils/figures";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
   import PairBars from "$lib/statistics/components/pair-bars.svelte";
-  import Segmented from "$lib/statistics/components/segmented.svelte";
+  import Segmented from "$lib/components/layout/segmented.svelte";
 
   let { groups, comparison }: { groups: Group[]; comparison: ResponseGroupComparison } = $props();
 
