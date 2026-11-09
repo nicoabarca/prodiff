@@ -1,5 +1,6 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
 import type { NodeDifferences } from "$lib/dfg/utils/findings";
+import type { Statistic } from "$lib/tree/types";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
@@ -14,8 +15,17 @@ export const GRAPH_ATTRIBUTES = [ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS
 
 export type NodeKind = "start" | "end" | "activity";
 
-/** Which figure a node or an edge prints on its face, and ranks by. */
+/** What activities are shaded by, edges thickened by and the Paths cut ranks by. */
 export type Measure = "cases" | "events";
+
+/** What a node prints under its name. `serviceTime` reads Activity Duration. */
+export type NodeFigure = Measure | "serviceTime";
+
+/** What an edge prints beside it. `frequency` is the count in `DfgView.measure`; `waiting` reads Transition Time. */
+export type EdgeLabel = "off" | "frequency" | "waiting";
+
+/** `scaled` thickens an edge by its count in `DfgView.measure`. */
+export type EdgeWidth = "scaled" | "uniform";
 
 export type Direction = "TB" | "LR";
 
@@ -31,15 +41,27 @@ export interface Rect {
   height: number;
 }
 
-/** How the graph is drawn. A split draws both panels the same way. */
+/**
+ * How the graph is drawn. A split draws both panels the same way. `figure` and
+ * `edgeLabel` name a duration even when it was not built; `shownFigure` and
+ * `shownEdgeLabel` say what is drawn then.
+ */
 export interface DfgView {
+  figure: NodeFigure;
+  edgeLabel: EdgeLabel;
   measure: Measure;
+  edgeWidth: EdgeWidth;
+  statistic: Statistic;
   direction: Direction;
   split: boolean;
 }
 
 export const defaultDfgView: DfgView = {
+  figure: "cases",
+  edgeLabel: "waiting",
   measure: "cases",
+  edgeWidth: "scaled",
+  statistic: "mean",
   direction: "TB",
   split: false
 };
@@ -104,7 +126,7 @@ export interface DfgEdgeData {
   head: string;
   width: number;
   stroke: string | null;
-  waits: EdgeWait[];
+  label: EdgeWait[];
   dotted: boolean;
   labelAt: Point;
   boundary: boolean;

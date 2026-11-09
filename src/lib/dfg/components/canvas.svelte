@@ -21,17 +21,20 @@
   import {
     busiest,
     busiestPerCase,
+    EDGE_WIDTH_UNIFORM,
     edgeBlocks,
+    edgeLines,
     edgeStroke,
-    edgeWait,
     edgeWidth,
-    faceCounts,
+    faceFigures,
     membership,
     perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
+  import { ACTIVITY_DURATION } from "$lib/analysis/attributes";
+  import { builtDurations, shownEdgeLabel, shownFigure } from "$lib/dfg/utils/display";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
   import {
@@ -114,6 +117,12 @@
   const measured = $derived(edgeBlocks(findings));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
+  const durations = $derived(
+    new Map(graph.nodes.map((node) => [node.id, node.attributes[ACTIVITY_DURATION]]))
+  );
+  const built = $derived(builtDurations(graph));
+  const figure = $derived(shownFigure(view.figure, built));
+  const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
   const tested = $derived(testedPlaces(findings));
 
@@ -137,13 +146,28 @@
     inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
   }
 
+  /** The lines an edge prints beside it, for the Groups given. */
+  const linesOf = (
+    edge: { source: number; target: number; counts: Record<string, Counts> },
+    of: FaceGroup[]
+  ) =>
+    edgeLines(
+      edgeLabel,
+      edge.counts,
+      waits.get(edgeKey(edge.source, edge.target)),
+      of,
+      view.measure,
+      view.statistic
+    );
+
   /** Every edge label's box, sized for every compared Group, so both split
-      panels reserve the same room and place it in the same spot. */
+      panels reserve the same room and place it in the same spot. Empty when
+      edges print no label, so no room is kept for one. */
   const labelSizes = $derived(
     new Map(
       placedGraph.edges.flatMap((edge) => {
         const key = edgeKey(edge.source, edge.target);
-        const size = labelSize(edgeWait(waits.get(key), groups), groups.length > 1);
+        const size = labelSize(linesOf(edge, groups), groups.length > 1);
         return size ? [[key, size] as [string, Size]] : [];
       })
     )
@@ -283,7 +307,13 @@
             label: node.label,
             kind: node.kind,
             groups: shown,
-            counts: faceCounts(node.counts, shown, view.measure),
+            counts: faceFigures(
+              node.counts,
+              durations.get(node.id),
+              shown,
+              node.kind === "activity" ? figure : view.measure,
+              view.statistic
+            ),
             shadeStep: steps[index],
             differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
@@ -314,7 +344,7 @@
         return {
           edge,
           key,
-          waits: edgeWait(waits.get(key), shown),
+          lines: linesOf(edge, shown),
           stroke: edgeStroke(edge.counts, measured.get(key) ?? [], groups),
           route: prepareRoute(points)
         };
@@ -323,10 +353,10 @@
     // ELK reserves each label's room beside its edge; a label is drawn on the
     // edge's own line, at the first spot along it that covers nothing else.
     const settled = settleLabels(
-      drawn.flatMap(({ edge, key, waits, route }) => {
+      drawn.flatMap(({ edge, key, lines, route }) => {
         const reserved = placed.labels.get(key);
         const size = labelSizes.get(key);
-        if (waits.length === 0 || !reserved || !size) return [];
+        if (lines.length === 0 || !reserved || !size) return [];
         const onLine =
           edge.source === edge.target
             ? [reserved]
@@ -340,8 +370,11 @@
       focus === null
         ? busiest(simplified.edges, view.measure)
         : busiestPerCase(simplified.edges, caseCounts, view.measure);
-    const edges: Edge[] = drawn.map(({ edge, key, waits, stroke, route }) => {
-      const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
+    const edges: Edge[] = drawn.map(({ edge, key, lines, stroke, route }) => {
+      const width =
+        view.edgeWidth === "uniform"
+          ? EDGE_WIDTH_UNIFORM
+          : edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
       const clickable = edgeInspectable(edge.source, edge.target);
       return {
@@ -355,7 +388,7 @@
           head: shape.head,
           width,
           stroke,
-          waits,
+          label: lines,
           dotted: shown.length > 1,
           labelAt: settled.get(key) ?? along(route, 0.5),
           boundary: edge.source === START_ID || edge.target === END_ID,

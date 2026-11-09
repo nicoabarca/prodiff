@@ -52,19 +52,19 @@
   {/key}
 {/if}
 
-{#if edge.waits.length > 0}
+{#if edge.label.length > 0}
   <EdgeLabel x={edge.labelAt.x} y={edge.labelAt.y} transparent>
     <span
       class="transition-opacity duration-200 {edge.dimmed
         ? 'opacity-15'
         : ''} bg-background text-muted-foreground flex flex-col items-start gap-px px-1 py-0.5 font-mono text-[0.625rem] leading-tight whitespace-nowrap"
     >
-      {#each edge.waits as wait (wait.id)}
+      {#each edge.label as line (line.id)}
         <span class="inline-flex items-center gap-1">
           {#if edge.dotted}
-            <span class="size-1.5 rounded-full" style="background:{colorVar(wait.color)}"></span>
+            <span class="size-1.5 rounded-full" style="background:{colorVar(line.color)}"></span>
           {/if}
-          {wait.value}
+          {line.value}
         </span>
       {/each}
     </span>

@@ -7,15 +7,19 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure, NodeFigure, NodeKind } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import type { Statistic } from "$lib/tree/types";
 import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
 export const EDGE_WIDTH_MIN = 1.5;
 export const EDGE_WIDTH_MAX = 8;
+
+/** How thick every edge is drawn under a uniform width, in SVG user units. */
+export const EDGE_WIDTH_UNIFORM = 2;
 
 /**
  * One entry per Group, in the order they are compared, so each can be printed
@@ -30,6 +34,30 @@ export function faceCounts(
     groups.map((group) => {
       const value = counts[group.id]?.[measure] ?? 0;
       return [group.id, value === 0 ? null : formatNumber(value)];
+    })
+  );
+}
+
+/**
+ * What a node prints under its name, one entry per Group as `faceCounts` gives
+ * them. `serviceTime` prints each Group's statistic of Activity Duration from
+ * `duration`, `null` where that Group has none.
+ */
+export function faceFigures(
+  counts: Record<string, Counts>,
+  duration: AttributeBlock | undefined,
+  groups: FaceGroup[],
+  figure: NodeFigure,
+  statistic: Statistic
+): Record<string, string | null> {
+  if (figure !== "serviceTime") return faceCounts(counts, groups, figure);
+  return Object.fromEntries(
+    groups.map((group) => {
+      const summary = duration?.summaries[group.id];
+      return [
+        group.id,
+        summary?.type === "numerical" && summary.n > 0 ? durationLabel(summary[statistic]) : null
+      ];
     })
   );
 }
@@ -123,28 +151,59 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
 /** Under this many milliseconds `formatDuration` rounds a wait to 0s. */
 const SUB_SECOND_MS = 500;
 
-/** A mean wait as its edge prints it. A wait too short to round to a second prints in ms. */
-function waitLabel(mean: number): string {
-  if (mean <= 0 || mean >= SUB_SECOND_MS) return formatDuration(mean);
-  return `${Math.max(1, Math.round(mean))}ms`;
+/** A duration as a face prints it. One too short to round to a second prints in ms. */
+function durationLabel(ms: number): string {
+  if (ms <= 0 || ms >= SUB_SECOND_MS) return formatDuration(ms);
+  return `${Math.max(1, Math.round(ms))}ms`;
 }
 
 /**
- * The mean wait on an edge, one line per Group, in the order compared. Empty
- * when no Group waited at all: the canvas leaves that edge unlabelled.
+ * The wait on an edge in `statistic`, one line per Group, in the order
+ * compared. Empty when no Group waited at all: the canvas leaves that edge
+ * unlabelled.
  */
-export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): EdgeWait[] {
+export function edgeWait(
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[],
+  statistic: Statistic
+): EdgeWait[] {
   if (!wait) return [];
-  const means = groups.flatMap((group) => {
+  const values = groups.flatMap((group) => {
     const summary = wait.summaries[group.id];
-    return summary?.type === "numerical" ? [{ group, mean: summary.mean }] : [];
+    return summary?.type === "numerical" ? [{ group, value: summary[statistic] }] : [];
   });
-  if (means.every(({ mean }) => mean <= 0)) return [];
-  return means.map(({ group, mean }) => ({
+  if (values.every(({ value }) => value <= 0)) return [];
+  return values.map(({ group, value }) => ({
     id: group.id,
     color: group.color,
-    value: waitLabel(mean)
+    value: durationLabel(value)
   }));
+}
+
+/** An edge's count in `measure`, one line per Group that follows it, in the order compared. */
+export function edgeFrequency(
+  counts: Record<string, Counts>,
+  groups: FaceGroup[],
+  measure: Measure
+): EdgeWait[] {
+  return groups.flatMap((group) => {
+    const value = counts[group.id]?.[measure] ?? 0;
+    return value === 0 ? [] : [{ id: group.id, color: group.color, value: formatNumber(value) }];
+  });
+}
+
+/** The lines an edge prints beside it under `label`. Empty draws no label. */
+export function edgeLines(
+  label: EdgeLabel,
+  counts: Record<string, Counts>,
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[],
+  measure: Measure,
+  statistic: Statistic
+): EdgeWait[] {
+  if (label === "frequency") return edgeFrequency(counts, groups, measure);
+  if (label === "waiting") return edgeWait(wait, groups, statistic);
+  return [];
 }
 
 /** The busiest of a set, for scaling every other one against. */
