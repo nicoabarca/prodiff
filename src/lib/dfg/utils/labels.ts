@@ -19,16 +19,16 @@ const PADDING_Y = 4;
 const DOT = 10;
 
 /**
- * The box a stack of waits needs, or null when there is nothing to print.
+ * The box a stack of lines needs, or null when there is nothing to print.
  * `dotted` is whether each line carries its Group's dot.
  */
-export function labelSize(waits: EdgeWait[], dotted: boolean): Size | null {
-  if (waits.length === 0) return null;
-  const longest = Math.max(...waits.map((wait) => wait.value.length));
+export function labelSize(lines: EdgeWait[], dotted: boolean): Size | null {
+  if (lines.length === 0) return null;
+  const longest = Math.max(...lines.map((line) => line.value.length));
   const dot = dotted ? DOT : 0;
   return {
     width: Math.ceil(longest * CHAR_WIDTH + dot + PADDING_X),
-    height: waits.length * LINE_HEIGHT + PADDING_Y
+    height: lines.length * LINE_HEIGHT + PADDING_Y
   };
 }
 

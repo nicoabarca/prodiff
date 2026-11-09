@@ -7,15 +7,19 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
+import type { Statistic } from "$lib/tree/types";
 import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
 export const EDGE_WIDTH_MIN = 1.5;
 export const EDGE_WIDTH_MAX = 8;
+
+/** How thick every edge is drawn under a uniform width, in SVG user units. */
+export const EDGE_WIDTH_UNIFORM = 2;
 
 /**
  * One entry per Group, in the order they are compared, so each can be printed
@@ -69,8 +73,17 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
   return reached.length === 1 ? reached[0].id : null;
 }
 
-/** How much of `--effect-3` an edge takes over `--effect-2` at each effect step, negligible to large. */
-const EFFECT_SHARE = { 1: 45, 2: 65, 3: 85, 4: 100 };
+/**
+ * The stroke at each effect step, negligible to large. `--effect-1` and
+ * `--effect-2` are fills, paler than the grey edge on a light canvas and darker
+ * on a dark one, so the two lower steps tint the grey edge with `--effect-3`.
+ */
+const EFFECT_STROKE = {
+  1: "color-mix(in oklab, var(--effect-3) 40%, var(--muted-foreground))",
+  2: "color-mix(in oklab, var(--effect-3) 70%, var(--muted-foreground))",
+  3: "var(--effect-3)",
+  4: "var(--effect-4)"
+};
 
 /**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
@@ -91,15 +104,20 @@ export function edgeStroke(
     block.test?.significant ? [block.test.effectSize] : []
   );
   if (effects.length === 0) return null;
-  const share = EFFECT_SHARE[effectStep(Math.max(...effects))];
-  return `color-mix(in oklab, var(--effect-3) ${share}%, var(--effect-2))`;
+  return EFFECT_STROKE[effectStep(Math.max(...effects))];
 }
 
-/** The tested blocks of the edges drawn, by `source->target`, as `graphFindings` corrected them. */
-export function edgeBlocks(findings: Finding[]): Map<string, AttributeBlock[]> {
+/**
+ * The tested blocks of the edges drawn, by `source->target`, as `graphFindings`
+ * corrected them: those of `attribute` only, or every one for `null`.
+ */
+export function edgeBlocks(
+  findings: Finding[],
+  attribute: string | null
+): Map<string, AttributeBlock[]> {
   const out = new Map<string, AttributeBlock[]>();
-  for (const { place, block } of findings) {
-    if (place.kind !== "edge") continue;
+  for (const { place, block, attribute: tested } of findings) {
+    if (place.kind !== "edge" || (attribute !== null && tested !== attribute)) continue;
     const id = edgeId(place.source, place.target);
     out.set(id, [...(out.get(id) ?? []), block]);
   }
@@ -123,28 +141,78 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
 /** Under this many milliseconds `formatDuration` rounds a wait to 0s. */
 const SUB_SECOND_MS = 500;
 
-/** A mean wait as its edge prints it. A wait too short to round to a second prints in ms. */
-function waitLabel(mean: number): string {
-  if (mean <= 0 || mean >= SUB_SECOND_MS) return formatDuration(mean);
-  return `${Math.max(1, Math.round(mean))}ms`;
+/** A duration as a face prints it. One too short to round to a second prints in ms. */
+export function durationLabel(ms: number): string {
+  if (ms <= 0 || ms >= SUB_SECOND_MS) return formatDuration(ms);
+  return `${Math.max(1, Math.round(ms))}ms`;
 }
 
 /**
- * The mean wait on an edge, one line per Group, in the order compared. Empty
- * when no Group waited at all: the canvas leaves that edge unlabelled.
+ * The wait on an edge in `statistic`, one line per Group, in the order
+ * compared. Empty when no Group waited at all: the canvas leaves that edge
+ * unlabelled.
  */
-export function edgeWait(wait: AttributeBlock | undefined, groups: FaceGroup[]): EdgeWait[] {
+export function edgeWait(
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[],
+  statistic: Statistic
+): EdgeWait[] {
   if (!wait) return [];
-  const means = groups.flatMap((group) => {
+  const values = groups.flatMap((group) => {
     const summary = wait.summaries[group.id];
-    return summary?.type === "numerical" ? [{ group, mean: summary.mean }] : [];
+    return summary?.type === "numerical" ? [{ group, value: summary[statistic] }] : [];
   });
-  if (means.every(({ mean }) => mean <= 0)) return [];
-  return means.map(({ group, mean }) => ({
+  if (values.every(({ value }) => value <= 0)) return [];
+  return values.map(({ group, value }) => ({
     id: group.id,
     color: group.color,
-    value: waitLabel(mean)
+    value: durationLabel(value)
   }));
+}
+
+/**
+ * How many cases follow an edge, one line per Group that does, in the order
+ * compared. Cases, as Edge Frequency is tested in.
+ */
+export function edgeFrequency(counts: Record<string, Counts>, groups: FaceGroup[]): EdgeWait[] {
+  return groups.flatMap((group) => {
+    const value = counts[group.id]?.cases ?? 0;
+    return value === 0 ? [] : [{ id: group.id, color: group.color, value: formatNumber(value) }];
+  });
+}
+
+/**
+ * The share of the cases reaching an edge's source that follow it, one line
+ * per Group that does, in the order compared. The share Edge Frequency tests.
+ */
+export function edgeShare(
+  counts: Record<string, Counts>,
+  source: Record<string, Counts>,
+  groups: FaceGroup[]
+): EdgeWait[] {
+  return groups.flatMap((group) => {
+    const followed = counts[group.id]?.cases ?? 0;
+    const reached = source[group.id]?.cases ?? 0;
+    if (followed === 0 || reached === 0) return [];
+    return [
+      { id: group.id, color: group.color, value: `${((followed / reached) * 100).toFixed(1)}%` }
+    ];
+  });
+}
+
+/** The lines an edge prints beside it under `label`. Empty draws no label. */
+export function edgeLines(
+  label: EdgeLabel,
+  counts: Record<string, Counts>,
+  source: Record<string, Counts>,
+  wait: AttributeBlock | undefined,
+  groups: FaceGroup[],
+  statistic: Statistic
+): EdgeWait[] {
+  if (label === "frequency") return edgeFrequency(counts, groups);
+  if (label === "share") return edgeShare(counts, source, groups);
+  if (label === "waiting") return edgeWait(wait, groups, statistic);
+  return [];
 }
 
 /** The busiest of a set, for scaling every other one against. */
