@@ -18,6 +18,7 @@
   import { graphFindings, placeIds, placeLight } from "$lib/dfg/utils/findings";
   import { simplify } from "$lib/dfg/utils/simplify";
   import { builtAttributes } from "$lib/dfg/utils/display";
+  import ViewLegend from "$lib/dfg/components/view-legend.svelte";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
@@ -134,6 +135,7 @@
             />
           {/if}
           <CanvasCuts {project} {simplified} groups={graph.groups.map((group) => group.id)} />
+          <ViewLegend {graph} {findings} groups={graphGroupsForView} />
           {#if import.meta.env.DEV}
             {#await import("$lib/devtools/dfg/components/dfg-inspector.svelte") then { default: DfgInspector }}
               <DfgInspector {graph} {simplified} />

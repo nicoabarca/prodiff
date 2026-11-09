@@ -10,10 +10,11 @@
   import SettingField from "$lib/components/layout/setting-field.svelte";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
-  import { resetDisplay, view } from "$lib/dfg/state/view.svelte";
+  import { resetDisplay, splitting, view } from "$lib/dfg/state/view.svelte";
   import type { NodeMetric } from "$lib/dfg/types";
   import { builtAttributes, edgeCaption, shownEdgeLabel } from "$lib/dfg/utils/display";
   import { figureAttributes, nodeFigure, type FigureAttribute } from "$lib/dfg/utils/figure";
+  import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import Eye from "@lucide/svelte/icons/eye";
   import { cn } from "$lib/utils";
@@ -35,6 +36,28 @@
   );
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   const statisticShown = $derived(figure.kind === "number" || edgeLabel === "waiting");
+
+  const groups = $derived(comparedGroups());
+  const comparing = $derived(groups.length > 1);
+  const split = $derived(splitting(groups.length));
+
+  const focusOptions = $derived([
+    { value: "all", label: "All" },
+    ...groups.map((group) => ({
+      value: group.id,
+      label: group.name,
+      title: group.name,
+      dot: `var(--${group.color})`
+    })),
+    { value: "shared", label: "Shared" }
+  ]);
+  const emphasis = $derived(
+    focusOptions.some((option) => option.value === view.emphasis) ? view.emphasis : "all"
+  );
+
+  $effect(() => {
+    if (!comparing) view.findingsOnly = false;
+  });
 
   function chooseMetric(value: NodeMetric) {
     view.figure = value;
@@ -233,6 +256,46 @@
         ]}
         onchange={(value) => (view.statistic = value)}
       />
+    </div>
+
+    <div class="flex flex-col gap-2.5">
+      {@render heading("Focus · fades, never rebuilds")}
+      {#if comparing}
+        <div class="flex flex-col gap-1.5">
+          <span class="text-xs font-medium">Emphasize what is reached by</span>
+          {#if split}
+            <span class="text-muted-foreground text-[0.625rem]">
+              Each panel already draws one group.
+            </span>
+          {:else}
+            <Segmented
+              label="Emphasize what is reached by"
+              value={emphasis}
+              options={focusOptions}
+              onchange={(value) => (view.emphasis = value)}
+            />
+          {/if}
+        </div>
+      {/if}
+      <div class="flex flex-col gap-1.5">
+        <span class="text-xs font-medium">Activities and edges</span>
+        <Segmented
+          label="Activities and edges"
+          value={view.findingsOnly ? "finding" : "all"}
+          options={[
+            { value: "all", label: "All" },
+            {
+              value: "finding",
+              label: "With a finding",
+              disabled: !comparing,
+              title: comparing
+                ? "Fades activities without a significant difference, and edges without one in the test they are coloured by."
+                : "Compare two groups to use this."
+            }
+          ]}
+          onchange={(value) => (view.findingsOnly = value === "finding")}
+        />
+      </div>
     </div>
 
     <div class="flex flex-col gap-1.5">
