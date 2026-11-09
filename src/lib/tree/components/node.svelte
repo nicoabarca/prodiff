@@ -15,7 +15,7 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const shaded = $derived(shade(accent, data.shadeStep));
+  const tint = $derived(shade(accent, null));
 </script>
 
 <Handle type="target" position={Position.Top} style="opacity:0" isConnectable={false} />
@@ -55,11 +55,11 @@
       : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
       ? 'tree-node-exit pointer-events-none'
       : ''}"
-    style="background:{shaded.fill};border-color:{data.highlighted
+    style="background:{tint.fill};border-color:{data.highlighted
       ? 'var(--color-indigo-500)'
       : data.divergent
         ? 'var(--destructive)'
-        : shaded.border};border-width:{data.highlighted
+        : tint.border};border-width:{data.highlighted
       ? '0.125rem'
       : ''};transition-duration:var(--tree-dim-duration)"
   >
@@ -68,7 +68,7 @@
         <Tooltip.Trigger class="min-w-0 text-center">
           <span
             class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
-            style="color:{shaded.ink ?? `var(--${accent})`}"
+            style="color:var(--{accent})"
           >
             {data.label}
           </span>
@@ -87,19 +87,8 @@
 
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
       {#each data.groups as group, index (group.id)}
-        {#if data.secondaries[index] !== null && data.secondaries[index] !== undefined}
-          <span
-            class="flex items-center gap-1"
-            style="color:{shaded.ink ?? `var(--${group.color})`}"
-          >
-            {#if shaded.ink}
-              <span
-                class="size-1.5 rounded-full ring-1 ring-white/70"
-                style="background:var(--{group.color})"
-              ></span>
-            {/if}
-            {data.secondaries[index]}
-          </span>
+        {#if data.figures[index] !== null && data.figures[index] !== undefined}
+          <span style="color:var(--{group.color})">{data.figures[index]}</span>
         {/if}
       {/each}
     </div>
