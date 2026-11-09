@@ -1,6 +1,6 @@
 /** What the DFG view decides, all of it drawn from the graph already in hand. */
 import type { NodeDifferences } from "$lib/dfg/utils/findings";
-import type { Statistic } from "$lib/tree/types";
+import type { GroupFocus, Statistic } from "$lib/tree/types";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The two synthetic nodes. Activities are numbered above them by Rust. */
@@ -61,6 +61,8 @@ export interface DfgView {
   edgeWidth: EdgeWidth;
   statistic: Statistic;
   direction: Direction;
+  emphasis: GroupFocus;
+  findingsOnly: boolean;
   split: boolean;
 }
 
@@ -72,6 +74,8 @@ export const defaultDfgView: DfgView = {
   edgeWidth: "scaled",
   statistic: "mean",
   direction: "TB",
+  emphasis: "all",
+  findingsOnly: false,
   split: false
 };
 

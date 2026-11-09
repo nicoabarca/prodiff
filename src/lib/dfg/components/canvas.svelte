@@ -34,6 +34,7 @@
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { builtAttributes, paintedAttribute, shownEdgeLabel } from "$lib/dfg/utils/display";
+  import { faded } from "$lib/dfg/utils/emphasis";
   import { figureAttributes, nodeFigure, nodeFigures } from "$lib/dfg/utils/figure";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
@@ -122,6 +123,13 @@
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   /** The tests an edge is coloured by: those of the figure it prints. */
   const measured = $derived(edgeBlocks(findings, paintedAttribute(edgeLabel)));
+
+  /** What Focus fades. A split panel already draws one Group, so only findings fade there. */
+  const fading = $derived({
+    emphasis: focus === null ? view.emphasis : "all",
+    findingsOnly: view.findingsOnly
+  });
+  const groupIds = $derived(groups.map((group) => group.id));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
   const tested = $derived(testedPlaces(findings));
 
@@ -328,7 +336,9 @@
             selected: selected.id === node.id,
             direction: view.direction,
             highlighted: false,
-            dimmed: false,
+            dimmed:
+              node.kind === "activity" &&
+              faded({ counts: node.counts, finding: differences.has(node.id) }, fading, groupIds),
             added: 0,
             focus
           }
@@ -402,7 +412,14 @@
           boundary: edge.source === START_ID || edge.target === END_ID,
           clickable,
           highlighted: false,
-          dimmed: false,
+          dimmed: faded(
+            {
+              counts: edge.counts,
+              finding: (measured.get(key) ?? []).some((block) => block.test?.significant)
+            },
+            fading,
+            groupIds
+          ),
           added: 0
         }
       };
@@ -430,7 +447,12 @@
       const glow = fresh?.nodes.has(node.id) ? fresh.at : 0;
       return {
         ...node,
-        data: { ...node.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+        data: {
+          ...node.data,
+          highlighted: lit !== null && on,
+          dimmed: !on || Boolean(node.data.dimmed),
+          added: glow
+        }
       };
     });
     edges = flow.edges.map((edge) => {
@@ -438,7 +460,12 @@
       const glow = fresh?.edges.has(edge.id) ? fresh.at : 0;
       return {
         ...edge,
-        data: { ...edge.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+        data: {
+          ...edge.data,
+          highlighted: lit !== null && on,
+          dimmed: !on || Boolean(edge.data?.dimmed),
+          added: glow
+        }
       };
     });
   });
