@@ -4,7 +4,7 @@
    * widely each one differs, and under it every activity or edge that measured
    * it, strongest first. Opened on an activity from the canvas, it lists only
    * that activity's differences until its chip is cleared; opened on an edge,
-   * it opens and scrolls to that edge's Waiting Time.
+   * it opens and scrolls to the test the edge is coloured by.
    */
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -15,7 +15,13 @@
   import PlaceTest from "$lib/dfg/components/place-test.svelte";
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { EDGE_FREQUENCY } from "$lib/dfg/types";
-  import { clearInspected, inspected } from "$lib/dfg/state/view.svelte";
+  import { clearInspected, inspected, view } from "$lib/dfg/state/view.svelte";
+  import {
+    canvasLegend,
+    paintedAttribute,
+    shownEdgeLabel,
+    type Built
+  } from "$lib/dfg/utils/display";
   import {
     activityDifferences,
     byAttribute,
@@ -37,6 +43,7 @@
 
   let {
     findings,
+    built,
     calculating = false,
     groupCount,
     onClose,
@@ -44,6 +51,7 @@
     onChooseAttributes
   }: {
     findings: Finding[];
+    built: Built;
     calculating?: boolean;
     groupCount: number;
     onClose: () => void;
@@ -67,12 +75,19 @@
   const activity = $derived(inspected.place?.kind === "node" ? inspected.place : null);
   const differences = $derived(activity ? activityDifferences(findings, activity.id) : []);
 
-  /** The finding of the edge clicked on the canvas: its strongest difference, else its Waiting Time, else how often it is followed. */
+  const painted = $derived(paintedAttribute(shownEdgeLabel(view.edgeLabel, built)));
+
+  /**
+   * The finding of the edge clicked on the canvas: the test it is coloured by
+   * when it prints a figure, else its strongest difference, else its Waiting
+   * Time, else how often it is followed.
+   */
   const edgeFinding = $derived.by(() => {
     const place = inspected.place;
     if (place?.kind !== "edge") return null;
     const on = findings.filter((finding) => placeKey(finding.place) === placeKey(place));
     return (
+      on.find((finding) => painted !== null && finding.attribute === painted) ??
       rank(on).find((finding) => finding.block.test?.significant) ??
       on.find((finding) => finding.attribute === TRANSITION_TIME) ??
       on.find((finding) => finding.attribute === EDGE_FREQUENCY) ??
@@ -147,8 +162,7 @@
             shows
           </p>
           <p class="text-muted-foreground text-[0.625rem]">
-            A red edge has a significant difference, redder when larger. It does not say which group
-            is higher. Thicker edges and darker activities carry more cases.
+            {canvasLegend(view.edgeLabel, built, view.measure, view.edgeWidth)}
           </p>
         {/if}
       </div>

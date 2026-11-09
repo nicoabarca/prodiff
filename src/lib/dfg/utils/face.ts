@@ -97,8 +97,17 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
   return reached.length === 1 ? reached[0].id : null;
 }
 
-/** How much of `--effect-3` an edge takes over `--effect-2` at each effect step, negligible to large. */
-const EFFECT_SHARE = { 1: 45, 2: 65, 3: 85, 4: 100 };
+/**
+ * The stroke at each effect step, negligible to large. `--effect-1` and
+ * `--effect-2` are fills, paler than the grey edge on a light canvas and darker
+ * on a dark one, so the two lower steps tint the grey edge with `--effect-3`.
+ */
+const EFFECT_STROKE = {
+  1: "color-mix(in oklab, var(--effect-3) 40%, var(--muted-foreground))",
+  2: "color-mix(in oklab, var(--effect-3) 70%, var(--muted-foreground))",
+  3: "var(--effect-3)",
+  4: "var(--effect-4)"
+};
 
 /**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
@@ -119,15 +128,20 @@ export function edgeStroke(
     block.test?.significant ? [block.test.effectSize] : []
   );
   if (effects.length === 0) return null;
-  const share = EFFECT_SHARE[effectStep(Math.max(...effects))];
-  return `color-mix(in oklab, var(--effect-3) ${share}%, var(--effect-2))`;
+  return EFFECT_STROKE[effectStep(Math.max(...effects))];
 }
 
-/** The tested blocks of the edges drawn, by `source->target`, as `graphFindings` corrected them. */
-export function edgeBlocks(findings: Finding[]): Map<string, AttributeBlock[]> {
+/**
+ * The tested blocks of the edges drawn, by `source->target`, as `graphFindings`
+ * corrected them: those of `attribute` only, or every one for `null`.
+ */
+export function edgeBlocks(
+  findings: Finding[],
+  attribute: string | null
+): Map<string, AttributeBlock[]> {
   const out = new Map<string, AttributeBlock[]>();
-  for (const { place, block } of findings) {
-    if (place.kind !== "edge") continue;
+  for (const { place, block, attribute: tested } of findings) {
+    if (place.kind !== "edge" || (attribute !== null && tested !== attribute)) continue;
     const id = edgeId(place.source, place.target);
     out.set(id, [...(out.get(id) ?? []), block]);
   }
@@ -180,14 +194,13 @@ export function edgeWait(
   }));
 }
 
-/** An edge's count in `measure`, one line per Group that follows it, in the order compared. */
-export function edgeFrequency(
-  counts: Record<string, Counts>,
-  groups: FaceGroup[],
-  measure: Measure
-): EdgeWait[] {
+/**
+ * How many cases follow an edge, one line per Group that does, in the order
+ * compared. Cases, as Edge Frequency is tested in.
+ */
+export function edgeFrequency(counts: Record<string, Counts>, groups: FaceGroup[]): EdgeWait[] {
   return groups.flatMap((group) => {
-    const value = counts[group.id]?.[measure] ?? 0;
+    const value = counts[group.id]?.cases ?? 0;
     return value === 0 ? [] : [{ id: group.id, color: group.color, value: formatNumber(value) }];
   });
 }
@@ -198,10 +211,9 @@ export function edgeLines(
   counts: Record<string, Counts>,
   wait: AttributeBlock | undefined,
   groups: FaceGroup[],
-  measure: Measure,
   statistic: Statistic
 ): EdgeWait[] {
-  if (label === "frequency") return edgeFrequency(counts, groups, measure);
+  if (label === "frequency") return edgeFrequency(counts, groups);
   if (label === "waiting") return edgeWait(wait, groups, statistic);
   return [];
 }

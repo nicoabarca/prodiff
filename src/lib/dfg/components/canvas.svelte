@@ -34,7 +34,12 @@
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
   import { ACTIVITY_DURATION } from "$lib/analysis/attributes";
-  import { builtDurations, shownEdgeLabel, shownFigure } from "$lib/dfg/utils/display";
+  import {
+    builtAttributes,
+    paintedAttribute,
+    shownEdgeLabel,
+    shownFigure
+  } from "$lib/dfg/utils/display";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
   import {
@@ -114,15 +119,16 @@
   const edgeTypes = { routed: RoutedEdge };
 
   const waits = $derived(transitionsById(graph));
-  const measured = $derived(edgeBlocks(findings));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
   const durations = $derived(
     new Map(graph.nodes.map((node) => [node.id, node.attributes[ACTIVITY_DURATION]]))
   );
-  const built = $derived(builtDurations(graph));
+  const built = $derived(builtAttributes(graph));
   const figure = $derived(shownFigure(view.figure, built));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
+  /** The tests an edge is coloured by: those of the figure it prints. */
+  const measured = $derived(edgeBlocks(findings, paintedAttribute(edgeLabel)));
   const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
   const tested = $derived(testedPlaces(findings));
 
@@ -156,7 +162,6 @@
       edge.counts,
       waits.get(edgeKey(edge.source, edge.target)),
       of,
-      view.measure,
       view.statistic
     );
 

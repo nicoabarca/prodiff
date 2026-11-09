@@ -10,7 +10,7 @@
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { resetDisplay, view } from "$lib/dfg/state/view.svelte";
   import {
-    builtDurations,
+    builtAttributes,
     displayCaption,
     shownEdgeLabel,
     shownFigure
@@ -22,7 +22,7 @@
 
   let open = $state(false);
 
-  const built = $derived(builtDurations(graph));
+  const built = $derived(builtAttributes(graph));
   const figure = $derived(shownFigure(view.figure, built));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   const caption = $derived(displayCaption(view, built));
@@ -68,7 +68,7 @@
               disabled: !built.serviceTime,
               title: built.serviceTime
                 ? undefined
-                : "Build with Service Time selected to show this."
+                : "Build with Service Time selected to show this. It needs a start timestamp in the Event Log."
             }
           ]}
           onchange={(value) => (view.figure = value)}
@@ -95,6 +95,13 @@
           ]}
           onchange={(value) => (view.edgeLabel = value)}
         />
+        {#if edgeLabel === "frequency"}
+          <span class="text-muted-foreground text-[0.625rem]">
+            {built.edgeFrequency
+              ? "Cases that follow each edge. Red where how often it is followed differs."
+              : "Cases that follow each edge. Build with Edge Frequency to colour edges by it."}
+          </span>
+        {/if}
       </div>
       <div class="grid grid-cols-2 gap-2.5">
         <div class="flex flex-col gap-1.5">
@@ -123,7 +130,7 @@
         </div>
       </div>
       <span class="text-muted-foreground text-[0.625rem]">
-        Count shades activities, thickens edges and is what Frequency prints.
+        Count shades activities and thickens edges.
       </span>
     </div>
 

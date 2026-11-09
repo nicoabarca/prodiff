@@ -3,6 +3,7 @@ import type { Summary } from "$lib/analysis/types";
 import type { Test } from "$lib/analysis/types";
 import {
   busiestPerCase,
+  edgeBlocks,
   edgeStroke,
   edgeFrequency,
   edgeLines,
@@ -163,9 +164,7 @@ describe("edgeFrequency", () => {
       { id: "b", name: "Night", color: "group-6" }
     ];
     const counts = { a: { cases: 12, events: 15 }, b: { cases: 0, events: 0 } };
-    expect(edgeFrequency(counts, groups, "events")).toEqual([
-      { id: "a", color: "group-2", value: "15" }
-    ]);
+    expect(edgeFrequency(counts, groups)).toEqual([{ id: "a", color: "group-2", value: "12" }]);
   });
 });
 
@@ -175,12 +174,12 @@ describe("edgeLines", () => {
   const wait = { summaries: { a: numbers(3_000, 1_000) }, test: null };
 
   it("prints nothing when labels are off", () => {
-    expect(edgeLines("off", counts, wait, groups, "cases", "mean")).toEqual([]);
+    expect(edgeLines("off", counts, wait, groups, "mean")).toEqual([]);
   });
 
   it("prints the count for Frequency and the wait for Waiting time", () => {
-    expect(edgeLines("frequency", counts, wait, groups, "events", "mean")[0].value).toBe("6");
-    expect(edgeLines("waiting", counts, wait, groups, "cases", "median")[0].value).toBe("1s");
+    expect(edgeLines("frequency", counts, wait, groups, "mean")[0].value).toBe("4");
+    expect(edgeLines("waiting", counts, wait, groups, "median")[0].value).toBe("1s");
   });
 });
 
@@ -214,14 +213,22 @@ describe("edgeStroke", () => {
   });
 
   it("reddens with the strongest effect among its significant tests", () => {
-    expect(edgeStroke(both, [wait(test(0.05))], groups)).toContain("var(--effect-3) 45%");
-    expect(edgeStroke(both, [wait(test(0.6))], groups)).toContain("var(--effect-3) 100%");
-    expect(edgeStroke(both, [wait(test(0.05)), wait(test(0.6))], groups)).toContain(
-      "var(--effect-3) 100%"
-    );
+    expect(edgeStroke(both, [wait(test(0.05))], groups)).toContain("var(--effect-3) 40%");
+    expect(edgeStroke(both, [wait(test(0.6))], groups)).toBe("var(--effect-4)");
+    expect(edgeStroke(both, [wait(test(0.05)), wait(test(0.6))], groups)).toBe("var(--effect-4)");
     expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toContain(
-      "var(--effect-3) 45%"
+      "var(--effect-3) 40%"
     );
+  });
+
+  it("takes one stroke per effect band, each redder than the last", () => {
+    const strokes = [0.05, 0.2, 0.4, 0.6].map((effect) =>
+      edgeStroke(both, [wait(test(effect))], groups)
+    );
+    expect(new Set(strokes).size).toBe(4);
+    expect(strokes[0]).toContain("var(--muted-foreground)");
+    expect(strokes[1]).toContain("var(--effect-3) 70%");
+    expect(strokes[2]).toBe("var(--effect-3)");
   });
 });
 
@@ -247,5 +254,26 @@ describe("perCase", () => {
   it("ranks against the busiest share of any Group, so both panels share one scale", () => {
     expect(busiestPerCase(edges, caseCounts, "cases")).toBe(0.9);
     expect(busiestPerCase(edges, caseCounts, "events")).toBe(1.8);
+  });
+});
+
+describe("edgeBlocks", () => {
+  const on = (attribute: string) => ({
+    key: attribute,
+    place: { kind: "edge" as const, source: 2, target: 3, label: "A → B" },
+    attribute,
+    value: null,
+    block: { summaries: {}, test: null, method: null }
+  });
+  const findings = [on("Transition Time"), on("Edge Frequency")];
+
+  it("keeps only the attribute asked for", () => {
+    const blocks = edgeBlocks(findings, "Edge Frequency").get("2->3");
+    expect(blocks).toHaveLength(1);
+    expect(blocks?.[0]).toBe(findings[1].block);
+  });
+
+  it("keeps every test for null", () => {
+    expect(edgeBlocks(findings, null).get("2->3")).toHaveLength(2);
   });
 });
