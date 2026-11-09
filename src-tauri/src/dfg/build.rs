@@ -1,6 +1,6 @@
 //! DFG aggregation.
 
-use super::{Counts, RequestedAttribute};
+use super::{give_up_if, Counts, RequestedAttribute, Superseded};
 use crate::analysis::{transition_time_expr, Acc, GroupLog, VARIANT_KEY_SEP};
 use crate::column_mapping::{
     find_role, require_role, CaseResolution, ColumnMapping, ColumnRole, ColumnScope, ColumnType,
@@ -195,6 +195,7 @@ pub(super) fn aggregate(
     mapping: &[ColumnMapping],
     requested: &[RequestedAttribute],
     selection: Option<&[String]>,
+    superseded: Superseded,
 ) -> Result<Aggregates, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let (attributes, wants_transition, case_attributes) = plan(requested, mapping, has_start)?;
@@ -202,7 +203,9 @@ pub(super) fn aggregate(
     let events = combined(logs, mapping, &attributes, &case_attributes)?
         .collect()
         .map_err(|e| e.to_string())?;
+    give_up_if(superseded)?;
     let cases = Cases::read(&events, &case_attributes, selection)?;
+    give_up_if(superseded)?;
     // Cut before anything is accumulated, so every Node Aggregate and
     // Significance Test downstream describes exactly the Variants included.
     let events = if cases.kept.iter().all(|kept| *kept) {
@@ -212,12 +215,15 @@ pub(super) fn aggregate(
     };
     let kept_cases = cases.kept.iter().filter(|kept| **kept).count();
     let lf = with_previous(events, kept_cases)?.lazy();
+    give_up_if(superseded)?;
 
     let mut nodes: HashMap<String, NodeAgg> = HashMap::new();
     node_counts(&lf, &attributes, &mut nodes)?;
     for attr in attributes.iter().filter(|a| !a.numeric) {
+        give_up_if(superseded)?;
         categorical(&lf, attr, &mut nodes)?;
     }
+    give_up_if(superseded)?;
     let transitions = if wants_transition {
         transitions(&lf)?
     } else {
