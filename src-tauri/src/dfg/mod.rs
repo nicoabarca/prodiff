@@ -122,15 +122,30 @@ pub struct Dfg {
     pub case_level: HashMap<String, AttributeBlock>,
 }
 
+/// Whether a newer request has made this build's result unwanted. A build asks
+/// between its stages and gives up with [`SUPERSEDED`] once it answers true.
+pub type Superseded<'a> = &'a dyn Fn() -> bool;
+
+pub const SUPERSEDED: &str = "Superseded by a newer graph request.";
+
+fn give_up_if(superseded: Superseded) -> Result<(), String> {
+    if superseded() {
+        return Err(SUPERSEDED.to_string());
+    }
+    Ok(())
+}
+
 pub fn build(
     logs: &[GroupLog],
     mapping: &[ColumnMapping],
     attributes: &[RequestedAttribute],
     selection: Option<&[String]>,
+    superseded: Superseded,
 ) -> Result<Dfg, String> {
     let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
     let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
-    let aggregates = build::aggregate(logs, mapping, attributes, selection)?;
+    let aggregates = build::aggregate(logs, mapping, attributes, selection, superseded)?;
+    give_up_if(superseded)?;
 
     let mut labels: Vec<&String> = aggregates.nodes.keys().collect();
     labels.sort();
@@ -143,6 +158,7 @@ pub fn build(
     let measured = Measured::from(attributes);
     let mut nodes = activity_nodes(&ids, &labels, &node_id, &aggregates, measured);
     correct(&mut nodes);
+    give_up_if(superseded)?;
     // Edge tests ship uncorrected: their family is the edges drawn, which the
     // frontend knows once the Paths cut has run.
     let transitions = transitions(&ids, &node_id, &aggregates, measured);
@@ -545,7 +561,14 @@ mod tests {
                 },
             })
             .collect::<Vec<_>>();
-        build(&logs(a, b), &mapping(with_start), &attributes, selection).unwrap()
+        build(
+            &logs(a, b),
+            &mapping(with_start),
+            &attributes,
+            selection,
+            &|| false,
+        )
+        .unwrap()
     }
 
     fn node<'a>(dfg: &'a Dfg, label: &str) -> &'a DfgNode {
@@ -596,6 +619,28 @@ mod tests {
         assert_eq!(dfg.variants.len(), 1);
         assert_eq!(shape(&dfg, &dfg.variants[0]), ["A", "B", "C"]);
         assert_eq!(dfg.variants[0].cases["a"], 1);
+    }
+
+    #[test]
+    fn interleaved_cases_build_the_same_graph_as_contiguous_ones() {
+        let contiguous = log(&[
+            ("1", &[("A", 0, 10), ("B", 2, 20), ("C", 4, 30)]),
+            ("2", &[("A", 1, 60), ("C", 3, 70)]),
+        ]);
+        let interleaved = contiguous
+            .sort(
+                ["ts"],
+                SortMultipleOptions::default().with_maintain_order(true),
+            )
+            .unwrap();
+        let attrs = [TRANSITION_TIME, "cost", "who", "region"];
+        let build =
+            |df: &DataFrame| serde_json::to_value(dfg_with(df, None, &attrs, false)).unwrap();
+
+        assert_eq!(build(&interleaved), build(&contiguous));
+        let dfg = dfg_with(&interleaved, None, &attrs, false);
+        transition(&dfg, "A", "C");
+        assert_eq!(dfg.variants.len(), 2);
     }
 
     #[test]
@@ -687,6 +732,7 @@ mod tests {
             &mapping(true),
             &[RequestedAttribute::TransitionTime],
             None,
+            &|| false,
         )
         .unwrap();
 
@@ -778,7 +824,7 @@ mod tests {
             name: name.to_string(),
         });
 
-        let dfg = build(&logs(&df, None), &columns, &requested, None).unwrap();
+        let dfg = build(&logs(&df, None), &columns, &requested, None, &|| false).unwrap();
 
         let value = |name: &str| match &dfg.case_level[name].summaries["a"] {
             Summary::Numerical { min, .. } => *min,
@@ -1014,6 +1060,17 @@ mod tests {
         let block = &node(&dfg, "A").attributes["cost"];
         assert_eq!(block.summaries.len(), 2);
         assert!(block.test.is_none());
+    }
+
+    #[test]
+    fn a_superseded_build_gives_up() {
+        let a = log(&[("1", &[("A", 0, 10)])]);
+        let attributes = [RequestedAttribute::TransitionTime];
+        let result = build(&logs(&a, None), &mapping(false), &attributes, None, &|| {
+            true
+        });
+
+        assert_eq!(result.err().as_deref(), Some(SUPERSEDED));
     }
 
     #[test]
