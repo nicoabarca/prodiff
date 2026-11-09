@@ -7,9 +7,9 @@ import {
   edgeStroke,
   edgeFrequency,
   edgeLines,
+  edgeShare,
   edgeWait,
   faceCounts,
-  faceFigures,
   perCase,
   shadeValue
 } from "$lib/dfg/utils/face";
@@ -126,34 +126,18 @@ const numbers = (mean: number, median: number): Summary => ({
   outliersHigh: 0
 });
 
-describe("faceFigures", () => {
+describe("edgeShare", () => {
   const groups = [
     { id: "a", name: "Day", color: "group-2" },
     { id: "b", name: "Night", color: "group-6" }
   ];
-  const counts = { a: { cases: 3, events: 9 }, b: { cases: 0, events: 0 } };
 
-  it("prints the count asked for", () => {
-    expect(faceFigures(counts, undefined, groups, "events", "mean")).toEqual({ a: "9", b: null });
-  });
-
-  it("prints each Group's Service Time in the statistic asked for", () => {
-    const block = { summaries: { a: numbers(120_000, 60_000) }, test: null };
-    expect(faceFigures(counts, block, groups, "serviceTime", "mean")).toEqual({
-      a: "2m 0s",
-      b: null
-    });
-    expect(faceFigures(counts, block, groups, "serviceTime", "median")).toEqual({
-      a: "1m 0s",
-      b: null
-    });
-  });
-
-  it("prints nothing for Service Time where the activity has none", () => {
-    expect(faceFigures(counts, undefined, groups, "serviceTime", "mean")).toEqual({
-      a: null,
-      b: null
-    });
+  it("divides the cases following the edge by those reaching its source", () => {
+    const counts = { a: { cases: 600, events: 700 }, b: { cases: 0, events: 0 } };
+    const source = { a: { cases: 1000, events: 1200 }, b: { cases: 250, events: 250 } };
+    expect(edgeShare(counts, source, groups)).toEqual([
+      { id: "a", color: "group-2", value: "60.0%" }
+    ]);
   });
 });
 
@@ -171,15 +155,17 @@ describe("edgeFrequency", () => {
 describe("edgeLines", () => {
   const groups = [{ id: "a", name: "Day", color: "group-2" }];
   const counts = { a: { cases: 4, events: 6 } };
+  const source = { a: { cases: 8, events: 8 } };
   const wait = { summaries: { a: numbers(3_000, 1_000) }, test: null };
 
   it("prints nothing when labels are off", () => {
-    expect(edgeLines("off", counts, wait, groups, "mean")).toEqual([]);
+    expect(edgeLines("off", counts, source, wait, groups, "mean")).toEqual([]);
   });
 
   it("prints the count for Frequency and the wait for Waiting time", () => {
-    expect(edgeLines("frequency", counts, wait, groups, "mean")[0].value).toBe("4");
-    expect(edgeLines("waiting", counts, wait, groups, "median")[0].value).toBe("1s");
+    expect(edgeLines("frequency", counts, source, wait, groups, "mean")[0].value).toBe("4");
+    expect(edgeLines("share", counts, source, wait, groups, "mean")[0].value).toBe("50.0%");
+    expect(edgeLines("waiting", counts, source, wait, groups, "median")[0].value).toBe("1s");
   });
 });
 

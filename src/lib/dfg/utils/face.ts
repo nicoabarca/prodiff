@@ -7,7 +7,7 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { EdgeLabel, FaceGroup, Measure, NodeFigure, NodeKind } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
@@ -34,30 +34,6 @@ export function faceCounts(
     groups.map((group) => {
       const value = counts[group.id]?.[measure] ?? 0;
       return [group.id, value === 0 ? null : formatNumber(value)];
-    })
-  );
-}
-
-/**
- * What a node prints under its name, one entry per Group as `faceCounts` gives
- * them. `serviceTime` prints each Group's statistic of Activity Duration from
- * `duration`, `null` where that Group has none.
- */
-export function faceFigures(
-  counts: Record<string, Counts>,
-  duration: AttributeBlock | undefined,
-  groups: FaceGroup[],
-  figure: NodeFigure,
-  statistic: Statistic
-): Record<string, string | null> {
-  if (figure !== "serviceTime") return faceCounts(counts, groups, figure);
-  return Object.fromEntries(
-    groups.map((group) => {
-      const summary = duration?.summaries[group.id];
-      return [
-        group.id,
-        summary?.type === "numerical" && summary.n > 0 ? durationLabel(summary[statistic]) : null
-      ];
     })
   );
 }
@@ -166,7 +142,7 @@ export function transitionsById(graph: ResponseDfg): Map<string, AttributeBlock>
 const SUB_SECOND_MS = 500;
 
 /** A duration as a face prints it. One too short to round to a second prints in ms. */
-function durationLabel(ms: number): string {
+export function durationLabel(ms: number): string {
   if (ms <= 0 || ms >= SUB_SECOND_MS) return formatDuration(ms);
   return `${Math.max(1, Math.round(ms))}ms`;
 }
@@ -205,15 +181,36 @@ export function edgeFrequency(counts: Record<string, Counts>, groups: FaceGroup[
   });
 }
 
+/**
+ * The share of the cases reaching an edge's source that follow it, one line
+ * per Group that does, in the order compared. The share Edge Frequency tests.
+ */
+export function edgeShare(
+  counts: Record<string, Counts>,
+  source: Record<string, Counts>,
+  groups: FaceGroup[]
+): EdgeWait[] {
+  return groups.flatMap((group) => {
+    const followed = counts[group.id]?.cases ?? 0;
+    const reached = source[group.id]?.cases ?? 0;
+    if (followed === 0 || reached === 0) return [];
+    return [
+      { id: group.id, color: group.color, value: `${((followed / reached) * 100).toFixed(1)}%` }
+    ];
+  });
+}
+
 /** The lines an edge prints beside it under `label`. Empty draws no label. */
 export function edgeLines(
   label: EdgeLabel,
   counts: Record<string, Counts>,
+  source: Record<string, Counts>,
   wait: AttributeBlock | undefined,
   groups: FaceGroup[],
   statistic: Statistic
 ): EdgeWait[] {
   if (label === "frequency") return edgeFrequency(counts, groups);
+  if (label === "share") return edgeShare(counts, source, groups);
   if (label === "waiting") return edgeWait(wait, groups, statistic);
   return [];
 }

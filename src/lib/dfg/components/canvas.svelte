@@ -26,20 +26,15 @@
     edgeLines,
     edgeStroke,
     edgeWidth,
-    faceFigures,
+    faceCounts,
     membership,
     perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
-  import { ACTIVITY_DURATION } from "$lib/analysis/attributes";
-  import {
-    builtAttributes,
-    paintedAttribute,
-    shownEdgeLabel,
-    shownFigure
-  } from "$lib/dfg/utils/display";
+  import { builtAttributes, paintedAttribute, shownEdgeLabel } from "$lib/dfg/utils/display";
+  import { figureAttributes, nodeFigure, nodeFigures } from "$lib/dfg/utils/figure";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
   import {
@@ -121,11 +116,9 @@
   const waits = $derived(transitionsById(graph));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
-  const durations = $derived(
-    new Map(graph.nodes.map((node) => [node.id, node.attributes[ACTIVITY_DURATION]]))
-  );
+  const measuredNodes = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const figure = $derived(nodeFigure(view, figureAttributes(graph)));
   const built = $derived(builtAttributes(graph));
-  const figure = $derived(shownFigure(view.figure, built));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   /** The tests an edge is coloured by: those of the figure it prints. */
   const measured = $derived(edgeBlocks(findings, paintedAttribute(edgeLabel)));
@@ -152,6 +145,11 @@
     inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
   }
 
+  /** What reaches each node drawn or placed, for the share of it an edge carries. */
+  const reaching = $derived(
+    new Map([...placedGraph.nodes, ...simplified.nodes].map((node) => [node.id, node.counts]))
+  );
+
   /** The lines an edge prints beside it, for the Groups given. */
   const linesOf = (
     edge: { source: number; target: number; counts: Record<string, Counts> },
@@ -160,6 +158,7 @@
     edgeLines(
       edgeLabel,
       edge.counts,
+      reaching.get(edge.source) ?? {},
       waits.get(edgeKey(edge.source, edge.target)),
       of,
       view.statistic
@@ -312,13 +311,17 @@
             label: node.label,
             kind: node.kind,
             groups: shown,
-            counts: faceFigures(
-              node.counts,
-              durations.get(node.id),
-              shown,
-              node.kind === "activity" ? figure : view.measure,
-              view.statistic
-            ),
+            counts:
+              node.kind === "activity"
+                ? nodeFigures(
+                    node.counts,
+                    measuredNodes.get(node.id),
+                    figure,
+                    view.statistic,
+                    caseCounts,
+                    shown
+                  )
+                : faceCounts(node.counts, shown, view.measure),
             shadeStep: steps[index],
             differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,

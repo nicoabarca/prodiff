@@ -65,5 +65,5 @@
     {/if}
   </div>
 
-  <DisplaySettings {graph} />
+  <DisplaySettings {graph} onChooseAttributes={() => (buildSettingsOpen = true)} />
 </div>

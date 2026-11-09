@@ -18,11 +18,18 @@ export type NodeKind = "start" | "end" | "activity";
 /** What activities are shaded by, edges thickened by and the Paths cut ranks by. */
 export type Measure = "cases" | "events";
 
-/** What a node prints under its name. `serviceTime` reads Activity Duration. */
-export type NodeFigure = Measure | "serviceTime";
+/**
+ * What an activity prints under its name. `share` is the Group's cases reaching
+ * it over every case it holds; `attribute` reads `DfgView.attribute`.
+ */
+export type NodeMetric = Measure | "share" | "attribute";
 
-/** What an edge prints beside it. `frequency` is the count in `DfgView.measure`; `waiting` reads Transition Time. */
-export type EdgeLabel = "off" | "frequency" | "waiting";
+/**
+ * What an edge prints beside it. `frequency` is the cases that follow it,
+ * `share` those cases over the cases reaching its source, `waiting` reads
+ * Transition Time.
+ */
+export type EdgeLabel = "off" | "frequency" | "share" | "waiting";
 
 /** `scaled` thickens an edge by its count in `DfgView.measure`. */
 export type EdgeWidth = "scaled" | "uniform";
@@ -42,12 +49,13 @@ export interface Rect {
 }
 
 /**
- * How the graph is drawn. A split draws both panels the same way. `figure` and
- * `edgeLabel` name a duration even when it was not built; `shownFigure` and
+ * How the graph is drawn. A split draws both panels the same way. `attribute`
+ * and `edgeLabel` may name what the graph was not built with; `nodeFigure` and
  * `shownEdgeLabel` say what is drawn then.
  */
 export interface DfgView {
-  figure: NodeFigure;
+  figure: NodeMetric;
+  attribute: string | null;
   edgeLabel: EdgeLabel;
   measure: Measure;
   edgeWidth: EdgeWidth;
@@ -58,6 +66,7 @@ export interface DfgView {
 
 export const defaultDfgView: DfgView = {
   figure: "cases",
+  attribute: null,
   edgeLabel: "waiting",
   measure: "cases",
   edgeWidth: "scaled",

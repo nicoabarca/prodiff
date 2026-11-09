@@ -4,35 +4,77 @@
    * rebuild, so these controls stay usable while one runs, and a split draws
    * both panels from the same choices.
    */
+  import { isDurationAttribute } from "$lib/analysis/attributes";
+  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import Segmented from "$lib/components/layout/segmented.svelte";
   import SettingField from "$lib/components/layout/setting-field.svelte";
   import * as Popover from "$lib/components/ui/popover/index.js";
   import type { ResponseDfg } from "$lib/dfg/invokers/types";
   import { resetDisplay, view } from "$lib/dfg/state/view.svelte";
-  import {
-    builtAttributes,
-    displayCaption,
-    shownEdgeLabel,
-    shownFigure
-  } from "$lib/dfg/utils/display";
+  import type { NodeMetric } from "$lib/dfg/types";
+  import { builtAttributes, edgeCaption, shownEdgeLabel } from "$lib/dfg/utils/display";
+  import { figureAttributes, nodeFigure, type FigureAttribute } from "$lib/dfg/utils/figure";
+  import FigureName from "$lib/tree/components/figure-name.svelte";
   import Eye from "@lucide/svelte/icons/eye";
   import { cn } from "$lib/utils";
 
-  let { graph }: { graph: ResponseDfg | null } = $props();
+  let { graph, onChooseAttributes }: { graph: ResponseDfg | null; onChooseAttributes: () => void } =
+    $props();
 
   let open = $state(false);
 
   const built = $derived(builtAttributes(graph));
-  const figure = $derived(shownFigure(view.figure, built));
+  const attributes = $derived(figureAttributes(graph));
+  const figure = $derived(nodeFigure(view, attributes));
+  const numbers = $derived(attributes.filter((attribute) => attribute.kind === "number"));
+  const categories = $derived(attributes.filter((attribute) => attribute.kind === "category"));
+  const hasAttributes = $derived(attributes.length > 0);
+
+  const metric = $derived<NodeMetric>(
+    figure.kind === "number" || figure.kind === "category" ? "attribute" : figure.kind
+  );
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
-  const caption = $derived(displayCaption(view, built));
-  const durationShown = $derived(figure === "serviceTime" || edgeLabel === "waiting");
+  const statisticShown = $derived(figure.kind === "number" || edgeLabel === "waiting");
+
+  function chooseMetric(value: NodeMetric) {
+    view.figure = value;
+    if (value === "attribute" && view.attribute === null) {
+      view.attribute = attributes[0]?.name ?? null;
+    }
+  }
+
+  function chooseAttributes() {
+    open = false;
+    onChooseAttributes();
+  }
 </script>
 
 {#snippet heading(title: string)}
   <div class="flex items-center gap-2">
     <span class="text-muted-foreground text-[0.625rem] font-semibold tracking-wide">{title}</span>
     <span class="bg-border h-px flex-1"></span>
+  </div>
+{/snippet}
+
+{#snippet chips(options: FigureAttribute[])}
+  <div class="flex flex-wrap gap-1">
+    {#each options as option (option.name)}
+      {@const on = figure.kind === option.kind && figure.name === option.name}
+      <button
+        type="button"
+        aria-pressed={on}
+        class={cn(
+          "h-5.5 max-w-full cursor-pointer truncate border px-2 text-[0.6875rem]",
+          !isDurationAttribute(option.name) && "font-mono",
+          on
+            ? "bg-card border-foreground text-foreground font-semibold"
+            : "border-border text-muted-foreground hover:text-foreground font-medium"
+        )}
+        onclick={() => (view.attribute = option.name)}
+      >
+        <AttributeName name={option.name} />{#if option.kind === "category"}{" "}= {option.value}{/if}
+      </button>
+    {/each}
   </div>
 {/snippet}
 
@@ -46,8 +88,12 @@
         {open}
         class="shrink-0 border-r-0 border-l pr-4"
       >
-        {caption.figure}
-        <span class="text-muted-foreground font-normal">· {caption.edges}</span>
+        {#if figure.kind === "events"}
+          Events
+        {:else}
+          <FigureName {figure} statistic={view.statistic} short />
+        {/if}
+        <span class="text-muted-foreground font-normal">· {edgeCaption(view, built)}</span>
       </SettingField>
     {/snippet}
   </Popover.Trigger>
@@ -58,21 +104,49 @@
         <span class="text-xs font-medium">Figure under the name</span>
         <Segmented
           label="Figure under the name"
-          value={figure}
+          value={metric}
           options={[
             { value: "cases" as const, label: "Cases" },
             { value: "events" as const, label: "Events" },
             {
-              value: "serviceTime" as const,
-              label: "Service Time",
-              disabled: !built.serviceTime,
-              title: built.serviceTime
-                ? undefined
-                : "Build with Service Time selected to show this. It needs a start timestamp in the Event Log."
+              value: "share" as const,
+              label: "% of group",
+              title: "The share of the group's cases that reach the activity."
+            },
+            {
+              value: "attribute" as const,
+              label: "Attribute",
+              disabled: !hasAttributes,
+              title: hasAttributes ? undefined : "Build with at least one attribute to show this."
             }
           ]}
-          onchange={(value) => (view.figure = value)}
+          onchange={chooseMetric}
         />
+        {#if metric === "attribute"}
+          <div class="bg-muted/60 border-border flex flex-col gap-1.5 border p-2">
+            {#if numbers.length > 0}
+              <span class="text-muted-foreground text-[0.625rem]">Numbers</span>
+              {@render chips(numbers)}
+            {/if}
+            {#if categories.length > 0}
+              <span class="text-muted-foreground text-[0.625rem]">
+                Categories · share of cases with one value
+              </span>
+              {@render chips(categories)}
+            {/if}
+          </div>
+        {:else if !hasAttributes}
+          <span class="text-muted-foreground text-[0.625rem]">
+            No attribute was built to show here.
+            <button
+              type="button"
+              class="hover:text-foreground cursor-pointer underline"
+              onclick={chooseAttributes}
+            >
+              Choose attributes
+            </button>
+          </span>
+        {/if}
       </div>
     </div>
 
@@ -85,7 +159,16 @@
           value={edgeLabel}
           options={[
             { value: "off" as const, label: "Off" },
-            { value: "frequency" as const, label: "Frequency" },
+            {
+              value: "frequency" as const,
+              label: "Cases",
+              title: "The cases that follow each edge."
+            },
+            {
+              value: "share" as const,
+              label: "% followed",
+              title: "Of the cases reaching the edge's source, the share that follow it."
+            },
             {
               value: "waiting" as const,
               label: "Waiting time",
@@ -95,11 +178,16 @@
           ]}
           onchange={(value) => (view.edgeLabel = value)}
         />
-        {#if edgeLabel === "frequency"}
+        {#if (edgeLabel === "frequency" || edgeLabel === "share") && !built.edgeFrequency}
           <span class="text-muted-foreground text-[0.625rem]">
-            {built.edgeFrequency
-              ? "Cases that follow each edge. Red where how often it is followed differs."
-              : "Cases that follow each edge. Build with Edge Frequency to colour edges by it."}
+            Edges stay grey until Edge Frequency is built.
+            <button
+              type="button"
+              class="hover:text-foreground cursor-pointer underline"
+              onclick={chooseAttributes}
+            >
+              Choose attributes
+            </button>
           </span>
         {/if}
       </div>
@@ -134,7 +222,7 @@
       </span>
     </div>
 
-    <div class={cn("flex flex-col gap-1.5", !durationShown && "opacity-45")}>
+    <div class={cn("flex flex-col gap-1.5", !statisticShown && "opacity-45")}>
       {@render heading("Statistic")}
       <Segmented
         label="Statistic"
