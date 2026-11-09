@@ -78,7 +78,7 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
  * `--effect-2` are fills, paler than the grey edge on a light canvas and darker
  * on a dark one, so the two lower steps tint the grey edge with `--effect-3`.
  */
-const EFFECT_STROKE = {
+export const EFFECT_STROKE = {
   1: "color-mix(in oklab, var(--effect-3) 40%, var(--muted-foreground))",
   2: "color-mix(in oklab, var(--effect-3) 70%, var(--muted-foreground))",
   3: "var(--effect-3)",
