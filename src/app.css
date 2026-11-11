@@ -425,6 +425,30 @@
 }
 
 /*
+ * What a DFG slider adds glows at full strength, then fades out over the rest
+ * of the 3 s, so the eye can follow it. Lasts as long as `FLASH_MS`.
+ */
+.dfg-added {
+  animation: dfg-added-fade 3000ms ease-in 0ms forwards;
+}
+
+@keyframes dfg-added-fade {
+  0%,
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dfg-added {
+    animation-timing-function: steps(1, end);
+  }
+}
+
+/*
  * A hairline shadow marks a Button as pressable. Selected by the variant's own
  * background class: `ghost` and `link` are meant to read flat and carry none.
  * The shadow goes through `--tw-shadow` and repeats Tailwind's composed
@@ -437,11 +461,8 @@
 [data-slot="button"][class~="bg-destructive/10"] {
   --tw-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
   box-shadow:
-    var(--tw-inset-shadow),
-    var(--tw-inset-ring-shadow),
-    var(--tw-ring-offset-shadow),
-    var(--tw-ring-shadow),
-    var(--tw-shadow);
+    var(--tw-inset-shadow), var(--tw-inset-ring-shadow), var(--tw-ring-offset-shadow),
+    var(--tw-ring-shadow), var(--tw-shadow);
 }
 
 .dark [data-slot="button"].bg-primary,
