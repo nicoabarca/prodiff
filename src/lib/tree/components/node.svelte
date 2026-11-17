@@ -63,6 +63,19 @@
       ? '0.125rem'
       : ''};transition-duration:var(--tree-dim-duration)"
   >
+    {#if data.groups.length > 1}
+      <div
+        class="bg-muted absolute inset-x-2 top-1 flex h-[0.1875rem] overflow-hidden rounded-full"
+        aria-hidden="true"
+      >
+        {#each data.groups as group (group.id)}
+          <span
+            style="width:{(data.split[group.id] ?? 0) * 100}%;background:var(--{group.color})"
+          ></span>
+        {/each}
+      </div>
+    {/if}
+
     <div class="flex w-full items-start justify-center gap-1">
       <Tooltip.Root>
         <Tooltip.Trigger class="min-w-0 text-center">

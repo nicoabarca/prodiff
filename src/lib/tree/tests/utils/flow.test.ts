@@ -131,6 +131,16 @@ describe("toFlow", () => {
     expect(dimmedLabels({ focus: "gone" })).toEqual([]);
   });
 
+  it("splits each node's cases between the Groups that reach it", () => {
+    const split = Object.fromEntries(
+      flow()
+        .nodes.map((n) => n.data as TreeNodeData)
+        .map((data) => [data.label, data.split])
+    );
+    expect(split["Both"]).toEqual({ a: 3 / 8, b: 5 / 8 });
+    expect(split["Only a"]).toEqual({ a: 1 });
+  });
+
   it("scales edges by cases, or draws them all one width", () => {
     const widths = (edgeWidth: FlowOptions["edgeWidth"]) =>
       flow({ edgeWidth }).edges.map((edge) => edge.style);
