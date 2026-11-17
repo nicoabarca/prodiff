@@ -8,6 +8,7 @@
   import ViewportAnchor, {
     type ViewportAnchorState
   } from "$lib/tree/components/viewport-anchor.svelte";
+  import { figureAttributes, nodeFigure } from "$lib/tree/utils/figure";
   import { EDGE_LABEL_STYLE, toFlow } from "$lib/tree/utils/flow";
   import { diffKeys } from "$lib/tree/utils/diff";
   import type { Point } from "$lib/tree/utils/layout";
@@ -56,9 +57,7 @@
     })
   );
 
-  const hasAttributes = $derived(
-    Object.keys(tree.nodes[0]?.eventLevel ?? {}).length > 0 || tree.nodes[0]?.transitionTime != null
-  );
+  const attributes = $derived(figureAttributes(tree));
 
   function toggleCollapse(id: number) {
     const next = new Set(view.collapsed);
@@ -70,10 +69,11 @@
   const flow = $derived(
     toFlow(tree, visible, {
       groups: flowGroups,
-      secondary: hasAttributes ? view.secondary : "cases",
+      figure: nodeFigure(view, attributes),
+      statistic: view.statistic,
       focus: view.focus,
       edgeLabels: view.edgeLabels,
-      shading: view.shading,
+      edgeWidth: view.edgeWidth,
       selected: selected.id,
       onToggleCollapse: toggleCollapse
     })

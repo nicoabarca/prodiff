@@ -19,12 +19,22 @@ export const defaultTreeSettings: TreeSettings = {
 /** What a cold build and a freshly seeded picker both open on. */
 export const DEFAULT_COVERAGE = 0.8;
 
-/** What the node face shows under the activity name: `cases`, a Group id, or an attribute. */
-export type Secondary = "cases" | (string & {});
+/**
+ * What the node face shows under the activity name. `share` is a Group's cases
+ * at the node over its whole case count; `attribute` reads `TreeView.attribute`.
+ */
+export type NodeMetric = "cases" | "share" | "attribute";
+
+/** Which figure of a number's summary the node faces and the edge labels show. */
+export type Statistic = "mean" | "median";
+
+/** `cases` scales an edge by the volume flowing through it. */
+export type EdgeWidth = "cases" | "uniform";
 
 /**
- * Which Groups stay at full opacity; the rest are dimmed, never removed.
- * `"all"`, `"shared"`, or one Group's id.
+ * Which nodes stay at full opacity; the rest are dimmed, never removed. `"all"`,
+ * `"shared"` for the nodes every Group reaches, or one Group's id for the nodes
+ * that Group reaches.
  */
 export type GroupFocus = "all" | "shared" | (string & {});
 
@@ -34,19 +44,23 @@ export type GroupFocus = "all" | "shared" | (string & {});
 export interface TreeView {
   significantOnly: boolean;
   collapsed: Set<number>;
-  secondary: Secondary;
+  metric: NodeMetric;
+  attribute: string | null;
+  statistic: Statistic;
   focus: GroupFocus;
   edgeLabels: boolean;
-  shading: boolean;
+  edgeWidth: EdgeWidth;
 }
 
 export const defaultTreeView: TreeView = {
   significantOnly: false,
   collapsed: new Set(),
-  secondary: "cases",
+  metric: "cases",
+  attribute: null,
+  statistic: "mean",
   focus: "all",
   edgeLabels: true,
-  shading: false
+  edgeWidth: "cases"
 };
 
 /** How big a difference is, in words. */

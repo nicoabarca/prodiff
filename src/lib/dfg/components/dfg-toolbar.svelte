@@ -1,12 +1,12 @@
 <script lang="ts">
   /**
    * The graph's settings as a row of fields: what is compared, which Variants,
-   * which attributes are tested, whether it is split, the tests panel, and how
-   * it is drawn.
+   * which attributes are tested, whether it is split, the tests panel, and what
+   * is drawn.
    */
   import ComparisonNote from "$lib/groups/components/comparison-note.svelte";
   import CompareField from "$lib/groups/components/compare-field.svelte";
-  import Settings from "$lib/dfg/components/settings.svelte";
+  import DisplaySettings from "$lib/dfg/components/display-settings.svelte";
   import BuildSettings from "$lib/dfg/components/build-settings.svelte";
   import SplitField from "$lib/dfg/components/split-field.svelte";
   import TestsField from "$lib/dfg/components/tests-field.svelte";
@@ -65,7 +65,5 @@
     {/if}
   </div>
 
-  <div class="flex shrink-0 items-center px-3">
-    <Settings />
-  </div>
+  <DisplaySettings {graph} onChooseAttributes={() => (buildSettingsOpen = true)} />
 </div>

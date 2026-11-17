@@ -17,6 +17,7 @@
   } from "$lib/dfg/state/variants.svelte";
   import { graphFindings, placeIds, placeLight } from "$lib/dfg/utils/findings";
   import { simplify } from "$lib/dfg/utils/simplify";
+  import { builtAttributes } from "$lib/dfg/utils/display";
   import { graphGroups } from "$lib/dfg/utils/groups";
   import { currentProject } from "$lib/event-log/state/projects.svelte";
   import {
@@ -159,6 +160,7 @@
         {#if tests.open}
           <TestsPanel
             {findings}
+            built={builtAttributes(graph)}
             calculating={built.preview !== null && built.testing}
             groupCount={graphGroupsForView.length}
             onClose={() => (tests.open = false)}

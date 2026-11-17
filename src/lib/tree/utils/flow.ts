@@ -5,13 +5,12 @@
  */
 import type { Edge, Node } from "@xyflow/svelte";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
-import type { EffectBand, GroupFocus, Secondary, Visible } from "$lib/tree/types";
+import type { EdgeWidth, EffectBand, GroupFocus, Statistic, Visible } from "$lib/tree/types";
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
-import { isDurationAttribute } from "$lib/analysis/attributes";
+import { nodeFigures, type NodeFigure } from "$lib/tree/utils/figure";
 import { layoutTree } from "$lib/tree/utils/layout";
 import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
-import { formatDuration, formatNumber } from "$lib/format";
-import { pooledMean, shadeSteps, type ShadeScale } from "$lib/groups/utils/shade";
+import { formatDuration } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
 // lines inside it.
@@ -19,6 +18,7 @@ export const NODE_WIDTH = 170;
 export const NODE_HEIGHT = 80;
 const RANK_SEP = 60;
 const NODE_SEP = 24;
+const UNIFORM_EDGE_WIDTH = 1.5;
 
 // Svelte Flow draws an edge label in a portal outside the edge group, so a
 // class on the edge never reaches it and its dimming rides on this style.
@@ -52,8 +52,7 @@ export interface TreeNodeData {
   root: boolean;
   membership: string;
   groups: FlowGroup[];
-  secondaries: (string | null)[];
-  shadeStep: number | null;
+  figures: (string | null)[];
   significantCount: number;
   peakBand: EffectBand | null;
   peakStep: 1 | 2 | 3 | 4 | null;
@@ -74,87 +73,24 @@ function significantCount(node: TreeNode): number {
   return blocks.filter((block) => block?.test?.significant).length;
 }
 
-/**
- * The node's second line, one entry per Group so each carries its colour. An
- * entry is `null` when that Group has nothing at this node.
- *
- * `secondary` is either `"cases"`, one Group's id, which shows that Group's
- * count alone, or an attribute name, which shows its mean.
- */
-function secondaryLabels(
-  node: TreeNode,
-  secondary: Secondary,
-  cases: Record<string, number>,
-  ids: string[]
-): (string | null)[] {
-  if (secondary === "cases" || ids.includes(secondary)) {
-    return ids.map((id) => {
-      const count = cases[id] ?? 0;
-      if (count === 0) return null;
-      return secondary !== "cases" && secondary !== id ? null : formatNumber(count);
-    });
-  }
-
-  const block = secondary === "Transition Time" ? node.transitionTime : node.eventLevel[secondary];
-  const format = (value: number) =>
-    isDurationAttribute(secondary) ? formatDuration(value) : formatNumber(Math.round(value));
-  return ids.map((id) => {
-    const summary = block?.summaries[id];
-    return summary?.type === "numerical" ? format(summary.mean) : null;
-  });
-}
-
-/**
- * The figure a node's shade is drawn from, following `secondary` as the face
- * does: the cases shown summed over the Groups, one Group's cases, or an
- * attribute's mean pooled over the Groups by their case counts. `null` for the
- * Start root and wherever the face has nothing to show.
- */
-export function shadeValue(
-  node: TreeNode,
-  secondary: Secondary,
-  cases: Record<string, number>,
-  ids: string[]
-): number | null {
-  if (node.parent === null) return null;
-  if (secondary === "cases" || ids.includes(secondary)) {
-    const counted = secondary === "cases" ? ids : [secondary];
-    const total = counted.reduce((sum, id) => sum + (cases[id] ?? 0), 0);
-    return total === 0 ? null : total;
-  }
-  const block = secondary === "Transition Time" ? node.transitionTime : node.eventLevel[secondary];
-  return pooledMean(
-    ids.flatMap((id) => {
-      const summary = block?.summaries[id];
-      return summary?.type === "numerical" ? [{ mean: summary.mean, n: summary.n }] : [];
-    })
-  );
-}
-
-/** Counts and durations spread on a log scale, any other attribute linearly. */
-export function shadeScale(secondary: Secondary, ids: string[]): ShadeScale {
-  if (secondary === "cases" || ids.includes(secondary) || isDurationAttribute(secondary)) {
-    return "log";
-  }
-  return "linear";
-}
-
+/** A focus naming a Group no longer compared dims nothing. */
 function dimmed(node: TreeNode, focus: GroupFocus, ids: string[]): boolean {
-  if (focus === "all") return false;
-  return membership(node, ids) !== focus;
+  if (focus === "shared") return ids.length > 1 && membership(node, ids) !== "shared";
+  return ids.includes(focus) && groupCasesAt(node, focus) === 0;
 }
 
 export interface FlowOptions {
   groups: FlowGroup[];
-  secondary: Secondary;
+  figure: NodeFigure;
+  statistic: Statistic;
   focus: GroupFocus;
   edgeLabels: boolean;
-  shading: boolean;
+  edgeWidth: EdgeWidth;
   selected: number | null;
   onToggleCollapse: (id: number) => void;
 }
 
-/** One Group's mean Transition Time on an edge, drawn beside a dot in its colour. */
+/** One Group's Transition Time on an edge, drawn beside a dot in its colour. */
 export interface EdgeWait {
   id: string;
   color: string;
@@ -167,22 +103,23 @@ export interface TreeEdgeData {
 }
 
 /**
- * The edge's label: mean Transition Time per Group, in the order compared.
- * Empty unless Transition Time was one of the attributes built.
+ * The edge's label: Transition Time per Group, in the order compared. Empty
+ * unless Transition Time was one of the attributes built.
  */
-export function edgeWaits(node: TreeNode, groups: FlowGroup[]): EdgeWait[] {
+export function edgeWaits(node: TreeNode, groups: FlowGroup[], statistic: Statistic): EdgeWait[] {
   const block = node.transitionTime;
   if (!block) return [];
   return groups.flatMap((group) => {
     const summary = block.summaries[group.id];
     if (summary?.type !== "numerical") return [];
-    return [{ id: group.id, color: group.color, value: formatDuration(summary.mean) }];
+    return [{ id: group.id, color: group.color, value: formatDuration(summary[statistic]) }];
   });
 }
 
 /**
- * Lays out the visible part of the tree. Edge thickness is the combined case
- * volume flowing into the child, scaled against the busiest edge on screen.
+ * Lays out the visible part of the tree. Unless the view asks for a uniform
+ * width, edge thickness is the combined case volume flowing into the child,
+ * scaled against the busiest edge on screen.
  */
 export function toFlow(
   tree: ResponseDirectedTree,
@@ -209,21 +146,12 @@ export function toFlow(
   });
 
   const busiest = Math.max(1, ...casesById.values());
-  const steps = new Map(
-    shadeSteps(
-      shown.map((node) =>
-        shadeValue(node, options.secondary, visible.cases.get(node.id) ?? {}, ids)
-      ),
-      shadeScale(options.secondary, ids)
-    ).map((step, index) => [shown[index].id, step])
-  );
   // The Start root is synthetic, so the edges leaving it are drawn dashed.
   const roots = new Set(shown.filter((node) => node.parent === null).map((node) => node.id));
 
   const nodes: Node[] = shown.map((node) => {
     const point = placed.get(node.id) ?? { x: 0, y: 0 };
     const cases = visible.cases.get(node.id) ?? {};
-    const secondaries = secondaryLabels(node, options.secondary, cases, ids);
     const peak = peakEffect(node);
     const key = keys.get(node.id) as string;
     return {
@@ -239,8 +167,7 @@ export function toFlow(
         root: node.parent === null,
         membership: membership(node, ids),
         groups: options.groups,
-        secondaries,
-        shadeStep: options.shading ? (steps.get(node.id) ?? null) : null,
+        figures: nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
@@ -265,14 +192,16 @@ export function toFlow(
       target: keys.get(node.id) as string,
       type: "wait",
       data: {
-        waits: options.edgeLabels ? edgeWaits(node, options.groups) : []
+        waits: options.edgeLabels ? edgeWaits(node, options.groups, options.statistic) : []
       } satisfies TreeEdgeData,
       labelStyle: dimmed(node, options.focus, ids)
         ? `${EDGE_LABEL_STYLE};opacity:0.25`
         : EDGE_LABEL_STYLE,
-      style: `stroke-width:${(0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5).toFixed(2)}${
-        roots.has(node.parent as number) ? ";stroke-dasharray:4 3" : ""
-      }`,
+      style: `stroke-width:${
+        options.edgeWidth === "uniform"
+          ? UNIFORM_EDGE_WIDTH
+          : (0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5).toFixed(2)
+      }${roots.has(node.parent as number) ? ";stroke-dasharray:4 3" : ""}`,
       // Significance is a property of nodes, so dimming follows the child.
       class: dimmed(node, options.focus, ids) ? "opacity-25" : undefined
     }));

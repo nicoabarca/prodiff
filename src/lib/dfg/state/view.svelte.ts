@@ -2,9 +2,9 @@ import { defaultDfgView, type DfgView } from "$lib/dfg/types";
 import { placeKey, type Place } from "$lib/dfg/utils/findings";
 
 /**
- * The measures on the faces, the direction and the split. Every one of them is
- * answered from the graph already in hand, so none reaches the backend and none
- * is persisted.
+ * What the faces and edges print, the count they are shaded and thickened by,
+ * the direction and the split. Every one of them is answered from the graph
+ * already in hand, so none reaches the backend and none is persisted.
  */
 export const view = $state<DfgView>({ ...defaultDfgView });
 
@@ -94,6 +94,12 @@ export function inspect(place: Place) {
 /** Back to every test on the graph. */
 export function clearInspected() {
   inspected.place = null;
+}
+
+/** Everything the Display panel sets back to its default, leaving the split as it is. */
+export function resetDisplay() {
+  const { split: _split, ...display } = defaultDfgView;
+  Object.assign(view, display);
 }
 
 export function reset() {

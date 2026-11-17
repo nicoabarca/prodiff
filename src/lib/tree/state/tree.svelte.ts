@@ -87,6 +87,12 @@ export async function deleteSettings(projectId: string) {
   if (settings.projectId === projectId) settings.value = { ...defaultTreeSettings };
 }
 
+/** Back to what the Display popover opens on. What is collapsed stays collapsed. */
+export function resetDisplay() {
+  const { collapsed: _collapsed, ...display } = defaultTreeView;
+  Object.assign(view, display);
+}
+
 export function resetBuildView() {
   selected.id = null;
   view.collapsed = new Set();

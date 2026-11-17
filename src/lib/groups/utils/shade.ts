@@ -42,18 +42,6 @@ export function shadeSteps(values: (number | null)[], scale: ShadeScale): (numbe
   });
 }
 
-/** The mean over every case, from per-Group means and their case counts. */
-export function pooledMean(parts: { mean: number; n: number }[]): number | null {
-  let cases = 0;
-  let total = 0;
-  for (const part of parts) {
-    if (part.n <= 0) continue;
-    cases += part.n;
-    total += part.mean * part.n;
-  }
-  return cases === 0 ? null : total / cases;
-}
-
 /**
  * CSS colours for a node drawn in the colour token `color` at `step`. `ink` is
  * the text colour, in the fill's own hue: a dark shade of it on a light fill and

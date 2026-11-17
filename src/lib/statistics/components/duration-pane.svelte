@@ -7,7 +7,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxRows from "$lib/statistics/components/box-rows.svelte";
   import ColumnHead from "$lib/statistics/components/column-head.svelte";
-  import Segmented from "$lib/statistics/components/segmented.svelte";
+  import Segmented from "$lib/components/layout/segmented.svelte";
   import Table2 from "@lucide/svelte/icons/table-2";
 
   let {

@@ -109,7 +109,7 @@
             <div class="flex min-h-0 flex-1">
               <div class="relative flex min-h-0 min-w-0 flex-1" data-tour="tree-canvas">
                 <Canvas tree={built.tree} />
-                <ViewLegend />
+                <ViewLegend tree={built.tree} />
                 {#if import.meta.env.DEV}
                   {#await import("$lib/devtools/tree/components/tree-inspector.svelte") then { default: TreeInspector }}
                     <TreeInspector tree={built.tree} />

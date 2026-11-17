@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pooledMean, shade, shadeSteps } from "$lib/groups/utils/shade";
+import { shade, shadeSteps } from "$lib/groups/utils/shade";
 
 describe("shadeSteps", () => {
   it("spreads values linearly between the smallest and the largest", () => {
@@ -28,31 +28,6 @@ describe("shadeSteps", () => {
   it("returns only missing values when nothing has one", () => {
     expect(shadeSteps([null, null], "linear")).toEqual([null, null]);
     expect(shadeSteps([], "linear")).toEqual([]);
-  });
-});
-
-describe("pooledMean", () => {
-  it("weights each mean by its case count", () => {
-    expect(
-      pooledMean([
-        { mean: 10, n: 1 },
-        { mean: 40, n: 3 }
-      ])
-    ).toBe(32.5);
-  });
-
-  it("ignores parts with no cases", () => {
-    expect(
-      pooledMean([
-        { mean: 10, n: 0 },
-        { mean: 40, n: 2 }
-      ])
-    ).toBe(40);
-  });
-
-  it("is missing when nothing carries a case", () => {
-    expect(pooledMean([])).toBeNull();
-    expect(pooledMean([{ mean: 5, n: 0 }])).toBeNull();
   });
 });
 
