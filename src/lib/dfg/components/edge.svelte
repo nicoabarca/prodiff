@@ -35,6 +35,23 @@
   />
 </g>
 
+{#if edge.added}
+  {#key edge.added}
+    <g
+      class="dfg-added pointer-events-none"
+      style="filter:drop-shadow(0 0 0.25rem rgb(99 102 241 / 0.9)) drop-shadow(0 0 0.75rem rgb(99 102 241 / 0.5))"
+    >
+      <path
+        d={edge.shaft}
+        fill="none"
+        stroke="var(--color-indigo-500)"
+        stroke-width={Math.max(edge.width, 2).toFixed(2)}
+      />
+      <path d={edge.head} fill="var(--color-indigo-500)" stroke="none" />
+    </g>
+  {/key}
+{/if}
+
 {#if edge.waits.length > 0}
   <EdgeLabel x={edge.labelAt.x} y={edge.labelAt.y} transparent>
     <span

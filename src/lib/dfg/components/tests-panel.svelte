@@ -29,16 +29,19 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import ChevronsDownUp from "@lucide/svelte/icons/chevrons-down-up";
   import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
+  import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import X from "@lucide/svelte/icons/x";
 
   let {
     findings,
+    calculating = false,
     groupCount,
     onClose,
     onCompare,
     onChooseAttributes
   }: {
     findings: Finding[];
+    calculating?: boolean;
     groupCount: number;
     onClose: () => void;
     onCompare: () => void;
@@ -184,6 +187,11 @@
       </p>
       <Button size="sm" onclick={onCompare}>Choose a second group</Button>
     </div>
+  {:else if calculating}
+    <p class="text-muted-foreground flex items-center gap-2 p-4 text-xs">
+      <LoaderCircle class="size-3.5 animate-spin" />
+      Calculating tests for the variants on screen…
+    </p>
   {:else if activity}
     <ScrollArea.Root class="min-h-0 flex-1">
       {#each differences as finding (finding.key)}

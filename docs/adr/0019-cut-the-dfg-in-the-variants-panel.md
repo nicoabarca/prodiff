@@ -1,5 +1,7 @@
 # The DFG is cut in the Variants panel, before the build
 
+**Status:** The Paths cut and the staging through the Variants panel are superseded by [ADR 0023](0023-dfg-sliders-on-the-canvas.md). The Behaviour cut and the seeding stand.
+
 The Behaviour and Paths sliders used to cut the drawing only. `simplify()` hid Variants, activities and edges from the graph Rust had built, but every Significance Test, and the Benjamini-Hochberg correction across each attribute's family, had been computed over every Variant the panel selected. The tests panel listed only the places on screen, yet each test described cases that were no longer drawn, and whether a place read as significant depended on places the reader could not see. The tests could not be trusted to mean what the picture suggested.
 
 **Both sliders now stage Variants in the Variants panel.** Behaviour is the coverage slider the panel already had for the tree: the most common Variants up to a share of the cases. Paths keeps, out of those, only the Variants every one of whose transitions survives the busiest-path cut: each Group's busiest share of transitions plus every activity's busiest way in and way out, the same cut `simplify()` used to draw. A Variant that runs a rarer transition is left out whole. Apply sends the staged keys to `dfg`, which already cuts before aggregating, and the canvas draws every Variant the graph was built from. What is drawn, what is counted and what is tested are the same cases.

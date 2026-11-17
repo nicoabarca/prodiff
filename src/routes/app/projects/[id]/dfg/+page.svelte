@@ -2,14 +2,16 @@
   import ComparisonRefused from "$lib/groups/components/comparison-refused.svelte";
   import * as Empty from "$lib/components/ui/empty/index.js";
   import Canvas from "$lib/dfg/components/canvas.svelte";
+  import CanvasCuts from "$lib/dfg/components/canvas-cuts.svelte";
   import DfgToolbar from "$lib/dfg/components/dfg-toolbar.svelte";
   import SplitCanvas from "$lib/dfg/components/split-canvas.svelte";
   import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
   import CaseStrip from "$lib/tree/components/case-strip.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
-  import { built, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
-  import { pointed, pointedPlace, refit, splitting, tests } from "$lib/dfg/state/view.svelte";
+  import { built, drawnGraph, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
+  import { pointed, pointedPlace, refit, splitting, tests, view } from "$lib/dfg/state/view.svelte";
   import {
+    cuts,
     loadSettings as loadVariantSettings,
     settings as variantSettings
   } from "$lib/dfg/state/variants.svelte";
@@ -29,14 +31,21 @@
 
   const project = $derived(currentProject());
   const stale = $derived(isStale(project));
+  const graph = $derived(drawnGraph());
+  /** A preview is drawn in full: what it lacks is the tests, which the panel and the canvas say. */
+  const dimmed = $derived(stale && built.preview === null);
   const split = $derived(splitting(comparedGroups().length));
-  const graphGroupsForView = $derived(
-    built.graph && project ? graphGroups(built.graph, project.id) : []
+  const graphGroupsForView = $derived(graph && project ? graphGroups(graph, project.id) : []);
+  const simplified = $derived(
+    graph
+      ? simplify(graph, {
+          share: cuts.paths / 100,
+          groups: graph.groups.map((group) => group.id),
+          measure: view.measure
+        })
+      : null
   );
-  const simplified = $derived(built.graph ? simplify(built.graph) : null);
-  const findings = $derived(
-    built.graph && simplified ? graphFindings(built.graph, simplified) : []
-  );
+  const findings = $derived(graph && simplified ? graphFindings(graph, simplified) : []);
   const frameOn = $derived({
     ids: pointed.place ? placeIds(pointed.place) : [],
     at: pointed.at
@@ -85,15 +94,17 @@
     />
 
     {#if built.graph && !relationRefused()}
-      <CaseStrip
-        caseLevel={built.graph.caseLevel}
-        groupIds={built.graph.groups.map((group) => group.id)}
-      />
+      <div class="shrink-0 transition-opacity {built.preview ? 'opacity-50' : ''}">
+        <CaseStrip
+          caseLevel={built.graph.caseLevel}
+          groupIds={built.graph.groups.map((group) => group.id)}
+        />
+      </div>
     {/if}
 
     {#if relationRefused()}
       <ComparisonRefused {project} />
-    {:else if built.graph && simplified}
+    {:else if graph && simplified}
       <div class="flex min-h-0 flex-1">
         {#if variantsOpen}
           <VariantPanel {project} {simplified} onClose={() => (variantsOpen = false)} />
@@ -101,32 +112,40 @@
         <div class="relative flex min-h-0 min-w-0 flex-1">
           {#if split}
             <SplitCanvas
-              graph={built.graph}
+              {graph}
               {simplified}
               {findings}
               groups={graphGroupsForView}
-              {stale}
+              stale={dimmed}
               {frameOn}
               {spotlight}
             />
           {:else}
             <Canvas
-              graph={built.graph}
+              {graph}
               {simplified}
               {findings}
               groups={graphGroupsForView}
-              {stale}
+              stale={dimmed}
               refitAt={refit.at}
               {frameOn}
               {spotlight}
             />
           {/if}
+          <CanvasCuts {project} {simplified} groups={graph.groups.map((group) => group.id)} />
           {#if import.meta.env.DEV}
             {#await import("$lib/devtools/dfg/components/dfg-inspector.svelte") then { default: DfgInspector }}
-              <DfgInspector graph={built.graph} {simplified} />
+              <DfgInspector {graph} {simplified} />
             {/await}
           {/if}
-          {#if built.building}
+          {#if built.preview}
+            <p
+              class="bg-background/90 text-muted-foreground absolute top-3 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2 rounded-md border px-2.5 py-1 text-xs shadow-sm"
+            >
+              <LoaderCircle class="size-3.5 animate-spin" />
+              {built.testing ? "Calculating tests…" : "Building the graph…"}
+            </p>
+          {:else if built.building}
             <div
               class="bg-background/50 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-xs"
             >
@@ -140,6 +159,7 @@
         {#if tests.open}
           <TestsPanel
             {findings}
+            calculating={built.preview !== null && built.testing}
             groupCount={graphGroupsForView.length}
             onClose={() => (tests.open = false)}
             onCompare={() => (comparing = true)}

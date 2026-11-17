@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Counts, DfgNode, ResponseDfg, Variant } from "$lib/dfg/invokers/types";
-import { simplify } from "$lib/dfg/utils/simplify";
+import { addedSince, simplify } from "$lib/dfg/utils/simplify";
 
 const A = 2;
 const B = 3;
@@ -93,5 +93,39 @@ describe("simplify", () => {
     ]);
 
     expect(simplify(graph).variants.keys).toEqual(new Set([keyOf([A, B]), keyOf([A, C, D, E])]));
+  });
+
+  it("hides the rarer edges the Paths cut drops and counts them", () => {
+    const graph = graphOf([
+      [[A, B, D], { a: 90 }],
+      [[A, C, D], { a: 9 }],
+      [[A, B, C, D], { a: 1 }]
+    ]);
+
+    const whole = simplify(graph);
+    const cut = simplify(graph, { share: 0, groups: ["a"], measure: "cases" });
+
+    expect(whole.hidden).toBe(0);
+    expect(pairs(cut.edges)).not.toContain(`${B}->${C}`);
+    expect(cut.hidden).toBe(whole.edges.length - cut.edges.length);
+    expect(cut.nodes).toEqual(whole.nodes);
+    expect(cut.folded).toEqual(whole.edges);
+  });
+});
+
+describe("addedSince", () => {
+  it("names the nodes and edges the later graph draws that the earlier did not", () => {
+    const before = simplify(graphOf([[[A, B], { a: 3 }]]));
+    const after = simplify(
+      graphOf([
+        [[A, B], { a: 3 }],
+        [[A, C], { a: 1 }]
+      ])
+    );
+
+    expect(addedSince(before, after)).toEqual({
+      nodes: new Set([String(C)]),
+      edges: new Set([`${A}->${C}`, `${C}->1`])
+    });
   });
 });

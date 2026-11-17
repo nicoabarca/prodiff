@@ -1,16 +1,16 @@
 <script lang="ts">
   /**
-   * The shared Variants panel, staging against the graph's selection through
-   * the Behaviour and Paths sliders.
+   * The shared Variants panel, staging against the graph's selection. Picking
+   * by hand and applying leaves the Behaviour slider at the coverage the
+   * picked Variants hold.
    */
   import VariantPanel from "$lib/components/variant-panel/variant-panel.svelte";
-  import VariantCuts from "$lib/dfg/components/variant-cuts.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import {
-    applyCuts,
+    applyPicked,
     isStagedDirty,
     loadVariants,
-    resetCuts,
+    resetStaged,
     selectedVariants,
     setStaged,
     shownVariant,
@@ -57,11 +57,7 @@
   onStage={setStaged}
   onToggle={toggleStaged}
   onHighlight={(key) => (shownVariant.key = shownVariant.key === key ? null : key)}
-  onReset={resetCuts}
-  onApply={() => applyCuts(project)}
+  onReset={resetStaged}
+  onApply={() => applyPicked(project)}
   {onClose}
->
-  {#snippet cuts()}
-    <VariantCuts {groups} rows={variants.rows} staged={stagedVariants()} onStage={setStaged} />
-  {/snippet}
-</VariantPanel>
+/>

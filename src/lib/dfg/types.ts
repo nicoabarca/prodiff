@@ -72,7 +72,8 @@ export interface FaceGroup {
  * `focus` names the one Group a split panel prints; `null` is the comparative
  * canvas, which prints every Group it was given. `membership` is the Group whose
  * accent the node reads in, `null` being the Original's grey: on a split panel
- * only an activity that Group alone reaches carries an accent.
+ * only an activity that Group alone reaches carries an accent. `added` is the
+ * slider move that added the node, which it glows for, or 0.
  */
 export interface DfgNodeData {
   label: string;
@@ -86,10 +87,12 @@ export interface DfgNodeData {
   direction: Direction;
   highlighted: boolean;
   dimmed: boolean;
+  added: number;
   focus: string | null;
   [key: string]: unknown;
 }
 
+/** `added` is the slider move that added the edge, which it glows for, or 0. */
 export interface DfgEdgeData {
   shaft: string;
   head: string;
@@ -102,5 +105,6 @@ export interface DfgEdgeData {
   clickable: boolean;
   highlighted: boolean;
   dimmed: boolean;
+  added: number;
   [key: string]: unknown;
 }

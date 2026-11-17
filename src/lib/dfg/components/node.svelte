@@ -27,6 +27,17 @@
   isConnectable={false}
 />
 
+{#if data.added}
+  {#key data.added}
+    <span
+      class="dfg-added pointer-events-none absolute -inset-0.5 z-10 border-2 border-indigo-500 shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)] {boundary
+        ? 'rounded-full'
+        : 'rounded-[0.625rem]'}"
+      aria-hidden="true"
+    ></span>
+  {/key}
+{/if}
+
 {#if boundary}
   <Tooltip.Root>
     <Tooltip.Trigger
