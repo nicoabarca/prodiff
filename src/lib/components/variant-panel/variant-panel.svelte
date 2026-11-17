@@ -9,7 +9,7 @@
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { Slider } from "$lib/components/ui/slider/index.js";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
-  import VariantRow from "$lib/components/variant-panel/variant-row.svelte";
+  import VariantRow, { rowHeight } from "$lib/components/variant-panel/variant-row.svelte";
   import VariantVenn, {
     type VennRegion,
     type VennState
@@ -62,9 +62,11 @@
 
   const MIN_WIDTH = 28.75;
   const MAX_WIDTH = 61.25;
-  const ROW_HEIGHT = 88;
   /** What the minus and plus buttons move the coverage by, in percent. */
   const COVERAGE_STEP = 10;
+
+  /** Pixels per rem, which the virtual list measures rows in. */
+  const remPx = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
 
   /** Panel width in rem, dragged on the handle at its right edge. */
   let width = $state(40);
@@ -185,9 +187,8 @@
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = width;
-    const step = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
     const move = (moved: PointerEvent) => {
-      const next = startWidth + (moved.clientX - startX) / step;
+      const next = startWidth + (moved.clientX - startX) / remPx;
       width = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, next));
     };
     const up = () => {
@@ -283,7 +284,7 @@
         >
           Clear
         </Button>
-        <div class="ml-auto flex min-w-40 flex-1 items-center gap-2">
+        <div class="flex basis-full items-center gap-2">
           <span class="text-muted-foreground text-[0.625rem] whitespace-nowrap">Coverage</span>
           <Slider
             type="single"
@@ -335,28 +336,15 @@
     {/if}
 
     <div
-      class="text-muted-foreground flex shrink-0 items-end gap-2 border-b px-3 pt-1.5 pb-1 text-[0.625rem] tracking-wide uppercase"
+      class="text-muted-foreground flex shrink-0 items-center gap-2 border-b px-3 py-1.5 text-[0.625rem] tracking-wide whitespace-nowrap uppercase"
     >
       <span class="w-4 shrink-0"></span>
       <span class="w-3.5 shrink-0"></span>
       <span class="w-8 shrink-0">#</span>
-      <span class="min-w-0 flex-1"></span>
-      {#each columns as group (group.id)}
-        <span class="flex shrink-0 flex-col items-end gap-0.5">
-          <span
-            class="max-w-36 truncate font-semibold"
-            style="color:{accents[group.id]}"
-            title={group.name}
-          >
-            {columns.length > 1 ? group.name : "Cases"}
-          </span>
-          <span class="flex gap-1.5 text-right">
-            <span class="w-12">Cases</span>
-            <span class="w-11 truncate">% Cases</span>
-            <span class="w-12">Events</span>
-          </span>
-        </span>
-      {/each}
+      <span class="min-w-0 flex-1 truncate">Variant</span>
+      <span class="min-w-14 text-right" title="Cases that follow this variant">Cases</span>
+      <span class="min-w-14 text-right" title="Events in those cases">Events</span>
+      <span class="w-24 shrink-0 text-right" title="Share of the Group's cases"> % of Group </span>
     </div>
 
     {#if loading}
@@ -366,7 +354,7 @@
         {/each}
       </div>
     {:else}
-      <VirtualList items={rows} rowHeight={ROW_HEIGHT}>
+      <VirtualList items={rows} rowHeight={rowHeight(columns.length) * remPx}>
         {#snippet row(item: ResponseVariantRow)}
           <VariantRow
             row={item}
