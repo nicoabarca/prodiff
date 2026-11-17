@@ -2,7 +2,6 @@
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
@@ -11,6 +10,7 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
+  import VariantSteps from "$lib/tree/components/variant-steps.svelte";
   import { colorVar, formatNumber } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock } from "$lib/analysis/types";
@@ -214,26 +214,7 @@
     </div>
   {:else}
     <div class="border-border flex shrink-0 flex-col gap-2.5 border-b px-4 pt-3.5 pb-3">
-      <Breadcrumb.Root>
-        <Breadcrumb.List
-          class="flex-nowrap gap-1 overflow-hidden text-[0.625rem] whitespace-nowrap"
-        >
-          {#each path as step, i (step.id)}
-            {#if i > 0}
-              <Breadcrumb.Separator class="[&>svg]:size-2.5" />
-            {/if}
-            <Breadcrumb.Item class={cn("min-w-0", i === path.length - 1 && "shrink-0")}>
-              {#if i === path.length - 1}
-                <Breadcrumb.Page class="text-muted-foreground truncate text-[0.625rem]">
-                  {step.label}
-                </Breadcrumb.Page>
-              {:else}
-                <span class="truncate" title={step.label}>{step.label}</span>
-              {/if}
-            </Breadcrumb.Item>
-          {/each}
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
+      <VariantSteps steps={path.filter((step) => step.parent !== null)} />
 
       <div class="flex items-start justify-between gap-2">
         <div class="flex min-w-0 flex-col gap-1.5">
