@@ -5,7 +5,7 @@
 import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Statistic, TreeView } from "$lib/tree/types";
-import { formatDuration, formatNumber } from "$lib/format";
+import { formatDuration, formatNumber, formatPercent } from "$lib/format";
 
 /** A category is shown as the share of cases holding `value`, its commonest one on the tree. */
 export type FigureAttribute =
@@ -81,10 +81,6 @@ export function nodeFigure(
   );
 }
 
-function percent(share: number): string {
-  return `${(share * 100).toFixed(1)}%`;
-}
-
 /**
  * A node's figure, one entry per Group in `tree.groups` order so each carries
  * its colour. An entry is `null` when that Group has nothing to show there.
@@ -103,7 +99,7 @@ export function nodeFigures(
     if (figure.kind === "cases") return count === 0 ? null : formatNumber(count);
     if (figure.kind === "share") {
       const total = Number(group.caseCount);
-      return count === 0 || total === 0 ? null : percent(count / total);
+      return count === 0 || total === 0 ? null : formatPercent(count / total);
     }
 
     const block =
@@ -111,7 +107,7 @@ export function nodeFigures(
     const summary = block?.summaries[group.id];
     if (figure.kind === "category") {
       return summary?.type === "categorical" && summary.n > 0
-        ? percent((summary.counts[figure.value] ?? 0) / summary.n)
+        ? formatPercent((summary.counts[figure.value] ?? 0) / summary.n)
         : null;
     }
     if (summary?.type !== "numerical") return null;

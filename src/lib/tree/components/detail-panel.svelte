@@ -11,7 +11,7 @@
   import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import VariantSteps from "$lib/tree/components/variant-steps.svelte";
-  import { colorVar, formatNumber } from "$lib/format";
+  import { colorVar, formatNumber, formatPercent } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
@@ -19,7 +19,7 @@
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
-  import { membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
+  import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
@@ -61,14 +61,13 @@
   const member = $derived(node ? membership(node, ids) : "shared");
   const memberGroup = $derived(groups.find((group) => group.id === member) ?? null);
 
-  /** Each Group's cases at this node, as a share of all its cases in the tree. */
-  const reach = $derived(
-    drawn.map((group) => {
-      const count = cases?.[group.id] ?? 0;
-      const total = tree.groups.find((g) => g.id === group.id)?.caseCount ?? 0;
-      return { group, count, share: total > 0 ? Math.round((count / total) * 100) : 0 };
-    })
-  );
+  /** Each Group's cases at this node and its part of them, from 0 to 1. */
+  const split = $derived.by(() => {
+    const counts = Object.fromEntries(drawn.map((group) => [group.id, cases?.[group.id] ?? 0]));
+    const parts = caseSplit(counts);
+    return drawn.map((group) => ({ group, count: counts[group.id], part: parts[group.id] }));
+  });
+  const casesHere = $derived(split.reduce((sum, { count }) => sum + count, 0));
 
   /**
    * Attributes strongest first, split by Standing. At a few thousand cases per
@@ -277,34 +276,31 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.25">
-        {#each reach as { group, count, share } (group.id)}
-          <div class="grid grid-cols-[5.75rem_minmax(0,1fr)_6.75rem] items-center gap-2">
-            <span class="flex items-center gap-1.25 truncate text-[0.6875rem] font-medium">
-              <span
-                class="size-2 shrink-0 rounded-full"
-                style="background:{colorVar(group.color)}"
-                aria-hidden="true"
-              ></span>
-              <span class="truncate">{group.name}</span>
-            </span>
-            <span class="bg-muted relative h-1.5">
-              <span
-                class="absolute inset-y-0 left-0"
-                style="width:{share}%;background:{colorVar(group.color)}"
-              ></span>
-            </span>
-            <span
-              class="text-muted-foreground text-right font-mono text-[0.625rem] whitespace-nowrap"
-            >
-              {formatNumber(count)} · {share}%
-            </span>
+      {#if compare}
+        <div class="flex flex-col gap-1">
+          <div
+            class="flex justify-between gap-2 font-mono text-[0.625rem] font-medium tabular-nums"
+          >
+            {#each split as { group, count, part } (group.id)}
+              <span style="color:{colorVar(group.color)}">
+                {formatNumber(count)} ({formatPercent(part)})
+              </span>
+            {/each}
           </div>
-        {/each}
-        <span class="text-muted-foreground text-[0.625rem]">
-          Share of each group's cases that reach this node
+          <div class="bg-muted flex h-1.5" aria-hidden="true">
+            {#each split as { group, part } (group.id)}
+              <span style="width:{part * 100}%;background:{colorVar(group.color)}"></span>
+            {/each}
+          </div>
+          <span class="text-muted-foreground text-[0.625rem]">
+            Split of the {formatNumber(casesHere)} cases at this node between the groups
+          </span>
+        </div>
+      {:else}
+        <span class="text-muted-foreground text-[0.6875rem]">
+          {formatNumber(casesHere)} cases at this node
         </span>
-      </div>
+      {/if}
     </div>
 
     {#if flat.length === 0}
