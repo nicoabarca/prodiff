@@ -7,6 +7,7 @@
    * compared is refused here.
    */
   import * as Select from "$lib/components/ui/select/index.js";
+  import Fit from "$lib/components/fit/fit.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import type { Project } from "$lib/event-log/types";
@@ -227,9 +228,11 @@
           {#if group}
             {@render dot(group)}
           {/if}
-          <span class={cn("truncate", value === NO_GROUP && "text-muted-foreground")}>
-            {name(value)}
-          </span>
+          <Fit
+            text={name(value)}
+            focusable={false}
+            class={cn(value === NO_GROUP && "text-muted-foreground")}
+          />
         </span>
       </Select.Trigger>
       <Select.Content>
@@ -263,7 +266,7 @@
   >
     <span class="flex min-w-0 items-center gap-1.5 font-medium">
       {@render dot(original)}
-      <span class="truncate">{original.name}</span>
+      <span class="min-w-0 [overflow-wrap:break-word]">{original.name}</span>
     </span>
     {#if originalAlone}
       {@render inUseMark()}
@@ -292,13 +295,15 @@
           disabled={busy !== null}
           onclick={() => compare(saved)}
         >
-          <span class="flex min-w-0 items-center gap-1.5 font-medium">
+          <span class="flex min-w-0 flex-col gap-0.5 font-medium">
             {#each resolve(saved.groupIds) as group, i (group.id)}
-              {#if i > 0}
-                <span class="text-muted-foreground font-normal">vs</span>
-              {/if}
-              {@render dot(group)}
-              <span class="truncate">{group.name}</span>
+              <span class="flex min-w-0 items-center gap-1.5">
+                {#if i > 0}
+                  <span class="text-muted-foreground shrink-0 font-normal">vs</span>
+                {/if}
+                {@render dot(group)}
+                <span class="min-w-0 [overflow-wrap:break-word]">{group.name}</span>
+              </span>
             {/each}
           </span>
           {#if inUse?.id === saved.id}
@@ -343,7 +348,7 @@
   {@const draft = editor.draft}
   {@const action = comparisonAction(selected, draft, compared)}
   <div class="flex w-88 max-w-full min-w-0 flex-col gap-3 p-3">
-    <span class="truncate text-sm font-medium">{heading}</span>
+    <span class="text-sm font-medium [overflow-wrap:break-word]">{heading}</span>
 
     <div class="flex items-center gap-2">
       {@render picker(

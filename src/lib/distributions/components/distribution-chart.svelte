@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   /**
@@ -29,7 +30,7 @@
   } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
   import { distributionOutliers } from "$lib/distributions/state/distributions.svelte";
-  import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDuration, formatNumber, tickLabel } from "$lib/format";
   import type { Test } from "$lib/analysis/types";
   import { isDurationAttribute } from "$lib/analysis/attributes";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -132,8 +133,6 @@
     distribution.type === "categorical" ? Math.max(0, distribution.distinct - TOP_CATEGORIES) : 0
   );
 
-  const truncate = (label: string) => (label.length > 14 ? `${label.slice(0, 13)}…` : label);
-
   const share = (value: number, total: number) =>
     total > 0 ? `${((value / total) * 100).toFixed(1)}%` : "—";
 </script>
@@ -141,7 +140,7 @@
 <div class="bg-card border-border flex min-w-0 flex-col border">
   <div class="border-border flex shrink-0 items-start justify-between gap-2 border-b px-3 py-2">
     <div class="flex min-w-0 flex-col gap-1">
-      <h3 class="truncate text-xs font-semibold" title={attributeLabel(attribute)}>
+      <h3 class="text-xs font-semibold [overflow-wrap:break-word]">
         <AttributeName name={attribute} />
       </h3>
       <div class="flex flex-wrap items-center gap-1.5">
@@ -213,7 +212,7 @@
             style="background:{colorVar(group.color)}"
             aria-hidden="true"
           ></span>
-          <span class="truncate">{group.name}</span>
+          <Fit text={group.name} />
         </span>
       {/each}
     </div>
@@ -267,14 +266,12 @@
           legend={false}
           bandPadding={0.25}
           groupPadding={0}
-          padding={{ left: 44, right: 16, bottom: 72 }}
+          padding={{ left: 44, right: 16, bottom: 100 }}
           props={{
             bars: { stroke: "none", radius: 2, rounded: "all" },
             highlight: { area: { fill: "none" } },
-            // The label gutter is fixed, so a long resource code is cut. The tooltip
-            // carries the full one.
             xAxis: {
-              format: truncate,
+              format: (label: string) => tickLabel(label, 22),
               tickLabelProps: { rotate: -45, textAnchor: "end", svgProps: { y: 4 } }
             },
             yAxis: { ticks: 4, format: (value: number) => formatNumber(value) }
@@ -296,7 +293,9 @@
                   <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
                     {#each drawn as group (group.id)}
                       {@const count = row.counts[group.id] ?? 0}
-                      <dt class="text-muted-foreground truncate">{group.name}</dt>
+                      <dt class="text-muted-foreground max-w-48 [overflow-wrap:break-word]">
+                        {group.name}
+                      </dt>
                       <dd class="text-right">
                         {formatNumber(count)} · {share(count, totals[group.id])}
                       </dd>

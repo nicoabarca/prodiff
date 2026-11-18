@@ -10,6 +10,7 @@
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
   import { interiorTicks } from "$lib/analysis/utils/axis";
   import { dotOffsets, type BoxRow } from "$lib/analysis/utils/box-plot";
+  import Fit from "$lib/components/fit/fit.svelte";
 
   type Padding = { top?: number; right?: number; bottom?: number; left?: number };
   /** `value` maps a value onto the value axis, `band` a Group id to the middle of its band. */
@@ -74,12 +75,11 @@
   const chartPadding = $derived(
     padding ??
       (horizontal
-        ? { left: 76, right: 8, bottom: 20 }
+        ? { left: 120, right: 8, bottom: 20 }
         : { left: 52, right: 12, bottom: 24, top: 8 })
   );
-  const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
-  /** The band axis is keyed on Group id, so it reads the name back to label a tick. */
-  const bandLabel = (id: string) => truncate(rows.find((row) => row.id === id)?.name ?? id);
+  /** The band axis draws ticks only; the Group names sit in an `Html` layer, where `Fit` can cut them. */
+  const noLabel = () => "";
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
   /** Pixels from the plot's start along the value axis to the pointer, null while it is outside. */
@@ -110,9 +110,8 @@
           placement="left"
           rule
           grid={false}
-          format={bandLabels ? bandLabel : () => ""}
+          format={noLabel}
           tickLength={bandLabels ? 4 : 0}
-          tickLabelProps={{ svgProps: { x: -8 - bandLabelOffset } }}
         />
         <Axis placement="bottom" grid rule {ticks} {format} />
       {:else}
@@ -120,9 +119,8 @@
         <Axis
           placement="bottom"
           rule
-          format={bandLabels ? bandLabel : () => ""}
+          format={noLabel}
           tickLength={bandLabels ? 4 : 0}
-          tickLabelProps={{ dy: bandLabelOffset }}
         />
       {/if}
       <ChartClipPath>
@@ -174,6 +172,32 @@
         {/if}
       </ChartClipPath>
     </Svg>
+
+    {#if bandLabels}
+      <!-- The tooltip hit areas are a full-size SVG drawn above `children`; `zIndex` lifts the names over it. -->
+      <Html pointerEvents={false} zIndex={1}>
+        {#each rows as box (box.id)}
+          {#if horizontal}
+            <div
+              class="pointer-events-auto absolute flex w-28 -translate-y-1/2 justify-end text-[0.625rem] font-light"
+              style:top="{center(context.yScale, box.id)}px"
+              style:right="calc(100% + {8 + bandLabelOffset}px)"
+            >
+              <Fit text={box.name} class="block" />
+            </div>
+          {:else}
+            <div
+              class="pointer-events-auto absolute flex -translate-x-1/2 justify-center text-[0.625rem] font-light"
+              style:left="{center(context.xScale, box.id)}px"
+              style:top="calc(100% + {4 + bandLabelOffset}px)"
+              style:width="{context.xScale.bandwidth?.() ?? 0}px"
+            >
+              <Fit text={box.name} class="block" />
+            </div>
+          {/if}
+        {/each}
+      </Html>
+    {/if}
 
     {#if overlay}
       <Html pointerEvents={false}>

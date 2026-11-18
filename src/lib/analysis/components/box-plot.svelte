@@ -58,7 +58,7 @@
   const highRoom = $derived(anyHigh ? room(labels.map((entry) => entry.high)) : 0);
   const padding = $derived(
     horizontal
-      ? { left: 76 + lowRoom, right: Math.max(8, highRoom), bottom: 20 }
+      ? { left: 120 + lowRoom, right: Math.max(8, highRoom), bottom: 20 }
       : { left: 52, right: 12, bottom: anyLow ? 36 : 24, top: anyHigh ? 20 : 8 }
   );
   const expandable = $derived(load !== undefined && (anyHigh || anyLow));

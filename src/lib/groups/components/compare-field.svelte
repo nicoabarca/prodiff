@@ -1,5 +1,6 @@
 <script lang="ts">
   /** Which Groups a view compares, over the popover that changes them. */
+  import Fit from "$lib/components/fit/fit.svelte";
   import SettingField from "$lib/components/layout/setting-field.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
@@ -42,7 +43,7 @@
             style="background:{colorVar(group.color)}"
             aria-hidden="true"
           ></span>
-          <span class="truncate">{group.name}</span>
+          <Fit text={group.name} focusable={false} class="max-w-40 shrink-0" />
         {/each}
         {#if groups.length < 2 && groups[0]?.id !== ORIGINAL_ID}
           <Badge>+ Add a group</Badge>

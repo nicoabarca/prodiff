@@ -1,5 +1,6 @@
 <script lang="ts">
   /** The always-visible line saying what the comparison removed. Nothing when it removed nothing. */
+  import Fit from "$lib/components/fit/fit.svelte";
   import { comparedGroups, relation } from "$lib/groups/state/comparison.svelte";
   import { comparisonSentence } from "$lib/groups/utils/comparison-note";
   import { cn } from "$lib/utils";
@@ -10,7 +11,5 @@
 </script>
 
 {#if sentence}
-  <p class={cn("text-muted-foreground truncate text-xs", className)} title={sentence}>
-    {sentence}
-  </p>
+  <Fit text={sentence} class={cn("text-muted-foreground text-xs", className)} />
 {/if}

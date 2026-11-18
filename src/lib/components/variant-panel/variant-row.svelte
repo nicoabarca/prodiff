@@ -11,6 +11,7 @@
    * and share of that Group's cases. The box stages it and the eye lights
    * its path on the canvas.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import VariantPath from "$lib/components/variant-path/variant-path.svelte";
   import { formatNumber } from "$lib/format";
   import type { ResponseVariantRow } from "$lib/tree/invokers/types";
@@ -138,7 +139,7 @@
           class="size-2 shrink-0 rounded-full"
           style="background:{cases > 0 ? accents[group.id] : 'var(--border)'}"
         ></span>
-        <span class="min-w-0 flex-1 truncate font-sans" title={group.name}>{group.name}</span>
+        <Fit text={group.name} focusable={false} class="flex-1 font-sans" />
         <span class="min-w-14 text-right">{cases > 0 ? formatNumber(cases) : "—"}</span>
         <span class="w-20 shrink-0 text-right">{cases > 0 ? share(cases, total) : "—"}</span>
       </div>

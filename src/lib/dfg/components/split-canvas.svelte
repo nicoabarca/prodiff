@@ -59,7 +59,7 @@
       style="background:{colorVar(group.color)}"
       aria-hidden="true"
     ></span>
-    <span class="truncate text-xs font-semibold">{group.name}</span>
+    <span class="min-w-0 text-xs font-semibold [overflow-wrap:break-word]">{group.name}</span>
     <span class="text-muted-foreground text-[0.625rem] tabular-nums">
       {formatNumber(totals.get(group.id) ?? 0)} cases · {share(group.id)}%
     </span>

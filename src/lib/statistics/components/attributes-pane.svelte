@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import { formatDecimal } from "$lib/format";
   import type { Group } from "$lib/groups/types";
   import type { ResponseGroupComparison } from "$lib/statistics/invokers/types";
@@ -92,7 +93,7 @@
           : 'border-l-transparent'}"
         onclick={() => (chosen = row.name)}
       >
-        <span class="min-w-0 flex-1 truncate font-mono text-xs font-semibold">
+        <span class="min-w-0 flex-1 font-mono text-xs font-semibold [overflow-wrap:break-word]">
           <AttributeName name={row.name} />
         </span>
         <span class="text-muted-foreground w-36 shrink-0 truncate text-[0.6875rem]">
@@ -156,7 +157,7 @@
           <span class="w-36 shrink-0">Value</span>
           <span class="min-w-0 flex-1">Share</span>
           {#each groups as group (group.id)}
-            <span class="flex w-20 shrink-0 justify-end"><GroupName {group} /></span>
+            <span class="flex w-28 shrink-0 justify-end text-right"><GroupName {group} /></span>
           {/each}
           {#if pair}
             <span class="w-16 shrink-0 text-right">Δ pp</span>
@@ -167,8 +168,7 @@
           <div
             class="flex items-center gap-3 border-t px-4.5 py-1.75 {gap ? 'bg-destructive/5' : ''}"
           >
-            <span class="w-36 shrink-0 truncate font-mono text-xs" title={row.name}>{row.name}</span
-            >
+            <Fit text={row.name} class="w-36 shrink-0 font-mono text-xs" />
             <span class="min-w-0 flex-1"
               ><PairBars {groups} values={row.values} max={shareMax} /></span
             >

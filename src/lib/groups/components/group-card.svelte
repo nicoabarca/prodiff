@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -19,6 +20,7 @@
   import { describeGroupFilter } from "$lib/groups/utils/describe";
   import { colorVar, formatNumber } from "$lib/format";
   import type { Project } from "$lib/event-log/types";
+  import { NAME_MAX_LENGTH } from "$lib/event-log/utils/name";
   import type { Group } from "$lib/groups/types";
   import Check from "@lucide/svelte/icons/check";
   import ArrowDown from "@lucide/svelte/icons/arrow-down";
@@ -120,10 +122,14 @@
               if (event.key === "Escape") renaming = false;
             }}
             aria-label="Group name"
-            class="h-7 w-48"
+            maxlength={NAME_MAX_LENGTH}
+            class="h-7 w-64"
           />
+          <span class="text-muted-foreground shrink-0 text-[0.6875rem] font-normal tabular-nums">
+            {draftName.length}/{NAME_MAX_LENGTH}
+          </span>
         {:else}
-          {group.name}
+          <span class="min-w-0 [overflow-wrap:break-word]">{group.name}</span>
           <button
             type="button"
             onclick={startRename}
@@ -235,8 +241,8 @@
             </div>
           {/if}
           <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">{described.title}</p>
-            <p class="text-muted-foreground truncate font-mono text-xs">{described.detail}</p>
+            <p class="text-sm font-medium [overflow-wrap:break-word]">{described.title}</p>
+            <Fit text={described.detail} class="text-muted-foreground font-mono text-xs" />
           </div>
 
           <div class="w-40 shrink-0">

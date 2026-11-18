@@ -125,7 +125,9 @@
               <dl class="grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[0.625rem]">
                 {#each drawn as group (group.id)}
                   {@const share = row.shares[group.id] ?? null}
-                  <dt class="text-muted-foreground truncate">{group.name}</dt>
+                  <dt class="text-muted-foreground max-w-48 [overflow-wrap:break-word]">
+                    {group.name}
+                  </dt>
                   <dd class="text-right">{share === null ? "—" : percent(share)}</dd>
                 {/each}
                 {#if gap(row) !== null}

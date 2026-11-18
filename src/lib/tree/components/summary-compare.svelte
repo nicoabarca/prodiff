@@ -1,8 +1,9 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import { BarChart, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
-  import { colorVar, formatDecimal, formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDecimal, formatDuration, formatNumber, tickLabel } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { OutlierLoad, Summary } from "$lib/analysis/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -36,7 +37,7 @@
   /** How many categories fit before the rest go behind the disclosure. */
   const TOP = 6;
 
-  const PAD_LEFT = 84;
+  const PAD_LEFT = 128;
   const PAD_RIGHT = 60;
 
   const format = (value: number) =>
@@ -149,8 +150,6 @@
     const sign = Math.abs(value) < 0.05 ? "" : value > 0 ? "+" : "−";
     return `${sign}${Math.abs(value).toFixed(1)} pp`;
   };
-
-  const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
 </script>
 
 {#if isNumeric && boxGroups.length > 0}
@@ -191,15 +190,15 @@
   </div>
 {:else if bars.length > 0}
   <div class="flex flex-col gap-1.5">
-    <div class="text-muted-foreground flex items-center justify-between gap-2 text-[0.625rem]">
+    <div class="text-muted-foreground flex items-start justify-between gap-2 text-[0.625rem]">
       {#if compare && drawn.length > 1}
         <span class="inline-flex min-w-0 items-center gap-1">
           <span class="size-2 shrink-0" style="background:{accent[drawn[0].id]}" aria-hidden="true"
           ></span>
-          <span class="truncate">◀ {drawn[0].name}</span>
+          <Fit text="◀ {drawn[0].name}" />
         </span>
         <span class="inline-flex min-w-0 items-center gap-1">
-          <span class="truncate">{drawn.at(-1)?.name} ▶</span>
+          <Fit text="{drawn.at(-1)?.name} ▶" class="text-right" />
           <span
             class="size-2 shrink-0"
             style="background:{accent[drawn.at(-1)!.id]}"
@@ -210,7 +209,7 @@
         <span class="inline-flex min-w-0 items-center gap-1">
           <span class="size-2 shrink-0" style="background:{accent[drawn[0].id]}" aria-hidden="true"
           ></span>
-          <span class="truncate">{drawn[0].name}, share of cases</span>
+          <Fit text="{drawn[0].name}, share of cases" />
         </span>
       {/if}
     </div>
@@ -246,7 +245,15 @@
           props={{
             bars: { stroke: "none", radius: 2, rounded: "all" },
             highlight: { area: { fill: "none" } },
-            yAxis: { format: truncate, tickLabelProps: { svgProps: { x: -10 } } }
+            yAxis: {
+              format: (name: string) => tickLabel(name, 40),
+              tickLabelProps: {
+                width: 116,
+                lineHeight: "1.05em",
+                verticalAnchor: "middle",
+                svgProps: { x: -10 }
+              }
+            }
           }}
           labels={{ placement: "outside", format: barLabel }}
         >
@@ -258,7 +265,9 @@
                   <p class="mb-1 text-[0.6875rem] font-semibold">{data.name}</p>
                   <dl class="grid grid-cols-[auto_auto] gap-x-3 font-mono text-[0.625rem]">
                     {#each drawn as group (group.id)}
-                      <dt class="text-muted-foreground truncate">{group.name}</dt>
+                      <dt class="text-muted-foreground max-w-48 [overflow-wrap:break-word]">
+                        {group.name}
+                      </dt>
                       <dd class="text-right">
                         {formatNumber(data.counts[group.id])} · {data.shares[group.id].toFixed(1)}%
                       </dd>

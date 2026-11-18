@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
@@ -148,8 +149,8 @@
         aria-hidden="true"
       />
       <span class="flex min-w-0 flex-col gap-0.5">
-        <span class="flex items-center gap-1.25 text-xs font-semibold whitespace-nowrap">
-          <span class="truncate" title={attributeLabel(name)}><AttributeName {name} /></span>
+        <span class="flex min-w-0 items-center gap-1.25 text-xs font-semibold">
+          <span class="min-w-0 [overflow-wrap:break-word]"><AttributeName {name} /></span>
           {#if divergent.has(name)}
             <Split
               class="text-destructive size-3 shrink-0"
@@ -157,9 +158,7 @@
             />
           {/if}
         </span>
-        <span
-          class="text-muted-foreground flex items-center gap-1.25 text-[0.625rem] whitespace-nowrap"
-        >
+        <span class="text-muted-foreground flex min-w-0 items-center gap-1.25 text-[0.625rem]">
           {#if higher}
             <span
               class="size-1.5 shrink-0 rounded-full"
@@ -167,7 +166,7 @@
               aria-hidden="true"
             ></span>
           {/if}
-          <span class="truncate">{verdict(block, drawn, duration)}</span>
+          <span class="min-w-0 [overflow-wrap:break-word]">{verdict(block, drawn, duration)}</span>
         </span>
       </span>
       {#if compare && block.test}
@@ -385,9 +384,9 @@
                     )}
                     aria-hidden="true"
                   />
-                  <span class="truncate font-medium">{attributeLabel(pair.attributeX)}</span>
+                  <Fit text={attributeLabel(pair.attributeX)} class="font-medium" />
                   <span class="text-muted-foreground">⇄</span>
-                  <span class="truncate font-medium">{attributeLabel(pair.attributeY)}</span>
+                  <Fit text={attributeLabel(pair.attributeY)} class="font-medium" />
                   <Badge
                     variant={pair.relationship === "divergent" ? "destructive" : "secondary"}
                     class="ml-auto text-[0.6875rem]"

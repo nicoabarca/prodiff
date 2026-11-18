@@ -34,7 +34,7 @@
   {#each groups as group (group.id)}
     {@const box = boxes[group.id]}
     <div class="flex items-center gap-4">
-      <span class="flex w-24 shrink-0 justify-end text-xs"><GroupName {group} /></span>
+      <span class="flex w-28 shrink-0 justify-end text-right text-xs"><GroupName {group} /></span>
       <span class="relative mr-6 h-10.5 min-w-0 flex-1">
         {#if box}
           <span

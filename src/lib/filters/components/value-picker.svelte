@@ -72,7 +72,7 @@
             onCheckedChange={() => onchoose(toggled(option))}
             class="data-checked:text-background data-checked:border-(--accent-color) data-checked:bg-(--accent-color) dark:data-checked:bg-(--accent-color)"
           />
-          <span class="truncate text-sm">{option}</span>
+          <span class="min-w-0 text-sm [overflow-wrap:break-word]">{option}</span>
         </Label>
       {:else}
         <p class="text-muted-foreground px-2.5 py-3 text-xs">No matching values.</p>

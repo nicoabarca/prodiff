@@ -4,6 +4,7 @@
    * which attributes are tested, whether it is split, the tests panel, and how
    * it is drawn.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import ComparisonNote from "$lib/groups/components/comparison-note.svelte";
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import Settings from "$lib/dfg/components/settings.svelte";
@@ -57,7 +58,7 @@
 
   <div class="flex min-w-0 flex-1 items-center gap-3 px-3">
     {#if error}
-      <p class="text-destructive truncate text-xs" title={error}>{error}</p>
+      <Fit text={error} class="text-destructive text-xs" />
     {:else if stale && building}
       <p class="text-muted-foreground text-xs">Rebuilding…</p>
     {:else}

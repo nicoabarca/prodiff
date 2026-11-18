@@ -21,7 +21,7 @@
 
 {#snippet chip(name: string)}
   <span
-    class="bg-muted border-border inline-block max-w-40 truncate border px-1 align-bottom font-mono text-[0.9em] font-medium"
+    class="bg-muted border-border border [box-decoration-break:clone] px-1 font-mono text-[0.9em] font-medium [overflow-wrap:break-word]"
   >
     <AttributeName {name} />
   </span>

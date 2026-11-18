@@ -8,6 +8,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
   import { Slider } from "$lib/components/ui/slider/index.js";
+  import Fit from "$lib/components/fit/fit.svelte";
   import VirtualList from "$lib/components/virtual-list/virtual-list.svelte";
   import VariantRow, { rowHeight } from "$lib/components/variant-panel/variant-row.svelte";
   import VariantVenn, {
@@ -303,7 +304,6 @@
               <button
                 type="button"
                 aria-pressed={shown === filter.id}
-                title="{filter.label} ({formatNumber(counts[filter.id])})"
                 class="-ml-px flex h-6 max-w-32 min-w-0 cursor-pointer items-center overflow-hidden border px-2 text-[0.6875rem] first:ml-0 {shown ===
                 filter.id
                   ? 'relative z-10 shrink-0'
@@ -311,7 +311,7 @@
                 style={shown === filter.id ? `border-color:${filter.ink};color:${filter.ink}` : ""}
                 onclick={() => (shown = filter.id)}
               >
-                <span class="truncate">{filter.label}</span>
+                <Fit text={filter.label} focusable={false} />
                 <span class="ml-1 shrink-0 tabular-nums opacity-70"
                   >({formatNumber(counts[filter.id])})</span
                 >
