@@ -216,7 +216,7 @@
 {/snippet}
 
 <aside
-  class="border-border bg-sidebar flex w-[26rem] shrink-0 flex-col border-l"
+  class="border-border bg-sidebar flex w-[30rem] shrink-0 flex-col border-l"
   data-tour="tree-detail-panel"
 >
   {#if !node}

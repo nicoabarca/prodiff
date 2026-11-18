@@ -39,8 +39,9 @@
 
   let expanded = $state(false);
 
-  /** Pixels a horizontal low label takes left of the plot, ahead of the Group names. */
-  const LOW_LABEL_ROOM = 64;
+  /** Pixels one character of a 0.625rem label takes, plus the gap either side of the label. */
+  const CHAR_WIDTH = 6;
+  const LABEL_GAP = 8;
 
   const rows = $derived(boxRows(groups, boxes));
   const horizontal = $derived(orientation === "horizontal");
@@ -50,13 +51,18 @@
   const labels = $derived(rows.map((row) => ({ row, ...outlierLabels(row, format, formatCount) })));
   const anyHigh = $derived(labels.some((entry) => entry.high !== null));
   const anyLow = $derived(labels.some((entry) => entry.low !== null));
+  /** Pixels the widest label on one side takes, so a horizontal plot can leave that room beside it. */
+  const room = (side: (OutlierLabel | null)[]) =>
+    Math.max(0, ...side.map((text) => (text?.text.length ?? 0) * CHAR_WIDTH)) + LABEL_GAP;
+  const lowRoom = $derived(anyLow ? room(labels.map((entry) => entry.low)) : 0);
+  const highRoom = $derived(anyHigh ? room(labels.map((entry) => entry.high)) : 0);
   const padding = $derived(
     horizontal
-      ? { left: 76 + (anyLow ? LOW_LABEL_ROOM : 0), right: anyHigh ? 72 : 8, bottom: 20 }
+      ? { left: 76 + lowRoom, right: Math.max(8, highRoom), bottom: 20 }
       : { left: 52, right: 12, bottom: anyLow ? 36 : 24, top: anyHigh ? 20 : 8 }
   );
   const expandable = $derived(load !== undefined && (anyHigh || anyLow));
-  const bandLabelOffset = $derived(anyLow ? (horizontal ? LOW_LABEL_ROOM : 12) : 0);
+  const bandLabelOffset = $derived(anyLow ? (horizontal ? lowRoom : 12) : 0);
 </script>
 
 {#snippet label(text: OutlierLabel, color: string, x: number, y: number, placement: string)}
@@ -102,16 +108,16 @@
                 {@render label(
                   high,
                   row.color,
-                  place.value(row.whiskerHigh),
+                  place.value(domain[1]),
                   place.band(row.id),
-                  "-translate-y-1/2 pl-1"
+                  "-translate-y-1/2 pl-1.5"
                 )}
               {:else}
                 {@render label(
                   high,
                   row.color,
                   place.band(row.id),
-                  place.value(row.whiskerHigh),
+                  place.value(domain[1]),
                   "-translate-x-1/2 -translate-y-full pb-1"
                 )}
               {/if}
@@ -121,16 +127,16 @@
                 {@render label(
                   low,
                   row.color,
-                  place.value(row.whiskerLow),
+                  place.value(domain[0]),
                   place.band(row.id),
-                  "-translate-x-full -translate-y-1/2 pr-1"
+                  "-translate-x-full -translate-y-1/2 pr-1.5"
                 )}
               {:else}
                 {@render label(
                   low,
                   row.color,
                   place.band(row.id),
-                  place.value(row.whiskerLow),
+                  place.value(domain[0]),
                   "-translate-x-1/2 pt-1"
                 )}
               {/if}

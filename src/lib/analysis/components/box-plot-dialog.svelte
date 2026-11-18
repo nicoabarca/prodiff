@@ -73,8 +73,21 @@
       })
     );
   });
-  const count = (n: number, side: string) =>
-    `${formatCount(n)} ${n === 1 ? "value" : "values"} ${side}`;
+  const horizontal = $derived(orientation === "horizontal");
+  const padding = $derived(
+    horizontal ? { left: 8, right: 16, bottom: 28 } : { left: 64, right: 12, bottom: 8, top: 8 }
+  );
+  const columns = $derived([
+    ["n", (row: BoxRow) => (row.n === undefined ? "—" : formatCount(row.n))],
+    ["Min", (row: BoxRow) => format(row.min)],
+    ["Q1", (row: BoxRow) => format(row.q1)],
+    ["Median", (row: BoxRow) => format(row.median)],
+    ["Q3", (row: BoxRow) => format(row.q3)],
+    ["Max", (row: BoxRow) => format(row.max)],
+    ["IQR", (row: BoxRow) => format(row.q3 - row.q1)],
+    ["Below", (row: BoxRow) => formatCount(row.outliersLow)],
+    ["Above", (row: BoxRow) => formatCount(row.outliersHigh)]
+  ] as const);
 </script>
 
 <Dialog.Root bind:open>
@@ -85,17 +98,32 @@
         Every value, with one dot per outlier. The scale is linear near zero and logarithmic beyond
         it.
       </Dialog.Description>
-      <ul class="flex flex-wrap gap-x-4 gap-y-1 text-[0.6875rem]">
-        {#each rows as row (row.id)}
-          <li class="flex items-center gap-1.5">
-            <span class="size-2 shrink-0" style="background:{row.color}" aria-hidden="true"></span>
-            <span class="font-semibold">{row.name}</span>
-            <span class="text-muted-foreground">
-              {count(row.outliersLow, "below")} · {count(row.outliersHigh, "above")}
-            </span>
-          </li>
-        {/each}
-      </ul>
+      <table class="w-max text-[0.6875rem]">
+        <thead>
+          <tr class="text-muted-foreground">
+            <th class="pr-4 text-left font-normal">Group</th>
+            {#each columns as [heading] (heading)}
+              <th class="px-2 text-right font-normal">{heading}</th>
+            {/each}
+          </tr>
+        </thead>
+        <tbody class="font-mono tabular-nums">
+          {#each rows as row (row.id)}
+            <tr>
+              <td class="pr-4 font-sans font-semibold">
+                <span class="flex items-center gap-1.5">
+                  <span class="size-2 shrink-0" style="background:{row.color}" aria-hidden="true"
+                  ></span>
+                  {row.name}
+                </span>
+              </td>
+              {#each columns as [heading, cell] (heading)}
+                <td class="px-2 text-right whitespace-nowrap">{cell(row)}</td>
+              {/each}
+            </tr>
+          {/each}
+        </tbody>
+      </table>
     </Dialog.Header>
     <div class="relative min-h-0">
       {#if request.status === "error"}
@@ -104,7 +132,18 @@
           <Button variant="outline" size="sm" onclick={fetchOutliers}>Retry</Button>
         </div>
       {:else}
-        <BoxChart {rows} {domain} {constant} {format} {formatCount} {orientation} {dots} />
+        <BoxChart
+          {rows}
+          {domain}
+          {constant}
+          {format}
+          {formatCount}
+          {orientation}
+          {dots}
+          {padding}
+          bandLabels={false}
+          hover="value"
+        />
         {#if request.status !== "ready"}
           <div class="absolute inset-0 flex items-center justify-center">
             <LoaderCircle
