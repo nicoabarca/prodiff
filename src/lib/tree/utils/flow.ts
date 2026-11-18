@@ -14,7 +14,6 @@ import {
   children,
   groupCasesAt,
   groupIds,
-  isDivergent,
   membership
 } from "$lib/tree/utils/tree";
 import { formatDuration } from "$lib/format";
@@ -65,7 +64,6 @@ export interface TreeNodeData {
   significantCount: number;
   peakBand: EffectBand | null;
   peakStep: 1 | 2 | 3 | 4 | null;
-  divergent: boolean;
   dimmed: boolean;
   selected: boolean;
   highlighted: boolean;
@@ -185,7 +183,6 @@ export function toFlow(
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
-        divergent: isDivergent(node),
         dimmed: dimmed(node, options.focus, ids),
         selected: options.selected === node.id,
         highlighted: false,

@@ -1,6 +1,6 @@
 # Query node Distributions on demand rather than shipping them with the build
 
-`directed_tree` ships every Node Aggregate, Significance Test and Co-movement pair in one payload precisely so the frontend never re-aggregates. Distributions deliberately break that rule: they are fetched per selected node by a separate `node_distributions` command, keyed on the node's leaf Variant keys and its depth.
+`directed_tree` ships every Node Aggregate and Significance Test in one payload precisely so the frontend never re-aggregates. Distributions deliberately break that rule: they are fetched per selected node by a separate `node_distributions` command, keyed on the node's leaf Variant keys and its depth.
 
 Alternative considered: compute Distributions during the build and carry them on `TreeNode` alongside `eventLevel`. Rejected because Distributions are offered for _every_ non-hidden column rather than only the attributes chosen in Build settings, and under two Scopes — so build-time computation would multiply the app's most expensive operation by the column count and again by the Scope, to produce numbers the user reads for one node at a time. Alternative considered: restrict Distributions to the built attributes so the categorical ones could be read straight off `eventLevel`, which already carries the counts. Rejected because it would silently couple exploring a column to rebuilding the tree, and would leave two code paths with different provenance behind one control — the exact ambiguity the Distribution Scope badge exists to prevent.
 

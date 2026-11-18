@@ -31,14 +31,6 @@ const MAX_VARIANTS: usize = 400;
 /// this share of the cases.
 const DEFAULT_COVERAGE: f64 = 0.8;
 
-#[derive(serde::Serialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Comovement {
-    pub attribute_x: String,
-    pub attribute_y: String,
-    pub relationship: &'static str,
-}
-
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct TreeNode {
@@ -48,7 +40,6 @@ pub struct TreeNode {
     pub cases: HashMap<String, i64>,
     pub event_level: HashMap<String, AttributeBlock>,
     pub transition_time: Option<AttributeBlock>,
-    pub comovement: Vec<Comovement>,
     pub variant_key: Option<String>,
 }
 
@@ -529,45 +520,11 @@ pub fn build(
         }
     }
 
-    let attr_name = |i: usize| -> String {
-        if i < attrs.len() {
-            attrs[i].name.clone()
-        } else {
-            TRANSITION_TIME.to_string()
-        }
-    };
-
     let out_nodes = nodes
         .iter()
         .enumerate()
         .zip(blocks)
         .map(|((id, node), node_blocks)| {
-            // Co-movement compares Effect Directions, so it needs two numeric
-            // attributes that both actually moved.
-            let directions: Vec<(usize, f64)> = node_blocks
-                .iter()
-                .enumerate()
-                .filter_map(|(i, block)| {
-                    let test = block.test.as_ref()?;
-                    let signed = test.effect_signed?;
-                    test.significant.then_some((i, signed))
-                })
-                .collect();
-            let mut comovement = Vec::new();
-            for (x, (i, si)) in directions.iter().enumerate() {
-                for (j, sj) in &directions[x + 1..] {
-                    comovement.push(Comovement {
-                        attribute_x: attr_name(*i),
-                        attribute_y: attr_name(*j),
-                        relationship: if si.is_sign_positive() == sj.is_sign_positive() {
-                            "concordant"
-                        } else {
-                            "divergent"
-                        },
-                    });
-                }
-            }
-
             let mut blocks = node_blocks;
             let transition_time = wants_transition.then(|| blocks.remove(attrs.len()));
             TreeNode {
@@ -584,7 +541,6 @@ pub fn build(
                     .map(|(i, block)| (attrs[i].name.clone(), block))
                     .collect(),
                 transition_time,
-                comovement,
                 variant_key: node.variant_key.clone(),
             }
         })

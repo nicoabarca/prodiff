@@ -25,7 +25,6 @@ function node(
     cases: {},
     eventLevel: {},
     transitionTime: null,
-    comovement: [],
     variantKey
   };
 }
