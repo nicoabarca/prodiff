@@ -55,11 +55,22 @@
   );
 
   const groups = $derived(comparedGroups());
-  const drawn = $derived(compare ? groups : groups.slice(0, 1));
   const ids = $derived(tree.groups.map((group) => group.id));
 
-  const member = $derived(node ? membership(node, ids) : "shared");
-  const memberGroup = $derived(groups.find((group) => group.id === member) ?? null);
+  /** The path below Start, each activity in the colour of the only Group reaching it. */
+  const steps = $derived(
+    path
+      .filter((step) => step.parent !== null)
+      .map((step) => {
+        const member = groups.find((group) => group.id === membership(step, ids));
+        return {
+          id: step.id,
+          label: step.label,
+          color: colorVar(member?.color ?? "group-original")
+        };
+      })
+  );
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
 
   /** Each Group's cases at this node and its part of them, from 0 to 1. */
   const split = $derived.by(() => {
@@ -213,22 +224,10 @@
     </div>
   {:else}
     <div class="border-border flex shrink-0 flex-col gap-2.5 border-b px-4 pt-3.5 pb-3">
-      <VariantSteps steps={path.filter((step) => step.parent !== null)} />
-
       <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <h2 class="text-[0.9375rem] leading-tight font-semibold text-pretty">{node.label}</h2>
-          <Badge variant="secondary" class="text-[0.6875rem]">
-            <span
-              class="size-1.5 shrink-0 rounded-full"
-              style="background:{memberGroup
-                ? colorVar(memberGroup.color)
-                : 'var(--muted-foreground)'}"
-              aria-hidden="true"
-            ></span>
-            {memberGroup ? `${memberGroup.name} only` : "Every group"}
-          </Badge>
-        </div>
+        <h2 class="min-w-0 text-[0.9375rem] leading-tight font-semibold text-pretty">
+          {node.label}
+        </h2>
         <div class="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
           <Popover.Root>
             <Popover.Trigger>
@@ -276,13 +275,26 @@
         </div>
       </div>
 
+      <div class="flex flex-col gap-1">
+        <span class="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
+          Variant
+        </span>
+        <VariantSteps {steps} />
+      </div>
+
       {#if compare}
         <div class="flex flex-col gap-1">
           <div
-            class="flex justify-between gap-2 font-mono text-[0.625rem] font-medium tabular-nums"
+            class="grid grid-cols-[1fr_auto_1fr] items-baseline gap-2 font-mono text-[0.625rem] font-medium tabular-nums"
           >
-            {#each split as { group, count, part } (group.id)}
-              <span style="color:{colorVar(group.color)}">
+            {#each split as { group, count, part }, index (group.id)}
+              {#if index === 1}
+                <span class="text-muted-foreground">{formatNumber(casesHere)}</span>
+              {/if}
+              <span
+                class={index === 0 ? "text-left" : "text-right"}
+                style="color:{colorVar(group.color)}"
+              >
                 {formatNumber(count)} ({formatPercent(part)})
               </span>
             {/each}
@@ -292,9 +304,6 @@
               <span style="width:{part * 100}%;background:{colorVar(group.color)}"></span>
             {/each}
           </div>
-          <span class="text-muted-foreground text-[0.625rem]">
-            Split of the {formatNumber(casesHere)} cases at this node between the groups
-          </span>
         </div>
       {:else}
         <span class="text-muted-foreground text-[0.6875rem]">

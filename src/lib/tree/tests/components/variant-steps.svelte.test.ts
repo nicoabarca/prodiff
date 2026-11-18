@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 function render(labels: string[]) {
-  const steps = labels.map((label, index) => ({ id: index + 1, label }));
+  const steps = labels.map((label, index) => ({ id: index + 1, label, color: "inherit" }));
   app = mount(VariantSteps, { target, props: { steps } });
   flushSync();
 }
@@ -50,4 +50,21 @@ test("an activity met earlier on the path is marked as a repeat", () => {
     (li) => li.querySelector('[aria-label="Repeated activity"]') !== null
   );
   expect(marks).toEqual([false, false, true]);
+});
+
+test("each activity is drawn in its step's colour", () => {
+  app = mount(VariantSteps, {
+    target,
+    props: {
+      steps: [
+        { id: 1, label: "Shared", color: "var(--group-original)" },
+        { id: 2, label: "Only a", color: "var(--group-2)" }
+      ]
+    }
+  });
+  flushSync();
+  const colors = [...target.querySelectorAll("li span:nth-child(2) > span")].map(
+    (span) => (span as HTMLElement).style.color
+  );
+  expect(colors).toEqual(["var(--group-original)", "var(--group-2)"]);
 });

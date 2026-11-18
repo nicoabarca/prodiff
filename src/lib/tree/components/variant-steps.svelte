@@ -7,7 +7,7 @@
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import { cn } from "$lib/utils";
 
-  let { steps }: { steps: { id: number; label: string }[] } = $props();
+  let { steps }: { steps: { id: number; label: string; color: string }[] } = $props();
 
   const HEAD = 2;
   const TAIL = 3;
@@ -44,7 +44,7 @@
         step.last && "font-semibold"
       )}
     >
-      <span class="[overflow-wrap:anywhere]">{step.label}</span>
+      <span class="[overflow-wrap:anywhere]" style="color:{step.color}">{step.label}</span>
       {#if step.repeat}
         <RotateCcw
           class="text-muted-foreground size-2.5 shrink-0 self-center"
