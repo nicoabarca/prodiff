@@ -344,7 +344,7 @@
       <span class="min-w-0 flex-1 truncate">Variant</span>
       <span class="min-w-14 text-right" title="Cases that follow this variant">Cases</span>
       <span class="min-w-14 text-right" title="Events in those cases">Events</span>
-      <span class="w-24 shrink-0 text-right" title="Share of the Group's cases"> % of Group </span>
+      <span class="w-20 shrink-0 text-right" title="Share of the Group's cases"> % of Group </span>
     </div>
 
     {#if loading}

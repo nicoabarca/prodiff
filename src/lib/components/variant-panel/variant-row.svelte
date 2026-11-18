@@ -54,9 +54,13 @@
   }
 </script>
 
+<!-- A click anywhere on the row stages it; the checkbox is the keyboard path, its click bubbling here. -->
+<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="hover:bg-accent/50 flex items-start gap-2 px-3 py-2.5 text-xs"
+  class="hover:bg-accent/50 flex cursor-pointer items-start gap-2 px-3 py-2.5 text-xs"
   style:height="{rowHeight(columns.length)}rem"
+  onclick={onToggle}
 >
   <button
     type="button"
@@ -66,7 +70,6 @@
     class="mt-3 flex size-4 shrink-0 cursor-pointer items-center justify-center border {staged
       ? 'bg-primary text-primary-foreground border-primary'
       : 'border-input'}"
-    onclick={onToggle}
   >
     {#if staged}
       <Check class="size-3" strokeWidth={3} />
@@ -87,19 +90,23 @@
   </span>
 
   <div class="flex min-w-0 flex-1 flex-col gap-1">
-    <div class="flex min-w-0 items-center gap-2">
-      <VariantPath activities={row.activities} />
+    <!-- Chips and eye are pinned to the top: a sideways scrollbar would otherwise lift the chips. -->
+    <div class="flex min-w-0 items-start gap-2">
+      <VariantPath activities={row.activities} class="items-start pt-2" />
       {#if drawn}
         <button
           type="button"
           aria-pressed={highlighted}
           aria-label="Light the path of variant {number} on the {canvas}"
-          class="flex size-5 shrink-0 cursor-pointer items-center justify-center border {highlighted
+          class="mt-2 flex size-6 shrink-0 cursor-pointer items-center justify-center border {highlighted
             ? 'border-indigo-500 text-indigo-500'
             : 'border-border text-muted-foreground hover:text-foreground'}"
-          onclick={onHighlight}
+          onclick={(event) => {
+            event.stopPropagation();
+            onHighlight();
+          }}
         >
-          <Eye class="size-3.5" />
+          <Eye class="size-4" />
         </button>
       {/if}
     </div>
@@ -121,13 +128,7 @@
         <span class="text-muted-foreground min-w-14 text-right">
           {cases > 0 ? formatNumber(variantEvents(row, group.id)) : "—"}
         </span>
-        <span class="bg-muted h-1 w-10 shrink-0">
-          <span
-            class="block h-1"
-            style="width:{total > 0 ? (cases / total) * 100 : 0}%;background:{accents[group.id]}"
-          ></span>
-        </span>
-        <span class="w-12 shrink-0 text-right">{cases > 0 ? share(cases, total) : "—"}</span>
+        <span class="w-20 shrink-0 text-right">{cases > 0 ? share(cases, total) : "—"}</span>
       </div>
     {/each}
   </div>
