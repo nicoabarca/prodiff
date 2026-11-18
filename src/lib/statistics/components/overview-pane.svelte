@@ -76,7 +76,7 @@
     <ColumnHead class="bg-card! pt-0">
       <span class="min-w-44 flex-1">Metric</span>
       {#each groups as group (group.id)}
-        <span class="flex w-28 shrink-0 justify-end"><GroupName {group} /></span>
+        <span class="flex w-36 shrink-0 justify-end text-right"><GroupName {group} /></span>
       {/each}
       {#if pair}
         <span class="w-72 shrink-0 text-center">lower ← change → higher</span>
@@ -98,7 +98,7 @@
         </span>
         {#each groups as group, index (group.id)}
           <span
-            class="w-28 shrink-0 text-right font-mono {index === 0 && pair
+            class="w-36 shrink-0 text-right font-mono {index === 0 && pair
               ? 'text-muted-foreground text-xs'
               : 'text-[0.8125rem] font-semibold'}"
           >
@@ -159,7 +159,7 @@
           >
             {PANE_LABELS[difference.pane]}
           </span>
-          <span class="min-w-0 flex-1 truncate text-xs">
+          <span class="min-w-0 flex-1 text-xs [overflow-wrap:break-word]">
             {difference.what}
             <span class="text-muted-foreground ml-1.5 text-[0.6875rem]">{difference.measure}</span>
           </span>

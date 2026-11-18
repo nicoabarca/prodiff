@@ -16,6 +16,8 @@
   import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
   import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
+  import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { builtInVerdict, placeTestLine, unanimous, type Finding } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
@@ -126,14 +128,16 @@
       <span class="flex min-w-0 flex-col gap-0.5">
         <span
           class={cn(
-            "flex items-center gap-1.25 text-xs font-semibold whitespace-nowrap",
+            "flex min-w-0 items-center gap-1.25 text-xs font-semibold",
             !differs && "text-muted-foreground"
           )}
         >
           {#if named === "attribute"}
-            <span class="truncate"><AttributeName name={finding.attribute} /></span>
+            <span class="min-w-0 [overflow-wrap:break-word]"
+              ><AttributeName name={finding.attribute} /></span
+            >
             {#if finding.value !== null}
-              <span class="truncate font-normal" title={finding.value}>· {finding.value}</span>
+              <span class="min-w-0 font-normal [overflow-wrap:break-word]">· {finding.value}</span>
             {/if}
           {:else}
             {#if finding.place.kind === "edge"}
@@ -141,15 +145,13 @@
             {:else}
               <Square class="size-2.5 shrink-0" aria-hidden="true" />
             {/if}
-            <span class="truncate" title={finding.place.label}>{finding.place.label}</span>
+            <span class="min-w-0 [overflow-wrap:break-word]">{finding.place.label}</span>
             {#if finding.value !== null}
-              <span class="truncate font-normal" title={finding.value}>· {finding.value}</span>
+              <span class="min-w-0 font-normal [overflow-wrap:break-word]">· {finding.value}</span>
             {/if}
           {/if}
         </span>
-        <span
-          class="text-muted-foreground flex items-center gap-1.25 text-[0.625rem] whitespace-nowrap"
-        >
+        <span class="text-muted-foreground flex min-w-0 items-center gap-1.25 text-[0.625rem]">
           {#if higher}
             <span
               class="size-1.5 shrink-0 rounded-full"
@@ -157,7 +159,7 @@
               aria-hidden="true"
             ></span>
           {/if}
-          <span class="truncate"
+          <span class="min-w-0 [overflow-wrap:break-word]"
             >{builtInVerdict(finding, groups) ??
               unanimous(block, groups) ??
               verdict(block, groups, duration)}</span
@@ -174,7 +176,12 @@
       {#if caption}
         <p class="text-muted-foreground text-[0.625rem]">{caption}</p>
       {/if}
-      <SummaryCompare summaries={block.summaries} {duration} />
+      <SummaryCompare
+        summaries={block.summaries}
+        {duration}
+        load={placeOutliers(finding.place, finding.attribute)}
+        title={attributeLabel(finding.attribute)}
+      />
       {#if !block.test}
         <p class="text-muted-foreground text-[0.625rem]">
           {unanimous(block, groups) ?? untestable(block, groups)}

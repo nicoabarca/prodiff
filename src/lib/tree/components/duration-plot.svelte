@@ -7,18 +7,25 @@
   import type { CurveRow } from "$lib/distributions/types";
   import { curveRows } from "$lib/distributions/utils/distributions";
   import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import type { OutlierLoad } from "$lib/analysis/types";
 
   let {
     shape,
     encoding,
     compare,
-    groups
+    groups,
+    load,
+    title
   }: {
     shape: DurationShape;
     encoding: "ecdf" | "box";
     compare: boolean;
     groups: { id: string; name: string; color: string }[];
+    load?: OutlierLoad;
+    title?: string;
   } = $props();
+
+  const expansion = $derived(load && title ? { load, title } : {});
 
   /** The Groups drawn, in order. Without comparison only the first is plotted. */
   const drawn = $derived(compare ? groups : groups.slice(0, 1));
@@ -118,7 +125,9 @@
               <dl class="grid grid-cols-[auto_1fr] gap-x-2 font-mono text-[0.625rem]">
                 {#each drawn as group (group.id)}
                   {@const share = row.shares[group.id] ?? null}
-                  <dt class="text-muted-foreground truncate">{group.name}</dt>
+                  <dt class="text-muted-foreground max-w-48 [overflow-wrap:break-word]">
+                    {group.name}
+                  </dt>
                   <dd class="text-right">{share === null ? "—" : percent(share)}</dd>
                 {/each}
                 {#if gap(row) !== null}
@@ -151,6 +160,7 @@
     constant={linearBelow}
     format={formatDuration}
     formatCount={formatNumber}
+    {...expansion}
   />
   <div class="flex flex-wrap gap-1.5 px-3 pb-2 text-[0.625rem]">
     {#each boxGroups as group (group.id)}

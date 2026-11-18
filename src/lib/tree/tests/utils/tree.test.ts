@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { stableKeys } from "$lib/tree/utils/flow";
-import { caseLevelBlocks } from "$lib/tree/utils/tree";
+import {
+  caseLevelBlocks,
+  caseSplit,
+  nodeDepth,
+  nodeTarget,
+  subtreeVariants,
+  visibleNodes
+} from "$lib/tree/utils/tree";
+import { defaultTreeView } from "$lib/tree/types";
 import type { Summary, Test } from "$lib/analysis/types";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 
@@ -17,7 +25,6 @@ function node(
     cases: {},
     eventLevel: {},
     transitionTime: null,
-    comovement: [],
     variantKey
   };
 }
@@ -110,5 +117,49 @@ describe("caseLevelBlocks", () => {
       region: { summaries: { a: north(3), b: north(2) }, test: chi },
       channel: { summaries: { b: north(2) }, test: null }
     });
+  });
+});
+
+describe("nodeTarget", () => {
+  // Start → A → { B (ends), C (ends) }
+  const tree = treeOf(
+    [
+      node(0, null, "Start", null),
+      node(1, 0, "A", null),
+      node(2, 1, "B", "A\u0001B"),
+      node(3, 1, "C", "A\u0001C")
+    ].map((n) => ({ ...n, cases: { a: n.id === 2 || n.id === 3 ? 1 : 2 } }))
+  );
+  const visible = visibleNodes(tree, { ...defaultTreeView, collapsed: new Set() }, new Set());
+
+  it.each([
+    ["a leaf", 2, 2, ["A\u0001B"]],
+    ["an inner node", 1, 1, ["A\u0001B", "A\u0001C"]],
+    ["the Start root", 0, 0, ["A\u0001B", "A\u0001C"]]
+  ])("names %s the way a Distributions request does", (_, id, depth, variants) => {
+    const target = nodeTarget(tree, visible, id, "atStep", "cost", true);
+    expect(target).toEqual({
+      kind: "node",
+      variants: subtreeVariants(tree, visible, id),
+      depth: nodeDepth(tree, id),
+      scope: "atStep",
+      attribute: "cost",
+      finiteOnly: true
+    });
+    expect(target.kind === "node" && target.depth).toBe(depth);
+    expect(target.kind === "node" && [...target.variants].sort()).toEqual(variants);
+  });
+});
+
+describe("caseSplit", () => {
+  it("divides a node's cases between its Groups", () => {
+    expect(caseSplit({ a: 13_252, b: 66_892 })).toEqual({
+      a: 13_252 / 80_144,
+      b: 66_892 / 80_144
+    });
+  });
+
+  it("gives every Group zero when no case is counted", () => {
+    expect(caseSplit({ a: 0, b: 0 })).toEqual({ a: 0, b: 0 });
   });
 });

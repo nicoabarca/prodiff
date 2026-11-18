@@ -102,7 +102,7 @@
     <ColumnHead>
       <span class="w-30 shrink-0">Percentile</span>
       {#each groups as group (group.id)}
-        <span class="flex w-28 shrink-0 justify-end"><GroupName {group} /></span>
+        <span class="flex w-28 shrink-0 justify-end text-right"><GroupName {group} /></span>
       {/each}
       {#if pair}
         <span class="w-20 shrink-0 text-right">Change</span>

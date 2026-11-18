@@ -32,7 +32,7 @@ export function dfg(
   });
 }
 
-function requestAttribute(name: string): RequestDfgAttribute {
+export function requestAttribute(name: string): RequestDfgAttribute {
   if (name === ACTIVITY_DURATION) return { kind: "activityDuration" };
   if (name === TRANSITION_TIME) return { kind: "transitionTime" };
   if (name === ACTIVITY_FREQUENCY) return { kind: "activityFrequency" };

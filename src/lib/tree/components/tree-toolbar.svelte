@@ -3,6 +3,7 @@
    * The tree's settings as a row of fields: what is compared, which Variants,
    * which attributes are tested, and how the result is drawn.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import ComparisonNote from "$lib/groups/components/comparison-note.svelte";
   import CompareField from "$lib/groups/components/compare-field.svelte";
   import type { Project } from "$lib/event-log/types";
@@ -35,7 +36,7 @@
 
   <div class="flex min-w-0 flex-1 items-center px-3">
     {#if error}
-      <p class="text-destructive truncate text-xs" title={error}>{error}</p>
+      <Fit text={error} class="text-destructive text-xs" />
     {:else}
       <ComparisonNote />
     {/if}

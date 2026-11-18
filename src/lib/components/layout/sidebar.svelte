@@ -7,6 +7,7 @@
   import { cn } from "$lib/utils";
   import type { Snippet } from "svelte";
   import type { Project } from "$lib/event-log/types";
+  import Fit from "$lib/components/fit/fit.svelte";
   import Logo from "$lib/components/layout/logo.svelte";
   import Network from "@lucide/svelte/icons/network";
   import PanelLeft from "@lucide/svelte/icons/panel-left";
@@ -126,7 +127,7 @@
 
   <Sidebar.Content>
     <Sidebar.Group>
-      <Sidebar.GroupLabel class="truncate">{activeProject.name}</Sidebar.GroupLabel>
+      <Sidebar.GroupLabel><Fit text={activeProject.name} focusable={false} /></Sidebar.GroupLabel>
       <Sidebar.Menu>
         {#each projectNav as { view, href, label, icon: Icon } (label)}
           <Sidebar.MenuItem>

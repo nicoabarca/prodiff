@@ -1,8 +1,6 @@
 <script lang="ts">
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { Badge } from "$lib/components/ui/badge/index.js";
-  import * as Breadcrumb from "$lib/components/ui/breadcrumb/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
@@ -11,7 +9,8 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
-  import { colorVar, formatNumber } from "$lib/format";
+  import VariantSteps from "$lib/tree/components/variant-steps.svelte";
+  import { colorVar, formatNumber, formatPercent } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
@@ -19,15 +18,15 @@
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
-  import { membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
+  import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
-  import Split from "@lucide/svelte/icons/split";
   import X from "@lucide/svelte/icons/x";
 
   let {
@@ -55,20 +54,30 @@
   );
 
   const groups = $derived(comparedGroups());
-  const drawn = $derived(compare ? groups : groups.slice(0, 1));
   const ids = $derived(tree.groups.map((group) => group.id));
 
-  const member = $derived(node ? membership(node, ids) : "shared");
-  const memberGroup = $derived(groups.find((group) => group.id === member) ?? null);
-
-  /** Each Group's cases at this node, as a share of all its cases in the tree. */
-  const reach = $derived(
-    drawn.map((group) => {
-      const count = cases?.[group.id] ?? 0;
-      const total = tree.groups.find((g) => g.id === group.id)?.caseCount ?? 0;
-      return { group, count, share: total > 0 ? Math.round((count / total) * 100) : 0 };
-    })
+  /** The path below Start, each activity in the colour of the only Group reaching it. */
+  const steps = $derived(
+    path
+      .filter((step) => step.parent !== null)
+      .map((step) => {
+        const member = groups.find((group) => group.id === membership(step, ids));
+        return {
+          id: step.id,
+          label: step.label,
+          color: colorVar(member?.color ?? "group-original")
+        };
+      })
   );
+  const drawn = $derived(compare ? groups : groups.slice(0, 1));
+
+  /** Each Group's cases at this node and its part of them, from 0 to 1. */
+  const split = $derived.by(() => {
+    const counts = Object.fromEntries(drawn.map((group) => [group.id, cases?.[group.id] ?? 0]));
+    const parts = caseSplit(counts);
+    return drawn.map((group) => ({ group, count: counts[group.id], part: parts[group.id] }));
+  });
+  const casesHere = $derived(split.reduce((sum, { count }) => sum + count, 0));
 
   /**
    * Attributes strongest first, split by Standing. At a few thousand cases per
@@ -97,15 +106,6 @@
     { value: "weak", label: "No difference", empty: "Every tested attribute differs here." },
     { value: "untested", label: "Not tested", empty: "Every attribute was tested here." }
   ];
-
-  /** Attributes in a divergent pair: they shift opposite ways between the Groups. */
-  const divergent = $derived(
-    new Set(
-      (node?.comovement ?? [])
-        .filter((pair) => pair.relationship === "divergent")
-        .flatMap((pair) => [pair.attributeX, pair.attributeY])
-    )
-  );
 
   // A new node opens on its strongest finding.
   let tab = $derived.by((): Standing => {
@@ -137,18 +137,10 @@
         aria-hidden="true"
       />
       <span class="flex min-w-0 flex-col gap-0.5">
-        <span class="flex items-center gap-1.25 text-xs font-semibold whitespace-nowrap">
-          <span class="truncate" title={attributeLabel(name)}><AttributeName {name} /></span>
-          {#if divergent.has(name)}
-            <Split
-              class="text-destructive size-3 shrink-0"
-              aria-label="Moves opposite to another attribute here"
-            />
-          {/if}
+        <span class="flex min-w-0 items-center gap-1.25 text-xs font-semibold">
+          <span class="min-w-0 [overflow-wrap:break-word]"><AttributeName {name} /></span>
         </span>
-        <span
-          class="text-muted-foreground flex items-center gap-1.25 text-[0.625rem] whitespace-nowrap"
-        >
+        <span class="text-muted-foreground flex min-w-0 items-center gap-1.25 text-[0.625rem]">
           {#if higher}
             <span
               class="size-1.5 shrink-0 rounded-full"
@@ -156,7 +148,7 @@
               aria-hidden="true"
             ></span>
           {/if}
-          <span class="truncate">{verdict(block, drawn, duration)}</span>
+          <span class="min-w-0 [overflow-wrap:break-word]">{verdict(block, drawn, duration)}</span>
         </span>
       </span>
       {#if compare && block.test}
@@ -177,7 +169,15 @@
             : "completion of this activity − completion of the previous one."}
         </p>
       {/if}
-      <SummaryCompare summaries={block.summaries} {compare} {duration} />
+      <SummaryCompare
+        summaries={block.summaries}
+        {compare}
+        {duration}
+        load={node && Object.values(block.summaries).some((summary) => summary.type === "numerical")
+          ? nodeOutliers(node.id, name)
+          : undefined}
+        title={attributeLabel(name)}
+      />
       {#if !block.test}
         {#if compare}
           <p class="text-muted-foreground text-[0.625rem]">{untestable(block, drawn)}</p>
@@ -197,7 +197,7 @@
 {/snippet}
 
 <aside
-  class="border-border bg-sidebar flex w-[26rem] shrink-0 flex-col border-l"
+  class="border-border bg-sidebar flex w-[30rem] shrink-0 flex-col border-l"
   data-tour="tree-detail-panel"
 >
   {#if !node}
@@ -214,41 +214,10 @@
     </div>
   {:else}
     <div class="border-border flex shrink-0 flex-col gap-2.5 border-b px-4 pt-3.5 pb-3">
-      <Breadcrumb.Root>
-        <Breadcrumb.List
-          class="flex-nowrap gap-1 overflow-hidden text-[0.625rem] whitespace-nowrap"
-        >
-          {#each path as step, i (step.id)}
-            {#if i > 0}
-              <Breadcrumb.Separator class="[&>svg]:size-2.5" />
-            {/if}
-            <Breadcrumb.Item class={cn("min-w-0", i === path.length - 1 && "shrink-0")}>
-              {#if i === path.length - 1}
-                <Breadcrumb.Page class="text-muted-foreground truncate text-[0.625rem]">
-                  {step.label}
-                </Breadcrumb.Page>
-              {:else}
-                <span class="truncate" title={step.label}>{step.label}</span>
-              {/if}
-            </Breadcrumb.Item>
-          {/each}
-        </Breadcrumb.List>
-      </Breadcrumb.Root>
-
       <div class="flex items-start justify-between gap-2">
-        <div class="flex min-w-0 flex-col gap-1.5">
-          <h2 class="text-[0.9375rem] leading-tight font-semibold text-pretty">{node.label}</h2>
-          <Badge variant="secondary" class="text-[0.6875rem]">
-            <span
-              class="size-1.5 shrink-0 rounded-full"
-              style="background:{memberGroup
-                ? colorVar(memberGroup.color)
-                : 'var(--muted-foreground)'}"
-              aria-hidden="true"
-            ></span>
-            {memberGroup ? `${memberGroup.name} only` : "Every group"}
-          </Badge>
-        </div>
+        <h2 class="min-w-0 text-[0.9375rem] leading-tight font-semibold text-pretty">
+          {node.label}
+        </h2>
         <div class="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
           <Popover.Root>
             <Popover.Trigger>
@@ -284,10 +253,6 @@
                 <span>negligible</span>
                 <span>large</span>
               </p>
-              <p>
-                <span class="font-semibold">Divergent</span> co-movement means two attributes shift opposite
-                ways between the groups.
-              </p>
             </Popover.Content>
           </Popover.Root>
           <Button variant="ghost" size="icon-sm" aria-label="Hide details" onclick={onClose}>
@@ -296,34 +261,41 @@
         </div>
       </div>
 
-      <div class="flex flex-col gap-1.25">
-        {#each reach as { group, count, share } (group.id)}
-          <div class="grid grid-cols-[5.75rem_minmax(0,1fr)_6.75rem] items-center gap-2">
-            <span class="flex items-center gap-1.25 truncate text-[0.6875rem] font-medium">
-              <span
-                class="size-2 shrink-0 rounded-full"
-                style="background:{colorVar(group.color)}"
-                aria-hidden="true"
-              ></span>
-              <span class="truncate">{group.name}</span>
-            </span>
-            <span class="bg-muted relative h-1.5">
-              <span
-                class="absolute inset-y-0 left-0"
-                style="width:{share}%;background:{colorVar(group.color)}"
-              ></span>
-            </span>
-            <span
-              class="text-muted-foreground text-right font-mono text-[0.625rem] whitespace-nowrap"
-            >
-              {formatNumber(count)} · {share}%
-            </span>
-          </div>
-        {/each}
-        <span class="text-muted-foreground text-[0.625rem]">
-          Share of each group's cases that reach this node
+      <div class="flex flex-col gap-1">
+        <span class="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
+          Variant
         </span>
+        <VariantSteps {steps} />
       </div>
+
+      {#if compare}
+        <div class="flex flex-col gap-1">
+          <div
+            class="grid grid-cols-[1fr_auto_1fr] items-baseline gap-2 font-mono text-[0.625rem] font-medium tabular-nums"
+          >
+            {#each split as { group, count, part }, index (group.id)}
+              {#if index === 1}
+                <span class="text-muted-foreground">{formatNumber(casesHere)}</span>
+              {/if}
+              <span
+                class={index === 0 ? "text-left" : "text-right"}
+                style="color:{colorVar(group.color)}"
+              >
+                {formatNumber(count)} ({formatPercent(part)})
+              </span>
+            {/each}
+          </div>
+          <div class="bg-muted flex h-1.5" aria-hidden="true">
+            {#each split as { group, part } (group.id)}
+              <span style="width:{part * 100}%;background:{colorVar(group.color)}"></span>
+            {/each}
+          </div>
+        </div>
+      {:else}
+        <span class="text-muted-foreground text-[0.6875rem]">
+          {formatNumber(casesHere)} cases at this node
+        </span>
+      {/if}
     </div>
 
     {#if flat.length === 0}
@@ -376,37 +348,6 @@
             </Tabs.Content>
           {/each}
 
-          {#if node.comovement.length > 0}
-            <div class="flex flex-col gap-2 px-4 py-3.5">
-              <h3 class="text-muted-foreground text-[0.6875rem] font-semibold">Co-movement</h3>
-              {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
-                <div class="flex items-center gap-2 text-[0.6875rem]">
-                  <Split
-                    class={cn(
-                      "size-3.5 shrink-0",
-                      pair.relationship === "divergent"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
-                    )}
-                    aria-hidden="true"
-                  />
-                  <span class="truncate font-medium">{attributeLabel(pair.attributeX)}</span>
-                  <span class="text-muted-foreground">⇄</span>
-                  <span class="truncate font-medium">{attributeLabel(pair.attributeY)}</span>
-                  <Badge
-                    variant={pair.relationship === "divergent" ? "destructive" : "secondary"}
-                    class="ml-auto text-[0.6875rem]"
-                  >
-                    {pair.relationship}
-                  </Badge>
-                </div>
-              {/each}
-              <p class="text-muted-foreground text-[0.625rem]">
-                Divergent attributes shift opposite ways between the groups; concordant ones shift
-                the same way.
-              </p>
-            </div>
-          {/if}
         </ScrollArea.Root>
       </Tabs.Root>
     {/if}

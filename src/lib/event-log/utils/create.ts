@@ -3,10 +3,11 @@ import type { RequestColumnMapping } from "$lib/event-log/invokers/types";
 import { addProject } from "$lib/event-log/state/projects.svelte";
 import type { Project, ProjectDraft } from "$lib/event-log/types";
 import { validateColumnMapping } from "$lib/event-log/utils/column-mapping";
+import { cleanName } from "$lib/event-log/utils/name";
 
 function deriveProjectName(fileName: string): string {
   const stem = fileName.replace(/\.xes\.gz$|\.[^.]+$/i, "").replace(/[_-]+/g, " ");
-  return stem.charAt(0).toUpperCase() + stem.slice(1);
+  return cleanName(stem.charAt(0).toUpperCase() + stem.slice(1));
 }
 
 /**

@@ -5,7 +5,7 @@ pub mod commands;
 mod significance;
 
 use crate::analysis::{
-    stats, Acc, AttributeBlock, GroupLog, ACTIVITY_DURATION, ALPHA, MIN_GROUP_CASES,
+    stats, Acc, AttributeBlock, GroupLog, ACTIVITY_DURATION, ALPHA, MIN_GROUP_CASES, NOT_NUMERIC,
     TRANSITION_TIME,
 };
 use crate::column_mapping::{find_role, ColumnMapping, ColumnRole};
@@ -68,6 +68,25 @@ impl Measured {
             repetitions: asked(RequestedAttribute::Repetitions),
         }
     }
+}
+
+/// What a DFG outliers request reads: one activity's attribute, the
+/// Transition Time of one edge between two activities, or one case-level
+/// attribute. Activities are named by label.
+#[derive(serde::Deserialize, Debug, Clone)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum DfgOutlierTarget {
+    Node {
+        activity: String,
+        attribute: RequestedAttribute,
+    },
+    Edge {
+        from: String,
+        to: String,
+    },
+    Case {
+        attribute: RequestedAttribute,
+    },
 }
 
 #[derive(serde::Serialize, Debug, Clone, Copy, Default)]
@@ -190,6 +209,45 @@ pub fn build(
         has_activity_duration: has_start,
         case_level,
     })
+}
+
+/// One place's values of one numeric attribute, one vector per entry in `logs`,
+/// aggregated as `build` aggregates them. A Group with no values there gets an
+/// empty vector.
+pub fn place_values(
+    logs: &[GroupLog],
+    mapping: &[ColumnMapping],
+    outlier_target: &DfgOutlierTarget,
+    selection: Option<&[String]>,
+) -> Result<Vec<Vec<f64>>, String> {
+    let requested = match outlier_target {
+        DfgOutlierTarget::Node { attribute, .. } | DfgOutlierTarget::Case { attribute } => {
+            attribute.clone()
+        }
+        DfgOutlierTarget::Edge { .. } => RequestedAttribute::TransitionTime,
+    };
+    let aggregates = build::aggregate(logs, mapping, &[requested], selection, &|| false)?;
+    let accs = match outlier_target {
+        DfgOutlierTarget::Node {
+            activity,
+            attribute,
+        } => aggregates
+            .nodes
+            .get(activity)
+            .and_then(|node| node.attributes.get(attribute.name())),
+        DfgOutlierTarget::Edge { from, to } => {
+            aggregates.transitions.get(&(from.clone(), to.clone()))
+        }
+        DfgOutlierTarget::Case { .. } => aggregates.case_level.first().map(|attr| &attr.accs),
+    }
+    .ok_or_else(|| "No values for this place.".to_string())?;
+    logs.iter()
+        .map(|log| match accs.get(&log.id) {
+            Some(Acc::Num(values)) => Ok(values.clone()),
+            Some(Acc::Cat(_)) => Err(NOT_NUMERIC.to_string()),
+            None => Ok(Vec::new()),
+        })
+        .collect()
 }
 
 fn activity_nodes(
@@ -598,6 +656,152 @@ mod tests {
                     .unwrap_or_else(|| panic!("a variant names the unknown id {id}"))
             })
             .collect()
+    }
+
+    fn outlier_counts(summary: Option<&Summary>) -> (usize, usize) {
+        match summary {
+            Some(Summary::Numerical {
+                outliers_low,
+                outliers_high,
+                ..
+            }) => (*outliers_low, *outliers_high),
+            _ => (0, 0),
+        }
+    }
+
+    /// Cases `A, B` whose cost at `B` and wait into `B` both carry a tail on
+    /// either side.
+    fn tailed(seed: usize, cases: usize) -> DataFrame {
+        type Owned<'a> = (String, Vec<(&'a str, i64, i64)>);
+        let owned: Vec<Owned> = (0..cases)
+            .map(|i| {
+                let tail = |base: i64| match (i + seed) % 19 {
+                    0 => base * 50,
+                    1 => -base * 40,
+                    n => base + n as i64,
+                };
+                let wait = match (i + seed) % 17 {
+                    0 => 5_000,
+                    n => 10 + n as i64,
+                };
+                (
+                    format!("{seed}-{i}"),
+                    vec![("A", 0, tail(10)), ("B", wait, tail(30))],
+                )
+            })
+            .collect();
+        let traces: Vec<Trace> = owned
+            .iter()
+            .map(|(case, events)| (case.as_str(), events.as_slice()))
+            .collect();
+        log(&traces)
+    }
+
+    fn assert_parity(
+        logs: &[GroupLog],
+        mapping: &[Mapping],
+        target: DfgOutlierTarget,
+        block: &AttributeBlock,
+    ) {
+        let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
+        let values = place_values(logs, mapping, &target, None).unwrap();
+        let outliers = crate::analysis::outliers_by_group(&ids, values);
+        let mut seen = 0;
+        for id in &ids {
+            let expected = outlier_counts(block.summaries.get(id));
+            assert_eq!(
+                (outliers[id].low.len(), outliers[id].high.len()),
+                expected,
+                "{target:?} in {id}"
+            );
+            seen += expected.0 + expected.1;
+        }
+        assert!(seen > 0, "the fixture has outliers for {target:?}");
+    }
+
+    #[test]
+    fn place_values_match_the_node_and_edge_summaries() {
+        let (a, b) = (tailed(0, 80), tailed(3, 60));
+        let dfg = dfg_with(&a, Some(&b), &["cost", TRANSITION_TIME], false);
+        let logs = logs(&a, Some(&b));
+        let cost = RequestedAttribute::Column {
+            name: "cost".to_string(),
+        };
+        for activity in ["A", "B"] {
+            assert_parity(
+                &logs,
+                &mapping(false),
+                DfgOutlierTarget::Node {
+                    activity: activity.to_string(),
+                    attribute: cost.clone(),
+                },
+                &node(&dfg, activity).attributes["cost"],
+            );
+        }
+        assert_parity(
+            &logs,
+            &mapping(false),
+            DfgOutlierTarget::Edge {
+                from: "A".to_string(),
+                to: "B".to_string(),
+            },
+            &transition(&dfg, "A", "B").attributes[TRANSITION_TIME],
+        );
+    }
+
+    #[test]
+    fn place_values_match_the_case_level_summary() {
+        let mut columns = mapping(false);
+        columns.retain(|column| column.name != "cost");
+        columns.push(
+            serde_json::from_str(
+                r#"{"name":"cost","role":"other","type":"integer","scope":"case","caseResolution":"last"}"#,
+            )
+            .unwrap(),
+        );
+        let (a, b) = (tailed(0, 80), tailed(3, 60));
+        let logs = logs(&a, Some(&b));
+        let cost = RequestedAttribute::Column {
+            name: "cost".to_string(),
+        };
+        let dfg = build(&logs, &columns, std::slice::from_ref(&cost), None, &|| {
+            false
+        })
+        .unwrap();
+        assert_parity(
+            &logs,
+            &columns,
+            DfgOutlierTarget::Case { attribute: cost },
+            &dfg.case_level["cost"],
+        );
+    }
+
+    #[test]
+    fn place_values_refuse_a_missing_place_and_a_category() {
+        let a = tailed(0, 20);
+        let logs = logs(&a, None);
+        let missing = place_values(
+            &logs,
+            &mapping(false),
+            &DfgOutlierTarget::Edge {
+                from: "B".to_string(),
+                to: "A".to_string(),
+            },
+            None,
+        );
+        assert_eq!(missing, Err("No values for this place.".to_string()));
+        let category = place_values(
+            &logs,
+            &mapping(false),
+            &DfgOutlierTarget::Node {
+                activity: "A".to_string(),
+                attribute: RequestedAttribute::Column {
+                    name: "who".to_string(),
+                },
+            },
+            None,
+        );
+        assert_eq!(category, Err(NOT_NUMERIC.to_string()));
     }
 
     fn n_of(summary: &Summary) -> usize {

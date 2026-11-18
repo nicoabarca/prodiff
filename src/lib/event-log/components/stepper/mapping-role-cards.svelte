@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import type { TimestampFormats } from "$lib/event-log/state/timestamp-formats.svelte";
   import {
     pickMeta,
@@ -73,9 +74,11 @@
         >
           {pickMeta[pick].label}
         </span>
-        <span class="text-card-foreground block w-full truncate font-mono text-sm">
-          {cardValue(pick)}
-        </span>
+        <Fit
+          text={cardValue(pick)}
+          focusable={false}
+          class="text-card-foreground font-mono text-sm"
+        />
       </button>
 
       {#if column && (unresolved || mismatched)}
@@ -84,9 +87,7 @@
             <Tooltip.Trigger
               class={cn(
                 "border-border absolute -right-2 -bottom-2 flex size-5 items-center justify-center border",
-                unresolved
-                  ? "bg-yellow-300 text-yellow-900"
-                  : "bg-muted text-muted-foreground"
+                unresolved ? "bg-yellow-300 text-yellow-900" : "bg-muted text-muted-foreground"
               )}
               aria-label={unresolved
                 ? `No timestamp pattern reads ${column}`

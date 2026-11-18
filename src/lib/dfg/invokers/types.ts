@@ -71,3 +71,9 @@ export interface GroupBlock {
   id: string;
   caseCount: number;
 }
+
+/** What `dfg_outliers` reads. Activities are named by label. */
+export type RequestDfgOutlierTarget =
+  | { kind: "node"; activity: string; attribute: RequestDfgAttribute }
+  | { kind: "edge"; from: string; to: string }
+  | { kind: "case"; attribute: RequestDfgAttribute };

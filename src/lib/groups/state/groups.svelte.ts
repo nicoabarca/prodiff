@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { db } from "$lib/db/client";
 import { groups as groupsTable } from "$lib/db/schema";
 import type { Project } from "$lib/event-log/types";
+import { cleanName } from "$lib/event-log/utils/name";
 import { filterColumn, type Filter } from "$lib/filters/kind/filter";
 import { filtersKey } from "$lib/filters/utils/key";
 import { appliedGroups } from "$lib/groups/invokers/applied-groups";
@@ -81,7 +82,7 @@ export async function createGroup(
   const group: Group = {
     id: groupId(),
     projectId,
-    name: name?.trim() || `Group ${position + 1}`,
+    name: cleanName(name ?? "") || `Group ${position + 1}`,
     color: defaultColor(position),
     position,
     filters,
@@ -137,8 +138,8 @@ export async function applyGroup(project: Project, group: Group, filters: Filter
 }
 
 export async function renameGroup(group: Group, name: string) {
-  const trimmed = name.trim();
-  if (trimmed) await patch(group.id, { name: trimmed });
+  const cleaned = cleanName(name);
+  if (cleaned) await patch(group.id, { name: cleaned });
 }
 
 export async function recolorGroup(group: Group, color: string) {
