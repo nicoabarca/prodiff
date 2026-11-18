@@ -3,7 +3,7 @@ import { dfgOutliers } from "$lib/dfg/invokers/dfg-outliers";
 import type { RequestDfgOutlierTarget, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Place } from "$lib/dfg/utils/findings";
 import type { OutlierLoad } from "$lib/analysis/types";
-import { dfgKey } from "$lib/dfg/types";
+import { dfgKey, GRAPH_ATTRIBUTES } from "$lib/dfg/types";
 import { previewGraph } from "$lib/dfg/utils/preview";
 import { attributeOptions } from "$lib/analysis/attributes";
 import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
@@ -68,11 +68,17 @@ export function drawnGraph(): ResponseDfg | null {
 /** The attributes each node is asked to measure and test. A build input, so it keys the cache. */
 export const selection = $state<{ attributes: string[] }>({ attributes: [] });
 
+/** What the graph can be asked to test: every comparison view's attributes, then its own. */
+export function graphAttributeOptions(project: Project): string[] {
+  return [
+    ...attributeOptions(project.columns, project.hiddenColumns, customColumns(project)),
+    ...GRAPH_ATTRIBUTES
+  ];
+}
+
 /** The selected attributes that are still valid and visible for this project. */
 export function selectedAttributes(project: Project): string[] {
-  const available = new Set(
-    attributeOptions(project.columns, project.hiddenColumns, customColumns(project))
-  );
+  const available = new Set(graphAttributeOptions(project));
   return selection.attributes.filter((attribute) => available.has(attribute));
 }
 

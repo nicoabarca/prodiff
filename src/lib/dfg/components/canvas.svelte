@@ -20,18 +20,31 @@
   import { flash, shownVariant } from "$lib/dfg/state/variants.svelte";
   import {
     busiest,
+    busiestPerCase,
+    EDGE_WIDTH_UNIFORM,
+    edgeBlocks,
+    edgeLines,
     edgeStroke,
-    edgeWait,
     edgeWidth,
     faceCounts,
     membership,
+    perCase,
     shadeValue,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { shadeSteps } from "$lib/groups/utils/shade";
+  import { builtAttributes, paintedAttribute, shownEdgeLabel } from "$lib/dfg/utils/display";
+  import { faded } from "$lib/dfg/utils/emphasis";
+  import { figureAttributes, nodeFigure, nodeFigures } from "$lib/dfg/utils/figure";
   import { END_ID, START_ID, type DfgEdgeData, type FaceGroup } from "$lib/dfg/types";
   import { along, arrow, nearest, prepareRoute } from "$lib/dfg/utils/arrow";
-  import { comparable, edgePlace, nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
+  import {
+    edgePlace,
+    nodeDifferences,
+    placeKey,
+    testedPlaces,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { litPath, type LitPath } from "$lib/dfg/utils/fold";
   import { light } from "$lib/dfg/utils/light";
   import { LABEL_STOPS, labelSize, settleLabels, type Size } from "$lib/dfg/utils/labels";
@@ -86,15 +99,15 @@
       place on either side. */
   const placedGraph = $derived(layoutFrom ?? ownGraph);
 
-  const NO_COUNTS: Counts = { cases: 0, events: 0 };
+  const caseCounts = $derived(new Map(graph.groups.map((group) => [group.id, group.caseCount])));
 
   /**
-   * The counts a panel prints from. A split panel narrows them to its one
-   * Group, so every figure, shade and thickness below ranks within that Group
-   * instead of across the comparison.
+   * The counts a panel shades and thickens by. A split panel narrows them to
+   * its one Group, per case of that Group, and ranks them against every
+   * Group's, so both panels draw on one scale.
    */
   const facing = (counts: Record<string, Counts>): Record<string, Counts> =>
-    focus === null ? counts : { [focus]: counts[focus] ?? NO_COUNTS };
+    focus === null ? counts : { [focus]: perCase(counts, focus, caseCounts) };
 
   const shown = $derived(focus === null ? groups : groups.filter((group) => group.id === focus));
 
@@ -104,43 +117,69 @@
   const waits = $derived(transitionsById(graph));
   const differences = $derived(nodeDifferences(findings));
   const labels = $derived(new Map(graph.nodes.map((node) => [node.id, node.label])));
-  const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
+  const measuredNodes = $derived(new Map(graph.nodes.map((node) => [node.id, node])));
+  const figure = $derived(nodeFigure(view, figureAttributes(graph)));
+  const built = $derived(builtAttributes(graph));
+  const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
+  /** The tests an edge is coloured by: those of the figure it prints. */
+  const measured = $derived(edgeBlocks(findings, paintedAttribute(edgeLabel)));
+
+  /** What Focus fades. A split panel already draws one Group, so only findings fade there. */
+  const fading = $derived({
+    emphasis: focus === null ? view.emphasis : "all",
+    findingsOnly: view.findingsOnly
+  });
   const groupIds = $derived(groups.map((group) => group.id));
-  const inspectable = $derived(
-    new Set(
-      simplified.nodes
-        .filter((node) => node.kind === "activity" && comparable(node.counts, groupIds))
-        .map((node) => node.id)
-    )
-  );
+  const drawnLabels = $derived(new Map(simplified.nodes.map((node) => [node.id, node.label])));
+  const tested = $derived(testedPlaces(findings));
 
-  /** Whether a click on an edge opens the tests panel: it joins two activities and more than one Group follows it. */
-  const edgeInspectable = (source: number, target: number, counts: Record<string, Counts>) =>
-    source !== START_ID && target !== END_ID && comparable(counts, groupIds);
+  /** Whether a click on an edge opens the tests panel: some test was run on it. */
+  const edgeInspectable = (source: number, target: number) =>
+    tested.has(placeKey({ kind: "edge", source, target, label: "" }));
 
-  /** A click on an activity more than one Group reaches opens the tests panel on it; any other node only selects. */
+  /** A click on an activity some test was run on opens the tests panel on it; any other node only selects. */
   function clickNode(id: number) {
     const label = drawnLabels.get(id);
-    if (!inspectable.has(id) || label === undefined) {
+    if (label === undefined || !tested.has(placeKey({ kind: "node", id, label }))) {
       selected.id = id;
       return;
     }
     inspect({ kind: "node", id, label });
   }
 
-  /** A click on an inspectable edge opens the tests panel on its Waiting Time. */
+  /** A click on an inspectable edge opens the tests panel on it. */
   function clickEdge(edge: Edge) {
     if (!(edge.data as DfgEdgeData).clickable) return;
     inspect(edgePlace(Number(edge.source), Number(edge.target), drawnLabels));
   }
 
+  /** What reaches each node drawn or placed, for the share of it an edge carries. */
+  const reaching = $derived(
+    new Map([...placedGraph.nodes, ...simplified.nodes].map((node) => [node.id, node.counts]))
+  );
+
+  /** The lines an edge prints beside it, for the Groups given. */
+  const linesOf = (
+    edge: { source: number; target: number; counts: Record<string, Counts> },
+    of: FaceGroup[]
+  ) =>
+    edgeLines(
+      edgeLabel,
+      edge.counts,
+      reaching.get(edge.source) ?? {},
+      waits.get(edgeKey(edge.source, edge.target)),
+      of,
+      view.statistic
+    );
+
   /** Every edge label's box, sized for every compared Group, so both split
-      panels reserve the same room and place it in the same spot. */
+      panels reserve the same room and place it in the same spot. Empty when
+      edges print no label, so no room is kept for one. */
   const labelSizes = $derived(
     new Map(
       placedGraph.edges.flatMap((edge) => {
         const key = edgeKey(edge.source, edge.target);
-        const size = labelSize(edgeWait(waits.get(key), groups), groups.length > 1);
+        const size = labelSize(linesOf(edge, groups), groups.length > 1);
         return size ? [[key, size] as [string, Size]] : [];
       })
     )
@@ -234,11 +273,26 @@
       })
     );
 
-    const steps = shadeSteps(
-      simplified.nodes.map((node) =>
-        shadeValue({ ...node, counts: facing(node.counts) }, view.measure)
+    // A split panel shades against every Group's figures, then keeps its own.
+    const shadedIds: (string | null)[] = focus === null ? [null] : [...caseCounts.keys()];
+    const allSteps = shadeSteps(
+      shadedIds.flatMap((id) =>
+        simplified.nodes.map((node) =>
+          shadeValue(
+            {
+              ...node,
+              counts: id === null ? node.counts : { [id]: perCase(node.counts, id, caseCounts) }
+            },
+            view.measure
+          )
+        )
       ),
       "log"
+    );
+    const own = focus === null ? 0 : shadedIds.indexOf(focus);
+    const steps = allSteps.slice(
+      own * simplified.nodes.length,
+      (own + 1) * simplified.nodes.length
     );
 
     // A split panel draws only what its own Group reaches. The box stays in the
@@ -265,14 +319,26 @@
             label: node.label,
             kind: node.kind,
             groups: shown,
-            counts: faceCounts(node.counts, shown, view.measure),
+            counts:
+              node.kind === "activity"
+                ? nodeFigures(
+                    node.counts,
+                    measuredNodes.get(node.id),
+                    figure,
+                    view.statistic,
+                    caseCounts,
+                    shown
+                  )
+                : faceCounts(node.counts, shown, view.measure),
             shadeStep: steps[index],
             differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,
             direction: view.direction,
             highlighted: false,
-            dimmed: false,
+            dimmed:
+              node.kind === "activity" &&
+              faded({ counts: node.counts, finding: differences.has(node.id) }, fading, groupIds),
             added: 0,
             focus
           }
@@ -296,8 +362,8 @@
         return {
           edge,
           key,
-          waits: edgeWait(waits.get(key), shown),
-          stroke: edgeStroke(edge.counts, waits.get(key), groups),
+          lines: linesOf(edge, shown),
+          stroke: edgeStroke(edge.counts, measured.get(key) ?? [], groups),
           route: prepareRoute(points)
         };
       });
@@ -305,10 +371,10 @@
     // ELK reserves each label's room beside its edge; a label is drawn on the
     // edge's own line, at the first spot along it that covers nothing else.
     const settled = settleLabels(
-      drawn.flatMap(({ edge, key, waits, route }) => {
+      drawn.flatMap(({ edge, key, lines, route }) => {
         const reserved = placed.labels.get(key);
         const size = labelSizes.get(key);
-        if (waits.length === 0 || !reserved || !size) return [];
+        if (lines.length === 0 || !reserved || !size) return [];
         const onLine =
           edge.source === edge.target
             ? [reserved]
@@ -318,14 +384,17 @@
       [...boxes.values()]
     );
 
-    const busiestEdge = busiest(
-      simplified.edges.map((edge) => ({ counts: facing(edge.counts) })),
-      view.measure
-    );
-    const edges: Edge[] = drawn.map(({ edge, key, waits, stroke, route }) => {
-      const width = edgeWidth(facing(edge.counts), busiestEdge, view.measure);
+    const busiestEdge =
+      focus === null
+        ? busiest(simplified.edges, view.measure)
+        : busiestPerCase(simplified.edges, caseCounts, view.measure);
+    const edges: Edge[] = drawn.map(({ edge, key, lines, stroke, route }) => {
+      const width =
+        view.edgeWidth === "uniform"
+          ? EDGE_WIDTH_UNIFORM
+          : edgeWidth(facing(edge.counts), busiestEdge, view.measure);
       const shape = arrow(route, boxes.get(edge.target) ?? null, width);
-      const clickable = edgeInspectable(edge.source, edge.target, edge.counts);
+      const clickable = edgeInspectable(edge.source, edge.target);
       return {
         id: key,
         class: clickable ? "cursor-pointer" : undefined,
@@ -337,13 +406,20 @@
           head: shape.head,
           width,
           stroke,
-          waits,
+          label: lines,
           dotted: shown.length > 1,
           labelAt: settled.get(key) ?? along(route, 0.5),
           boundary: edge.source === START_ID || edge.target === END_ID,
           clickable,
           highlighted: false,
-          dimmed: false,
+          dimmed: faded(
+            {
+              counts: edge.counts,
+              finding: (measured.get(key) ?? []).some((block) => block.test?.significant)
+            },
+            fading,
+            groupIds
+          ),
           added: 0
         }
       };
@@ -371,7 +447,12 @@
       const glow = fresh?.nodes.has(node.id) ? fresh.at : 0;
       return {
         ...node,
-        data: { ...node.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+        data: {
+          ...node.data,
+          highlighted: lit !== null && on,
+          dimmed: !on || Boolean(node.data.dimmed),
+          added: glow
+        }
       };
     });
     edges = flow.edges.map((edge) => {
@@ -379,7 +460,12 @@
       const glow = fresh?.edges.has(edge.id) ? fresh.at : 0;
       return {
         ...edge,
-        data: { ...edge.data, highlighted: lit !== null && on, dimmed: !on, added: glow }
+        data: {
+          ...edge.data,
+          highlighted: lit !== null && on,
+          dimmed: !on || Boolean(edge.data?.dimmed),
+          added: glow
+        }
       };
     });
   });
