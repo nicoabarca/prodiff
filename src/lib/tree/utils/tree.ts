@@ -35,6 +35,17 @@ export function groupCasesAt(node: TreeNode, groupId: string): number {
   return node.cases[groupId] ?? 0;
 }
 
+/**
+ * Each Group's part of the cases counted at a node, from 0 to 1, keyed by
+ * Group id. The parts add up to 1 unless no case is counted there.
+ */
+export function caseSplit(cases: Record<string, number>): Record<string, number> {
+  const total = Object.values(cases).reduce((sum, count) => sum + count, 0);
+  return Object.fromEntries(
+    Object.entries(cases).map(([id, count]) => [id, total > 0 ? count / total : 0])
+  );
+}
+
 export function isDivergent(node: TreeNode): boolean {
   return node.comovement.some((pair) => pair.relationship === "divergent");
 }
