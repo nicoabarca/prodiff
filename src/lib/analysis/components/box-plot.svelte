@@ -3,6 +3,7 @@
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Svg, Tooltip } from "layerchart";
   import type { BoxStats } from "$lib/analysis/types";
   import { interiorTicks } from "$lib/analysis/utils/axis";
+  import { tickLabel } from "$lib/format";
 
   let {
     boxes,
@@ -72,9 +73,8 @@
       })
       .filter((note): note is string => note !== null)
   );
-  const truncate = (name: string) => (name.length > 12 ? `${name.slice(0, 11)}…` : name);
   /** The band axis is keyed on Group id, so it reads the name back to label a tick. */
-  const bandLabel = (id: string) => truncate(rows.find((row) => row.id === id)?.name ?? id);
+  const bandLabel = (id: string) => tickLabel(rows.find((row) => row.id === id)?.name ?? id, 18);
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
 </script>
@@ -100,7 +100,7 @@
         valueAxis={horizontal ? "x" : "y"}
         tooltipContext={{ mode: "band" }}
         padding={horizontal
-          ? { left: 76, right: 8, bottom: 20 }
+          ? { left: 120, right: 8, bottom: 20 }
           : { left: 52, right: 12, bottom: 24, top: 8 }}
       >
         {#snippet children({ context })}

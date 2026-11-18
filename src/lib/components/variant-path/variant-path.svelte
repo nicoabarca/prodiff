@@ -3,6 +3,7 @@
    * A Variant's trace as a row of chevron chips, one per activity, scrolling
    * sideways when it does not fit.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import { cn } from "$lib/utils";
 
   let { activities, class: className }: { activities: string[]; class?: string } = $props();
@@ -31,12 +32,12 @@
     >
       <span
         class={cn(
-          "bg-secondary text-secondary-foreground block truncate py-1 pr-4 text-[0.6875rem] leading-tight",
+          "bg-secondary text-secondary-foreground block py-1 pr-4 text-[0.6875rem] leading-tight",
           step === 0 ? "pl-2.5" : "pl-4"
         )}
         style="clip-path:{chevron(step)}"
       >
-        {activity}
+        <Fit text={activity} focusable={false} class="block" />
       </span>
     </span>
   {/each}

@@ -6,6 +6,7 @@
    * that activity's differences until its chip is cleared; opened on an edge,
    * it opens and scrolls to that edge's Waiting Time.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -163,7 +164,7 @@
           title="Show every test again"
           onclick={clearInspected}
         >
-          <span class="truncate">Activity {activity.label}</span>
+          <Fit text="Activity {activity.label}" focusable={false} />
           <X class="size-3 shrink-0" aria-hidden="true" />
         </button>
         {@render collapseButton()}
@@ -233,13 +234,15 @@
               aria-hidden="true"
             />
             <span class="flex min-w-0 flex-col gap-1">
-              <span class="truncate text-[0.8125rem] font-semibold">
+              <span class="min-w-0 text-[0.8125rem] font-semibold [overflow-wrap:break-word]">
                 <AttributeName name={row.attribute} />
               </span>
               <span class="bg-muted relative h-1.5">
                 <span class="bg-primary absolute inset-y-0 left-0" style="width:{share}%"></span>
               </span>
-              <span class="text-muted-foreground truncate text-[0.625rem]">
+              <span
+                class="text-muted-foreground min-w-0 text-[0.625rem] [overflow-wrap:break-word]"
+              >
                 differs at {row.significant} of {where(row.attribute, row.tested)}
               </span>
             </span>

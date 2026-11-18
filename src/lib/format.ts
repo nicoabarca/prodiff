@@ -72,3 +72,11 @@ export function colorTint(token: string, percent = 7): string {
   if (token === "foreground") return "transparent";
   return `color-mix(in oklab, var(--${token}) ${percent}%, transparent)`;
 }
+
+/**
+ * A chart tick label cut to `max` characters, ending in an ellipsis. SVG text
+ * cannot show a tooltip of its own, so the chart's tooltip must carry the whole text.
+ */
+export function tickLabel(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}

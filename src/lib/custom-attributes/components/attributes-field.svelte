@@ -4,6 +4,7 @@
    * from. Holds nothing: the view that opened it owns the selection and decides
    * when a change reaches its build, which is what `caption` and `note` say.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import SettingField from "$lib/components/layout/setting-field.svelte";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -45,7 +46,7 @@
       <SettingField {...props} icon={FlaskConical} {caption} {open} class="shrink">
         {#if selected.length > 0}
           {selected.length}
-          <span class="text-muted-foreground min-w-0 truncate font-normal">{summary}</span>
+          <Fit text={summary} focusable={false} class="text-muted-foreground font-normal" />
         {:else}
           None
         {/if}

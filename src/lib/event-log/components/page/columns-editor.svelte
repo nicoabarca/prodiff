@@ -6,6 +6,7 @@
    * Custom Attributes it names, so it can be neither hidden, retyped nor
    * rescoped; one in `directReaders` keeps its case resolution too.
    */
+  import Fit from "$lib/components/fit/fit.svelte";
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import { Checkbox } from "$lib/components/ui/checkbox/index.js";
@@ -139,14 +140,15 @@
         {/if}
       </span>
       <span class="flex w-36 shrink-0 items-center gap-1.5 font-mono text-xs font-semibold">
-        <span class="truncate" title={column.name}>{column.name}</span>
+        <Fit text={column.name} />
         {#if column.changed}
           <span class="bg-primary size-1.5 shrink-0 rounded-full" aria-label="Changed"></span>
         {/if}
       </span>
-      <span class="text-muted-foreground min-w-0 flex-1 truncate font-mono text-[0.6875rem]">
-        {profiles[column.name]?.sample.join(", ") ?? ""}
-      </span>
+      <Fit
+        text={profiles[column.name]?.sample.join(", ") ?? ""}
+        class="text-muted-foreground flex-1 font-mono text-[0.6875rem]"
+      />
       <span
         class="w-13 shrink-0 text-right font-mono text-[0.6875rem] {filled.low
           ? 'text-destructive'

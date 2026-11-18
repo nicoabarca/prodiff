@@ -1,4 +1,5 @@
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
   import type { Project } from "$lib/event-log/types";
   import { openedAt } from "$lib/event-log/state/opened.svelte";
   import {
@@ -100,7 +101,7 @@
       </div>
       <p class="text-muted-foreground flex items-center gap-1.5">
         <FileText class="size-3.5 shrink-0" aria-hidden="true" />
-        <span class="truncate">{project.fileName}</span>
+        <Fit text={project.fileName} focusable={false} />
         {#if figures?.size != null}
           <span aria-hidden="true">·</span>
           <span class="whitespace-nowrap">{formatFileSize(figures.size)}</span>
@@ -151,7 +152,7 @@
         {@const percent = share(group)}
         <div class="grid grid-cols-[0.625rem_minmax(0,1fr)_4.5rem_3.75rem] items-center gap-2">
           <span class="size-2.5" style:background={colorVar(group.color)}></span>
-          <span class="truncate">{group.name}</span>
+          <Fit text={group.name} focusable={false} />
           <span class="bg-muted flex h-1">
             {#if percent !== null}
               <span style:width="{percent}%" style:background={colorVar(group.color)}></span>
@@ -183,7 +184,7 @@
             {#each compared as group, index (index)}
               {#if index === 1}<span class="shrink-0">vs</span>{/if}
               <span class="size-2 shrink-0" style:background={colorVar(group.color)}></span>
-              <span class="text-foreground min-w-0 truncate">{group.name}</span>
+              <span class="text-foreground min-w-0 [overflow-wrap:break-word]">{group.name}</span>
             {/each}
           </span>
         {:else}

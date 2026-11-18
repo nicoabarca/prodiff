@@ -7,10 +7,13 @@
 </script>
 
 <script lang="ts">
+  import Fit from "$lib/components/fit/fit.svelte";
+
   /**
    * Two overlapping circles, one per Group, whose three regions toggle
    * independently: any union of them can be selected. Each region shows its
-   * count and fills with its Group's colour while selected.
+   * count and fills with its Group's colour while selected. A legend beside the
+   * circles names each Group.
    */
   let {
     left,
@@ -71,61 +74,59 @@
   }
 </script>
 
-<svg viewBox="0 0 {LX + RX} {CY * 2 + 16}" class="h-[4.5rem] w-auto shrink-0 select-none" role="group">
-  {#each order as region (region)}
-    {@const { count, state } = regions[region]}
-    <path
-      d={paths[region]}
-      role="checkbox"
-      tabindex="0"
-      aria-checked={state === "mixed" ? "mixed" : state === "on"}
-      aria-label="{names[region]}: {count} variants"
-      class="focus-visible:stroke-ring cursor-pointer stroke-transparent stroke-2 outline-none hover:opacity-80"
-      style="fill:{inks[region]};fill-opacity:{OPACITY[state]}"
-      onclick={() => onToggle(region)}
-      onkeydown={(event) => onKey(event, region)}
-    >
-      <title>{names[region]}</title>
-    </path>
-    <text
-      x={centers[region]}
-      y={CY}
-      text-anchor="middle"
-      dominant-baseline="central"
-      class="pointer-events-none fill-current font-mono text-[0.625rem] tabular-nums {state ===
-      'off'
-        ? 'text-muted-foreground'
-        : 'text-foreground font-semibold'}"
-    >
-      {count}
-    </text>
-  {/each}
+<div class="flex min-w-0 items-center gap-2">
+  <svg viewBox="0 0 {LX + RX} {CY * 2}" class="h-14 w-auto shrink-0 select-none" role="group">
+    {#each order as region (region)}
+      {@const { count, state } = regions[region]}
+      <path
+        d={paths[region]}
+        role="checkbox"
+        tabindex="0"
+        aria-checked={state === "mixed" ? "mixed" : state === "on"}
+        aria-label="{names[region]}: {count} variants"
+        class="focus-visible:stroke-ring cursor-pointer stroke-transparent stroke-2 outline-none hover:opacity-80"
+        style="fill:{inks[region]};fill-opacity:{OPACITY[state]}"
+        onclick={() => onToggle(region)}
+        onkeydown={(event) => onKey(event, region)}
+      >
+        <title>{names[region]}</title>
+      </path>
+      <text
+        x={centers[region]}
+        y={CY}
+        text-anchor="middle"
+        dominant-baseline="central"
+        class="pointer-events-none fill-current font-mono text-[0.625rem] tabular-nums {state ===
+        'off'
+          ? 'text-muted-foreground'
+          : 'text-foreground font-semibold'}"
+      >
+        {count}
+      </text>
+    {/each}
 
-  <circle cx={LX} cy={CY} r={R} class="pointer-events-none fill-none" style="stroke:{left.color}" />
-  <circle
-    cx={RX}
-    cy={CY}
-    r={R}
-    class="pointer-events-none fill-none"
-    style="stroke:{right.color}"
-  />
-
-  <text
-    x={LX - R / 2.4}
-    y={CY * 2 + 10}
-    text-anchor="middle"
-    class="pointer-events-none text-[0.5625rem] font-semibold"
-    style="fill:{left.color}"
-  >
-    {left.label.length > 14 ? `${left.label.slice(0, 13)}…` : left.label}
-  </text>
-  <text
-    x={RX + R / 2.4}
-    y={CY * 2 + 10}
-    text-anchor="middle"
-    class="pointer-events-none text-[0.5625rem] font-semibold"
-    style="fill:{right.color}"
-  >
-    {right.label.length > 14 ? `${right.label.slice(0, 13)}…` : right.label}
-  </text>
-</svg>
+    <circle
+      cx={LX}
+      cy={CY}
+      r={R}
+      class="pointer-events-none fill-none"
+      style="stroke:{left.color}"
+    />
+    <circle
+      cx={RX}
+      cy={CY}
+      r={R}
+      class="pointer-events-none fill-none"
+      style="stroke:{right.color}"
+    />
+  </svg>
+  <ul class="flex min-w-0 flex-col gap-1 text-[0.625rem] leading-snug font-semibold">
+    {#each [left, right] as side, index (index)}
+      <li class="flex min-w-0 items-start gap-1.5" style="color:{side.color}">
+        <span class="mt-[0.3em] size-2 shrink-0" style="background:{side.color}" aria-hidden="true"
+        ></span>
+        <Fit text={side.label} class="max-w-32" />
+      </li>
+    {/each}
+  </ul>
+</div>

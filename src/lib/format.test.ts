@@ -1,5 +1,5 @@
 import { expect, test } from "vitest";
-import { formatDuration, formatDurationParts } from "$lib/format";
+import { formatDuration, formatDurationParts, tickLabel } from "$lib/format";
 
 test("a duration reads as its two largest units", () => {
   expect(formatDuration(null)).toBe("—");
@@ -13,4 +13,10 @@ test("a negative duration keeps its sign and its magnitude", () => {
   expect(formatDuration(-59_900)).toBe("-1m 0s");
   expect(formatDuration(-400)).toBe("0s");
   expect(formatDurationParts(-3_661_000)).toBe("-1h 1m 1s");
+});
+
+test("a tick label is cut to its limit and keeps a short one whole", () => {
+  expect(tickLabel("Send Fine", 20)).toBe("Send Fine");
+  expect(tickLabel("Insert Date Appeal to Prefecture", 20)).toBe("Insert Date Appeal…");
+  expect(tickLabel("Insert Date Appeal to Prefecture", 20).length).toBeLessThanOrEqual(20);
 });

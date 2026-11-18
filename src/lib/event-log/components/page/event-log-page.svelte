@@ -10,6 +10,7 @@
   import type { Project } from "$lib/event-log/types";
   import { updateProject } from "$lib/event-log/state/projects.svelte";
   import type { ColumnEdits } from "$lib/event-log/utils/column-edits";
+  import { cleanName, NAME_MAX_LENGTH } from "$lib/event-log/utils/name";
   import ColumnsEditor from "$lib/event-log/components/page/columns-editor.svelte";
   import Pencil from "@lucide/svelte/icons/pencil";
 
@@ -42,12 +43,12 @@
   });
 
   function commitName() {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === project.name) {
+    const cleaned = cleanName(name);
+    if (!cleaned || cleaned === project.name) {
       name = project.name;
       return;
     }
-    updateProject(project.id, { name: trimmed });
+    updateProject(project.id, { name: cleaned });
   }
 
   const visible = $derived(project.columns.length - project.hiddenColumns.length);
@@ -75,17 +76,23 @@
   <div class="bg-card shrink-0 border-b">
     <div class="flex flex-wrap items-end gap-x-6 gap-y-3 px-6 pt-4.5 pb-3.5">
       <div class="flex min-w-72 flex-col gap-1.5">
-        <label
-          for="project-name"
-          class="text-muted-foreground text-[0.625rem] font-bold tracking-widest uppercase"
-        >
-          Project name
-        </label>
+        <div class="flex items-baseline justify-between gap-2">
+          <label
+            for="project-name"
+            class="text-muted-foreground text-[0.625rem] font-bold tracking-widest uppercase"
+          >
+            Project name
+          </label>
+          <span class="text-muted-foreground text-[0.625rem] tabular-nums">
+            {name.length}/{NAME_MAX_LENGTH}
+          </span>
+        </div>
         <div class="relative w-76">
           <Input
             id="project-name"
             class="h-8 pr-8 text-sm font-semibold"
             bind:value={name}
+            maxlength={NAME_MAX_LENGTH}
             onblur={commitName}
             onkeydown={(event) => {
               if (event.key === "Enter") event.currentTarget.blur();

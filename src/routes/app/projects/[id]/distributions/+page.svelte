@@ -174,7 +174,7 @@
       <div
         class="border-border flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2 border-b px-4 py-2"
       >
-        <span class="min-w-0 truncate text-sm font-semibold">{node.label}</span>
+        <span class="min-w-0 text-sm font-semibold [overflow-wrap:break-word]">{node.label}</span>
         <ComparisonNote />
         {#if loaded.data && !stale}
           <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
@@ -188,7 +188,7 @@
               >
                 <span class="size-2.5 shrink-0" style="background:{color}" aria-hidden="true"
                 ></span>
-                <span class="truncate">{name}</span>
+                <span class="min-w-0 [overflow-wrap:break-word]">{name}</span>
                 <span class="font-mono">{formatNumber(cases)}</span>
                 <span class="text-muted-foreground font-normal">cases</span>
               </span>
