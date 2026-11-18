@@ -5,12 +5,15 @@
 //! shared cases removed (`analysis::reduction`). One is single-Group mode: the
 //! tree still renders, with case counts and aggregates but no comparison.
 
-use super::distributions::{distributions, NodeDistributions, Scope};
-use super::{build, DirectedTree};
-use crate::analysis::read_groups;
+use super::distributions::{
+    distributions, node_values, NodeDistributions, Scope, TreeOutlierTarget,
+};
+use super::{build, case_values, DirectedTree};
+use crate::analysis::{outliers_by_group, read_groups, Outliers};
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::project_dir_for_app;
 use crate::parsing::commands::off_main_thread;
+use std::collections::HashMap;
 
 /// One Variant as the picker lists it. `key` is what `directed_tree` takes back
 /// as a selection and what a terminal node carries, so the two never have to
@@ -92,6 +95,43 @@ pub async fn node_distributions(
     off_main_thread(move || {
         let logs = read_groups(&dir, &groups, &columns)?;
         distributions(&logs, &columns, &attributes, &variants, depth, scope)
+    })
+    .await
+}
+
+/// The values past the whiskers of one box plot the tree draws, per Group:
+/// one node's attribute under a Scope, or one case-level attribute.
+#[tauri::command]
+pub async fn tree_outliers(
+    app: tauri::AppHandle,
+    project_id: String,
+    groups: Vec<String>,
+    columns: Vec<ColumnMapping>,
+    target: TreeOutlierTarget,
+) -> Result<HashMap<String, Outliers>, String> {
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let logs = read_groups(&dir, &groups, &columns)?;
+        let values = match &target {
+            TreeOutlierTarget::Node {
+                variants,
+                depth,
+                scope,
+                attribute,
+                finite_only,
+            } => node_values(
+                &logs,
+                &columns,
+                attribute,
+                variants,
+                *depth,
+                *scope,
+                *finite_only,
+            )?,
+            TreeOutlierTarget::Case { attribute } => case_values(&logs, &columns, attribute)?,
+        };
+        let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
+        Ok(outliers_by_group(&ids, values))
     })
     .await
 }

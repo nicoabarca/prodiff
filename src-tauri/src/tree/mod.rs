@@ -16,7 +16,7 @@ pub mod distributions;
 
 use crate::analysis::{
     stats, transition_time, Acc, AttributeBlock, GroupLog, Summary, Test, ACTIVITY_DURATION, ALPHA,
-    MIN_GROUP_CASES, TRANSITION_TIME, VARIANT_KEY_SEP,
+    MIN_GROUP_CASES, NOT_NUMERIC, TRANSITION_TIME, VARIANT_KEY_SEP,
 };
 use crate::column_mapping::{
     find_role, resolve_row, CaseResolution, ColumnMapping, ColumnRole, ColumnScope,
@@ -638,6 +638,46 @@ fn read_logs(
     Ok([read.next(), read.next()])
 }
 
+/// One value per case of a numeric case-level attribute, from the row its
+/// resolution names.
+fn numeric_case_values(
+    df: &DataFrame,
+    rows: &GroupRows,
+    attr: &CaseAttr,
+) -> Result<Vec<f64>, String> {
+    let Source::Column(name) = &attr.spec.source else {
+        return Ok(Vec::new());
+    };
+    let values = column_floats(df, name)?;
+    Ok(rows
+        .bounds
+        .iter()
+        .filter_map(|&b| values[resolve_row(b, attr.resolution, |r| values[r].is_some())])
+        .collect())
+}
+
+/// One numeric case-level attribute's values, one vector per entry in `logs`,
+/// read the way `case_level_blocks` reads them.
+pub fn case_values(
+    logs: &[GroupLog],
+    mapping: &[ColumnMapping],
+    attribute: &str,
+) -> Result<Vec<Vec<f64>>, String> {
+    let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
+    let (_, case_attrs, _) = plan_attributes(&[attribute.to_string()], mapping, has_start);
+    let Some(attr) = case_attrs.first().filter(|attr| attr.spec.numeric) else {
+        return Err(NOT_NUMERIC.to_string());
+    };
+    let groups = read_logs(logs, mapping, &[])?;
+    logs.iter()
+        .zip(&groups)
+        .map(|(log, rows)| match rows {
+            Some(rows) => numeric_case_values(&log.df, rows, attr),
+            None => Ok(Vec::new()),
+        })
+        .collect()
+}
+
 /// Case-level attributes aggregate per Group, not per node: one value per case,
 /// from the row its resolution names. Computed over the whole Group, before the
 /// coverage cut, so it matches `case_count`.
@@ -656,12 +696,7 @@ fn case_level_blocks(
                 };
                 let mut acc = Acc::new(attr.spec.numeric);
                 if attr.spec.numeric {
-                    let values = column_floats(df, name)?;
-                    if let Acc::Num(out) = &mut acc {
-                        out.extend(rows.bounds.iter().filter_map(|&b| {
-                            values[resolve_row(b, attr.resolution, |r| values[r].is_some())]
-                        }));
-                    }
+                    acc = Acc::Num(numeric_case_values(df, rows, attr)?);
                 } else {
                     let values = column_strings(df, name)?;
                     if let Acc::Cat(out) = &mut acc {
@@ -890,6 +925,144 @@ mod tests {
                 )
             })
             .collect()
+    }
+
+    /// Costs with a heavy tail on both sides, over three Variants, one of them
+    /// a prefix of another so a node splits into a terminal and a continuing one.
+    fn tailed(seed: i64, cases: usize) -> DataFrame {
+        let owned: Vec<(String, Vec<&str>, Vec<i64>)> = (0..cases)
+            .map(|i| {
+                let i = i as i64;
+                let cost = |k: i64| match (i + k + seed) % 23 {
+                    0 => 5_000,
+                    1 => -4_000,
+                    n => 100 + n * 3,
+                };
+                let activities = match i % 3 {
+                    0 => vec!["A", "B"],
+                    1 => vec!["A", "B", "C"],
+                    _ => vec!["A", "D", "C"],
+                };
+                let costs = (0..activities.len() as i64).map(cost).collect();
+                (format!("{seed}-{i}"), activities, costs)
+            })
+            .collect();
+        let traces: Vec<(&str, &[&str], &[i64])> = owned
+            .iter()
+            .map(|(case, acts, costs)| (case.as_str(), acts.as_slice(), costs.as_slice()))
+            .collect();
+        log(&traces)
+    }
+
+    /// The Variant keys of every leaf under `node`, and its depth: what the
+    /// frontend sends for a node with `subtreeVariants` and `nodeDepth`.
+    fn subtree(tree: &DirectedTree, node: usize) -> (Vec<String>, usize) {
+        let mut depth = 0;
+        let mut at = node;
+        while let Some(parent) = tree.nodes[at].parent {
+            depth += 1;
+            at = parent;
+        }
+        let mut keys = Vec::new();
+        let mut stack = vec![node];
+        while let Some(at) = stack.pop() {
+            if let Some(key) = &tree.nodes[at].variant_key {
+                keys.push(key.clone());
+            }
+            stack.extend(
+                tree.nodes
+                    .iter()
+                    .filter(|child| child.parent == Some(at))
+                    .map(|child| child.id),
+            );
+        }
+        (keys, depth)
+    }
+
+    fn counts(summary: Option<&Summary>) -> (usize, usize) {
+        match summary {
+            Some(Summary::Numerical {
+                outliers_low,
+                outliers_high,
+                ..
+            }) => (*outliers_low, *outliers_high),
+            _ => (0, 0),
+        }
+    }
+
+    #[test]
+    fn node_values_at_step_match_every_node_of_the_tree() {
+        let (a, b) = (tailed(0, 120), tailed(5, 90));
+        let logs = logs(&a, Some(&b));
+        let attributes = vec!["cost".to_string(), TRANSITION_TIME.to_string()];
+        let tree = build(&logs, &mapping(false), &attributes, None).unwrap();
+        let ids = group_ids(&logs);
+        let mut seen = 0;
+        for node in tree.nodes.iter().skip(1) {
+            let (variants, depth) = subtree(&tree, node.id);
+            for attribute in &attributes {
+                let block = if attribute == TRANSITION_TIME {
+                    node.transition_time.as_ref().unwrap()
+                } else {
+                    &node.event_level[attribute]
+                };
+                let values = distributions::node_values(
+                    &logs,
+                    &mapping(false),
+                    attribute,
+                    &variants,
+                    depth,
+                    distributions::Scope::AtStep,
+                    false,
+                )
+                .unwrap();
+                let outliers = crate::analysis::outliers_by_group(&ids, values);
+                for id in &ids {
+                    let expected = counts(block.summaries.get(id));
+                    let found = &outliers[id];
+                    assert_eq!(
+                        (found.low.len(), found.high.len()),
+                        expected,
+                        "node {} ({}) {attribute} in {id}",
+                        node.id,
+                        node.label
+                    );
+                    seen += expected.0 + expected.1;
+                }
+            }
+        }
+        assert!(seen > 0, "the fixture has outliers to compare");
+    }
+
+    #[test]
+    fn case_values_match_the_case_level_summary() {
+        let mut mapping = mapping(false);
+        mapping.push(
+            serde_json::from_str(
+                r#"{"name":"cost","role":"other","type":"integer","scope":"case","caseResolution":"last"}"#,
+            )
+            .unwrap(),
+        );
+        mapping
+            .retain(|column| column.name != "cost" || !matches!(column.scope, ColumnScope::Event));
+        let (a, b) = (tailed(0, 120), tailed(5, 90));
+        let logs = logs(&a, Some(&b));
+        let tree = build(&logs, &mapping, &["cost".to_string()], None).unwrap();
+        let ids = group_ids(&logs);
+        let outliers =
+            crate::analysis::outliers_by_group(&ids, case_values(&logs, &mapping, "cost").unwrap());
+        let mut seen = 0;
+        for group in &tree.groups {
+            let expected = counts(group.case_level.get("cost"));
+            let found = &outliers[&group.id];
+            assert_eq!((found.low.len(), found.high.len()), expected);
+            seen += expected.0 + expected.1;
+        }
+        assert!(seen > 0, "the fixture has outliers to compare");
+        assert_eq!(
+            case_values(&logs, &mapping, "who"),
+            Err(NOT_NUMERIC.to_string())
+        );
     }
 
     #[test]

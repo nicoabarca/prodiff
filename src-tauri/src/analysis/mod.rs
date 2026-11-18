@@ -122,6 +122,29 @@ pub struct AttributeBlock {
     pub test: Option<Test>,
 }
 
+/// The error an outliers request gets for an attribute that is not numeric.
+pub const NOT_NUMERIC: &str = "This attribute has no numeric values here.";
+
+/// The values past a box plot's whiskers, ascending on each side.
+#[derive(serde::Serialize, Debug, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Outliers {
+    pub low: Vec<f64>,
+    pub high: Vec<f64>,
+}
+
+/// Each Group's outliers, keyed by its id. `values[i]` belongs to `ids[i]`.
+pub fn outliers_by_group(ids: &[String], values: Vec<Vec<f64>>) -> HashMap<String, Outliers> {
+    ids.iter()
+        .cloned()
+        .zip(values)
+        .map(|(id, mut values)| {
+            stats::sort(&mut values);
+            (id, stats::outliers(&values))
+        })
+        .collect()
+}
+
 /// One Group's values of one attribute, in the shape its test needs: raw and
 /// unsorted for the numeric case, already counted for the categorical one.
 pub enum Acc {

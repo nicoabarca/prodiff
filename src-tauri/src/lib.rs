@@ -63,7 +63,9 @@ pub fn run() {
             tree::commands::directed_tree,
             tree::commands::list_variants,
             tree::commands::node_distributions,
+            tree::commands::tree_outliers,
             dfg::commands::dfg,
+            dfg::commands::dfg_outliers,
             custom_attributes::commands::update_custom_attributes,
             custom_attributes::commands::custom_attribute_impact
         ])

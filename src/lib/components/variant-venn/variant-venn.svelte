@@ -8,12 +8,11 @@
 
 <script lang="ts">
   import Fit from "$lib/components/fit/fit.svelte";
-
   /**
    * Two overlapping circles, one per Group, whose three regions toggle
    * independently: any union of them can be selected. Each region shows its
-   * count and fills with its Group's colour while selected. A legend beside the
-   * circles names each Group.
+   * count and fills with its Group's colour while selected. The Group names sit
+   * in a legend beside the circles, cut to one line when the space runs out.
    */
   let {
     left,
@@ -74,8 +73,12 @@
   }
 </script>
 
-<div class="flex min-w-0 items-center gap-2">
-  <svg viewBox="0 0 {LX + RX} {CY * 2}" class="h-14 w-auto shrink-0 select-none" role="group">
+<div class="flex min-w-0 flex-1 basis-40 items-center gap-2">
+  <svg
+    viewBox="{LX - R - 1} 0 {GAP + R * 2 + 2} {CY * 2 + 2}"
+    class="h-14 w-auto shrink-0 select-none"
+    role="group"
+  >
     {#each order as region (region)}
       {@const { count, state } = regions[region]}
       <path
@@ -120,13 +123,15 @@
       style="stroke:{right.color}"
     />
   </svg>
-  <ul class="flex min-w-0 flex-col gap-1 text-[0.625rem] leading-snug font-semibold">
-    {#each [left, right] as side, index (index)}
-      <li class="flex min-w-0 items-start gap-1.5" style="color:{side.color}">
-        <span class="mt-[0.3em] size-2 shrink-0" style="background:{side.color}" aria-hidden="true"
-        ></span>
-        <Fit text={side.label} class="max-w-32" />
-      </li>
+
+  <div class="flex min-w-0 flex-1 flex-col gap-1 text-[0.6875rem]">
+    {#each [left, right] as group, index (index)}
+      <span class="flex min-w-0 items-center gap-1.5">
+        <span class="size-2 shrink-0 rounded-full" style="background:{group.color}"></span>
+        <span class="flex min-w-0 font-semibold" style="color:{group.color}"
+          ><Fit text={group.label} /></span
+        >
+      </span>
     {/each}
-  </ul>
+  </div>
 </div>

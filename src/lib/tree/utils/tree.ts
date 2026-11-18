@@ -1,5 +1,10 @@
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { Scope } from "$lib/distributions/types";
+import type {
+  RequestTreeOutlierTarget,
+  ResponseDirectedTree,
+  TreeNode
+} from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
 
@@ -33,6 +38,17 @@ export function nodeCases(node: TreeNode): number {
 /** Cases one Group brings to a node. Absent means none reached it. */
 export function groupCasesAt(node: TreeNode, groupId: string): number {
   return node.cases[groupId] ?? 0;
+}
+
+/**
+ * Each Group's part of the cases counted at a node, from 0 to 1, keyed by
+ * Group id. The parts add up to 1 unless no case is counted there.
+ */
+export function caseSplit(cases: Record<string, number>): Record<string, number> {
+  const total = Object.values(cases).reduce((sum, count) => sum + count, 0);
+  return Object.fromEntries(
+    Object.entries(cases).map(([id, count]) => [id, total > 0 ? count / total : 0])
+  );
 }
 
 export function isDivergent(node: TreeNode): boolean {
@@ -232,4 +248,23 @@ export function variantPath(
   const leaf = tree.nodes.find((node) => node.variantKey === key);
   if (!leaf || !visible.ids.has(leaf.id)) return new Set();
   return new Set(pathTo(tree, leaf.id).map((node) => node.id));
+}
+
+/** One node's attribute as `tree_outliers` names it: the same depth and Variants a Distributions request sends. */
+export function nodeTarget(
+  tree: ResponseDirectedTree,
+  visible: Visible,
+  nodeId: number,
+  scope: Scope,
+  attribute: string,
+  finiteOnly: boolean
+): RequestTreeOutlierTarget {
+  return {
+    kind: "node",
+    variants: subtreeVariants(tree, visible, nodeId),
+    depth: nodeDepth(tree, nodeId),
+    scope,
+    attribute,
+    finiteOnly
+  };
 }

@@ -7,6 +7,7 @@
   import SignificanceBadge from "$lib/tree/components/significance-badge.svelte";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
   import { shade } from "$lib/groups/utils/shade";
+  import { formatCompact, formatPercent } from "$lib/format";
 
   let { id, data }: { id: string; data: TreeNodeData } = $props();
 
@@ -16,6 +17,9 @@
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
   const tint = $derived(shade(accent, null));
+  const reaching = $derived(data.groups.filter((group) => (data.cases[group.id] ?? 0) > 0));
+  const shared = $derived(reaching.length > 1);
+  const total = $derived(reaching.reduce((sum, group) => sum + data.cases[group.id], 0));
 </script>
 
 <Handle type="target" position={Position.Top} style="opacity:0" isConnectable={false} />
@@ -85,13 +89,47 @@
       {/if}
     </div>
 
-    <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
-      {#each data.groups as group, index (group.id)}
-        {#if data.figures[index] !== null && data.figures[index] !== undefined}
-          <span style="color:var(--{group.color})">{data.figures[index]}</span>
-        {/if}
-      {/each}
+    {#if shared}
+      <span
+        class="-mt-0.5 font-mono text-[0.5625rem] leading-none tabular-nums opacity-75"
+        style="color:var(--{accent})"
+      >
+        {formatCompact(total)}
+      </span>
+    {/if}
+
+    <div class="flex w-full flex-col gap-0.5">
+      <div
+        class="flex gap-1 font-mono text-[0.5625rem] leading-none font-medium tabular-nums {shared
+          ? 'justify-between'
+          : 'justify-center'}"
+      >
+        {#each reaching as group (group.id)}
+          <span class="whitespace-nowrap" style="color:var(--{group.color})">
+            {formatCompact(data.cases[group.id])}
+            {#if shared}({formatPercent(data.split[group.id])}){/if}
+          </span>
+        {/each}
+      </div>
+      {#if shared}
+        <div class="bg-muted flex h-1.5 w-full overflow-hidden" aria-hidden="true">
+          {#each reaching as group (group.id)}
+            <span style="width:{data.split[group.id] * 100}%;background:var(--{group.color})"
+            ></span>
+          {/each}
+        </div>
+      {/if}
     </div>
+
+    {#if data.figures.some((figure) => figure !== null)}
+      <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
+        {#each data.groups as group, index (group.id)}
+          {#if data.figures[index] !== null && data.figures[index] !== undefined}
+            <span style="color:var(--{group.color})">{data.figures[index]}</span>
+          {/if}
+        {/each}
+      </div>
+    {/if}
 
     {#if data.significantCount > 0 && data.peakStep && data.peakBand}
       <SignificanceBadge count={data.significantCount} step={data.peakStep} band={data.peakBand} />

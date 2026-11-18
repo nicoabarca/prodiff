@@ -1,4 +1,6 @@
 import { directedTree } from "$lib/tree/invokers/directed-tree";
+import { treeOutliers } from "$lib/tree/invokers/tree-outliers";
+import type { OutlierLoad } from "$lib/analysis/types";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import {
   comparedGroups,
@@ -11,12 +13,15 @@ import {
   resetBuildView,
   resetTreeState,
   saveSettings,
-  settings
+  selectedVariants,
+  settings,
+  view
 } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 import type { TreeSettings } from "$lib/tree/types";
 import { treeKey } from "$lib/tree/utils/settings";
 import { sameSelection } from "$lib/tree/utils/variants";
+import { nodeTarget, visibleNodes } from "$lib/tree/utils/tree";
 
 export const built = $state<{
   projectId: string | null;
@@ -32,6 +37,9 @@ interface BuildRequest {
   groupIds: string[];
   settings: TreeSettings;
 }
+
+/** The Project and Group ids the tree on screen was built from. */
+let source: { project: Project; groups: string[] } | null = null;
 
 let generation = 0;
 let failedKey: string | null = null;
@@ -92,6 +100,7 @@ export async function build(project: Project) {
     built.tree = tree;
     resetBuildView();
     built.key = adoptedKey;
+    source = { project, groups: request.groupIds };
   } catch (cause) {
     if (mine !== generation) return;
     built.error = String(cause);
@@ -135,6 +144,7 @@ export function retryBuild(project: Project) {
 
 function clear() {
   generation += 1;
+  source = null;
   failedKey = null;
   built.projectId = null;
   built.key = null;
@@ -150,4 +160,21 @@ export function forgetOtherProject(projectId: string) {
 
 export function invalidateTree() {
   clear();
+}
+
+/** Fetches the outliers of one node's attribute, `undefined` while no current tree is on screen. */
+export function nodeOutliers(nodeId: number, attribute: string): OutlierLoad | undefined {
+  const tree = built.tree;
+  if (!source || !tree || isStale()) return undefined;
+  const { project, groups } = source;
+  const visible = visibleNodes(tree, view, selectedVariants());
+  const target = nodeTarget(tree, visible, nodeId, "atStep", attribute, false);
+  return () => treeOutliers(project, groups, target);
+}
+
+/** Fetches the outliers of one case-level attribute, `undefined` while no current tree is on screen. */
+export function caseOutliers(attribute: string): OutlierLoad | undefined {
+  if (!source || !built.tree || isStale()) return undefined;
+  const { project, groups } = source;
+  return () => treeOutliers(project, groups, { kind: "case", attribute });
 }

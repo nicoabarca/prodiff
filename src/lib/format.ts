@@ -4,6 +4,16 @@ export function formatNumber(value: number): string {
   return value.toLocaleString();
 }
 
+const compact = new Intl.NumberFormat("en-US", {
+  notation: "compact",
+  maximumFractionDigits: 1
+});
+
+/** A count with a K, M or B suffix and one decimal at most ("10.6K"); below 1,000 it reads in full. */
+export function formatCompact(value: number): string {
+  return compact.format(value);
+}
+
 /** A size in bytes in the largest unit that keeps it above one ("1.9 MB"). */
 export function formatFileSize(size: number): string {
   if (size < 1024) return `${size} B`;
@@ -12,6 +22,11 @@ export function formatFileSize(size: number): string {
   return `${(size / 1024 ** (unit + 1)).toLocaleString(undefined, {
     maximumFractionDigits: 1
   })} ${units[unit]}`;
+}
+
+/** A share from 0 to 1 as a percentage with one decimal ("16.5%"). */
+export function formatPercent(share: number): string {
+  return `${(share * 100).toFixed(1)}%`;
 }
 
 export function formatDecimal(value: number, digits = 2): string {

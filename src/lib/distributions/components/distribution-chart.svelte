@@ -29,6 +29,7 @@
     TOP_CATEGORIES
   } from "$lib/distributions/types";
   import { bars, logBars } from "$lib/distributions/utils/distributions";
+  import { distributionOutliers } from "$lib/distributions/state/distributions.svelte";
   import { colorVar, formatDuration, formatNumber, tickLabel } from "$lib/format";
   import type { Test } from "$lib/analysis/types";
   import { isDurationAttribute } from "$lib/analysis/attributes";
@@ -234,7 +235,14 @@
       </p>
     </div>
   {:else if shape && encoding !== "logBins"}
-    <DurationPlot {shape} {encoding} {compare} {groups} />
+    <DurationPlot
+      {shape}
+      {encoding}
+      {compare}
+      {groups}
+      load={distributionOutliers(attribute)}
+      title={attributeLabel(attribute)}
+    />
   {:else if data.length === 0}
     <p
       class="text-muted-foreground flex flex-1 items-center justify-center p-3 text-center text-xs"
