@@ -183,6 +183,72 @@
     onStage(variantsCovering(allRows, target / 100));
   }
 
+  /** The list's scrolling element, which a drag measures rows against and scrolls. */
+  let viewport = $state<HTMLElement>();
+
+  /** How close to the list's top or bottom edge a drag starts scrolling, in rem. */
+  const EDGE = 3;
+
+  /** A Shift drag across rows: the pressed row's index in `rows`, the state it
+      flipped to, the staged set from before the press, the row the pointer is
+      on, and the pointer's height on screen. Every row from the pressed one to
+      the pointer takes that state; the rest keep their state from before. */
+  let drag: { anchor: number; on: boolean; base: Set<string>; at: number; y: number } | null = null;
+
+  const indexes = $derived(new Map(rows.map((row, i) => [row.key, i])));
+
+  /** Moves the drag onto row `to`. */
+  function paint(to: number) {
+    if (!drag || drag.at === to) return;
+    drag.at = to;
+    const next = new Set(drag.base);
+    const [from, end] = drag.anchor <= to ? [drag.anchor, to] : [to, drag.anchor];
+    for (const row of rows.slice(from, end + 1)) {
+      if (drag.on) next.add(row.key);
+      else next.delete(row.key);
+    }
+    onStage(next);
+  }
+
+  /** Each frame of a drag: scroll while the pointer is near or past an edge, faster
+      the further in, then paint up to the row under the pointer. */
+  function follow() {
+    if (!drag || !viewport) return;
+    const box = viewport.getBoundingClientRect();
+    const edge = EDGE * remPx;
+    const depth =
+      drag.y < box.top + edge
+        ? -Math.min(1, (box.top + edge - drag.y) / edge)
+        : drag.y > box.bottom - edge
+          ? Math.min(1, (drag.y - box.bottom + edge) / edge)
+          : 0;
+    viewport.scrollTop += depth * remPx;
+    const offset = drag.y - box.top + viewport.scrollTop;
+    const height = rowHeight(columns.length) * remPx;
+    paint(Math.min(rows.length - 1, Math.max(0, Math.floor(offset / height))));
+    requestAnimationFrame(follow);
+  }
+
+  /** A plain press toggles the row; a Shift press starts a drag from it. */
+  function press(key: string, y: number, shift: boolean) {
+    const anchor = indexes.get(key);
+    if (anchor === undefined) return;
+    if (!shift) return onToggle(key);
+    drag = { anchor, on: !staged.has(key), base: new Set(staged), at: -1, y };
+    paint(anchor);
+    const move = (event: PointerEvent) => {
+      if (drag) drag.y = event.clientY;
+    };
+    const up = () => {
+      drag = null;
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
+    requestAnimationFrame(follow);
+  }
+
   function startResize(event: PointerEvent) {
     event.preventDefault();
     const startX = event.clientX;
@@ -343,7 +409,6 @@
       <span class="w-8 shrink-0">#</span>
       <span class="min-w-0 flex-1 truncate">Variant</span>
       <span class="min-w-14 text-right" title="Cases that follow this variant">Cases</span>
-      <span class="min-w-14 text-right" title="Events in those cases">Events</span>
       <span class="w-20 shrink-0 text-right" title="Share of the Group's cases"> % of Group </span>
     </div>
 
@@ -354,7 +419,7 @@
         {/each}
       </div>
     {:else}
-      <VirtualList items={rows} rowHeight={rowHeight(columns.length) * remPx}>
+      <VirtualList items={rows} rowHeight={rowHeight(columns.length) * remPx} bind:viewport>
         {#snippet row(item: ResponseVariantRow)}
           <VariantRow
             row={item}
@@ -367,6 +432,7 @@
             highlighted={highlighted === item.key}
             drawn={drawn.has(item.key)}
             onToggle={() => onToggle(item.key)}
+            onPress={(y, shift) => press(item.key, y, shift)}
             onHighlight={() => onHighlight(item.key)}
           />
         {/snippet}

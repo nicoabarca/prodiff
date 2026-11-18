@@ -7,14 +7,13 @@
 
 <script lang="ts">
   /**
-   * One Variant: its full trace on top, then one line per Group with its cases,
-   * events and share of that Group's cases. The box stages it and the eye lights
+   * One Variant: its full trace on top, then one line per Group with its cases
+   * and share of that Group's cases. The box stages it and the eye lights
    * its path on the canvas.
    */
   import VariantPath from "$lib/components/variant-path/variant-path.svelte";
   import { formatNumber } from "$lib/format";
   import type { ResponseVariantRow } from "$lib/tree/invokers/types";
-  import { variantEvents } from "$lib/tree/utils/variants";
   import type { Group } from "$lib/groups/types";
   import Check from "@lucide/svelte/icons/check";
   import Eye from "@lucide/svelte/icons/eye";
@@ -32,6 +31,7 @@
     drawn,
     canvas,
     onToggle,
+    onPress,
     onHighlight
   }: {
     row: ResponseVariantRow;
@@ -44,23 +44,37 @@
     drawn: boolean;
     canvas: "tree" | "graph";
     onToggle: () => void;
+    onPress: (y: number, shift: boolean) => void;
     onHighlight: () => void;
   } = $props();
 
   const CanvasIcon = $derived(canvas === "tree" ? Network : Waypoints);
+
+  /** Whether a press landed on a scrollbar, which sits inside an overflowing
+      element's box but outside its client area. Inline elements and SVG report a
+      client size of 0, so only an element that overflows counts. */
+  function onScrollbar(event: PointerEvent): boolean {
+    const target = event.target as Element;
+    const across = target.scrollWidth > target.clientWidth && event.offsetY >= target.clientHeight;
+    const down = target.scrollHeight > target.clientHeight && event.offsetX >= target.clientWidth;
+    return across || down;
+  }
 
   function share(cases: number, total: number): string {
     return total > 0 ? `${((cases / total) * 100).toFixed(1)}%` : "";
   }
 </script>
 
-<!-- A click anywhere on the row stages it; the checkbox is the keyboard path, its click bubbling here. -->
-<!-- svelte-ignore a11y_click_events_have_key_events -->
+<!-- Pressing anywhere on the row stages it, and a Shift drag carries that over the rows passed. The checkbox is the keyboard path. -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-  class="hover:bg-accent/50 flex cursor-pointer items-start gap-2 px-3 py-2.5 text-xs"
+  class="hover:bg-accent/50 flex cursor-pointer items-start gap-2 px-3 py-2.5 text-xs select-none"
   style:height="{rowHeight(columns.length)}rem"
-  onclick={onToggle}
+  onpointerdown={(event) => {
+    if (event.button !== 0 || onScrollbar(event)) return;
+    event.preventDefault();
+    onPress(event.clientY, event.shiftKey);
+  }}
 >
   <button
     type="button"
@@ -70,6 +84,9 @@
     class="mt-3 flex size-4 shrink-0 cursor-pointer items-center justify-center border {staged
       ? 'bg-primary text-primary-foreground border-primary'
       : 'border-input'}"
+    onclick={(event) => {
+      if (event.detail === 0) onToggle();
+    }}
   >
     {#if staged}
       <Check class="size-3" strokeWidth={3} />
@@ -101,10 +118,8 @@
           class="mt-2 flex size-6 shrink-0 cursor-pointer items-center justify-center border {highlighted
             ? 'border-indigo-500 text-indigo-500'
             : 'border-border text-muted-foreground hover:text-foreground'}"
-          onclick={(event) => {
-            event.stopPropagation();
-            onHighlight();
-          }}
+          onpointerdown={(event) => event.stopPropagation()}
+          onclick={onHighlight}
         >
           <Eye class="size-4" />
         </button>
@@ -125,9 +140,6 @@
         ></span>
         <span class="min-w-0 flex-1 truncate font-sans" title={group.name}>{group.name}</span>
         <span class="min-w-14 text-right">{cases > 0 ? formatNumber(cases) : "—"}</span>
-        <span class="text-muted-foreground min-w-14 text-right">
-          {cases > 0 ? formatNumber(variantEvents(row, group.id)) : "—"}
-        </span>
         <span class="w-20 shrink-0 text-right">{cases > 0 ? share(cases, total) : "—"}</span>
       </div>
     {/each}
