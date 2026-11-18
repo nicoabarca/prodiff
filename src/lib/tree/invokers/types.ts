@@ -4,6 +4,7 @@
  * re-aggregates.
  */
 import type { AttributeBlock, Summary, Test } from "$lib/analysis/types";
+import type { Scope } from "$lib/distributions/types";
 
 export interface ResponseDirectedTree {
   nodes: TreeNode[];
@@ -46,3 +47,15 @@ export interface GroupBlock {
   caseCount: number;
   caseLevel: Record<string, Summary>;
 }
+
+/** What `tree_outliers` reads: one attribute at one node, or one case-level attribute. */
+export type RequestTreeOutlierTarget =
+  | {
+      kind: "node";
+      variants: string[];
+      depth: number;
+      scope: Scope;
+      attribute: string;
+      finiteOnly: boolean;
+    }
+  | { kind: "case"; attribute: string };

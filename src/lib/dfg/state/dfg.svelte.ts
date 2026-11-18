@@ -1,5 +1,8 @@
-import { dfg } from "$lib/dfg/invokers/dfg";
-import type { ResponseDfg } from "$lib/dfg/invokers/types";
+import { dfg, requestAttribute } from "$lib/dfg/invokers/dfg";
+import { dfgOutliers } from "$lib/dfg/invokers/dfg-outliers";
+import type { RequestDfgOutlierTarget, ResponseDfg } from "$lib/dfg/invokers/types";
+import type { Place } from "$lib/dfg/utils/findings";
+import type { OutlierLoad } from "$lib/analysis/types";
 import { dfgKey } from "$lib/dfg/types";
 import { previewGraph } from "$lib/dfg/utils/preview";
 import { attributeOptions } from "$lib/analysis/attributes";
@@ -53,6 +56,9 @@ export const built = $state<{
  * that lands afterwards is dropped; `key` is what the newest one was asked for.
  */
 let flight: { token: number; key: string | null } = { token: 0, key: null };
+
+/** The Project and Group ids `built.graph` was built from. */
+let source: { project: Project; groups: string[] } | null = null;
 
 /** The graph the canvas draws: the preview while there is one, else the built graph. */
 export function drawnGraph(): ResponseDfg | null {
@@ -123,8 +129,10 @@ export async function load(project: Project, force = false) {
       built.preview = previewGraph(variantRows.rows, selectedVariants(), comparedIds());
       built.testing = attributes.length > 0;
     }
-    const graph = await dfg(project, comparedIds(), attributes, variants);
+    const groups = comparedIds();
+    const graph = await dfg(project, groups, attributes, variants);
     if (!current()) return;
+    source = { project, groups };
     built.graph = graph;
     built.projectId = project.id;
     built.key = key;
@@ -147,6 +155,7 @@ export function setAttributes(names: string[]) {
 
 function clear() {
   flight = { token: flight.token + 1, key: null };
+  source = null;
   built.building = false;
   built.projectId = null;
   built.key = null;
@@ -170,4 +179,32 @@ export function forgetOtherProject(projectId: string) {
  */
 export function invalidateDfg() {
   clear();
+}
+
+function outliers(target: RequestDfgOutlierTarget): OutlierLoad | undefined {
+  if (!source || !built.graph || isStale(source.project)) return undefined;
+  const { project, groups } = source;
+  const variants = built.variants;
+  return () => dfgOutliers(project, groups, variants, target);
+}
+
+/** Fetches the outliers of one place's attribute, `undefined` while no current graph is on screen. */
+export function placeOutliers(place: Place, attribute: string): OutlierLoad | undefined {
+  if (place.kind === "node") {
+    return outliers({
+      kind: "node",
+      activity: place.label,
+      attribute: requestAttribute(attribute)
+    });
+  }
+  const labels = new Map(built.graph?.nodes.map((node) => [node.id, node.label]));
+  const from = labels.get(place.source);
+  const to = labels.get(place.target);
+  if (from === undefined || to === undefined) return undefined;
+  return outliers({ kind: "edge", from, to });
+}
+
+/** Fetches the outliers of one case-level attribute, `undefined` while no current graph is on screen. */
+export function dfgCaseOutliers(attribute: string): OutlierLoad | undefined {
+  return outliers({ kind: "case", attribute: requestAttribute(attribute) });
 }

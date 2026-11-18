@@ -8,7 +8,14 @@
   import TestsPanel from "$lib/dfg/components/tests-panel.svelte";
   import CaseStrip from "$lib/tree/components/case-strip.svelte";
   import VariantPanel from "$lib/dfg/components/variant-panel.svelte";
-  import { built, drawnGraph, forgetOtherProject, isStale, load } from "$lib/dfg/state/dfg.svelte";
+  import {
+    built,
+    dfgCaseOutliers,
+    drawnGraph,
+    forgetOtherProject,
+    isStale,
+    load
+  } from "$lib/dfg/state/dfg.svelte";
   import { pointed, pointedPlace, refit, splitting, tests, view } from "$lib/dfg/state/view.svelte";
   import {
     cuts,
@@ -98,6 +105,7 @@
         <CaseStrip
           caseLevel={built.graph.caseLevel}
           groupIds={built.graph.groups.map((group) => group.id)}
+          outliers={dfgCaseOutliers}
         />
       </div>
     {/if}

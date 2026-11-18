@@ -9,7 +9,11 @@ import type { Encoding, Scope, Sort } from "$lib/distributions/types";
 import { built, isStale } from "$lib/tree/state/build.svelte";
 import { comparedIds, relationReady } from "$lib/groups/state/comparison.svelte";
 import { selected } from "$lib/tree/state/tree.svelte";
-import { nodeDepth, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
+import { nodeDepth, nodeTarget, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
+import { treeOutliers } from "$lib/tree/invokers/tree-outliers";
+import type { OutlierLoad } from "$lib/analysis/types";
+import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
+import type { Visible } from "$lib/tree/types";
 import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
 import type { Project } from "$lib/event-log/types";
 
@@ -94,6 +98,16 @@ function key(
  */
 let latest: string | null = null;
 
+/** The inputs of the request whose numbers are on screen, for asking about the same cases again. */
+let request: {
+  project: Project;
+  groups: string[];
+  tree: ResponseDirectedTree;
+  visible: Visible;
+  nodeId: number;
+  scope: Scope;
+} | null = null;
+
 /**
  * Fetches the selected node's Distributions unless they are already in hand.
  * Refuses while the tree is stale: the node is named to the backend by Variant
@@ -116,23 +130,20 @@ export async function loadDistributions(project: Project, attributes: string[]) 
   latest = next;
   loaded.loading = true;
   loaded.error = null;
+  const groups = comparedIds();
+  const scope = charts.scope;
   try {
-    const data = await nodeDistributions(
-      project,
-      comparedIds(),
-      attributes,
-      variants,
-      depth,
-      charts.scope
-    );
+    const data = await nodeDistributions(project, groups, attributes, variants, depth, scope);
     if (latest !== next) return;
     loaded.data = data;
     loaded.key = next;
+    request = { project, groups, tree, visible, nodeId, scope };
   } catch (cause) {
     if (latest !== next) return;
     loaded.error = String(cause);
     loaded.data = null;
     loaded.key = null;
+    request = null;
   } finally {
     if (latest === next) loaded.loading = false;
   }
@@ -141,8 +152,20 @@ export async function loadDistributions(project: Project, attributes: string[]) 
 /** Drops numbers belonging to another node, tree or project. */
 export function forgetDistributions() {
   latest = null;
+  request = null;
   loaded.key = null;
   loaded.data = null;
   loaded.error = null;
   loaded.loading = false;
+}
+
+/**
+ * Fetches one duration plot's outliers over the cases its box describes,
+ * `undefined` while no numbers are on screen.
+ */
+export function distributionOutliers(attribute: string): OutlierLoad | undefined {
+  if (!request) return undefined;
+  const { project, groups, tree, visible, nodeId, scope } = request;
+  return () =>
+    treeOutliers(project, groups, nodeTarget(tree, visible, nodeId, scope, attribute, true));
 }

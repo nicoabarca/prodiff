@@ -1,7 +1,10 @@
 <script lang="ts">
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
-  import type { BoxStats } from "$lib/analysis/types";
+  import BoxPlotDialog from "$lib/analysis/components/box-plot-dialog.svelte";
+  import type { BoxStats, OutlierLoad } from "$lib/analysis/types";
+  import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import {
     boxRows,
     outlierLabels,
@@ -9,6 +12,8 @@
     whiskerDomain,
     type OutlierLabel
   } from "$lib/analysis/utils/box-plot";
+
+  type Expansion = { load?: undefined; title?: undefined } | { load: OutlierLoad; title: string };
 
   let {
     boxes,
@@ -18,7 +23,9 @@
     orientation = "vertical",
     ladder = [],
     constant,
-    contain = "container"
+    contain = "container",
+    load,
+    title
   }: {
     boxes: Record<string, BoxStats | null>;
     groups: { id: string; name: string; color: string }[];
@@ -28,7 +35,9 @@
     ladder?: number[];
     constant?: number;
     contain?: "container" | "window";
-  } = $props();
+  } & Expansion = $props();
+
+  let expanded = $state(false);
 
   /** Pixels a horizontal low label takes left of the plot, ahead of the Group names. */
   const LOW_LABEL_ROOM = 64;
@@ -46,6 +55,7 @@
       ? { left: 76 + (anyLow ? LOW_LABEL_ROOM : 0), right: anyHigh ? 72 : 8, bottom: 20 }
       : { left: 52, right: 12, bottom: anyLow ? 36 : 24, top: anyHigh ? 20 : 8 }
   );
+  const expandable = $derived(load !== undefined && (anyHigh || anyLow));
   const bandLabelOffset = $derived(anyLow ? (horizontal ? LOW_LABEL_ROOM : 12) : 0);
 </script>
 
@@ -129,5 +139,29 @@
         {/snippet}
       </BoxChart>
     </div>
+    {#if expandable && load && title}
+      <div class="flex justify-end">
+        <Button
+          variant="ghost"
+          size="sm"
+          onclick={(event) => {
+            event.stopPropagation();
+            expanded = true;
+          }}
+        >
+          <Maximize2 data-icon="inline-start" />
+          Outliers
+        </Button>
+      </div>
+      <BoxPlotDialog
+        bind:open={expanded}
+        {title}
+        {rows}
+        {load}
+        {format}
+        {formatCount}
+        {orientation}
+      />
+    {/if}
   </div>
 {/if}
