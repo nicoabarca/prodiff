@@ -1,5 +1,14 @@
 import { expect, test } from "vitest";
-import { formatDuration, formatDurationParts } from "$lib/format";
+import { formatCompact, formatDuration, formatDurationParts } from "$lib/format";
+
+test("a compact count rounds to one decimal of its largest unit", () => {
+  expect(formatCompact(999)).toBe("999");
+  expect(formatCompact(10_000)).toBe("10K");
+  expect(formatCompact(10_500)).toBe("10.5K");
+  expect(formatCompact(10_550)).toBe("10.6K");
+  expect(formatCompact(66_656)).toBe("66.7K");
+  expect(formatCompact(1_250_000)).toBe("1.3M");
+});
 
 test("a duration reads as its two largest units", () => {
   expect(formatDuration(null)).toBe("—");

@@ -2,7 +2,7 @@
 //! chi-square for categorical, and the Benjamini-Hochberg correction applied
 //! per attribute family.
 
-use super::{Acc, Summary, Test};
+use super::{Acc, Outliers, Summary, Test};
 use statrs::distribution::{ChiSquared, ContinuousCDF, Normal};
 use std::collections::HashMap;
 
@@ -66,9 +66,24 @@ pub fn tukey(sorted: &[f64]) -> (f64, f64, usize, usize) {
     )
 }
 
+/// The values past the `tukey` whiskers on each side, both ascending.
+pub fn outliers(sorted: &[f64]) -> Outliers {
+    let (_, _, low, high) = tukey(sorted);
+    Outliers {
+        low: sorted[..low].to_vec(),
+        high: sorted[sorted.len() - high..].to_vec(),
+    }
+}
+
+/// Ascending, the order `numeric_summary` and `outliers` read. A NaN compares
+/// equal to everything and stays where it was.
+pub fn sort(values: &mut [f64]) {
+    values.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+}
+
 pub fn numeric_summary(values: &[f64]) -> Summary {
     let mut sorted = values.to_vec();
-    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    sort(&mut sorted);
     let n = sorted.len();
     let mean = sorted.iter().sum::<f64>() / n as f64;
     // Sample standard deviation. A single observation has no spread.
@@ -240,6 +255,43 @@ mod tests {
 
     fn ids() -> Vec<String> {
         vec!["a".to_string(), "b".to_string()]
+    }
+
+    #[test]
+    fn outliers_are_the_values_past_the_whiskers() {
+        let sorted = [1.0, 2.0, 3.0, 4.0, 5.0, 100.0];
+        assert_eq!(
+            outliers(&sorted),
+            Outliers {
+                low: vec![],
+                high: vec![100.0]
+            }
+        );
+    }
+
+    #[test]
+    fn outliers_match_the_tukey_counts() {
+        let mut heavy: Vec<f64> = (0..90).map(|i| (i % 30) as f64).collect();
+        heavy.extend([-500.0, -400.0, 600.0, 900.0, 3_600.0]);
+        sort(&mut heavy);
+        let mut flat = vec![0.0; 800];
+        flat.extend((1..=200).map(|i| i as f64 * 10.0));
+        for sorted in [heavy, flat] {
+            let (_, _, low, high) = tukey(&sorted);
+            let found = outliers(&sorted);
+            assert_eq!((found.low.len(), found.high.len()), (low, high));
+            assert!(low + high > 0);
+        }
+    }
+
+    #[test]
+    fn one_value_or_none_has_no_outliers() {
+        let empty = Outliers {
+            low: vec![],
+            high: vec![],
+        };
+        assert_eq!(outliers(&[7.0]), empty);
+        assert_eq!(outliers(&[]), empty);
     }
 
     #[test]

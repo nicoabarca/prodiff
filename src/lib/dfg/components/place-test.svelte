@@ -15,6 +15,8 @@
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { isDurationAttribute } from "$lib/analysis/attributes";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
+  import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import type { Finding } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
@@ -145,7 +147,12 @@
           Time waited on the edge {finding.place.label}.
         </p>
       {/if}
-      <SummaryCompare summaries={block.summaries} {duration} />
+      <SummaryCompare
+        summaries={block.summaries}
+        {duration}
+        load={placeOutliers(finding.place, finding.attribute)}
+        title={attributeLabel(finding.attribute)}
+      />
       {#if !block.test}
         <p class="text-muted-foreground text-[0.625rem]">{untestable(block, groups)}</p>
       {:else}

@@ -1,5 +1,10 @@
 import type { AttributeBlock } from "$lib/analysis/types";
-import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
+import type { Scope } from "$lib/distributions/types";
+import type {
+  RequestTreeOutlierTarget,
+  ResponseDirectedTree,
+  TreeNode
+} from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
 import { hasSignificant } from "$lib/tree/utils/effect";
 
@@ -243,4 +248,23 @@ export function variantPath(
   const leaf = tree.nodes.find((node) => node.variantKey === key);
   if (!leaf || !visible.ids.has(leaf.id)) return new Set();
   return new Set(pathTo(tree, leaf.id).map((node) => node.id));
+}
+
+/** One node's attribute as `tree_outliers` names it: the same depth and Variants a Distributions request sends. */
+export function nodeTarget(
+  tree: ResponseDirectedTree,
+  visible: Visible,
+  nodeId: number,
+  scope: Scope,
+  attribute: string,
+  finiteOnly: boolean
+): RequestTreeOutlierTarget {
+  return {
+    kind: "node",
+    variants: subtreeVariants(tree, visible, nodeId),
+    depth: nodeDepth(tree, nodeId),
+    scope,
+    attribute,
+    finiteOnly
+  };
 }

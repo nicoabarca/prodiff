@@ -21,6 +21,7 @@
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
+  import { nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -187,7 +188,15 @@
             : "completion of this activity − completion of the previous one."}
         </p>
       {/if}
-      <SummaryCompare summaries={block.summaries} {compare} {duration} />
+      <SummaryCompare
+        summaries={block.summaries}
+        {compare}
+        {duration}
+        load={node && Object.values(block.summaries).some((summary) => summary.type === "numerical")
+          ? nodeOutliers(node.id, name)
+          : undefined}
+        title={attributeLabel(name)}
+      />
       {#if !block.test}
         {#if compare}
           <p class="text-muted-foreground text-[0.625rem]">{untestable(block, drawn)}</p>
@@ -207,7 +216,7 @@
 {/snippet}
 
 <aside
-  class="border-border bg-sidebar flex w-[26rem] shrink-0 flex-col border-l"
+  class="border-border bg-sidebar flex w-[30rem] shrink-0 flex-col border-l"
   data-tour="tree-detail-panel"
 >
   {#if !node}

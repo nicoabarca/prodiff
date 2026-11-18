@@ -5,7 +5,7 @@
 
 use super::{read_group, variant_key, AttrSpec, GroupRows, Source};
 use crate::analysis::stats::{quantile, tukey};
-use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, TRANSITION_TIME};
+use crate::analysis::{Acc, GroupLog, ACTIVITY_DURATION, NOT_NUMERIC, TRANSITION_TIME};
 use crate::column_mapping::{find_role, resolve_row, CaseResolution, ColumnMapping, ColumnRole};
 use std::collections::{HashMap, HashSet};
 
@@ -54,6 +54,24 @@ const DURATION_EDGES: [f64; 16] = [
 pub enum Scope {
     AtStep,
     WholeCase,
+}
+
+/// What a tree outliers request reads: one attribute at one node, or one
+/// case-level attribute across each Group.
+#[derive(serde::Deserialize, Debug, Clone)]
+#[serde(tag = "kind", rename_all = "camelCase")]
+pub enum TreeOutlierTarget {
+    #[serde(rename_all = "camelCase")]
+    Node {
+        variants: Vec<String>,
+        depth: usize,
+        scope: Scope,
+        attribute: String,
+        finite_only: bool,
+    },
+    Case {
+        attribute: String,
+    },
 }
 
 #[derive(serde::Serialize, Debug, Clone)]
@@ -553,6 +571,43 @@ pub fn distributions(
     })
 }
 
+/// One node's values of one numeric attribute, one vector per entry in `logs`,
+/// read the way `distributions` reads them. `finite_only` drops what the
+/// duration plot drops before its box.
+pub fn node_values(
+    logs: &[GroupLog],
+    mapping: &[ColumnMapping],
+    attribute: &str,
+    variants: &[String],
+    depth: usize,
+    scope: Scope,
+    finite_only: bool,
+) -> Result<Vec<Vec<f64>>, String> {
+    if scope == Scope::AtStep && depth == 0 {
+        return Err("The Start node has no event of its own.".to_string());
+    }
+    let has_start = find_role(mapping, ColumnRole::StartTimestamp).is_some();
+    let (plans, specs) = plan(&[attribute.to_string()], mapping, has_start);
+    if !plans.first().is_some_and(|plan| plan.numeric) {
+        return Err(NOT_NUMERIC.to_string());
+    }
+    let variants: HashSet<String> = variants.iter().cloned().collect();
+    logs.iter()
+        .map(|log| {
+            let rows = read_group(&log.df, mapping, &specs)?;
+            let mut acc = [Acc::new(true)];
+            accumulate(&rows, &plans, &variants, depth, scope, &mut acc);
+            let [Acc::Num(mut values)] = acc else {
+                return Ok(Vec::new());
+            };
+            if finite_only {
+                values.retain(|v| v.is_finite());
+            }
+            Ok(values)
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -661,6 +716,92 @@ mod tests {
         // Case 3 never reaches this node, so its events are absent from both.
         let ana = values.iter().find(|c| c.value == "Ana").unwrap();
         assert_eq!(ana.counts["a"], 3); // two B events plus case 2's cost-90 D
+    }
+
+    /// Three-event cases `A, B, C` whose wait into `B` is `waits[i]` ms.
+    fn waiting(waits: &[i64]) -> polars::prelude::DataFrame {
+        use polars::prelude::*;
+        let mut cases = Vec::new();
+        let mut acts = Vec::new();
+        let mut ts = Vec::new();
+        for (i, wait) in waits.iter().enumerate() {
+            for (activity, at) in [("A", 0), ("B", *wait), ("C", wait + 1_000)] {
+                cases.push(format!("c{i}"));
+                acts.push(activity);
+                ts.push(at);
+            }
+        }
+        let height = cases.len();
+        DataFrame::new(
+            height,
+            vec![
+                Column::new("case".into(), cases),
+                Column::new("act".into(), acts),
+                crate::time::datetime_column("ts", ts),
+                Column::new("cost".into(), vec![1i64; height]),
+                Column::new("who".into(), vec!["Ana"; height]),
+            ],
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn node_values_count_the_outliers_the_duration_box_counts() {
+        let mapping = super::super::tests::mapping(false);
+        let mut waits: Vec<i64> = (0..40).map(|i| 60_000 + (i % 7) * 1_000).collect();
+        waits.extend([2_000, 3_600_000, 7_200_000]);
+        let a = waiting(&waits);
+        let b = waiting(&waits[..30]);
+        let logs = super::super::tests::logs(&a, Some(&b));
+        let variants = vec!["A\u{1}B\u{1}C".to_string()];
+
+        let found = distributions(
+            &logs,
+            &mapping,
+            &[TRANSITION_TIME.to_string()],
+            &variants,
+            2,
+            Scope::AtStep,
+        )
+        .unwrap();
+        let Distribution::Numerical {
+            shape: Some(shape), ..
+        } = &found.attributes[0].1
+        else {
+            panic!("expected a duration shape");
+        };
+
+        let values = node_values(
+            &logs,
+            &mapping,
+            TRANSITION_TIME,
+            &variants,
+            2,
+            Scope::AtStep,
+            true,
+        )
+        .unwrap();
+        let outliers = crate::analysis::outliers_by_group(&ids(), values);
+        assert_eq!(outliers["a"].high, vec![3_600_000.0, 7_200_000.0]);
+        assert_eq!(outliers["a"].low, vec![2_000.0]);
+        for id in ids() {
+            let stats = &shape.box_stats[&id];
+            assert_eq!(outliers[&id].high.len(), stats.outliers_high);
+            assert_eq!(outliers[&id].low.len(), stats.outliers_low);
+        }
+    }
+
+    #[test]
+    fn node_values_refuse_a_categorical_attribute_and_the_start_node() {
+        let mapping = super::super::tests::mapping(false);
+        let log = super::super::tests::log(&[("1", &["A"], &[1])]);
+        let logs = super::super::tests::logs(&log, None);
+        let variants = vec!["A".to_string()];
+        assert_eq!(
+            node_values(&logs, &mapping, "who", &variants, 1, Scope::AtStep, false),
+            Err(NOT_NUMERIC.to_string())
+        );
+        assert!(node_values(&logs, &mapping, "cost", &variants, 0, Scope::AtStep, false).is_err());
     }
 
     #[test]

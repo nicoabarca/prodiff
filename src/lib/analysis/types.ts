@@ -41,6 +41,15 @@ export interface BoxStats {
   n?: number;
 }
 
+/** The values past a box plot's whiskers, ascending on each side. */
+export interface Outliers {
+  low: number[];
+  high: number[];
+}
+
+/** Fetches one box plot's outliers, keyed by Group id. */
+export type OutlierLoad = () => Promise<Record<string, Outliers>>;
+
 export interface Test {
   test: "mannwhitney" | "chi2";
   statistic: number;

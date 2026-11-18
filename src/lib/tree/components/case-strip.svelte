@@ -11,7 +11,9 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import type { AttributeBlock, Summary } from "$lib/analysis/types";
+  import type { AttributeBlock, OutlierLoad, Summary } from "$lib/analysis/types";
+  import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import { caseOutliers } from "$lib/tree/state/build.svelte";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand, effectStep } from "$lib/tree/utils/effect";
@@ -23,11 +25,13 @@
   let {
     caseLevel,
     groupIds,
-    cappedByCeiling = false
+    cappedByCeiling = false,
+    outliers = caseOutliers
   }: {
     caseLevel: Record<string, AttributeBlock>;
     groupIds: string[];
     cappedByCeiling?: boolean;
+    outliers?: (attribute: string) => OutlierLoad | undefined;
   } = $props();
 
   const groups = $derived(comparedGroups());
@@ -114,7 +118,12 @@
                   <span class="text-xs font-semibold"><AttributeName name={attribute.name} /></span>
                   <EffectChip test={attribute.test} tooltip={false} />
                 </div>
-                <SummaryCompare summaries={attribute.summaries} compare={comparing} />
+                <SummaryCompare
+                  summaries={attribute.summaries}
+                  compare={comparing}
+                  load={outliers(attribute.name)}
+                  title={attributeLabel(attribute.name)}
+                />
                 <TrimmedNote {groups} attribute={attribute.name} />
                 {#if attribute.test}
                   <p

@@ -7,7 +7,7 @@
   import SignificanceBadge from "$lib/tree/components/significance-badge.svelte";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
   import { shade } from "$lib/groups/utils/shade";
-  import { formatNumber, formatPercent } from "$lib/format";
+  import { formatCompact, formatPercent } from "$lib/format";
 
   let { id, data }: { id: string; data: TreeNodeData } = $props();
 
@@ -94,7 +94,7 @@
         class="-mt-0.5 font-mono text-[0.5625rem] leading-none tabular-nums opacity-75"
         style="color:var(--{accent})"
       >
-        {formatNumber(total)}
+        {formatCompact(total)}
       </span>
     {/if}
 
@@ -105,8 +105,8 @@
           : 'justify-center'}"
       >
         {#each reaching as group (group.id)}
-          <span style="color:var(--{group.color})">
-            {formatNumber(data.cases[group.id])}
+          <span class="whitespace-nowrap" style="color:var(--{group.color})">
+            {formatCompact(data.cases[group.id])}
             {#if shared}({formatPercent(data.split[group.id])}){/if}
           </span>
         {/each}
