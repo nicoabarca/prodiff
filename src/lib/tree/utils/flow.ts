@@ -59,6 +59,7 @@ export interface TreeNodeData {
   root: boolean;
   membership: string;
   groups: FlowGroup[];
+  cases: Record<string, number>;
   split: Record<string, number>;
   figures: (string | null)[];
   significantCount: number;
@@ -175,8 +176,12 @@ export function toFlow(
         root: node.parent === null,
         membership: membership(node, ids),
         groups: options.groups,
+        cases,
         split: caseSplit(cases),
-        figures: nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
+        figures:
+          options.figure.kind === "cases"
+            ? []
+            : nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
