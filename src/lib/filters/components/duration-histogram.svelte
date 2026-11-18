@@ -56,7 +56,7 @@
   });
 
   /** A brush edge as a plain number. The brush reports `null` when unset. */
-  function edge(value: number | Date | null | undefined): number | null {
+  function edge(value: number | string | Date | null | undefined): number | null {
     return typeof value === "number" ? value : null;
   }
 
