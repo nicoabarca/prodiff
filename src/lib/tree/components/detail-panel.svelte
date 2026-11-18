@@ -1,8 +1,6 @@
 <script lang="ts">
-  import Fit from "$lib/components/fit/fit.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
@@ -29,7 +27,6 @@
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
   import CircleQuestionMark from "@lucide/svelte/icons/circle-question-mark";
   import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
-  import Split from "@lucide/svelte/icons/split";
   import X from "@lucide/svelte/icons/x";
 
   let {
@@ -110,15 +107,6 @@
     { value: "untested", label: "Not tested", empty: "Every attribute was tested here." }
   ];
 
-  /** Attributes in a divergent pair: they shift opposite ways between the Groups. */
-  const divergent = $derived(
-    new Set(
-      (node?.comovement ?? [])
-        .filter((pair) => pair.relationship === "divergent")
-        .flatMap((pair) => [pair.attributeX, pair.attributeY])
-    )
-  );
-
   // A new node opens on its strongest finding.
   let tab = $derived.by((): Standing => {
     void node;
@@ -151,12 +139,6 @@
       <span class="flex min-w-0 flex-col gap-0.5">
         <span class="flex min-w-0 items-center gap-1.25 text-xs font-semibold">
           <span class="min-w-0 [overflow-wrap:break-word]"><AttributeName {name} /></span>
-          {#if divergent.has(name)}
-            <Split
-              class="text-destructive size-3 shrink-0"
-              aria-label="Moves opposite to another attribute here"
-            />
-          {/if}
         </span>
         <span class="text-muted-foreground flex min-w-0 items-center gap-1.25 text-[0.625rem]">
           {#if higher}
@@ -271,10 +253,6 @@
                 <span>negligible</span>
                 <span>large</span>
               </p>
-              <p>
-                <span class="font-semibold">Divergent</span> co-movement means two attributes shift opposite
-                ways between the groups.
-              </p>
             </Popover.Content>
           </Popover.Root>
           <Button variant="ghost" size="icon-sm" aria-label="Hide details" onclick={onClose}>
@@ -370,37 +348,6 @@
             </Tabs.Content>
           {/each}
 
-          {#if node.comovement.length > 0}
-            <div class="flex flex-col gap-2 px-4 py-3.5">
-              <h3 class="text-muted-foreground text-[0.6875rem] font-semibold">Co-movement</h3>
-              {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
-                <div class="flex items-center gap-2 text-[0.6875rem]">
-                  <Split
-                    class={cn(
-                      "size-3.5 shrink-0",
-                      pair.relationship === "divergent"
-                        ? "text-destructive"
-                        : "text-muted-foreground"
-                    )}
-                    aria-hidden="true"
-                  />
-                  <Fit text={attributeLabel(pair.attributeX)} class="font-medium" />
-                  <span class="text-muted-foreground">⇄</span>
-                  <Fit text={attributeLabel(pair.attributeY)} class="font-medium" />
-                  <Badge
-                    variant={pair.relationship === "divergent" ? "destructive" : "secondary"}
-                    class="ml-auto text-[0.6875rem]"
-                  >
-                    {pair.relationship}
-                  </Badge>
-                </div>
-              {/each}
-              <p class="text-muted-foreground text-[0.625rem]">
-                Divergent attributes shift opposite ways between the groups; concordant ones shift
-                the same way.
-              </p>
-            </div>
-          {/if}
         </ScrollArea.Root>
       </Tabs.Root>
     {/if}

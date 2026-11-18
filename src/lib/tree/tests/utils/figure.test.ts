@@ -34,7 +34,6 @@ function node(fields: Partial<TreeNode> = {}): TreeNode {
     cases: {},
     eventLevel: {},
     transitionTime: null,
-    comovement: [],
     variantKey: null,
     ...fields
   };

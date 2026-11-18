@@ -3,7 +3,6 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
-  import Split from "@lucide/svelte/icons/split";
   import SignificanceBadge from "$lib/tree/components/significance-badge.svelte";
   import type { TreeNodeData } from "$lib/tree/utils/flow";
   import { shade } from "$lib/groups/utils/shade";
@@ -52,18 +51,14 @@
     data-tour-key={id}
     class="relative flex h-full w-full flex-col items-center justify-center gap-1 rounded-[0.5rem] border px-2 py-1.5 text-center transition-opacity {data.dimmed
       ? 'opacity-25'
-      : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.divergent
-      ? 'ring-destructive/60 ring-2'
-      : ''} {data.highlighted
+      : ''} {data.selected ? 'ring-ring ring-2' : ''} {data.highlighted
       ? 'shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)]'
       : ''} {data.entering ? 'tree-node-enter' : ''} {data.ghost
       ? 'tree-node-exit pointer-events-none'
       : ''}"
     style="background:{tint.fill};border-color:{data.highlighted
       ? 'var(--color-indigo-500)'
-      : data.divergent
-        ? 'var(--destructive)'
-        : tint.border};border-width:{data.highlighted
+      : tint.border};border-width:{data.highlighted
       ? '0.125rem'
       : ''};transition-duration:var(--tree-dim-duration)"
   >
@@ -79,14 +74,6 @@
         </Tooltip.Trigger>
         <Tooltip.Content>{data.label}</Tooltip.Content>
       </Tooltip.Root>
-      {#if data.divergent}
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Split class="text-destructive size-3.5 shrink-0" aria-hidden="true" />
-          </Tooltip.Trigger>
-          <Tooltip.Content>Divergent attributes: they move opposite ways here</Tooltip.Content>
-        </Tooltip.Root>
-      {/if}
     </div>
 
     {#if shared}

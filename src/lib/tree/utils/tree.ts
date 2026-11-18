@@ -51,10 +51,6 @@ export function caseSplit(cases: Record<string, number>): Record<string, number>
   );
 }
 
-export function isDivergent(node: TreeNode): boolean {
-  return node.comovement.some((pair) => pair.relationship === "divergent");
-}
-
 /** The only Group that reaches a node, or `"shared"` when more than one does. */
 export function membership(node: TreeNode, groupIds: string[]): string {
   const reaching = groupIds.filter((id) => groupCasesAt(node, id) > 0);

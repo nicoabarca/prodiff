@@ -18,7 +18,6 @@ function node(id: number, parent: number | null): TreeNode {
     cases: { original: 1 },
     eventLevel: {},
     transitionTime: null,
-    comovement: [],
     variantKey: null
   };
 }

@@ -15,11 +15,10 @@
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import { hasSignificant } from "$lib/tree/utils/effect";
   import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/tree/utils/figure";
-  import { isDivergent, visibleNodes } from "$lib/tree/utils/tree";
+  import { visibleNodes } from "$lib/tree/utils/tree";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import Info from "@lucide/svelte/icons/info";
-  import Split from "@lucide/svelte/icons/split";
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
@@ -52,7 +51,6 @@
     view.edgeLabels && attributes.some((attribute) => attribute.name === TRANSITION_TIME)
   );
   const significant = $derived(drawn.some(hasSignificant));
-  const divergent = $derived(drawn.some(isDivergent));
 
   const focusName = $derived.by(() => {
     if (!comparing) return null;
@@ -140,17 +138,6 @@
   Significant differences
 {/snippet}
 
-{#snippet divergentGlyph()}
-  <span
-    class="border-destructive ring-destructive/50 box-border flex h-8 w-15.5 items-center justify-center rounded-[0.375rem] border ring-2"
-  >
-    <Split class="text-destructive size-3.5" aria-hidden="true" />
-  </span>
-{/snippet}
-{#snippet divergentTitle()}
-  Attributes move apart
-{/snippet}
-
 {#snippet startGlyph()}
   <span class="flex flex-col items-center gap-0.5">
     <span class="size-3.5 rounded-full bg-emerald-500"></span>
@@ -192,13 +179,6 @@
         {/if}
         {#if significant}
           {@render row(badgeGlyph, badgeTitle, "How many at this step. Darker = larger effect")}
-        {/if}
-        {#if divergent}
-          {@render row(
-            divergentGlyph,
-            divergentTitle,
-            "Two attributes shift in opposite directions here"
-          )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins here")}
       </div>
