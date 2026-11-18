@@ -44,14 +44,6 @@ export function coverageFloor(rows: ResponseVariantRow[]): number {
   return rows.reduce((max, row) => Math.max(max, variantCases(row)), 0) / total;
 }
 
-/**
- * Events one Group contributes to a Variant: every case there walks the same
- * trace, so it is the trace length times the cases.
- */
-export function variantEvents(row: ResponseVariantRow, groupId: string): number {
-  return (row.cases[groupId] ?? 0) * row.activities.length;
-}
-
 /** Whether two selections name the same Variants. Order carries no meaning. */
 export function sameSelection(a: Iterable<string>, b: Iterable<string>): boolean {
   const left = new Set(a);

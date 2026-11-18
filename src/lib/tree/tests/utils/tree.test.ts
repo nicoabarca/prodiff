@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { stableKeys } from "$lib/tree/utils/flow";
 import {
   caseLevelBlocks,
+  caseSplit,
   nodeDepth,
   nodeTarget,
   subtreeVariants,
@@ -148,5 +149,18 @@ describe("nodeTarget", () => {
     });
     expect(target.kind === "node" && target.depth).toBe(depth);
     expect(target.kind === "node" && [...target.variants].sort()).toEqual(variants);
+  });
+});
+
+describe("caseSplit", () => {
+  it("divides a node's cases between its Groups", () => {
+    expect(caseSplit({ a: 13_252, b: 66_892 })).toEqual({
+      a: 13_252 / 80_144,
+      b: 66_892 / 80_144
+    });
+  });
+
+  it("gives every Group zero when no case is counted", () => {
+    expect(caseSplit({ a: 0, b: 0 })).toEqual({ a: 0, b: 0 });
   });
 });

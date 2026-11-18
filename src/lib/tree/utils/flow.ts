@@ -9,7 +9,14 @@ import type { EdgeWidth, EffectBand, GroupFocus, Statistic, Visible } from "$lib
 import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { nodeFigures, type NodeFigure } from "$lib/tree/utils/figure";
 import { layoutTree } from "$lib/tree/utils/layout";
-import { children, groupCasesAt, groupIds, isDivergent, membership } from "$lib/tree/utils/tree";
+import {
+  caseSplit,
+  children,
+  groupCasesAt,
+  groupIds,
+  isDivergent,
+  membership
+} from "$lib/tree/utils/tree";
 import { formatDuration } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
@@ -52,6 +59,8 @@ export interface TreeNodeData {
   root: boolean;
   membership: string;
   groups: FlowGroup[];
+  cases: Record<string, number>;
+  split: Record<string, number>;
   figures: (string | null)[];
   significantCount: number;
   peakBand: EffectBand | null;
@@ -167,7 +176,12 @@ export function toFlow(
         root: node.parent === null,
         membership: membership(node, ids),
         groups: options.groups,
-        figures: nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
+        cases,
+        split: caseSplit(cases),
+        figures:
+          options.figure.kind === "cases"
+            ? []
+            : nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),

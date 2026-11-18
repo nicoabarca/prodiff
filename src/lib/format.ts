@@ -14,6 +14,11 @@ export function formatFileSize(size: number): string {
   })} ${units[unit]}`;
 }
 
+/** A share from 0 to 1 as a percentage with one decimal ("16.5%"). */
+export function formatPercent(share: number): string {
+  return `${(share * 100).toFixed(1)}%`;
+}
+
 export function formatDecimal(value: number, digits = 2): string {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: digits,

@@ -6,7 +6,7 @@
    * `rowHeight` is what a row measures, in pixels: one number for rows that are
    * all the same, or one entry per item for rows that are not. A row that
    * disagrees with the number given for it drifts out of place as the list
-   * scrolls.
+   * scrolls. `viewport` binds the scrolling element.
    */
   import { virtualRange } from "$lib/components/virtual-list/virtual.svelte";
   import type { Snippet } from "svelte";
@@ -16,12 +16,14 @@
     rowHeight,
     row,
     empty,
+    viewport = $bindable(),
     class: className = ""
   }: {
     items: T[];
     rowHeight: number | number[];
     row: Snippet<[T, number]>;
     empty?: Snippet;
+    viewport?: HTMLElement;
     class?: string;
   } = $props();
 
@@ -32,6 +34,7 @@
 </script>
 
 <div
+  bind:this={viewport}
   class="min-h-0 flex-1 overflow-y-auto {className}"
   onscroll={range.onScroll}
   bind:clientHeight={() => 0, (height) => range.setViewport(height)}
