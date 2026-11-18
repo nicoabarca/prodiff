@@ -1,9 +1,9 @@
 <script lang="ts">
   import { scaleBand, scaleSymlog } from "d3-scale";
-  import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Svg, Tooltip } from "layerchart";
+  import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
   import type { BoxStats } from "$lib/analysis/types";
   import { interiorTicks } from "$lib/analysis/utils/axis";
-  import { tickLabel } from "$lib/format";
+  import Fit from "$lib/components/fit/fit.svelte";
 
   let {
     boxes,
@@ -73,8 +73,8 @@
       })
       .filter((note): note is string => note !== null)
   );
-  /** The band axis is keyed on Group id, so it reads the name back to label a tick. */
-  const bandLabel = (id: string) => tickLabel(rows.find((row) => row.id === id)?.name ?? id, 18);
+  /** The band axis draws ticks only; the Group names sit in the `Html` layer, where `Fit` can cut them. */
+  const noLabel = () => "";
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
 </script>
@@ -106,17 +106,11 @@
         {#snippet children({ context })}
           <Svg>
             {#if horizontal}
-              <Axis
-                placement="left"
-                rule
-                grid={false}
-                format={bandLabel}
-                tickLabelProps={{ svgProps: { x: -8 } }}
-              />
+              <Axis placement="left" rule grid={false} format={noLabel} />
               <Axis placement="bottom" grid rule {ticks} {format} />
             {:else}
               <Axis placement="left" grid rule {ticks} {format} />
-              <Axis placement="bottom" rule format={bandLabel} />
+              <Axis placement="bottom" rule format={noLabel} />
             {/if}
             <ChartClipPath>
               {#each rows as box (box.id)}
@@ -148,6 +142,28 @@
               <Highlight area />
             </ChartClipPath>
           </Svg>
+
+          <!-- The tooltip hit areas are a full-size SVG drawn above `children`; `zIndex` lifts the labels over it. -->
+          <Html pointerEvents={false} zIndex={1}>
+            {#each rows as box (box.id)}
+              {#if horizontal}
+                <div
+                  class="pointer-events-auto absolute right-[calc(100%+0.5rem)] flex w-28 -translate-y-1/2 justify-end text-[0.625rem] font-light"
+                  style:top="{center(context.yScale, box.id)}px"
+                >
+                  <Fit text={box.name} class="block" />
+                </div>
+              {:else}
+                <div
+                  class="pointer-events-auto absolute top-[calc(100%+0.25rem)] flex -translate-x-1/2 justify-center text-[0.625rem] font-light"
+                  style:left="{center(context.xScale, box.id)}px"
+                  style:width="{context.xScale.bandwidth?.() ?? 0}px"
+                >
+                  <Fit text={box.name} class="block" />
+                </div>
+              {/if}
+            {/each}
+          </Html>
 
           <Tooltip.Root contained={contain} props={{ root: { class: "w-max" } }}>
             {#snippet children({ data: box })}
