@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock, Test } from "$lib/analysis/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
 import { edgeEffect, hasSignificant, peakEffect, rankedBlocks } from "$lib/tree/utils/effect";
-import { isDivergent, nodeComovement } from "$lib/tree/utils/tree";
 
 function test(significant: boolean, effectSize: number): Test {
   return {
@@ -29,7 +27,6 @@ function node(fields: Partial<TreeNode> = {}): TreeNode {
     cases: {},
     eventLevel: {},
     transitionTime: null,
-    comovement: [],
     variantKey: null,
     ...fields
   };
@@ -66,20 +63,5 @@ describe("edgeEffect", () => {
     expect(edgeEffect(node({ transitionTime: block(false, 0.4) }))).toBeNull();
     expect(edgeEffect(node({ transitionTime: { summaries: {}, test: null } }))).toBeNull();
     expect(edgeEffect(node())).toBeNull();
-  });
-});
-
-describe("nodeComovement", () => {
-  it("drops every pair with Transition Time", () => {
-    const withWait = node({
-      comovement: [
-        { attributeX: "amount", attributeY: TRANSITION_TIME, relationship: "divergent" },
-        { attributeX: "amount", attributeY: "region", relationship: "concordant" }
-      ]
-    });
-    expect(nodeComovement(withWait)).toEqual([
-      { attributeX: "amount", attributeY: "region", relationship: "concordant" }
-    ]);
-    expect(isDivergent(withWait)).toBe(false);
   });
 });

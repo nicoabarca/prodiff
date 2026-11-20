@@ -177,7 +177,7 @@ fn mann_whitney(ids: &[String], a: &[f64], b: &[f64]) -> Option<Test> {
 }
 
 /// Chi-square over the value × group contingency table. Non-directional, so no
-/// Effect Direction and no part in Attribute Co-movement.
+/// Effect Direction.
 fn chi_square(a: &HashMap<String, i64>, b: &HashMap<String, i64>) -> Option<Test> {
     let mut values: Vec<&String> = a.keys().chain(b.keys()).collect();
     values.sort();

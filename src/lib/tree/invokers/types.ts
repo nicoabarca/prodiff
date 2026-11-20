@@ -29,7 +29,6 @@ export interface TreeNode {
   cases: Record<string, number>;
   eventLevel: Record<string, AttributeBlock>;
   transitionTime: AttributeBlock | null;
-  comovement: Comovement[];
   variantKey: string | null;
 }
 
@@ -38,12 +37,6 @@ export interface ResponseVariantRow {
   key: string;
   activities: string[];
   cases: Record<string, number>;
-}
-
-export interface Comovement {
-  attributeX: string;
-  attributeY: string;
-  relationship: "concordant" | "divergent";
 }
 
 export interface GroupBlock {

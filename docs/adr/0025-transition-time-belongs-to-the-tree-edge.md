@@ -10,6 +10,6 @@ Transition Time is the time between the previous event and an activity. It descr
 
 **An edge is selected like a node.** Clicking an edge that carries Transition Time opens the detail panel on that edge: its header names both activities, and it holds the one Transition Time row with its verdict, effect and Box Plot. The edges leaving Start carry no Transition Time and cannot be selected. A node and an edge cannot both be selected, so the selection is one value that names either. Distributions opens only from a node.
 
-**The node keeps only its own attributes.** Its badge count and colour, its Differences tabs, its figure and its divergent mark leave Transition Time out. A co-movement pair with Transition Time is dropped, because it pairs a value of the edge with a value of the node.
+**The node keeps only its own attributes.** Its badge count and colour, its Differences tabs and its figure leave Transition Time out.
 
-**Consequences:** "Only variants with a finding" still keeps a Variant whose only finding is on an edge, because that edge is part of its path. Distributions still shows a Transition Time card for the node it opens on, titled with the activity the edge comes from. Co-movement on edges is not part of this change.
+**Consequences:** "Only variants with a finding" still keeps a Variant whose only finding is on an edge, because that edge is part of its path. Distributions still shows a Transition Time card for the node it opens on, titled with the activity the edge comes from.
