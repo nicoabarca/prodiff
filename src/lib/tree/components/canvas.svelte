@@ -9,7 +9,7 @@
     type ViewportAnchorState
   } from "$lib/tree/components/viewport-anchor.svelte";
   import { figureAttributes, nodeFigure } from "$lib/tree/utils/figure";
-  import { EDGE_LABEL_STYLE, toFlow } from "$lib/tree/utils/flow";
+  import { EDGE_LABEL_STYLE, toFlow, type TreeEdgeData } from "$lib/tree/utils/flow";
   import { diffKeys } from "$lib/tree/utils/diff";
   import type { Point } from "$lib/tree/utils/layout";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
@@ -74,8 +74,9 @@
       focus: view.focus,
       edgeLabels: view.edgeLabels,
       edgeWidth: view.edgeWidth,
-      selected: selected.id,
-      onToggleCollapse: toggleCollapse
+      selected: selected.at,
+      onToggleCollapse: toggleCollapse,
+      onSelectEdge: (childId) => (selected.at = { kind: "edge", childId })
     })
   );
 
@@ -239,10 +240,15 @@
     onlyRenderVisibleElements={!exporting}
     onnodeclick={({ node }) => {
       if (node.data.ghost) return;
-      selected.id = node.data.nodeId as number;
+      selected.at = { kind: "node", id: node.data.nodeId as number };
+    }}
+    onedgeclick={({ edge }) => {
+      if (edge.class === "tree-edge-exit") return;
+      const data = edge.data as TreeEdgeData | undefined;
+      if (data?.clickable) data.onSelect();
     }}
     onpaneclick={() => {
-      if (deselectOnPaneClick) selected.id = null;
+      if (deselectOnPaneClick) selected.at = null;
     }}
   >
     <ViewportAnchor {anchor} {pane} />

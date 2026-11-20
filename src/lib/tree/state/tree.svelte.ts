@@ -3,6 +3,7 @@ import { db } from "$lib/db/client";
 import { treeSettings as settingsTable } from "$lib/db/schema";
 import { createVariantSelection } from "$lib/tree/state/variant-selection.svelte";
 import {
+  type TreeSelection,
   type TreeSettings,
   type TreeView,
   defaultTreeSettings,
@@ -49,8 +50,13 @@ export async function setSelectedVariants(project: Project, keys: Iterable<strin
   await saveSettings(project.id, { ...settings.value, selectedVariants: [...keys] });
 }
 
-/** The node whose aggregates the detail panel is showing. */
-export const selected = $state<{ id: number | null }>({ id: null });
+/** The node or edge whose aggregates the detail panel is showing. */
+export const selected = $state<{ at: TreeSelection | null }>({ at: null });
+
+/** The selected node's id, `null` while an edge or nothing is selected. */
+export function selectedNode(): number | null {
+  return selected.at?.kind === "node" ? selected.at.id : null;
+}
 
 export async function loadSettings(projectId: string) {
   const rows = await db()
@@ -94,7 +100,7 @@ export function resetDisplay() {
 }
 
 export function resetBuildView() {
-  selected.id = null;
+  selected.at = null;
   view.collapsed = new Set();
 }
 

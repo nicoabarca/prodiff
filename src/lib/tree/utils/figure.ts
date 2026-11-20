@@ -2,7 +2,7 @@
  * The figure a node shows under its name: what a built tree can offer, what the
  * view's choice resolves to on that tree, and the text it puts on one node.
  */
-import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
+import { isDurationAttribute } from "$lib/analysis/attributes";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
 import type { Statistic, TreeView } from "$lib/tree/types";
 import { formatDuration, formatNumber, formatPercent } from "$lib/format";
@@ -12,13 +12,6 @@ export type FigureAttribute =
   { kind: "number"; name: string } | { kind: "category"; name: string; value: string };
 
 export type NodeFigure = { kind: "cases" } | { kind: "share" } | FigureAttribute;
-
-function blocksOf(node: TreeNode) {
-  return [
-    ...Object.entries(node.eventLevel),
-    ...(node.transitionTime ? ([[TRANSITION_TIME, node.transitionTime]] as const) : [])
-  ];
-}
 
 function byName(a: string, b: string): number {
   return Number(isDurationAttribute(a)) - Number(isDurationAttribute(b)) || a.localeCompare(b);
@@ -33,7 +26,7 @@ export function figureAttributes(tree: ResponseDirectedTree): FigureAttribute[] 
   const numbers = new Set<string>();
   const tallies = new Map<string, Map<string, number>>();
   for (const node of tree.nodes) {
-    for (const [name, block] of blocksOf(node)) {
+    for (const [name, block] of Object.entries(node.eventLevel)) {
       for (const summary of Object.values(block.summaries)) {
         if (summary.type === "numerical") {
           numbers.add(name);
@@ -102,9 +95,7 @@ export function nodeFigures(
       return count === 0 || total === 0 ? null : formatPercent(count / total);
     }
 
-    const block =
-      figure.name === TRANSITION_TIME ? node.transitionTime : node.eventLevel[figure.name];
-    const summary = block?.summaries[group.id];
+    const summary = node.eventLevel[figure.name]?.summaries[group.id];
     if (figure.kind === "category") {
       return summary?.type === "categorical" && summary.n > 0
         ? formatPercent((summary.counts[figure.value] ?? 0) / summary.n)

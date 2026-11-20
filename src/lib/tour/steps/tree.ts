@@ -1,4 +1,4 @@
-import { selected } from "$lib/tree/state/tree.svelte";
+import { selectedNode } from "$lib/tree/state/tree.svelte";
 import type { TourStep } from "$lib/tour/types";
 
 /** The tree node for Request documents, reached through Submit application and Check completeness. */
@@ -22,7 +22,7 @@ export const treeTour: TourStep[] = [
     title: "Pick a step",
     body: "Click Request documents. Most rejected applications pass through it, most approved ones do not.",
     side: "right",
-    until: () => selected.id !== null
+    until: () => selectedNode() !== null
   },
   {
     target: [{ anchor: "tree-detail-panel" }],

@@ -6,16 +6,16 @@
    * those settings can be changed with it in view.
    */
   import type { Snippet } from "svelte";
-  import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
   import { Button } from "$lib/components/ui/button/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { shade } from "$lib/groups/utils/shade";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { hasSignificant } from "$lib/tree/utils/effect";
+  import { edgeEffect, hasSignificant } from "$lib/tree/utils/effect";
   import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/tree/utils/figure";
-  import { isDivergent, visibleNodes } from "$lib/tree/utils/tree";
+  import { hasTransitionTime, isDivergent, visibleNodes } from "$lib/tree/utils/tree";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import Info from "@lucide/svelte/icons/info";
@@ -48,10 +48,9 @@
     return tree.nodes.filter((node) => visible.ids.has(node.id));
   });
 
-  const edgeLabels = $derived(
-    view.edgeLabels && attributes.some((attribute) => attribute.name === TRANSITION_TIME)
-  );
+  const edgeLabels = $derived(view.edgeLabels && hasTransitionTime(tree));
   const significant = $derived(drawn.some(hasSignificant));
+  const edgeFinding = $derived(drawn.some((node) => edgeEffect(node) !== null));
   const divergent = $derived(drawn.some(isDivergent));
 
   const focusName = $derived.by(() => {
@@ -140,6 +139,20 @@
   Significant differences
 {/snippet}
 
+{#snippet edgeFindingGlyph()}
+  <span class="flex flex-col items-center">
+    <span class="h-2.5 w-0.5" style="background:{EDGE}"></span>
+    <span
+      class="size-3 rounded-full ring-1 ring-(--effect-3-foreground)/30"
+      style="background:var(--effect-3)"
+    ></span>
+    <span class="h-2.5 w-0.5" style="background:{EDGE}"></span>
+  </span>
+{/snippet}
+{#snippet edgeFindingTitle()}
+  Waiting time differs
+{/snippet}
+
 {#snippet divergentGlyph()}
   <span
     class="border-destructive ring-destructive/50 box-border flex h-8 w-15.5 items-center justify-center rounded-[0.375rem] border ring-2"
@@ -192,6 +205,13 @@
         {/if}
         {#if significant}
           {@render row(badgeGlyph, badgeTitle, "How many at this step. Darker = larger effect")}
+        {/if}
+        {#if edgeFinding}
+          {@render row(
+            edgeFindingGlyph,
+            edgeFindingTitle,
+            "On this edge. Click it to compare. Darker = larger effect"
+          )}
         {/if}
         {#if divergent}
           {@render row(

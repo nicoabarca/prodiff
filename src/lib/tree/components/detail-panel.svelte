@@ -16,11 +16,17 @@
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import type { Standing } from "$lib/tree/types";
+  import type { Standing, TreeSelection } from "$lib/tree/types";
   import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
-  import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
+  import {
+    caseSplit,
+    membership,
+    nodeComovement,
+    pathTo,
+    visibleNodes
+  } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import { nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
@@ -34,22 +40,28 @@
 
   let {
     tree,
-    nodeId,
+    selection,
     distributionsHref,
     onClose,
     onCompare,
     onOpenBuildSettings
   }: {
     tree: ResponseDirectedTree;
-    nodeId: number | null;
+    selection: TreeSelection | null;
     distributionsHref: string;
     onClose: () => void;
     onCompare: () => void;
     onOpenBuildSettings: () => void;
   } = $props();
 
+  /** An edge is shown through the node it leads into: the cases on it are that node's cases. */
+  const edge = $derived(selection?.kind === "edge");
+  const nodeId = $derived(
+    selection === null ? null : selection.kind === "node" ? selection.id : selection.childId
+  );
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
+  const comovement = $derived(node ? nodeComovement(node) : []);
   const compare = $derived(tree.groups.length > 1);
   /** Restricted to the surviving Variants: raw totals over-count. */
   const cases = $derived(
@@ -95,9 +107,7 @@
   /** One-Group mode has no differences to rank: attributes stay in build order. */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
-    const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
-    if (node.transitionTime) entries.push([TRANSITION_TIME, node.transitionTime]);
-    return entries;
+    return Object.entries(node.eventLevel);
   });
 
   const tabs: { value: Standing; label: string; empty: string }[] = [
@@ -113,7 +123,7 @@
   /** Attributes in a divergent pair: they shift opposite ways between the Groups. */
   const divergent = $derived(
     new Set(
-      (node?.comovement ?? [])
+      comovement
         .filter((pair) => pair.relationship === "divergent")
         .flatMap((pair) => [pair.attributeX, pair.attributeY])
     )
@@ -124,7 +134,9 @@
     void node;
     return "finding";
   });
-  const expanded = $derived(new SvelteSet(ranked.finding.slice(0, 1).map(([name]) => name)));
+  const expanded = $derived(
+    new SvelteSet(edge ? [TRANSITION_TIME] : ranked.finding.slice(0, 1).map(([name]) => name))
+  );
 
   function toggle(name: string, open: boolean) {
     if (open) expanded.add(name);
@@ -228,13 +240,17 @@
       class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6 pt-0"
     >
       <MousePointerClick class="size-5" aria-hidden="true" />
-      <p class="text-center text-xs">Select a node to compare its aggregates.</p>
+      <p class="text-center text-xs">Select a node or an edge to compare its aggregates.</p>
     </div>
   {:else}
     <div class="border-border flex shrink-0 flex-col gap-2.5 border-b px-4 pt-3.5 pb-3">
       <div class="flex items-start justify-between gap-2">
         <h2 class="min-w-0 text-[0.9375rem] leading-tight font-semibold text-pretty">
-          {node.label}
+          {#if edge}
+            {path.at(-2)?.label ?? "Start"} → {node.label}
+          {:else}
+            {node.label}
+          {/if}
         </h2>
         <div class="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
           <Popover.Root>
@@ -315,12 +331,26 @@
         </div>
       {:else}
         <span class="text-muted-foreground text-[0.6875rem]">
-          {formatNumber(casesHere)} cases at this node
+          {formatNumber(casesHere)} cases {edge ? "on this edge" : "at this node"}
         </span>
       {/if}
     </div>
 
-    {#if flat.length === 0}
+    {#if edge}
+      {#if !compare}
+        <div class="border-border flex shrink-0 flex-col items-start gap-2.5 border-b px-4 py-3">
+          <p class="text-muted-foreground text-xs">
+            One-group mode: the tree only shows this group's paths, with nothing to compare against.
+          </p>
+          <Button size="sm" onclick={onCompare}>Choose a second group</Button>
+        </div>
+      {/if}
+      <ScrollArea.Root class="min-h-0 flex-1">
+        {#if node.transitionTime}
+          {@render row(TRANSITION_TIME, node.transitionTime)}
+        {/if}
+      </ScrollArea.Root>
+    {:else if flat.length === 0}
       <div class="text-muted-foreground flex flex-1 flex-col items-start gap-3 px-4 py-3.5 text-xs">
         <p>No attributes selected. Choose attributes to test differences in the tree.</p>
         <Button variant="outline" size="sm" onclick={onOpenBuildSettings}>
@@ -370,10 +400,10 @@
             </Tabs.Content>
           {/each}
 
-          {#if node.comovement.length > 0}
+          {#if comovement.length > 0}
             <div class="flex flex-col gap-2 px-4 py-3.5">
               <h3 class="text-muted-foreground text-[0.6875rem] font-semibold">Co-movement</h3>
-              {#each node.comovement as pair (pair.attributeX + pair.attributeY)}
+              {#each comovement as pair (pair.attributeX + pair.attributeY)}
                 <div class="flex items-center gap-2 text-[0.6875rem]">
                   <Split
                     class={cn(
@@ -405,17 +435,19 @@
       </Tabs.Root>
     {/if}
 
-    <div class="border-border flex shrink-0 gap-2 border-t px-4 py-2.5">
-      <Button
-        variant="outline"
-        size="sm"
-        class="flex-1"
-        data-tour="open-distributions"
-        href={distributionsHref}
-      >
-        <ChartColumn data-icon="inline-start" />
-        Open in Distributions
-      </Button>
-    </div>
+    {#if !edge}
+      <div class="border-border flex shrink-0 gap-2 border-t px-4 py-2.5">
+        <Button
+          variant="outline"
+          size="sm"
+          class="flex-1"
+          data-tour="open-distributions"
+          href={distributionsHref}
+        >
+          <ChartColumn data-icon="inline-start" />
+          Open in Distributions
+        </Button>
+      </div>
+    {/if}
   {/if}
 </aside>

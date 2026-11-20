@@ -1,12 +1,14 @@
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Scope } from "$lib/distributions/types";
+import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type {
+  Comovement,
   RequestTreeOutlierTarget,
   ResponseDirectedTree,
   TreeNode
 } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
-import { hasSignificant } from "$lib/tree/utils/effect";
+import { edgeEffect, hasSignificant } from "$lib/tree/utils/effect";
 
 /**
  * The tree's case attributes as one block each, its Group summaries keyed by
@@ -51,8 +53,23 @@ export function caseSplit(cases: Record<string, number>): Record<string, number>
   );
 }
 
+/** Whether any node of the tree carries Transition Time on the edge into it. */
+export function hasTransitionTime(tree: ResponseDirectedTree): boolean {
+  return tree.nodes.some((node) => node.transitionTime !== null);
+}
+
+/**
+ * Co-movement between a node's own attributes. Pairs with Transition Time are
+ * left out, because Transition Time describes the edge into the node.
+ */
+export function nodeComovement(node: TreeNode): Comovement[] {
+  return node.comovement.filter(
+    (pair) => pair.attributeX !== TRANSITION_TIME && pair.attributeY !== TRANSITION_TIME
+  );
+}
+
 export function isDivergent(node: TreeNode): boolean {
-  return node.comovement.some((pair) => pair.relationship === "divergent");
+  return nodeComovement(node).some((pair) => pair.relationship === "divergent");
 }
 
 /** The only Group that reaches a node, or `"shared"` when more than one does. */
@@ -155,7 +172,11 @@ export function visibleNodes(
   // Biggest Variants first. Case count then id keeps ties stable across renders.
   const ranked = all
     .filter(chosen)
-    .filter((leaf) => !view.significantOnly || pathIn(byId, leaf.id).some(hasSignificant))
+    .filter(
+      (leaf) =>
+        !view.significantOnly ||
+        pathIn(byId, leaf.id).some((node) => hasSignificant(node) || edgeEffect(node) !== null)
+    )
     .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id);
 
   const kept = new Set<number>();

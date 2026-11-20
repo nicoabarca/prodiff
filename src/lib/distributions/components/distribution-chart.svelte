@@ -39,6 +39,7 @@
 
   let {
     attribute,
+    from = null,
     distribution,
     scope,
     test,
@@ -51,6 +52,7 @@
     onRemove
   }: {
     attribute: string;
+    from?: string | null;
     distribution: Distribution;
     scope: Scope;
     test: Test | null;
@@ -142,6 +144,7 @@
     <div class="flex min-w-0 flex-col gap-1">
       <h3 class="text-xs font-semibold [overflow-wrap:break-word]">
         <AttributeName name={attribute} />
+        {#if from}<span class="text-muted-foreground font-normal"> from {from}</span>{/if}
       </h3>
       <div class="flex flex-wrap items-center gap-1.5">
         <EffectChip {test} />
