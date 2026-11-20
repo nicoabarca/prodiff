@@ -3,7 +3,7 @@
    * What is drawn, as opposed to what was built. Nothing here triggers a
    * rebuild, so these controls stay usable while one runs.
    */
-  import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import Segmented from "$lib/components/layout/segmented.svelte";
   import SettingField from "$lib/components/layout/setting-field.svelte";
@@ -15,6 +15,7 @@
   import { resetDisplay, view } from "$lib/tree/state/tree.svelte";
   import type { NodeMetric } from "$lib/tree/types";
   import { figureAttributes, nodeFigure, type FigureAttribute } from "$lib/tree/utils/figure";
+  import { hasTransitionTime as treeHasTransitionTime } from "$lib/tree/utils/tree";
   import Eye from "@lucide/svelte/icons/eye";
   import { cn } from "$lib/utils";
 
@@ -31,9 +32,7 @@
     figure.kind === "cases" || figure.kind === "share" ? figure.kind : "attribute"
   );
 
-  const hasTransitionTime = $derived(
-    attributes.some((attribute) => attribute.name === TRANSITION_TIME)
-  );
+  const hasTransitionTime = $derived(treeHasTransitionTime(tree));
   const edgeLabels = $derived(view.edgeLabels && hasTransitionTime);
   const hasAttributes = $derived(attributes.length > 0);
 

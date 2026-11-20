@@ -5,8 +5,15 @@
  */
 import type { Edge, Node } from "@xyflow/svelte";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
-import type { EdgeWidth, EffectBand, GroupFocus, Statistic, Visible } from "$lib/tree/types";
-import { effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
+import type {
+  EdgeWidth,
+  EffectBand,
+  GroupFocus,
+  Statistic,
+  TreeSelection,
+  Visible
+} from "$lib/tree/types";
+import { edgeEffect, effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { nodeFigures, type NodeFigure } from "$lib/tree/utils/figure";
 import { layoutTree } from "$lib/tree/utils/layout";
 import {
@@ -76,8 +83,7 @@ export interface TreeNodeData {
 }
 
 function significantCount(node: TreeNode): number {
-  const blocks = [...Object.values(node.eventLevel), node.transitionTime];
-  return blocks.filter((block) => block?.test?.significant).length;
+  return Object.values(node.eventLevel).filter((block) => block.test?.significant).length;
 }
 
 /** A focus naming a Group no longer compared dims nothing. */
@@ -93,8 +99,9 @@ export interface FlowOptions {
   focus: GroupFocus;
   edgeLabels: boolean;
   edgeWidth: EdgeWidth;
-  selected: number | null;
+  selected: TreeSelection | null;
   onToggleCollapse: (id: number) => void;
+  onSelectEdge: (childId: number) => void;
 }
 
 /** One Group's Transition Time on an edge, drawn beside a dot in its colour. */
@@ -104,8 +111,20 @@ export interface EdgeWait {
   value: string;
 }
 
+/** A significant Transition Time difference on an edge, drawn as a dot in its effect step. */
+export interface EdgeFinding {
+  band: EffectBand;
+  step: 1 | 2 | 3 | 4;
+}
+
+/** An edge is clickable when it carries Transition Time; the edges leaving Start never do. */
 export interface TreeEdgeData {
+  childId: number;
   waits: EdgeWait[];
+  finding: EdgeFinding | null;
+  clickable: boolean;
+  selected: boolean;
+  onSelect: () => void;
   [key: string]: unknown;
 }
 
@@ -184,7 +203,7 @@ export function toFlow(
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
         dimmed: dimmed(node, options.focus, ids),
-        selected: options.selected === node.id,
+        selected: options.selected?.kind === "node" && options.selected.id === node.id,
         highlighted: false,
         hiddenBelow: visible.hiddenBelow.get(node.id) ?? 0,
         hasChildren: (kids.get(node.id) ?? []).some((id) => visible.ids.has(id)),
@@ -197,25 +216,39 @@ export function toFlow(
 
   const edges: Edge[] = shown
     .filter((node) => node.parent !== null && visible.ids.has(node.parent))
-    .map((node) => ({
-      id: `${keys.get(node.parent as number)}->${keys.get(node.id)}`,
-      source: keys.get(node.parent as number) as string,
-      target: keys.get(node.id) as string,
-      type: "wait",
-      data: {
-        waits: options.edgeLabels ? edgeWaits(node, options.groups, options.statistic) : []
-      } satisfies TreeEdgeData,
-      labelStyle: dimmed(node, options.focus, ids)
-        ? `${EDGE_LABEL_STYLE};opacity:0.25`
-        : EDGE_LABEL_STYLE,
-      style: `stroke-width:${
-        options.edgeWidth === "uniform"
-          ? UNIFORM_EDGE_WIDTH
-          : (0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5).toFixed(2)
-      }${roots.has(node.parent as number) ? ";stroke-dasharray:4 3" : ""}`,
-      // Significance is a property of nodes, so dimming follows the child.
-      class: dimmed(node, options.focus, ids) ? "opacity-25" : undefined
-    }));
+    .map((node) => {
+      const effect = edgeEffect(node);
+      const selected = options.selected?.kind === "edge" && options.selected.childId === node.id;
+      const scaled = 0.5 + ((casesById.get(node.id) ?? 0) / busiest) * 5;
+      const width = options.edgeWidth === "uniform" ? UNIFORM_EDGE_WIDTH : scaled;
+      const stroke = selected
+        ? Math.max(width, 2.5).toFixed(2)
+        : options.edgeWidth === "uniform"
+          ? String(UNIFORM_EDGE_WIDTH)
+          : scaled.toFixed(2);
+      return {
+        id: `${keys.get(node.parent as number)}->${keys.get(node.id)}`,
+        source: keys.get(node.parent as number) as string,
+        target: keys.get(node.id) as string,
+        type: "wait",
+        data: {
+          childId: node.id,
+          waits: options.edgeLabels ? edgeWaits(node, options.groups, options.statistic) : [],
+          finding: effect === null ? null : { band: effectBand(effect), step: effectStep(effect) },
+          clickable: node.transitionTime !== null && !roots.has(node.parent as number),
+          selected,
+          onSelect: () => options.onSelectEdge(node.id)
+        } satisfies TreeEdgeData,
+        labelStyle: dimmed(node, options.focus, ids)
+          ? `${EDGE_LABEL_STYLE};opacity:0.25`
+          : EDGE_LABEL_STYLE,
+        style: `stroke-width:${stroke}${
+          selected ? ";stroke:var(--ring)" : ""
+        }${roots.has(node.parent as number) ? ";stroke-dasharray:4 3" : ""}`,
+        // An edge dims with the node it leads into.
+        class: dimmed(node, options.focus, ids) ? "opacity-25" : undefined
+      };
+    });
 
   return { nodes, edges, keys };
 }

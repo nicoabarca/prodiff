@@ -1,12 +1,19 @@
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { TreeNode } from "$lib/tree/invokers/types";
 import type { EffectBand, Standing } from "$lib/tree/types";
-import { TRANSITION_TIME } from "$lib/analysis/attributes";
 
-/** True when any attribute at this node came out significant. */
+/** True when any of the node's own attributes came out significant. */
 export function hasSignificant(node: TreeNode): boolean {
-  const blocks = [...Object.values(node.eventLevel), node.transitionTime];
-  return blocks.some((block) => block?.test?.significant);
+  return Object.values(node.eventLevel).some((block) => block.test?.significant);
+}
+
+/**
+ * The effect size of the Transition Time test on the edge into this node, or
+ * `null` unless that test came out significant.
+ */
+export function edgeEffect(node: TreeNode): number | null {
+  const test = node.transitionTime?.test;
+  return test?.significant ? test.effectSize : null;
 }
 
 /**
@@ -32,24 +39,22 @@ export function standing(block: AttributeBlock): Standing {
 }
 
 /**
- * The strongest effect among the significant tests at a node, or `null` when
- * none passed. Colours the node's badge.
+ * The strongest effect among the significant tests of a node's own attributes,
+ * or `null` when none passed. Colours the node's badge.
  */
 export function peakEffect(node: TreeNode): number | null {
-  const blocks = [...Object.values(node.eventLevel), node.transitionTime];
-  const effects = blocks
-    .filter((block) => block?.test?.significant)
-    .map((block) => block!.test!.effectSize);
+  const effects = Object.values(node.eventLevel)
+    .filter((block) => block.test?.significant)
+    .map((block) => block.test!.effectSize);
   return effects.length > 0 ? Math.max(...effects) : null;
 }
 
 /**
- * Every attribute at a node, Transition Time last, ordered strongest first and
- * split by Standing. Untested blocks sort last.
+ * Every attribute of a node, ordered strongest first and split by Standing.
+ * Untested blocks sort last.
  */
 export function rankedBlocks(node: TreeNode): Record<Standing, [string, AttributeBlock][]> {
   const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
-  if (node.transitionTime) entries.push([TRANSITION_TIME, node.transitionTime]);
   entries.sort((x, y) => (y[1].test?.effectSize ?? -1) - (x[1].test?.effectSize ?? -1));
   const of = (which: Standing) => entries.filter(([, block]) => standing(block) === which);
   return { finding: of("finding"), weak: of("weak"), untested: of("untested") };

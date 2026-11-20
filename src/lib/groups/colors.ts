@@ -1,4 +1,4 @@
-/** The Group palette: the dark half of schemePaired, in the order new Groups claim colours. Tokens in `app.css`. */
+/** The Group palette, in the order new Groups claim colours. Tokens in `app.css`. */
 export const GROUP_COLORS = [
   "group-2",
   "group-4",

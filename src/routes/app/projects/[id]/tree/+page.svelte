@@ -61,7 +61,7 @@
 
   let panelOpen = $state(false);
   $effect(() => {
-    panelOpen = selected.id !== null;
+    panelOpen = selected.at !== null;
   });
 
   $effect(() => {
@@ -126,7 +126,7 @@
                     <RotateCcw />
                   </Button>
                 {/if}
-                {#if selected.id !== null}
+                {#if selected.at !== null}
                   <Button
                     variant="outline"
                     size="sm"
@@ -142,9 +142,9 @@
               {#if panelOpen}
                 <DetailPanel
                   tree={built.tree}
-                  nodeId={selected.id}
+                  selection={selected.at}
                   distributionsHref="/app/projects/{project.id}/distributions"
-                  onClose={() => (selected.id = null)}
+                  onClose={() => (selected.at = null)}
                   onCompare={() => (comparing = true)}
                   onOpenBuildSettings={() => (buildSettingsOpen = true)}
                 />

@@ -6,7 +6,7 @@ import type {
   TreeNode
 } from "$lib/tree/invokers/types";
 import type { TreeView, Visible } from "$lib/tree/types";
-import { hasSignificant } from "$lib/tree/utils/effect";
+import { edgeEffect, hasSignificant } from "$lib/tree/utils/effect";
 
 /**
  * The tree's case attributes as one block each, its Group summaries keyed by
@@ -49,6 +49,11 @@ export function caseSplit(cases: Record<string, number>): Record<string, number>
   return Object.fromEntries(
     Object.entries(cases).map(([id, count]) => [id, total > 0 ? count / total : 0])
   );
+}
+
+/** Whether any node of the tree carries Transition Time on the edge into it. */
+export function hasTransitionTime(tree: ResponseDirectedTree): boolean {
+  return tree.nodes.some((node) => node.transitionTime !== null);
 }
 
 /** The only Group that reaches a node, or `"shared"` when more than one does. */
@@ -151,7 +156,11 @@ export function visibleNodes(
   // Biggest Variants first. Case count then id keeps ties stable across renders.
   const ranked = all
     .filter(chosen)
-    .filter((leaf) => !view.significantOnly || pathIn(byId, leaf.id).some(hasSignificant))
+    .filter(
+      (leaf) =>
+        !view.significantOnly ||
+        pathIn(byId, leaf.id).some((node) => hasSignificant(node) || edgeEffect(node) !== null)
+    )
     .sort((a, b) => nodeCases(b) - nodeCases(a) || a.id - b.id);
 
   const kept = new Set<number>();

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Summary } from "$lib/analysis/types";
 import type { ResponseDirectedTree, TreeNode } from "$lib/tree/invokers/types";
-import { edgeWaits, toFlow, type FlowOptions, type TreeNodeData } from "$lib/tree/utils/flow";
+import {
+  edgeWaits,
+  toFlow,
+  type FlowOptions,
+  type TreeEdgeData,
+  type TreeNodeData
+} from "$lib/tree/utils/flow";
 
 function numerical(mean: number, n: number, median = mean): Summary {
   return {
@@ -107,6 +113,7 @@ describe("toFlow", () => {
       edgeWidth: "cases",
       selected: null,
       onToggleCollapse: () => {},
+      onSelectEdge: () => {},
       ...options
     });
   }
@@ -153,5 +160,90 @@ describe("toFlow", () => {
       "stroke-width:1.5",
       "stroke-width:1.5"
     ]);
+  });
+});
+
+describe("toFlow edges", () => {
+  const passed = {
+    test: "mannwhitney",
+    statistic: 0,
+    pValue: 0.001,
+    effectSize: 0.6,
+    effectSigned: null,
+    significant: true,
+    higher: "b"
+  } as const;
+  const tree: ResponseDirectedTree = {
+    nodes: [
+      node({ id: 0, parent: null, label: "Start", cases: { a: 2, b: 2 } }),
+      node({ id: 1, parent: 0, label: "Register", cases: { a: 2, b: 2 } }),
+      node({
+        id: 2,
+        parent: 1,
+        label: "Check",
+        cases: { a: 2, b: 2 },
+        variantKey: "v",
+        transitionTime: { summaries: {}, test: passed }
+      })
+    ],
+    groups: [
+      { id: "a", caseCount: 2, caseLevel: {} },
+      { id: "b", caseCount: 2, caseLevel: {} }
+    ],
+    caseLevelTests: {},
+    variantsTotal: 1,
+    variantsIncluded: 1,
+    caseCoverage: 1,
+    cappedByCeiling: false,
+    transitionTimeBasis: "completeOnly",
+    hasActivityDuration: false
+  };
+  const visible = {
+    ids: new Set([0, 1, 2]),
+    hiddenBelow: new Map(),
+    variantsShown: 1,
+    variantsHidden: 0,
+    casesShown: 4,
+    cases: new Map(tree.nodes.map((n) => [n.id, n.cases]))
+  };
+
+  function edges(options: Partial<FlowOptions> = {}) {
+    return toFlow(tree, visible, {
+      groups: [
+        { id: "a", name: "a", color: "group-a" },
+        { id: "b", name: "b", color: "group-b" }
+      ],
+      figure: { kind: "cases" },
+      statistic: "mean",
+      focus: "all",
+      edgeLabels: false,
+      edgeWidth: "uniform",
+      selected: null,
+      onToggleCollapse: () => {},
+      onSelectEdge: () => {},
+      ...options
+    }).edges;
+  }
+
+  it("marks the edge whose Transition Time differs, never the node", () => {
+    const [fromStart, intoCheck] = edges().map((edge) => edge.data as TreeEdgeData);
+    expect(fromStart.finding).toBeNull();
+    expect(intoCheck.finding).toEqual({ band: "large", step: 4 });
+  });
+
+  it("makes only edges carrying Transition Time clickable", () => {
+    expect(edges().map((edge) => (edge.data as TreeEdgeData).clickable)).toEqual([false, true]);
+  });
+
+  it("selects an edge by the node it leads into", () => {
+    const chosen: number[] = [];
+    const drawn = edges({
+      selected: { kind: "edge", childId: 2 },
+      onSelectEdge: (id) => chosen.push(id)
+    });
+    expect(drawn.map((edge) => (edge.data as TreeEdgeData).selected)).toEqual([false, true]);
+    expect(drawn[1].style).toContain("stroke:var(--ring)");
+    (drawn[1].data as TreeEdgeData).onSelect();
+    expect(chosen).toEqual([2]);
   });
 });

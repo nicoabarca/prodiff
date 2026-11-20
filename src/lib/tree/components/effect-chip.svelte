@@ -8,7 +8,7 @@
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { Test } from "$lib/analysis/types";
   import { cn } from "$lib/utils";
-  import { effectBand, effectStep } from "$lib/tree/utils/effect";
+  import { effectBand } from "$lib/tree/utils/effect";
   import { testLine } from "$lib/tree/utils/verdict";
 
   let {
@@ -19,15 +19,15 @@
 
   const band = $derived(test ? effectBand(test.effectSize) : null);
   const label = $derived(!test ? "" : !test.significant ? "not enough evidence" : (band ?? ""));
-  // A failed test has no magnitude to place on the ramp, so it stays neutral.
-  const step = $derived(test?.significant ? effectStep(test.effectSize) : null);
+  // A failed test stays neutral.
+  const significant = $derived(test?.significant ?? false);
 </script>
 
 {#snippet chip()}
-  {#if step}
+  {#if significant}
     <Badge
       class={cn("border-(--ink)/20 bg-(--fill) text-(--ink)", className)}
-      style="--fill:var(--effect-{step});--ink:var(--effect-{step}-foreground)"
+      style="--fill:var(--effect);--ink:var(--effect-foreground)"
     >
       {label}
     </Badge>

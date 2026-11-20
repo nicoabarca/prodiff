@@ -14,8 +14,8 @@
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
-  import type { Standing } from "$lib/tree/types";
-  import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
+  import type { Standing, TreeSelection } from "$lib/tree/types";
+  import { effectBand, effectStep, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
@@ -31,20 +31,25 @@
 
   let {
     tree,
-    nodeId,
+    selection,
     distributionsHref,
     onClose,
     onCompare,
     onOpenBuildSettings
   }: {
     tree: ResponseDirectedTree;
-    nodeId: number | null;
+    selection: TreeSelection | null;
     distributionsHref: string;
     onClose: () => void;
     onCompare: () => void;
     onOpenBuildSettings: () => void;
   } = $props();
 
+  /** An edge is shown through the node it leads into: the cases on it are that node's cases. */
+  const edge = $derived(selection?.kind === "edge");
+  const nodeId = $derived(
+    selection === null ? null : selection.kind === "node" ? selection.id : selection.childId
+  );
   const node = $derived(nodeId === null ? null : (tree.nodes.find((n) => n.id === nodeId) ?? null));
   const path = $derived(node ? pathTo(tree, node.id) : []);
   const compare = $derived(tree.groups.length > 1);
@@ -92,9 +97,7 @@
   /** One-Group mode has no differences to rank: attributes stay in build order. */
   const flat = $derived.by((): [string, AttributeBlock][] => {
     if (!node) return [];
-    const entries: [string, AttributeBlock][] = Object.entries(node.eventLevel);
-    if (node.transitionTime) entries.push([TRANSITION_TIME, node.transitionTime]);
-    return entries;
+    return Object.entries(node.eventLevel);
   });
 
   const tabs: { value: Standing; label: string; empty: string }[] = [
@@ -112,7 +115,9 @@
     void node;
     return "finding";
   });
-  const expanded = $derived(new SvelteSet(ranked.finding.slice(0, 1).map(([name]) => name)));
+  const expanded = $derived(
+    new SvelteSet(edge ? [TRANSITION_TIME] : ranked.finding.slice(0, 1).map(([name]) => name))
+  );
 
   function toggle(name: string, open: boolean) {
     if (open) expanded.add(name);
@@ -153,7 +158,7 @@
       </span>
       {#if compare && block.test}
         <span class="flex items-center gap-2">
-          <EffectMeter test={block.test} />
+          <EffectMeter step={block.test.significant ? effectStep(block.test.effectSize) : 0} />
           <EffectChip test={block.test} tooltip={false} />
         </span>
       {:else}
@@ -210,13 +215,17 @@
       class="text-muted-foreground flex flex-1 flex-col items-center justify-center gap-2 p-6 pt-0"
     >
       <MousePointerClick class="size-5" aria-hidden="true" />
-      <p class="text-center text-xs">Select a node to compare its aggregates.</p>
+      <p class="text-center text-xs">Select a node or an edge to compare its aggregates.</p>
     </div>
   {:else}
     <div class="border-border flex shrink-0 flex-col gap-2.5 border-b px-4 pt-3.5 pb-3">
       <div class="flex items-start justify-between gap-2">
         <h2 class="min-w-0 text-[0.9375rem] leading-tight font-semibold text-pretty">
-          {node.label}
+          {#if edge}
+            {path.at(-2)?.label ?? "Start"} → {node.label}
+          {:else}
+            {node.label}
+          {/if}
         </h2>
         <div class="-mt-1 -mr-2 flex shrink-0 items-center gap-0.5">
           <Popover.Root>
@@ -244,15 +253,14 @@
                 <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible below
                 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up.
               </p>
-              <div class="flex items-center gap-1">
-                {#each [1, 2, 3, 4] as step (step)}
-                  <span class="h-2 flex-1" style="background:var(--effect-{step})"></span>
+              <div class="grid grid-cols-4 gap-1">
+                {#each ["negligible", "small", "moderate", "large"] as band, index (band)}
+                  <span class="flex flex-col items-center gap-1">
+                    <EffectMeter step={(index + 1) as 1 | 2 | 3 | 4} />
+                    <span class="text-muted-foreground text-[0.625rem]">{band}</span>
+                  </span>
                 {/each}
               </div>
-              <p class="text-muted-foreground flex justify-between text-[0.625rem]">
-                <span>negligible</span>
-                <span>large</span>
-              </p>
             </Popover.Content>
           </Popover.Root>
           <Button variant="ghost" size="icon-sm" aria-label="Hide details" onclick={onClose}>
@@ -293,12 +301,26 @@
         </div>
       {:else}
         <span class="text-muted-foreground text-[0.6875rem]">
-          {formatNumber(casesHere)} cases at this node
+          {formatNumber(casesHere)} cases {edge ? "on this edge" : "at this node"}
         </span>
       {/if}
     </div>
 
-    {#if flat.length === 0}
+    {#if edge}
+      {#if !compare}
+        <div class="border-border flex shrink-0 flex-col items-start gap-2.5 border-b px-4 py-3">
+          <p class="text-muted-foreground text-xs">
+            One-group mode: the tree only shows this group's paths, with nothing to compare against.
+          </p>
+          <Button size="sm" onclick={onCompare}>Choose a second group</Button>
+        </div>
+      {/if}
+      <ScrollArea.Root class="min-h-0 flex-1">
+        {#if node.transitionTime}
+          {@render row(TRANSITION_TIME, node.transitionTime)}
+        {/if}
+      </ScrollArea.Root>
+    {:else if flat.length === 0}
       <div class="text-muted-foreground flex flex-1 flex-col items-start gap-3 px-4 py-3.5 text-xs">
         <p>No attributes selected. Choose attributes to test differences in the tree.</p>
         <Button variant="outline" size="sm" onclick={onOpenBuildSettings}>
@@ -347,22 +369,23 @@
               {/each}
             </Tabs.Content>
           {/each}
-
         </ScrollArea.Root>
       </Tabs.Root>
     {/if}
 
-    <div class="border-border flex shrink-0 gap-2 border-t px-4 py-2.5">
-      <Button
-        variant="outline"
-        size="sm"
-        class="flex-1"
-        data-tour="open-distributions"
-        href={distributionsHref}
-      >
-        <ChartColumn data-icon="inline-start" />
-        Open in Distributions
-      </Button>
-    </div>
+    {#if !edge}
+      <div class="border-border flex shrink-0 gap-2 border-t px-4 py-2.5">
+        <Button
+          variant="outline"
+          size="sm"
+          class="flex-1"
+          data-tour="open-distributions"
+          href={distributionsHref}
+        >
+          <ChartColumn data-icon="inline-start" />
+          Open in Distributions
+        </Button>
+      </div>
+    {/if}
   {/if}
 </aside>

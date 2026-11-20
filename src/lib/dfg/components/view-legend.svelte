@@ -12,10 +12,10 @@
   import { splitting, view } from "$lib/dfg/state/view.svelte";
   import type { FaceGroup } from "$lib/dfg/types";
   import { builtAttributes, shownEdgeLabel } from "$lib/dfg/utils/display";
-  import { EFFECT_STROKE } from "$lib/dfg/utils/face";
-  import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
+    import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
   import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { shade } from "$lib/groups/utils/shade";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -175,9 +175,7 @@
 {#snippet redGlyph()}
   <span class="flex h-7.5 items-stretch gap-1.75">
     <span class="w-0.75" style="background:{EDGE}"></span>
-    {#each Object.values(EFFECT_STROKE) as stroke (stroke)}
-      <span class="w-0.75" style="background:{stroke}"></span>
-    {/each}
+    <span class="w-0.75 bg-(--effect)"></span>
   </span>
 {/snippet}
 {#snippet redTitle()}
@@ -196,15 +194,13 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex gap-1">
-    {#each [{ count: 2, step: 2 }, { count: 1, step: 4 }] as badge (badge.step)}
-      <span
-        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
-        style="background:var(--effect-{badge.step});color:var(--effect-{badge.step}-foreground)"
-      >
-        {badge.count}
-      </span>
-    {/each}
+  <span class="flex items-center gap-1">
+    <span
+      class="flex size-4.5 items-center justify-center rounded-full bg-(--effect) font-mono text-[0.625rem] font-semibold text-(--effect-foreground)"
+    >
+      2
+    </span>
+    <EffectMeter step={3} vertical />
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -251,14 +247,14 @@
           {@render row(
             redGlyph,
             redTitle,
-            "Grey: no significant difference. Paler red for a negligible effect, darker for a large one"
+            "Grey: no significant difference. Red: a significant one"
           )}
         {/if}
         {#if comparing && !split}
           {@render row(ownGlyph, ownTitle, "An edge in a group's colour is followed by it alone")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Darker = larger effect")}
+          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Bars = strongest effect")}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins and ends on a dashed edge")}
       </div>
