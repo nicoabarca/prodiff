@@ -16,7 +16,7 @@
   import { caseOutliers } from "$lib/tree/state/build.svelte";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
-  import { effectBand, effectStep } from "$lib/tree/utils/effect";
+  import { effectBand } from "$lib/tree/utils/effect";
   import { headline, testLine } from "$lib/tree/utils/verdict";
   import { cn } from "$lib/utils";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -147,11 +147,10 @@
         </span>
         <span class="flex gap-0.5" aria-hidden="true">
           {#each attributes as attribute (attribute.name)}
-            {@const step = attribute.test?.significant ? effectStep(attribute.test.effectSize) : 0}
-            {#if step}
+            {#if attribute.test?.significant}
               <span
                 class="size-2 rounded-full border border-(--ink)/30 bg-(--fill)"
-                style="--fill:var(--effect-{step});--ink:var(--effect-{step}-foreground)"
+                style="--fill:var(--effect);--ink:var(--effect-foreground)"
                 title={attribute.name}
               ></span>
             {:else}

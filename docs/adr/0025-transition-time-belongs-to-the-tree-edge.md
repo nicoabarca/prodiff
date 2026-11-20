@@ -6,7 +6,7 @@ Transition Time is the time between the previous event and an activity. It descr
 
 **The edge carries Transition Time.** A tree node has one parent. So the Transition Time that Rust ships on a node belongs to the edge into it. The payload does not change. The frontend reads `TreeNode.transitionTime` as the edge's and never as the node's.
 
-**A significant difference marks the edge.** The edge gets a dot filled in the effect step of its test. The dot has no count, because an edge holds one test. The dot sits at the corner of the edge label. When labels are off, it sits at the middle of the edge. One-Group mode has no test and no dot.
+**A significant difference marks the edge.** The edge label gets an `--effect` border, and a meter of four bars hangs from its top right corner, filled up to the effect step of its test (see `docs/adr/0026`). The meter has no count, because an edge holds one test. When labels are off, the meter sits at the middle of the edge. One-Group mode has no test and no mark.
 
 **An edge is selected like a node.** Clicking an edge that carries Transition Time opens the detail panel on that edge: its header names both activities, and it holds the one Transition Time row with its verdict, effect and Box Plot. The edges leaving Start carry no Transition Time and cannot be selected. A node and an edge cannot both be selected, so the selection is one value that names either. Distributions opens only from a node.
 

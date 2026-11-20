@@ -10,6 +10,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { shade } from "$lib/groups/utils/shade";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
@@ -122,15 +123,13 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex gap-1">
-    {#each [{ count: 2, step: 2 }, { count: 1, step: 4 }] as badge (badge.step)}
-      <span
-        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
-        style="background:var(--effect-{badge.step});color:var(--effect-{badge.step}-foreground)"
-      >
-        {badge.count}
-      </span>
-    {/each}
+  <span class="flex items-center gap-1">
+    <span
+      class="flex size-4.5 items-center justify-center rounded-full bg-(--effect) font-mono text-[0.625rem] font-semibold text-(--effect-foreground)"
+    >
+      2
+    </span>
+    <EffectMeter step={3} vertical />
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -138,13 +137,14 @@
 {/snippet}
 
 {#snippet edgeFindingGlyph()}
-  <span class="flex flex-col items-center">
-    <span class="h-2.5 w-0.5" style="background:{EDGE}"></span>
+  <span class="flex items-center gap-1.25">
+    <span class="h-8 w-0.5" style="background:{EDGE}"></span>
     <span
-      class="size-3 rounded-full ring-1 ring-(--effect-3-foreground)/30"
-      style="background:var(--effect-3)"
-    ></span>
-    <span class="h-2.5 w-0.5" style="background:{EDGE}"></span>
+      class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] border-(--effect) py-px pr-3 pl-1 font-mono text-[0.5625rem] leading-tight"
+    >
+      62d
+      <EffectMeter step={3} vertical class="absolute -top-1 right-0 translate-x-1/2" />
+    </span>
   </span>
 {/snippet}
 {#snippet edgeFindingTitle()}
@@ -191,13 +191,13 @@
           {@render row(widthGlyph, widthTitle, "Thicker lines carry more cases")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this step. Darker = larger effect")}
+          {@render row(badgeGlyph, badgeTitle, "How many at this step. Bars = strongest effect")}
         {/if}
         {#if edgeFinding}
           {@render row(
             edgeFindingGlyph,
             edgeFindingTitle,
-            "On this edge. Click it to compare. Darker = larger effect"
+            "Red border on the edge. Bars = effect. Click it to compare"
           )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins here")}

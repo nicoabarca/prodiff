@@ -1,26 +1,39 @@
 <script lang="ts">
-  /** A test's magnitude as four steps on the `--effect-*` ramp, filled up to its band. */
-  import type { Test } from "$lib/analysis/types";
-  import { effectBand, effectStep } from "$lib/tree/utils/effect";
+  /**
+   * A test's magnitude as four rounded bars, filled in `--effect` up to its
+   * step and grey after it. `vertical` stacks them top down on a card coloured
+   * chip, whose radius is the bars' radius plus its padding.
+   */
+  import type { EffectBand } from "$lib/tree/types";
+  import { cn } from "$lib/utils";
 
-  let { test }: { test: Test | null | undefined } = $props();
+  let {
+    step,
+    vertical = false,
+    class: className
+  }: { step: 0 | 1 | 2 | 3 | 4; vertical?: boolean; class?: string } = $props();
 
-  const step = $derived(test?.significant ? effectStep(test.effectSize) : 0);
+  const BANDS: EffectBand[] = ["negligible", "small", "moderate", "large"];
 </script>
 
 <span
-  class="flex gap-0.5"
+  class={cn(
+    "flex gap-[0.0625rem]",
+    vertical
+      ? "bg-card ring-border w-3 flex-col items-center rounded-[0.21875rem] p-0.5 shadow-sm ring-1"
+      : "items-center",
+    className
+  )}
   role="img"
-  aria-label={step ? `Magnitude: ${effectBand(test!.effectSize)}` : "No magnitude"}
+  aria-label={step ? `Magnitude: ${BANDS[step - 1]}` : "No magnitude"}
 >
   {#each [1, 2, 3, 4] as i (i)}
-    {#if i <= step}
-      <span
-        class="h-1.5 w-2.5 bg-(--fill) shadow-[inset_0_0_0_1px_var(--ink)]"
-        style="--fill:var(--effect-{i});--ink:color-mix(in oklab, var(--effect-{i}-foreground) 25%, transparent)"
-      ></span>
-    {:else}
-      <span class="bg-muted h-1.5 w-2.5 shadow-[inset_0_0_0_1px_var(--border)]"></span>
-    {/if}
+    <span
+      class={cn(
+        "block shrink-0 rounded-[0.09375rem]",
+        vertical ? "h-0.75 w-2" : "h-1.5 w-2.5",
+        i <= step ? "bg-(--effect)" : "bg-muted-foreground/30"
+      )}
+    ></span>
   {/each}
 </span>

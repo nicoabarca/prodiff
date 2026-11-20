@@ -11,7 +11,6 @@ import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
-import { effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
@@ -74,22 +73,10 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
 }
 
 /**
- * The stroke at each effect step, negligible to large. `--effect-1` and
- * `--effect-2` are fills, paler than the grey edge on a light canvas and darker
- * on a dark one, so the two lower steps tint the grey edge with `--effect-3`.
- */
-export const EFFECT_STROKE = {
-  1: "color-mix(in oklab, var(--effect-3) 40%, var(--muted-foreground))",
-  2: "color-mix(in oklab, var(--effect-3) 70%, var(--muted-foreground))",
-  3: "var(--effect-3)",
-  4: "var(--effect-4)"
-};
-
-/**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
  * Group alone follows takes that Group's colour. An edge where any test differs
- * significantly is red, stronger with its strongest effect, whichever Group is
- * higher. `null` for the default grey.
+ * significantly is `--effect` red, whichever Group is higher. `null` for the
+ * default grey.
  */
 export function edgeStroke(
   counts: Record<string, Counts>,
@@ -100,11 +87,7 @@ export function edgeStroke(
     const owner = groups.find((group) => group.id === membership(counts, groups));
     if (owner) return `var(--${owner.color})`;
   }
-  const effects = blocks.flatMap((block) =>
-    block.test?.significant ? [block.test.effectSize] : []
-  );
-  if (effects.length === 0) return null;
-  return EFFECT_STROKE[effectStep(Math.max(...effects))];
+  return blocks.some((block) => block.test?.significant) ? "var(--effect)" : null;
 }
 
 /**

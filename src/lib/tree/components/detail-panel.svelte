@@ -15,15 +15,10 @@
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Standing, TreeSelection } from "$lib/tree/types";
-  import { effectBand, rankedBlocks } from "$lib/tree/utils/effect";
+  import { effectBand, effectStep, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
-  import {
-    caseSplit,
-    membership,
-    pathTo,
-    visibleNodes
-  } from "$lib/tree/utils/tree";
+  import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
   import { nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
@@ -163,7 +158,7 @@
       </span>
       {#if compare && block.test}
         <span class="flex items-center gap-2">
-          <EffectMeter test={block.test} />
+          <EffectMeter step={block.test.significant ? effectStep(block.test.effectSize) : 0} />
           <EffectChip test={block.test} tooltip={false} />
         </span>
       {:else}
@@ -258,15 +253,14 @@
                 <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible below
                 0.10, small below 0.30, moderate below 0.50, large at 0.50 and up.
               </p>
-              <div class="flex items-center gap-1">
-                {#each [1, 2, 3, 4] as step (step)}
-                  <span class="h-2 flex-1" style="background:var(--effect-{step})"></span>
+              <div class="grid grid-cols-4 gap-1">
+                {#each ["negligible", "small", "moderate", "large"] as band, index (band)}
+                  <span class="flex flex-col items-center gap-1">
+                    <EffectMeter step={(index + 1) as 1 | 2 | 3 | 4} />
+                    <span class="text-muted-foreground text-[0.625rem]">{band}</span>
+                  </span>
                 {/each}
               </div>
-              <p class="text-muted-foreground flex justify-between text-[0.625rem]">
-                <span>negligible</span>
-                <span>large</span>
-              </p>
             </Popover.Content>
           </Popover.Root>
           <Button variant="ghost" size="icon-sm" aria-label="Hide details" onclick={onClose}>
@@ -375,7 +369,6 @@
               {/each}
             </Tabs.Content>
           {/each}
-
         </ScrollArea.Root>
       </Tabs.Root>
     {/if}
