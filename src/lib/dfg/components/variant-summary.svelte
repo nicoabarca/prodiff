@@ -3,6 +3,7 @@
   import VariantSummary from "$lib/components/variant-panel/variant-summary.svelte";
   import { selectedVariants, variants } from "$lib/dfg/state/variants.svelte";
   import type { Simplified } from "$lib/dfg/utils/simplify";
+  import { wholePercent } from "$lib/format";
 
   let {
     simplified,
@@ -27,7 +28,7 @@
       variantsTotal: variants.rows.length || count,
       casesShown: cases,
       total: all,
-      share: all > 0 ? Math.round((cases / all) * 100) : 0
+      share: all > 0 ? wholePercent((cases / all) * 100) : 0
     };
   });
 </script>

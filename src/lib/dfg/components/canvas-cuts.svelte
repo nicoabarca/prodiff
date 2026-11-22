@@ -16,10 +16,10 @@
     variants
   } from "$lib/dfg/state/variants.svelte";
   import { view } from "$lib/dfg/state/view.svelte";
-  import { shownPercent, stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
+  import { stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import type { Project } from "$lib/event-log/types";
-  import { formatNumber } from "$lib/format";
+  import { formatNumber, wholePercent } from "$lib/format";
   import { casesShare, coverageFloor } from "$lib/tree/utils/variants";
   import Layers from "@lucide/svelte/icons/layers";
   import Minus from "@lucide/svelte/icons/minus";
@@ -85,12 +85,12 @@
         <Icon class="size-3.5" />
       </Tooltip.Trigger>
       <Tooltip.Content side="left" class="max-w-64">
-        <p class="font-medium">{name} · {shownPercent(value)}%</p>
+        <p class="font-medium">{name} · {wholePercent(value)}%</p>
         <p>{hint}</p>
       </Tooltip.Content>
     </Tooltip.Root>
     <span class="text-muted-foreground font-mono text-[0.625rem] tabular-nums">
-      {shownPercent(value)}%
+      {wholePercent(value)}%
     </span>
     <button
       type="button"
@@ -101,12 +101,14 @@
     >
       <Plus class="size-3.5" />
     </button>
+    <!-- The thumb takes a whole step: a value off the step grid is snapped by
+         the Slider, which reports the snap as a drag. -->
     <Slider
       type="single"
       orientation="vertical"
       class="data-vertical:min-h-32"
       aria-label={name}
-      {value}
+      value={Math.min(100, Math.max(min, Math.round(value)))}
       {min}
       max={100}
       step={1}

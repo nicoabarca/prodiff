@@ -4,6 +4,7 @@
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, settings, variants, view } from "$lib/tree/state/tree.svelte";
   import { totalCases, visibleNodes } from "$lib/tree/utils/tree";
+  import { wholePercent } from "$lib/format";
 
   let {
     tree,
@@ -21,7 +22,7 @@
       variantsTotal: tree.variantsTotal,
       casesShown: visible.casesShown,
       total,
-      share: total > 0 ? Math.round((visible.casesShown / total) * 100) : 0
+      share: total > 0 ? wholePercent((visible.casesShown / total) * 100) : 0
     };
   });
 </script>

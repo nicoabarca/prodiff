@@ -29,6 +29,16 @@ export function formatPercent(share: number): string {
   return `${(share * 100).toFixed(1)}%`;
 }
 
+/**
+ * A percent from 0 to 100 rounded to a whole number that reads 100 only at 100
+ * and 0 only at 0, so leaving out one case of thousands still shows.
+ */
+export function wholePercent(percent: number): number {
+  if (percent >= 100) return 100;
+  if (percent <= 0) return 0;
+  return Math.min(99, Math.max(1, Math.round(percent)));
+}
+
 export function formatDecimal(value: number, digits = 2): string {
   return value.toLocaleString(undefined, {
     minimumFractionDigits: digits,
