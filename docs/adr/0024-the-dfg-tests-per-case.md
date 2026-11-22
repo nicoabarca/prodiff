@@ -6,7 +6,7 @@ A case passes through a tree node once and can visit a DFG activity many times, 
 
 **Every test names its cases and gives each one value.**
 
-- Activity Frequency: every case of the Group, whether it reaches the activity.
+- Activity Frequency, dropped by [ADR 0025](0025-dfg-nodes-split-between-groups.md): every case of the Group, whether it reaches the activity.
 - Repetitions: the cases reaching the activity, whether they run it more than once.
 - Edge Frequency: the cases reaching the source, whether they ever follow the edge. A case ending at the source counts as reaching it.
 - A numeric attribute, Activity Duration and Waiting Time: the cases that ran the activity or followed the edge, each at its mean.

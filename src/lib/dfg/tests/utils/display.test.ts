@@ -83,12 +83,10 @@ describe("canvasLegend", () => {
     expect(canvasLegend("share", both, "cases", "scaled")).toContain("how often it is followed");
   });
 
-  it("names the count the weights carry", () => {
+  it("names the count the edge widths carry, and nothing under a uniform width", () => {
     expect(canvasLegend("off", both, "events", "scaled")).toContain(
-      "Thicker edges and darker activities carry more events."
+      "Thicker edges carry more events."
     );
-    expect(canvasLegend("off", both, "cases", "uniform")).toContain(
-      "Darker activities carry more cases."
-    );
+    expect(canvasLegend("off", both, "cases", "uniform")).not.toContain("Thicker");
   });
 });

@@ -7,7 +7,7 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure, NodeBar } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
@@ -39,16 +39,29 @@ export function faceCounts(
 }
 
 /**
- * The figure a node's shade is drawn from: its union across the Groups in the
- * measure shown. `null` for Start and End, and where nothing reached it.
+ * How an activity's count in `measure` splits between the Groups, from 0 to 1
+ * and summing to 1, keyed by Group id. `adjusted` divides each Group's count by
+ * the cases that Group holds first, so a larger Group does not fill more of the
+ * bar for its size alone. Empty with the bar off, or where fewer than two
+ * Groups reach the activity.
  */
-export function shadeValue(
-  node: { kind: NodeKind; counts: Record<string, Counts> },
-  measure: Measure
-): number | null {
-  if (node.kind !== "activity") return null;
-  const total = unionCount(node.counts, measure);
-  return total === 0 ? null : total;
+export function groupSplit(
+  counts: Record<string, Counts>,
+  groups: FaceGroup[],
+  caseCounts: Map<string, number>,
+  measure: Measure,
+  bar: NodeBar
+): Record<string, number> {
+  if (bar === "off") return {};
+  const weights = groups.map((group): [string, number] => [
+    group.id,
+    bar === "adjusted"
+      ? perCase(counts, group.id, caseCounts)[measure]
+      : (counts[group.id]?.[measure] ?? 0)
+  ]);
+  const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
+  if (weights.filter(([, weight]) => weight > 0).length < 2) return {};
+  return Object.fromEntries(weights.map(([id, weight]) => [id, weight / total]));
 }
 
 /** Edge thickness, between 1.5 and 8, scaled against the busiest edge drawn. */
@@ -223,8 +236,7 @@ export function busiest(of: { counts: Record<string, Counts> }[], measure: Measu
 /**
  * One Group's counts divided by how many cases that Group holds: the share of
  * its cases for `cases`, events per case for `events`. What a split panel
- * shades and thickens by, so a Group ten times larger does not draw ten times
- * thicker.
+ * thickens by, so a Group ten times larger does not draw ten times thicker.
  */
 export function perCase(
   counts: Record<string, Counts>,

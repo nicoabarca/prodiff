@@ -67,9 +67,6 @@ export function canvasLegend(
       : byFrequency
         ? "A red edge differs significantly in how often it is followed, redder when larger. It does not say which group is higher."
         : "A red edge differs significantly in at least one test, redder when larger. It does not say which group is higher.";
-  const weight =
-    width === "uniform"
-      ? `Darker activities carry more ${measure}.`
-      : `Thicker edges and darker activities carry more ${measure}.`;
-  return `${red} ${weight}`;
+  if (width === "uniform") return red;
+  return `${red} Thicker edges carry more ${measure}.`;
 }

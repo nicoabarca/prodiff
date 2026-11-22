@@ -8,10 +8,9 @@ export const START_ID = 0;
 export const END_ID = 1;
 
 /** Derived attributes only the DFG offers. Mirrors `src-tauri/src/dfg/mod.rs`. */
-export const ACTIVITY_FREQUENCY = "Activity Frequency";
 export const EDGE_FREQUENCY = "Edge Frequency";
 export const REPETITIONS = "Repetitions";
-export const GRAPH_ATTRIBUTES = [ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS];
+export const GRAPH_ATTRIBUTES = [EDGE_FREQUENCY, REPETITIONS];
 
 export type NodeKind = "start" | "end" | "activity";
 
@@ -36,6 +35,12 @@ export type EdgeWidth = "scaled" | "uniform";
 
 export type Direction = "TB" | "LR";
 
+/**
+ * The bar under an activity's figures, splitting its count in `DfgView.measure`
+ * between the Groups: as counted, or `adjusted` per case each Group holds.
+ */
+export type NodeBar = "off" | "counted" | "adjusted";
+
 export interface Point {
   x: number;
   y: number;
@@ -59,6 +64,7 @@ export interface DfgView {
   edgeLabel: EdgeLabel;
   measure: Measure;
   edgeWidth: EdgeWidth;
+  nodeBar: NodeBar;
   statistic: Statistic;
   direction: Direction;
   emphasis: GroupFocus;
@@ -72,6 +78,7 @@ export const defaultDfgView: DfgView = {
   edgeLabel: "waiting",
   measure: "cases",
   edgeWidth: "scaled",
+  nodeBar: "counted",
   statistic: "mean",
   direction: "TB",
   emphasis: "all",
@@ -113,15 +120,16 @@ export interface FaceGroup {
  * `focus` names the one Group a split panel prints; `null` is the comparative
  * canvas, which prints every Group it was given. `membership` is the Group whose
  * accent the node reads in, `null` being the Original's grey: on a split panel
- * only an activity that Group alone reaches carries an accent. `added` is the
- * slider move that added the node, which it glows for, or 0.
+ * only an activity that Group alone reaches carries an accent. `split` is the
+ * bar's share for each Group, from 0 to 1, empty where no bar is drawn. `added`
+ * is the slider move that added the node, which it glows for, or 0.
  */
 export interface DfgNodeData {
   label: string;
   kind: NodeKind;
   groups: FaceGroup[];
   counts: Record<string, string | null>;
-  shadeStep: number | null;
+  split: Record<string, number>;
   differences: NodeDifferences | null;
   membership: string | null;
   selected: boolean;

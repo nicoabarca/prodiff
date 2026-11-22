@@ -5,7 +5,7 @@
  * alone reaches has nothing to compare against.
  */
 import type { Counts, Method, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 import { formatDecimal } from "$lib/format";
@@ -148,13 +148,11 @@ const HELD = "Held";
 
 /** The category a frequency counts its hits under. Mirrors `src-tauri/src/dfg/mod.rs`. */
 const HIT: Record<string, string> = {
-  [ACTIVITY_FREQUENCY]: "Reached",
   [EDGE_FREQUENCY]: "Followed",
   [REPETITIONS]: "More than once"
 };
 
 const VERB: Record<string, string> = {
-  [ACTIVITY_FREQUENCY]: "more often",
   [EDGE_FREQUENCY]: "more often",
   [REPETITIONS]: "more often runs it more than once"
 };

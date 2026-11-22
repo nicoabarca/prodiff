@@ -137,11 +137,12 @@
   /**
    * Scaled to the largest gap across *every* category, not just the shown ones,
    * so expanding the list never rescales bars already read. The headroom keeps
-   * the longest bar's label clear of the category-name gutter.
+   * the longest bar's label clear of the category-name gutter, even in the
+   * DFG's narrow tests panel.
    */
   const domain = $derived.by((): [number, number] => {
     const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);
-    return compare ? [-largest * 1.55, largest * 1.55] : [0, largest * 1.3];
+    return compare ? [-largest * 2.2, largest * 2.2] : [0, largest * 1.3];
   });
 
   const barLabel = (value: number) => {
