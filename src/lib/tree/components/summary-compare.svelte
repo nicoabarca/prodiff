@@ -14,13 +14,15 @@
     compare = true,
     duration = false,
     load,
-    title
+    title,
+    headline = true
   }: {
     summaries: Record<string, Summary | null>;
     compare?: boolean;
     duration?: boolean;
     load?: OutlierLoad;
     title?: string;
+    headline?: boolean;
   } = $props();
 
   const expansion = $derived(load && title ? { load, title } : {});
@@ -155,7 +157,7 @@
 
 {#if isNumeric && boxGroups.length > 0}
   <div class="flex flex-col gap-2">
-    {#if delta}
+    {#if headline && delta}
       <p class="text-[0.6875rem]">
         {#if delta.same}
           Same median in every group.

@@ -49,24 +49,3 @@ export function edgeCaption(view: Pick<DfgView, "edgeLabel" | "statistic">, buil
   if (label === "share") return "% followed on edges";
   return "no edge labels";
 }
-
-/** What the tests panel says the canvas draws: what a red edge differs in, and what the weights carry. */
-export function canvasLegend(
-  label: EdgeLabel,
-  built: Built,
-  measure: Measure,
-  width: EdgeWidth
-): string {
-  const shown = shownEdgeLabel(label, built);
-  const byFrequency = shown === "frequency" || shown === "share";
-  const untested = byFrequency && !built.edgeFrequency;
-  const red = untested
-    ? "Edges stay grey: build with Edge Frequency to test how often each is followed."
-    : shown === "waiting"
-      ? "A red edge differs significantly in Waiting Time, redder when larger. It does not say which group is higher."
-      : byFrequency
-        ? "A red edge differs significantly in how often it is followed, redder when larger. It does not say which group is higher."
-        : "A red edge differs significantly in at least one test, redder when larger. It does not say which group is higher.";
-  if (width === "uniform") return red;
-  return `${red} Thicker edges carry more ${measure}.`;
-}

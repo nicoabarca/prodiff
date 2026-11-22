@@ -11,6 +11,7 @@ import {
   benjaminiHochberg,
   graphFindings,
   hitShares,
+  medianIncrease,
   placeTestLine,
   nodeDifferences,
   rank,
@@ -413,44 +414,57 @@ describe("benjaminiHochberg", () => {
   });
 });
 
+describe("medianIncrease", () => {
+  const numbers = (median: number) => ({
+    type: "numerical" as const,
+    n: 10,
+    mean: median,
+    std: 1,
+    min: 0,
+    q1: median,
+    median,
+    q3: median,
+    max: median,
+    whiskerLow: 0,
+    whiskerHigh: median,
+    outliersLow: 0,
+    outliersHigh: 0
+  });
+
+  it("reads the larger median against the smaller", () => {
+    const block = { summaries: { a: numbers(25), b: numbers(45) }, test: null, method: null };
+    expect(medianIncrease(block, [{ id: "a" }, { id: "b" }])).toBe("+80%");
+  });
+
+  it("says nothing with a median at zero", () => {
+    const block = { summaries: { a: numbers(0), b: numbers(45) }, test: null, method: null };
+    expect(medianIncrease(block, [{ id: "a" }, { id: "b" }])).toBeNull();
+  });
+});
+
 describe("placeTestLine", () => {
-  const groups = [
-    { id: "a", name: "Day" },
-    { id: "b", name: "Night" }
-  ];
   const line = (method: PlaceBlock["method"]) =>
-    placeTestLine(
-      { summaries: {}, test: { ...test(0.3, 0.02), test: "chi2", higher: null }, method },
-      groups
-    );
+    placeTestLine({
+      summaries: {},
+      test: { ...test(0.3, 0.02), test: "chi2", higher: null },
+      method
+    });
 
   it("names how the p-value was computed", () => {
     expect(line("fisher")).toContain("Fisher's exact test");
     expect(line("chi2")).toContain("Chi-square");
   });
 
-  it("names a higher Group only on a significant test", () => {
-    const named = { ...test(0.3, 0.02), higher: "a" };
-    expect(placeTestLine({ summaries: {}, test: named, method: "mannWhitney" }, groups)).toContain(
-      "Day higher"
-    );
-    expect(
-      placeTestLine(
-        { summaries: {}, test: { ...named, significant: false }, method: "mannWhitney" },
-        groups
-      )
-    ).not.toContain("higher");
-  });
-
   it("does not print a p too small to compute as zero", () => {
-    const line = placeTestLine(
-      { summaries: {}, test: { ...test(0.3, 0), test: "chi2", higher: null }, method: "chi2" },
-      groups
-    );
+    const line = placeTestLine({
+      summaries: {},
+      test: { ...test(0.3, 0), test: "chi2", higher: null },
+      method: "chi2"
+    });
     expect(line).toContain("p < 1e-15");
   });
 
-  it("says the p shown comes before the correction", () => {
-    expect(line("chi2")).toContain("p = 0.020 before correcting across places");
+  it("prints the p and the effect size, nothing else", () => {
+    expect(line("chi2")).toBe("Chi-square · p = 0.020 · Cramér's V 0.30");
   });
 });

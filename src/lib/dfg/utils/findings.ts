@@ -240,16 +240,30 @@ const METHOD_NAMES: Record<Method, string> = {
   fisher: "Fisher's exact test"
 };
 
-/** The Significance Test in full. The p shown is before the correction across places. */
-export function placeTestLine(block: PlaceBlock, groups: { id: string; name: string }[]): string {
+/**
+ * How much larger the larger median is than the smaller one, as a whole
+ * percent: "+80%". `null` without two Groups' numbers or with a median at or
+ * below zero.
+ */
+export function medianIncrease(block: PlaceBlock, groups: { id: string }[]): string | null {
+  const medians = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    return summary?.type === "numerical" ? summary.median : null;
+  });
+  if (medians.length < 2 || medians.some((median) => median === null || median <= 0)) return null;
+  const known = medians as number[];
+  const increase = Math.max(...known) / Math.min(...known) - 1;
+  return `+${Math.round(increase * 100)}%`;
+}
+
+/** The Significance Test, its p before the correction across places and its effect size. */
+export function placeTestLine(block: PlaceBlock): string {
   const test = block.test;
   if (!test) return "";
   const name = METHOD_NAMES[block.method ?? (test.test === "chi2" ? "chi2" : "mannWhitney")];
-  const effect = test.test === "chi2" ? "phi or Cramér's V" : "rank-biserial r";
-  const higher = groups.find((group) => group.id === test.higher);
-  const direction = higher && test.significant ? ` · ${higher.name} higher` : "";
+  const effect = test.test === "chi2" ? "Cramér's V" : "rank-biserial r";
   const p = test.pValue === 0 ? "p < 1e-15" : `p = ${formatPValue(test.pValue)}`;
-  return `${name} · ${p} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
+  return `${name} · ${p} · ${effect} ${test.effectSize.toFixed(2)}`;
 }
 
 /** Every place that carries at least one finding, by `placeKey`. */

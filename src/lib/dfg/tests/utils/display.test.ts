@@ -4,7 +4,6 @@ import type { ResponseDfg } from "$lib/dfg/invokers/types";
 import { EDGE_FREQUENCY, defaultDfgView } from "$lib/dfg/types";
 import {
   builtAttributes,
-  canvasLegend,
   edgeCaption,
   paintedAttribute,
   shownEdgeLabel
@@ -61,32 +60,5 @@ describe("paintedAttribute", () => {
     expect(paintedAttribute("frequency")).toBe(EDGE_FREQUENCY);
     expect(paintedAttribute("share")).toBe(EDGE_FREQUENCY);
     expect(paintedAttribute("off")).toBeNull();
-  });
-});
-
-describe("canvasLegend", () => {
-  it("names what a red edge differs in", () => {
-    expect(canvasLegend("waiting", both, "cases", "scaled")).toContain("in Waiting Time");
-    expect(canvasLegend("frequency", both, "cases", "scaled")).toContain(
-      "how often it is followed"
-    );
-    expect(canvasLegend("off", both, "cases", "scaled")).toContain("at least one test");
-  });
-
-  it("names a label that falls back as the one drawn", () => {
-    expect(canvasLegend("waiting", neither, "cases", "scaled")).toContain("at least one test");
-  });
-
-  it("says edges stay grey under a frequency when Edge Frequency was not built", () => {
-    expect(canvasLegend("frequency", neither, "cases", "scaled")).toMatch(/^Edges stay grey/);
-    expect(canvasLegend("share", neither, "cases", "scaled")).toMatch(/^Edges stay grey/);
-    expect(canvasLegend("share", both, "cases", "scaled")).toContain("how often it is followed");
-  });
-
-  it("names the count the edge widths carry, and nothing under a uniform width", () => {
-    expect(canvasLegend("off", both, "events", "scaled")).toContain(
-      "Thicker edges carry more events."
-    );
-    expect(canvasLegend("off", both, "cases", "uniform")).not.toContain("Thicker");
   });
 });

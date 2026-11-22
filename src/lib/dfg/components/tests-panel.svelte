@@ -17,12 +17,7 @@
   import { TRANSITION_TIME } from "$lib/analysis/attributes";
   import { EDGE_FREQUENCY } from "$lib/dfg/types";
   import { clearInspected, inspected, view } from "$lib/dfg/state/view.svelte";
-  import {
-    canvasLegend,
-    paintedAttribute,
-    shownEdgeLabel,
-    type Built
-  } from "$lib/dfg/utils/display";
+  import { paintedAttribute, shownEdgeLabel, type Built } from "$lib/dfg/utils/display";
   import {
     activityDifferences,
     byAttribute,
@@ -164,9 +159,6 @@
           <p class="text-muted-foreground text-[0.6875rem]">
             {formatNumber(significant)} significant of {formatNumber(tested)} tests on what the graph
             shows
-          </p>
-          <p class="text-muted-foreground text-[0.625rem]">
-            {canvasLegend(view.edgeLabel, built, view.measure, view.edgeWidth)}
           </p>
         {/if}
       </div>

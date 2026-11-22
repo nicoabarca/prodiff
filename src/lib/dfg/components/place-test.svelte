@@ -11,9 +11,9 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand } from "$lib/tree/utils/effect";
-  import { higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
+  import { formatPValue, higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
   import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
   import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
@@ -23,6 +23,7 @@
     builtInVerdict,
     hitCategory,
     hitShares,
+    medianIncrease,
     placeTestLine,
     unanimous,
     type Finding
@@ -81,8 +82,6 @@
       return `Share of each group's cases at ${label} that ever had ${finding.value} there. A case with several values counts under each.`;
     }
     switch (finding.attribute) {
-      case TRANSITION_TIME:
-        return `Time waited on the edge ${label}.`;
       case EDGE_FREQUENCY: {
         if (finding.place.kind !== "edge") return null;
         const [source, target] = label.split(" → ");
@@ -94,6 +93,13 @@
         return null;
     }
   });
+
+  /** A number's verdict, with how much larger the larger median is when it differs. */
+  function numericVerdict(): string {
+    const said = verdict(block, groups, duration);
+    const increase = differs ? medianIncrease(block, groups) : null;
+    return increase ? `${said} (${increase})` : said;
+  }
 
   const selecting = () => (window.getSelection()?.toString() ?? "") !== "";
 </script>
@@ -171,9 +177,11 @@
             ></span>
           {/if}
           <span class="min-w-0 [overflow-wrap:break-word]"
-            >{builtInVerdict(finding, groups) ??
-              unanimous(block, groups) ??
-              verdict(block, groups, duration)}</span
+            >{block.test && !block.test.significant
+              ? `p = ${formatPValue(block.test.pValue)}`
+              : (builtInVerdict(finding, groups) ??
+                unanimous(block, groups) ??
+                numericVerdict())}</span
           >
         </span>
       </span>
@@ -195,6 +203,7 @@
           {duration}
           load={placeOutliers(finding.place, finding.attribute)}
           title={attributeLabel(finding.attribute)}
+          headline={false}
         />
       {/if}
       {#if !block.test}
@@ -208,7 +217,7 @@
           </p>
         {/if}
         <p class="text-muted-foreground font-mono text-[0.625rem] text-pretty">
-          {placeTestLine(block, groups)}
+          {placeTestLine(block)}
         </p>
       {/if}
     </Collapsible.Content>
