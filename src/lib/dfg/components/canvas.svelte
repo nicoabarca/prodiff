@@ -29,7 +29,7 @@
     faceCounts,
     membership,
     perCase,
-    reachShares,
+    groupSplit,
     transitionsById
   } from "$lib/dfg/utils/face";
   import { builtAttributes, paintedAttribute, shownEdgeLabel } from "$lib/dfg/utils/display";
@@ -307,7 +307,10 @@
                     shown
                   )
                 : faceCounts(node.counts, shown, view.measure),
-            reach: node.kind === "activity" ? reachShares(node.counts, shown, caseCounts) : {},
+            split:
+              node.kind === "activity"
+                ? groupSplit(node.counts, shown, caseCounts, view.measure, view.nodeBar)
+                : {},
             differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,

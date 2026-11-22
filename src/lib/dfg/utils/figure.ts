@@ -1,7 +1,8 @@
 /**
  * The figure an activity shows under its name: what a built graph can offer,
  * what the view's choice resolves to on that graph, and the text it puts on one
- * activity. Every share here is the one its Significance Test compares.
+ * activity. Every attribute's share here is the one its Significance Test
+ * compares.
  */
 import { isDurationAttribute } from "$lib/analysis/attributes";
 import type { Summary } from "$lib/analysis/types";
@@ -42,8 +43,7 @@ function commonest(tally: Map<string, number>): string {
 /**
  * Every attribute an activity can show, numbers first and durations last among
  * them. A column's category offers its commonest value across the graph, and
- * Repetitions the share of cases running the activity more than once. Activity
- * Frequency is the `share` figure, so it is not offered again.
+ * Repetitions the share of cases running the activity more than once.
  */
 export function figureAttributes(graph: ResponseDfg | null): FigureAttribute[] {
   const numbers = new Set<string>();
@@ -112,7 +112,7 @@ function shareOf(summary: Summary | undefined, value: string): string | null {
 /**
  * An activity's figure, one entry per Group in the order compared, `null`
  * where that Group has nothing to show there. `share` is the Group's cases
- * reaching it over every case it holds, as Activity Frequency tests it.
+ * reaching it over every case it holds.
  */
 export function nodeFigures(
   counts: Record<string, Counts>,

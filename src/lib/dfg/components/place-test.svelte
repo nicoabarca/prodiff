@@ -14,7 +14,7 @@
   import { higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
   import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
-  import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+  import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
   import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
@@ -73,8 +73,6 @@
     switch (finding.attribute) {
       case TRANSITION_TIME:
         return `Time waited on the edge ${label}.`;
-      case ACTIVITY_FREQUENCY:
-        return `Share of each group's cases that reach ${label}.`;
       case EDGE_FREQUENCY:
         return `Share of each group's cases that follow ${label}.`;
       case REPETITIONS:

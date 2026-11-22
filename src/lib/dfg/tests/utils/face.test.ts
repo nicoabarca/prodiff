@@ -10,8 +10,8 @@ import {
   edgeShare,
   edgeWait,
   faceCounts,
-  perCase,
-  reachShares
+  groupSplit,
+  perCase
 } from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
@@ -32,36 +32,38 @@ describe("faceCounts", () => {
   });
 });
 
-describe("reachShares", () => {
+describe("groupSplit", () => {
   const groups = [
     { id: "a", name: "Large", color: "group-2" },
     { id: "b", name: "Small", color: "group-3" }
   ];
+  const caseCounts = new Map([
+    ["a", 1000],
+    ["b", 100]
+  ]);
+  const counts = { a: { cases: 900, events: 1800 }, b: { cases: 100, events: 600 } };
 
-  it("divides each Group's cases reaching the activity by that Group's own cases", () => {
-    const shares = reachShares(
-      { a: { cases: 500, events: 900 }, b: { cases: 50, events: 60 } },
-      groups,
-      new Map([
-        ["a", 1000],
-        ["b", 100]
-      ])
-    );
-
-    expect(shares).toEqual({ a: 0.5, b: 0.5 });
+  it("splits the count as counted", () => {
+    expect(groupSplit(counts, groups, caseCounts, "cases", "counted")).toEqual({
+      a: 0.9,
+      b: 0.1
+    });
+    expect(groupSplit(counts, groups, caseCounts, "events", "counted")).toEqual({
+      a: 0.75,
+      b: 0.25
+    });
   });
 
-  it("reads 0 for a Group that never reaches it or holds no cases", () => {
-    const shares = reachShares(
-      { a: { cases: 3, events: 3 } },
-      groups,
-      new Map([
-        ["a", 0],
-        ["b", 10]
-      ])
-    );
+  it("divides by each Group's cases first when adjusted", () => {
+    const split = groupSplit(counts, groups, caseCounts, "cases", "adjusted");
+    expect(split.a).toBeCloseTo(0.9 / 1.9);
+    expect(split.b).toBeCloseTo(1 / 1.9);
+  });
 
-    expect(shares).toEqual({ a: 0, b: 0 });
+  it("draws no bar when off or where one Group alone reaches it", () => {
+    expect(groupSplit(counts, groups, caseCounts, "cases", "off")).toEqual({});
+    const lone = { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } };
+    expect(groupSplit(lone, groups, caseCounts, "cases", "counted")).toEqual({});
   });
 });
 

@@ -33,6 +33,7 @@
 
   const comparing = $derived(groups.length > 1);
   const split = $derived(splitting(groups.length));
+  const bar = $derived(comparing && !split && view.nodeBar !== "off");
   const built = $derived(builtAttributes(graph));
   const figure = $derived(nodeFigure(view, figureAttributes(graph)));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
@@ -128,16 +129,14 @@
 {/snippet}
 
 {#snippet barGlyph()}
-  <span class="flex w-15.5 flex-col gap-0.5">
+  <span class="bg-muted flex h-1.5 w-15.5 overflow-hidden">
     {#each groups as group, index (group.id)}
-      <span class="bg-muted flex h-1 w-full overflow-hidden">
-        <span style="width:{[70, 45][index] ?? 70}%;background:var(--{group.color})"></span>
-      </span>
+      <span style="width:{index === 0 ? 60 : 40}%;background:var(--{group.color})"></span>
     {/each}
   </span>
 {/snippet}
 {#snippet barTitle()}
-  Share of cases reaching it
+  Split between groups
 {/snippet}
 
 {#snippet edgeGlyph()}
@@ -238,11 +237,15 @@
           nodeTitle,
           comparing ? "One figure per group, in toolbar order" : "Under the activity name"
         )}
-        {@render row(
-          barGlyph,
-          barTitle,
-          comparing ? "One bar per group, of all that group's cases" : "Of all the cases"
-        )}
+        {#if bar}
+          {@render row(
+            barGlyph,
+            barTitle,
+            view.nodeBar === "adjusted"
+              ? `Each group's ${view.measure} per case it holds`
+              : `Each group's share of the ${view.measure} at the activity`
+          )}
+        {/if}
         {#if edgeLabel !== "off"}
           {@render row(edgeGlyph, edgeLabelTitle, comparing ? `${edgeSub}, per group` : edgeSub)}
         {/if}

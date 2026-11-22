@@ -3,7 +3,7 @@ import type { Test } from "$lib/analysis/types";
 import type { PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import {
   activityDifferences,
   byAttribute,
@@ -119,7 +119,7 @@ describe("graphFindings", () => {
           counts: loneCounts,
           attributes: {
             Amount: block(test(0.8, 0.001)),
-            [ACTIVITY_FREQUENCY]: block(test(0.5, 0.001))
+            [REPETITIONS]: block(test(0.5, 0.001))
           },
           values: {}
         }
@@ -220,43 +220,40 @@ describe("builtInVerdict", () => {
     { id: "a", name: "Day" },
     { id: "b", name: "Night" }
   ];
-  const reach = (higher: string, significant = true): PlaceBlock => ({
+  const follow = (higher: string, significant = true): PlaceBlock => ({
     summaries: {
-      a: { type: "categorical", n: 100, counts: { Reached: 72, "Not reached": 28 } },
-      b: { type: "categorical", n: 50, counts: { Reached: 30, "Not reached": 20 } }
+      a: { type: "categorical", n: 100, counts: { Followed: 72, "Not followed": 28 } },
+      b: { type: "categorical", n: 50, counts: { Followed: 30, "Not followed": 20 } }
     },
     test: { ...test(0.13, 0.01, significant), test: "chi2", effectSigned: null, higher },
     method: "chi2"
   });
 
-  it("names the Group that reaches it more often, with both shares in order", () => {
+  it("names the Group that follows it more often, with both shares in order", () => {
     expect(
-      builtInVerdict({ attribute: ACTIVITY_FREQUENCY, value: null, block: reach("a") }, groups)
+      builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: follow("a") }, groups)
     ).toBe("Day more often · 72% vs 60%");
   });
 
   it("keeps a decimal on a share below 10%, so a rare step keeps its ratio", () => {
     const rare: PlaceBlock = {
-      ...reach("a"),
+      ...follow("a"),
       summaries: {
-        a: { type: "categorical", n: 1000, counts: { Reached: 26, "Not reached": 974 } },
-        b: { type: "categorical", n: 1000, counts: { Reached: 9, "Not reached": 991 } }
+        a: { type: "categorical", n: 1000, counts: { Followed: 26, "Not followed": 974 } },
+        b: { type: "categorical", n: 1000, counts: { Followed: 9, "Not followed": 991 } }
       }
     };
-    expect(
-      builtInVerdict({ attribute: ACTIVITY_FREQUENCY, value: null, block: rare }, groups)
-    ).toMatch(/^Day more often · 2[.,]6% vs 0[.,]9%$/);
+    expect(builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: rare }, groups)).toMatch(
+      /^Day more often · 2[.,]6% vs 0[.,]9%$/
+    );
   });
 
   it("says nothing for a frequency that is not significant or another attribute", () => {
     expect(
-      builtInVerdict(
-        { attribute: ACTIVITY_FREQUENCY, value: null, block: reach("a", false) },
-        groups
-      )
+      builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: follow("a", false) }, groups)
     ).toBeNull();
     expect(
-      builtInVerdict({ attribute: "Amount", value: null, block: reach("a") }, groups)
+      builtInVerdict({ attribute: "Amount", value: null, block: follow("a") }, groups)
     ).toBeNull();
   });
 });

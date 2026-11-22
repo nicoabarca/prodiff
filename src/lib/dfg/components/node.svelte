@@ -106,14 +106,14 @@
       {/each}
     </div>
 
-    <div class="flex w-full flex-col gap-0.5" aria-hidden="true">
-      {#each data.groups as group (group.id)}
-        <div class="bg-muted flex h-1 w-full overflow-hidden">
-          <span style="width:{(data.reach[group.id] ?? 0) * 100}%;background:var(--{group.color})"
+    {#if Object.keys(data.split).length > 0}
+      <div class="bg-muted flex h-1.5 w-full overflow-hidden" aria-hidden="true">
+        {#each data.groups as group (group.id)}
+          <span style="width:{(data.split[group.id] ?? 0) * 100}%;background:var(--{group.color})"
           ></span>
-        </div>
-      {/each}
-    </div>
+        {/each}
+      </div>
+    {/if}
 
     {#if data.differences}
       <SignificanceBadge

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { ACTIVITY_DURATION } from "$lib/analysis/attributes";
 import type { Summary } from "$lib/analysis/types";
 import type { DfgNode, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
-import { ACTIVITY_FREQUENCY, REPETITIONS, defaultDfgView } from "$lib/dfg/types";
+import { REPETITIONS, defaultDfgView } from "$lib/dfg/types";
 import { figureAttributes, nodeFigure, nodeFigures } from "$lib/dfg/utils/figure";
 
 const groups = [
@@ -59,7 +59,6 @@ describe("figureAttributes", () => {
       attributes: {
         [ACTIVITY_DURATION]: place({ a: numbers(1, 1) }),
         cost: place({ a: numbers(1, 1) }),
-        [ACTIVITY_FREQUENCY]: place({ a: twoByTwo({ Reached: 3, "Not reached": 1 }) }),
         [REPETITIONS]: place({ a: twoByTwo({ "More than once": 1, Once: 2 }) })
       },
       values: {

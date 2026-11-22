@@ -7,7 +7,7 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { EdgeLabel, FaceGroup, Measure } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure, NodeBar } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
@@ -39,21 +39,29 @@ export function faceCounts(
 }
 
 /**
- * The share of each Group's cases that reach an activity, from 0 to 1, keyed
- * by Group id: what a node's bars are drawn to, and what Activity Frequency
- * tests. A Group holding no cases reads 0.
+ * How an activity's count in `measure` splits between the Groups, from 0 to 1
+ * and summing to 1, keyed by Group id. `adjusted` divides each Group's count by
+ * the cases that Group holds first, so a larger Group does not fill more of the
+ * bar for its size alone. Empty with the bar off, or where fewer than two
+ * Groups reach the activity.
  */
-export function reachShares(
+export function groupSplit(
   counts: Record<string, Counts>,
   groups: FaceGroup[],
-  caseCounts: Map<string, number>
+  caseCounts: Map<string, number>,
+  measure: Measure,
+  bar: NodeBar
 ): Record<string, number> {
-  return Object.fromEntries(
-    groups.map((group) => {
-      const total = caseCounts.get(group.id) ?? 0;
-      return [group.id, total === 0 ? 0 : (counts[group.id]?.cases ?? 0) / total];
-    })
-  );
+  if (bar === "off") return {};
+  const weights = groups.map((group): [string, number] => [
+    group.id,
+    bar === "adjusted"
+      ? perCase(counts, group.id, caseCounts)[measure]
+      : (counts[group.id]?.[measure] ?? 0)
+  ]);
+  const total = weights.reduce((sum, [, weight]) => sum + weight, 0);
+  if (weights.filter(([, weight]) => weight > 0).length < 2) return {};
+  return Object.fromEntries(weights.map(([id, weight]) => [id, weight / total]));
 }
 
 /** Edge thickness, between 1.5 and 8, scaled against the busiest edge drawn. */
