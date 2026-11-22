@@ -1,5 +1,11 @@
 import { expect, test } from "vitest";
-import { formatCompact, formatDuration, formatDurationParts, tickLabel } from "$lib/format";
+import {
+  formatCompact,
+  formatDuration,
+  formatDurationParts,
+  tickLabel,
+  wholePercent
+} from "$lib/format";
 
 test("a compact count rounds to one decimal of its largest unit", () => {
   expect(formatCompact(999)).toBe("999");
@@ -28,4 +34,15 @@ test("a tick label is cut to its limit and keeps a short one whole", () => {
   expect(tickLabel("Send Fine", 20)).toBe("Send Fine");
   expect(tickLabel("Insert Date Appeal to Prefecture", 20)).toBe("Insert Date Appeal…");
   expect(tickLabel("Insert Date Appeal to Prefecture", 20).length).toBeLessThanOrEqual(20);
+});
+
+test("a whole percent reads below 100 one case short of thousands", () => {
+  expect(wholePercent(((1700 - 1) / 1700) * 100)).toBe(99);
+  expect(wholePercent(100)).toBe(100);
+});
+
+test("a whole percent reads above 0 for any share at all", () => {
+  expect(wholePercent(0.2)).toBe(1);
+  expect(wholePercent(0)).toBe(0);
+  expect(wholePercent(42.6)).toBe(43);
 });
