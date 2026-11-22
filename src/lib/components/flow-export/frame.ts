@@ -65,6 +65,15 @@ export function frame(bounds: Rect, size: ImageSize): Frame {
   };
 }
 
+/** The smallest rectangle holding every one of `rects`. */
+export function enclosing(rects: Rect[]): Rect {
+  const left = Math.min(...rects.map((rect) => rect.x));
+  const top = Math.min(...rects.map((rect) => rect.y));
+  const right = Math.max(...rects.map((rect) => rect.x + rect.width));
+  const bottom = Math.max(...rects.map((rect) => rect.y + rect.height));
+  return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
 /** A typed dimension the image can take: a whole number of pixels up to the canvas limit. */
 export function validSide(value: number): boolean {
   return Number.isInteger(value) && value >= 1 && value <= MAX_SIDE;

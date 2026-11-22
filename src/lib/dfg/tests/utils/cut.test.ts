@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { Variant } from "$lib/dfg/invokers/types";
 import { END_ID, START_ID } from "$lib/dfg/types";
-import { cutPaths, stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
+import { cutPaths, shownPercent, stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
 import { fold, type FoldedEdge } from "$lib/dfg/utils/fold";
 import type { ResponseVariantRow } from "$lib/tree/invokers/types";
 import { variantsCovering } from "$lib/tree/utils/variants";
@@ -71,6 +71,22 @@ describe("cutPaths", () => {
     ]);
 
     expect(pairs(cutPaths(mixed, ["a", "b"], 0.34, "cases"))).toContain(`${A}->${D}`);
+  });
+});
+
+describe("shownPercent", () => {
+  it("reads below 100 one Variant short of every case", () => {
+    expect(shownPercent(((1700 - 1 - 0.5) / 1700) * 100)).toBe(99);
+    expect(shownPercent(100)).toBe(100);
+  });
+
+  it("reads above 0 for any share at all", () => {
+    expect(shownPercent(0.2)).toBe(1);
+    expect(shownPercent(0)).toBe(0);
+  });
+
+  it("rounds a share away from either end", () => {
+    expect(shownPercent(42.6)).toBe(43);
   });
 });
 

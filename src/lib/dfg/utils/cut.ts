@@ -13,6 +13,16 @@ const isBoundary = (edge: FoldedEdge) => edge.source === START_ID || edge.target
 export const innerEdges = (edges: FoldedEdge[]) => edges.filter((edge) => !isBoundary(edge));
 
 /**
+ * A slider's percent as its label shows it: whole, reading 100 only at 100
+ * and 0 only at 0, so a step off either end always shows.
+ */
+export function shownPercent(value: number): number {
+  if (value >= 100) return 100;
+  if (value <= 0) return 0;
+  return Math.min(99, Math.max(1, Math.round(value)));
+}
+
+/**
  * The coverage, in percent, that stages one Variant more (`step` 1) or one
  * fewer (`step` -1) than `coverage` stages. It sits just under the cumulative
  * share of that many Variants, so `variantsCovering` lands on exactly them.

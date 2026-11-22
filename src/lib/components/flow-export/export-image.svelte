@@ -7,7 +7,7 @@
 -->
 <script lang="ts">
   import { tick } from "svelte";
-  import { ControlButton, useStore, useSvelteFlow } from "@xyflow/svelte";
+  import { ControlButton, useStore, useSvelteFlow, type Rect } from "@xyflow/svelte";
   import { save } from "@tauri-apps/plugin-dialog";
   import { writeFile } from "@tauri-apps/plugin-fs";
   import { toast } from "svelte-sonner";
@@ -18,7 +18,7 @@
   import * as Popover from "$lib/components/ui/popover/index.js";
   import * as ToggleGroup from "$lib/components/ui/toggle-group/index.js";
   import { capture } from "./capture";
-  import { frame, MAX_SIDE, validSide, type ImageFormat } from "./frame";
+  import { enclosing, frame, MAX_SIDE, validSide, type ImageFormat } from "./frame";
 
   let { name, exporting = $bindable(false) }: { name: string; exporting?: boolean } = $props();
 
@@ -48,6 +48,24 @@
     await tick();
   }
 
+  /**
+   * What the image must hold, in flow coordinates: the nodes, and the edges and
+   * their labels, which curve and sit past the nodes on the graph's outer side.
+   */
+  function drawnBounds(viewport: HTMLElement): Rect {
+    const rects = [flow.getNodesBounds(flow.getNodes())];
+    for (const element of viewport.querySelectorAll(
+      ".svelte-flow__edge, .svelte-flow__edge-label"
+    )) {
+      const box = element.getBoundingClientRect();
+      if (box.width === 0 && box.height === 0) continue;
+      const start = flow.screenToFlowPosition({ x: box.left, y: box.top }, { snapToGrid: false });
+      const end = flow.screenToFlowPosition({ x: box.right, y: box.bottom }, { snapToGrid: false });
+      rects.push({ x: start.x, y: start.y, width: end.x - start.x, height: end.y - start.y });
+    }
+    return enclosing(rects);
+  }
+
   async function download() {
     const chosen = FORMATS.find((one) => one.value === format) ?? FORMATS[0];
     const viewport = store.domNode?.querySelector<HTMLElement>(".svelte-flow__viewport");
@@ -64,7 +82,7 @@
     const id = toast.loading(`Exporting ${chosen.label} image`);
     try {
       await settle();
-      const bounds = flow.getNodesBounds(flow.getNodes());
+      const bounds = drawnBounds(viewport);
       const placed = frame(bounds, sizing === "auto" ? null : { width, height });
       const background = getComputedStyle(document.body).backgroundColor;
       const bytes = await capture(viewport, format, placed, background);

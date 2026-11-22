@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { frame, MAX_SIDE, PADDING, validSide } from "./frame";
+import { enclosing, frame, MAX_SIDE, PADDING, validSide } from "./frame";
 
 describe("frame", () => {
   it("sizes an automatic image to the graph at zoom 1", () => {
@@ -27,6 +27,14 @@ describe("frame", () => {
     expect(placed.x).toBeCloseTo(PADDING);
     expect(placed.y).toBeCloseTo((1000 - 100 * zoom) / 2);
     expect(placed.pixelRatio).toBe(1);
+  });
+});
+
+describe("enclosing", () => {
+  it("spans every rectangle, including ones reaching past the others", () => {
+    const nodes = { x: 0, y: 0, width: 200, height: 100 };
+    const outerEdge = { x: -40, y: 20, width: 60, height: 130 };
+    expect(enclosing([nodes, outerEdge])).toEqual({ x: -40, y: 0, width: 240, height: 150 });
   });
 });
 

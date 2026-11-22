@@ -16,7 +16,7 @@
     variants
   } from "$lib/dfg/state/variants.svelte";
   import { view } from "$lib/dfg/state/view.svelte";
-  import { stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
+  import { shownPercent, stepCoverage, stepPaths } from "$lib/dfg/utils/cut";
   import type { Simplified } from "$lib/dfg/utils/simplify";
   import type { Project } from "$lib/event-log/types";
   import { formatNumber } from "$lib/format";
@@ -85,12 +85,12 @@
         <Icon class="size-3.5" />
       </Tooltip.Trigger>
       <Tooltip.Content side="left" class="max-w-64">
-        <p class="font-medium">{name} · {Math.round(value)}%</p>
+        <p class="font-medium">{name} · {shownPercent(value)}%</p>
         <p>{hint}</p>
       </Tooltip.Content>
     </Tooltip.Root>
     <span class="text-muted-foreground font-mono text-[0.625rem] tabular-nums">
-      {Math.round(value)}%
+      {shownPercent(value)}%
     </span>
     <button
       type="button"
