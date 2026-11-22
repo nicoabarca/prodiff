@@ -10,8 +10,8 @@ import {
   edgeShare,
   edgeWait,
   faceCounts,
-  perCase,
-  shadeValue
+  groupSplit,
+  perCase
 } from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
@@ -32,26 +32,38 @@ describe("faceCounts", () => {
   });
 });
 
-describe("shadeValue", () => {
-  const counts = {
-    a: { cases: 3, events: 9 },
-    b: { cases: 2, events: 4 }
-  };
+describe("groupSplit", () => {
+  const groups = [
+    { id: "a", name: "Large", color: "group-2" },
+    { id: "b", name: "Small", color: "group-3" }
+  ];
+  const caseCounts = new Map([
+    ["a", 1000],
+    ["b", 100]
+  ]);
+  const counts = { a: { cases: 900, events: 1800 }, b: { cases: 100, events: 600 } };
 
-  it("is the union across the Groups in the measure shown", () => {
-    expect(shadeValue({ kind: "activity", counts }, "cases")).toBe(5);
-    expect(shadeValue({ kind: "activity", counts }, "events")).toBe(13);
+  it("splits the count as counted", () => {
+    expect(groupSplit(counts, groups, caseCounts, "cases", "counted")).toEqual({
+      a: 0.9,
+      b: 0.1
+    });
+    expect(groupSplit(counts, groups, caseCounts, "events", "counted")).toEqual({
+      a: 0.75,
+      b: 0.25
+    });
   });
 
-  it("is missing for Start and End", () => {
-    expect(shadeValue({ kind: "start", counts }, "cases")).toBeNull();
-    expect(shadeValue({ kind: "end", counts }, "cases")).toBeNull();
+  it("divides by each Group's cases first when adjusted", () => {
+    const split = groupSplit(counts, groups, caseCounts, "cases", "adjusted");
+    expect(split.a).toBeCloseTo(0.9 / 1.9);
+    expect(split.b).toBeCloseTo(1 / 1.9);
   });
 
-  it("is missing where nothing reached the node", () => {
-    expect(
-      shadeValue({ kind: "activity", counts: { a: { cases: 0, events: 0 } } }, "cases")
-    ).toBeNull();
+  it("draws no bar when off or where one Group alone reaches it", () => {
+    expect(groupSplit(counts, groups, caseCounts, "cases", "off")).toEqual({});
+    const lone = { a: { cases: 3, events: 3 }, b: { cases: 0, events: 0 } };
+    expect(groupSplit(lone, groups, caseCounts, "cases", "counted")).toEqual({});
   });
 });
 

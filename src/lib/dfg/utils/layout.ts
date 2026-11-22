@@ -14,7 +14,7 @@ import type { Size } from "$lib/dfg/utils/labels";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 
 export const NODE_WIDTH = 150;
-export const NODE_HEIGHT = 58;
+export const NODE_HEIGHT = 76;
 export const TERMINAL_SIZE = 36;
 
 /** `labels` holds the centre of each edge label ELK placed, keyed by edge. */

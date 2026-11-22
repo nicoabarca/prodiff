@@ -32,7 +32,7 @@
   const attributes = $derived(figureAttributes(tree));
   const figure = $derived(nodeFigure(view, attributes));
   const stat = $derived(view.statistic === "median" ? "Median" : "Mean");
-  const tint = shade("group-original", null);
+  const tint = shade("group-original");
 
   /** Made-up figures for the drawing, sized to fit it. */
   function samples(figure: NodeFigure): string[] {

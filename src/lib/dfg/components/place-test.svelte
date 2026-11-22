@@ -11,14 +11,23 @@
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import { effectBand } from "$lib/tree/utils/effect";
-  import { higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
+  import { formatPValue, higherGroup, untestable, verdict } from "$lib/tree/utils/verdict";
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { isDurationAttribute, TRANSITION_TIME } from "$lib/analysis/attributes";
-  import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
+  import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
   import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import { builtInVerdict, placeTestLine, unanimous, type Finding } from "$lib/dfg/utils/findings";
+  import GroupShares from "$lib/dfg/components/group-shares.svelte";
+  import {
+    builtInVerdict,
+    hitCategory,
+    hitShares,
+    medianIncrease,
+    placeTestLine,
+    unanimous,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -63,6 +72,8 @@
   const duration = $derived(isDurationAttribute(finding.attribute));
   const higher = $derived(higherGroup(block.test, groups));
   const differs = $derived(block.test?.significant ?? false);
+  /** The category a two-by-two compares the share of, drawn as one bar per Group. */
+  const hit = $derived(hitCategory(finding));
 
   /** What the attribute measures at this place, for the ones whose name does not say. */
   const caption = $derived.by(() => {
@@ -71,18 +82,24 @@
       return `Share of each group's cases at ${label} that ever had ${finding.value} there. A case with several values counts under each.`;
     }
     switch (finding.attribute) {
-      case TRANSITION_TIME:
-        return `Time waited on the edge ${label}.`;
-      case ACTIVITY_FREQUENCY:
-        return `Share of each group's cases that reach ${label}.`;
-      case EDGE_FREQUENCY:
-        return `Share of each group's cases that follow ${label}.`;
+      case EDGE_FREQUENCY: {
+        if (finding.place.kind !== "edge") return null;
+        const [source, target] = label.split(" → ");
+        return `Of each group's cases that reach ${source}, the share that go straight on to ${target}. A case that passes ${source} several times can take several ways out, so the ways out can add up to more than 100%.`;
+      }
       case REPETITIONS:
         return `Share of the cases that reach ${label} and run it more than once.`;
       default:
         return null;
     }
   });
+
+  /** A number's verdict, with how much larger the larger median is when it differs. */
+  function numericVerdict(): string {
+    const said = verdict(block, groups, duration);
+    const increase = differs ? medianIncrease(block, groups) : null;
+    return increase ? `${said} (${increase})` : said;
+  }
 
   const selecting = () => (window.getSelection()?.toString() ?? "") !== "";
 </script>
@@ -160,9 +177,11 @@
             ></span>
           {/if}
           <span class="min-w-0 [overflow-wrap:break-word]"
-            >{builtInVerdict(finding, groups) ??
-              unanimous(block, groups) ??
-              verdict(block, groups, duration)}</span
+            >{block.test && !block.test.significant
+              ? `p = ${formatPValue(block.test.pValue)}`
+              : (builtInVerdict(finding, groups) ??
+                unanimous(block, groups) ??
+                numericVerdict())}</span
           >
         </span>
       </span>
@@ -176,12 +195,17 @@
       {#if caption}
         <p class="text-muted-foreground text-[0.625rem]">{caption}</p>
       {/if}
-      <SummaryCompare
-        summaries={block.summaries}
-        {duration}
-        load={placeOutliers(finding.place, finding.attribute)}
-        title={attributeLabel(finding.attribute)}
-      />
+      {#if hit !== null}
+        <GroupShares shares={hitShares(block, hit, groups)} {groups} />
+      {:else}
+        <SummaryCompare
+          summaries={block.summaries}
+          {duration}
+          load={placeOutliers(finding.place, finding.attribute)}
+          title={attributeLabel(finding.attribute)}
+          headline={false}
+        />
+      {/if}
       {#if !block.test}
         <p class="text-muted-foreground text-[0.625rem]">
           {unanimous(block, groups) ?? untestable(block, groups)}
@@ -193,7 +217,7 @@
           </p>
         {/if}
         <p class="text-muted-foreground font-mono text-[0.625rem] text-pretty">
-          {placeTestLine(block, groups)}
+          {placeTestLine(block)}
         </p>
       {/if}
     </Collapsible.Content>

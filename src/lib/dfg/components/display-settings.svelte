@@ -171,6 +171,33 @@
           </span>
         {/if}
       </div>
+      <div class="flex flex-col gap-1.5">
+        <span class="text-xs font-medium">Bar · split between groups</span>
+        {#if comparing && !split}
+          <Segmented
+            label="Bar split between groups"
+            value={view.nodeBar}
+            options={[
+              { value: "off" as const, label: "Off" },
+              {
+                value: "counted" as const,
+                label: "As counted",
+                title: "Each group's share of the activity's count."
+              },
+              {
+                value: "adjusted" as const,
+                label: "Per group size",
+                title: "Each group's count per case it holds, so a larger group does not fill more."
+              }
+            ]}
+            onchange={(value) => (view.nodeBar = value)}
+          />
+        {:else}
+          <span class="text-muted-foreground text-[0.625rem]">
+            Compare two groups on one graph to show this.
+          </span>
+        {/if}
+      </div>
     </div>
 
     <div class="flex flex-col gap-2.5">
@@ -241,7 +268,7 @@
         </div>
       </div>
       <span class="text-muted-foreground text-[0.625rem]">
-        Count shades activities and thickens edges.
+        Count splits the bar and thickens edges.
       </span>
     </div>
 

@@ -55,7 +55,7 @@
   const position = $derived(scale.copy().domain([low, high]).range([0, 1]));
   // A label lies along a horizontal axis and stacks up a vertical one, so it
   // needs the room its own text takes in that direction.
-  const clearance = $derived(horizontal ? 0.16 : 0.07);
+  const clearance = $derived(horizontal ? 0.24 : 0.07);
   const ticks = $derived.by(() =>
     interiorTicks(
       low,

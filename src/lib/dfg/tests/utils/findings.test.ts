@@ -3,13 +3,15 @@ import type { Test } from "$lib/analysis/types";
 import type { PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import {
   activityDifferences,
   byAttribute,
   builtInVerdict,
   benjaminiHochberg,
   graphFindings,
+  hitShares,
+  medianIncrease,
   placeTestLine,
   nodeDifferences,
   rank,
@@ -119,7 +121,7 @@ describe("graphFindings", () => {
           counts: loneCounts,
           attributes: {
             Amount: block(test(0.8, 0.001)),
-            [ACTIVITY_FREQUENCY]: block(test(0.5, 0.001))
+            [REPETITIONS]: block(test(0.5, 0.001))
           },
           values: {}
         }
@@ -220,44 +222,58 @@ describe("builtInVerdict", () => {
     { id: "a", name: "Day" },
     { id: "b", name: "Night" }
   ];
-  const reach = (higher: string, significant = true): PlaceBlock => ({
+  const follow = (higher: string, significant = true): PlaceBlock => ({
     summaries: {
-      a: { type: "categorical", n: 100, counts: { Reached: 72, "Not reached": 28 } },
-      b: { type: "categorical", n: 50, counts: { Reached: 30, "Not reached": 20 } }
+      a: { type: "categorical", n: 100, counts: { Followed: 72, "Not followed": 28 } },
+      b: { type: "categorical", n: 50, counts: { Followed: 30, "Not followed": 20 } }
     },
     test: { ...test(0.13, 0.01, significant), test: "chi2", effectSigned: null, higher },
     method: "chi2"
   });
 
-  it("names the Group that reaches it more often, with both shares in order", () => {
+  it("names the Group that follows it more often first, each share beside its Group", () => {
     expect(
-      builtInVerdict({ attribute: ACTIVITY_FREQUENCY, value: null, block: reach("a") }, groups)
-    ).toBe("Day more often · 72% vs 60%");
+      builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: follow("a") }, groups)
+    ).toBe("Day more often · 72% vs Night 60%");
   });
 
   it("keeps a decimal on a share below 10%, so a rare step keeps its ratio", () => {
     const rare: PlaceBlock = {
-      ...reach("a"),
+      ...follow("a"),
       summaries: {
-        a: { type: "categorical", n: 1000, counts: { Reached: 26, "Not reached": 974 } },
-        b: { type: "categorical", n: 1000, counts: { Reached: 9, "Not reached": 991 } }
+        a: { type: "categorical", n: 1000, counts: { Followed: 26, "Not followed": 974 } },
+        b: { type: "categorical", n: 1000, counts: { Followed: 9, "Not followed": 991 } }
       }
     };
-    expect(
-      builtInVerdict({ attribute: ACTIVITY_FREQUENCY, value: null, block: rare }, groups)
-    ).toMatch(/^Day more often · 2[.,]6% vs 0[.,]9%$/);
+    expect(builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: rare }, groups)).toMatch(
+      /^Day more often · 2[.,]6% vs Night 0[.,]9%$/
+    );
   });
 
   it("says nothing for a frequency that is not significant or another attribute", () => {
     expect(
-      builtInVerdict(
-        { attribute: ACTIVITY_FREQUENCY, value: null, block: reach("a", false) },
-        groups
-      )
+      builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: follow("a", false) }, groups)
     ).toBeNull();
     expect(
-      builtInVerdict({ attribute: "Amount", value: null, block: reach("a") }, groups)
+      builtInVerdict({ attribute: "Amount", value: null, block: follow("a") }, groups)
     ).toBeNull();
+  });
+});
+
+describe("hitShares", () => {
+  it("reads each Group's share of its cases in the category, with the counts", () => {
+    const block: PlaceBlock = {
+      summaries: {
+        a: { type: "categorical", n: 4000, counts: { Followed: 628, "Not followed": 3372 } },
+        b: { type: "categorical", n: 0, counts: {} }
+      },
+      test: null,
+      method: null
+    };
+    expect(hitShares(block, "Followed", [{ id: "a" }, { id: "b" }])).toEqual({
+      a: { share: 0.157, hits: 628, n: 4000 },
+      b: { share: 0, hits: 0, n: 0 }
+    });
   });
 });
 
@@ -277,7 +293,7 @@ describe("builtInVerdict on Repetitions", () => {
       method: "chi2"
     };
     expect(builtInVerdict({ attribute: REPETITIONS, value: null, block: block }, groups)).toBe(
-      "Day more often runs it more than once · 42% vs 18%"
+      "Day more often runs it more than once · 42% vs Night 18%"
     );
   });
 });
@@ -318,7 +334,7 @@ describe("a categorical attribute", () => {
 
   it("says which Group held the value more often, with both shares", () => {
     expect(builtInVerdict({ attribute: "Who", value: "Ana", block: held(40, 10) }, groups)).toBe(
-      "Day more often · 40% vs 10%"
+      "Day more often · 40% vs Night 10%"
     );
   });
 });
@@ -398,44 +414,57 @@ describe("benjaminiHochberg", () => {
   });
 });
 
+describe("medianIncrease", () => {
+  const numbers = (median: number) => ({
+    type: "numerical" as const,
+    n: 10,
+    mean: median,
+    std: 1,
+    min: 0,
+    q1: median,
+    median,
+    q3: median,
+    max: median,
+    whiskerLow: 0,
+    whiskerHigh: median,
+    outliersLow: 0,
+    outliersHigh: 0
+  });
+
+  it("reads the larger median against the smaller", () => {
+    const block = { summaries: { a: numbers(25), b: numbers(45) }, test: null, method: null };
+    expect(medianIncrease(block, [{ id: "a" }, { id: "b" }])).toBe("+80%");
+  });
+
+  it("says nothing with a median at zero", () => {
+    const block = { summaries: { a: numbers(0), b: numbers(45) }, test: null, method: null };
+    expect(medianIncrease(block, [{ id: "a" }, { id: "b" }])).toBeNull();
+  });
+});
+
 describe("placeTestLine", () => {
-  const groups = [
-    { id: "a", name: "Day" },
-    { id: "b", name: "Night" }
-  ];
   const line = (method: PlaceBlock["method"]) =>
-    placeTestLine(
-      { summaries: {}, test: { ...test(0.3, 0.02), test: "chi2", higher: null }, method },
-      groups
-    );
+    placeTestLine({
+      summaries: {},
+      test: { ...test(0.3, 0.02), test: "chi2", higher: null },
+      method
+    });
 
   it("names how the p-value was computed", () => {
     expect(line("fisher")).toContain("Fisher's exact test");
     expect(line("chi2")).toContain("Chi-square");
   });
 
-  it("names a higher Group only on a significant test", () => {
-    const named = { ...test(0.3, 0.02), higher: "a" };
-    expect(placeTestLine({ summaries: {}, test: named, method: "mannWhitney" }, groups)).toContain(
-      "Day higher"
-    );
-    expect(
-      placeTestLine(
-        { summaries: {}, test: { ...named, significant: false }, method: "mannWhitney" },
-        groups
-      )
-    ).not.toContain("higher");
-  });
-
   it("does not print a p too small to compute as zero", () => {
-    const line = placeTestLine(
-      { summaries: {}, test: { ...test(0.3, 0), test: "chi2", higher: null }, method: "chi2" },
-      groups
-    );
+    const line = placeTestLine({
+      summaries: {},
+      test: { ...test(0.3, 0), test: "chi2", higher: null },
+      method: "chi2"
+    });
     expect(line).toContain("p < 1e-15");
   });
 
-  it("says the p shown comes before the correction", () => {
-    expect(line("chi2")).toContain("p = 0.020 before correcting across places");
+  it("prints the p and the effect size, nothing else", () => {
+    expect(line("chi2")).toBe("Chi-square · p = 0.020 · Cramér's V 0.30");
   });
 });

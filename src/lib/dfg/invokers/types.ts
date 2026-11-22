@@ -19,7 +19,6 @@ export type RequestDfgAttribute =
   | { kind: "column"; name: string }
   | { kind: "activityDuration" }
   | { kind: "transitionTime" }
-  | { kind: "activityFrequency" }
   | { kind: "edgeFrequency" }
   | { kind: "repetitions" };
 

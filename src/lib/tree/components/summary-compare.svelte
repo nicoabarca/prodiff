@@ -14,13 +14,15 @@
     compare = true,
     duration = false,
     load,
-    title
+    title,
+    headline = true
   }: {
     summaries: Record<string, Summary | null>;
     compare?: boolean;
     duration?: boolean;
     load?: OutlierLoad;
     title?: string;
+    headline?: boolean;
   } = $props();
 
   const expansion = $derived(load && title ? { load, title } : {});
@@ -137,11 +139,12 @@
   /**
    * Scaled to the largest gap across *every* category, not just the shown ones,
    * so expanding the list never rescales bars already read. The headroom keeps
-   * the longest bar's label clear of the category-name gutter.
+   * the longest bar's label clear of the category-name gutter, even in the
+   * DFG's narrow tests panel.
    */
   const domain = $derived.by((): [number, number] => {
     const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);
-    return compare ? [-largest * 1.55, largest * 1.55] : [0, largest * 1.3];
+    return compare ? [-largest * 2.2, largest * 2.2] : [0, largest * 1.3];
   });
 
   const barLabel = (value: number) => {
@@ -154,7 +157,7 @@
 
 {#if isNumeric && boxGroups.length > 0}
   <div class="flex flex-col gap-2">
-    {#if delta}
+    {#if headline && delta}
       <p class="text-[0.6875rem]">
         {#if delta.same}
           Same median in every group.
@@ -162,7 +165,9 @@
           <span class="font-semibold">{delta.leader}</span>
           {delta.word} by {delta.amount} at the median
           {#if delta.percent !== null}
-            <span class="text-muted-foreground">· {Math.abs(delta.percent).toFixed(0)}%</span>
+            <span class="text-muted-foreground">
+              · {Math.abs(delta.percent).toFixed(0)}% {delta.word}
+            </span>
           {/if}
         {/if}
       </p>

@@ -18,12 +18,10 @@ const FIRST_ACTIVITY_ID: usize = 2;
 
 /// Derived attributes only the DFG offers, measured from the graph itself
 /// rather than from a column. A column of the same name wins over them.
-pub const ACTIVITY_FREQUENCY: &str = "Activity Frequency";
 pub const EDGE_FREQUENCY: &str = "Edge Frequency";
 pub const REPETITIONS: &str = "Repetitions";
 
 /// The two categories a frequency splits each Group's cases into.
-const REACHED: (&str, &str) = ("Reached", "Not reached");
 const FOLLOWED: (&str, &str) = ("Followed", "Not followed");
 const REPEATED: (&str, &str) = ("More than once", "Once");
 
@@ -33,7 +31,6 @@ pub enum RequestedAttribute {
     Column { name: String },
     ActivityDuration,
     TransitionTime,
-    ActivityFrequency,
     EdgeFrequency,
     Repetitions,
 }
@@ -44,7 +41,6 @@ impl RequestedAttribute {
             Self::Column { name } => name,
             Self::ActivityDuration => ACTIVITY_DURATION,
             Self::TransitionTime => TRANSITION_TIME,
-            Self::ActivityFrequency => ACTIVITY_FREQUENCY,
             Self::EdgeFrequency => EDGE_FREQUENCY,
             Self::Repetitions => REPETITIONS,
         }
@@ -54,7 +50,6 @@ impl RequestedAttribute {
 /// Which of the graph's own measures were asked for.
 #[derive(Clone, Copy)]
 struct Measured {
-    activity_frequency: bool,
     edge_frequency: bool,
     repetitions: bool,
 }
@@ -63,7 +58,6 @@ impl Measured {
     fn from(requested: &[RequestedAttribute]) -> Self {
         let asked = |wanted: RequestedAttribute| requested.contains(&wanted);
         Self {
-            activity_frequency: asked(RequestedAttribute::ActivityFrequency),
             edge_frequency: asked(RequestedAttribute::EdgeFrequency),
             repetitions: asked(RequestedAttribute::Repetitions),
         }
@@ -272,16 +266,6 @@ fn activity_nodes(
                 } else if let Some(cases) = node.attribute_cases.get(&attr.name) {
                     values.insert(attr.name.clone(), significance::per_value(ids, accs, cases));
                 }
-            }
-            if measured.activity_frequency {
-                let reached = node
-                    .counts
-                    .iter()
-                    .map(|(id, counts)| (id.clone(), counts.cases))
-                    .collect();
-                attributes
-                    .entry(ACTIVITY_FREQUENCY.to_string())
-                    .or_insert_with(|| frequency(ids, &reached, &aggregates.case_counts, REACHED));
             }
             if measured.repetitions && repeats(&node.occurrences) {
                 attributes
@@ -611,7 +595,6 @@ mod tests {
             .map(|name| match *name {
                 ACTIVITY_DURATION => RequestedAttribute::ActivityDuration,
                 TRANSITION_TIME => RequestedAttribute::TransitionTime,
-                ACTIVITY_FREQUENCY => RequestedAttribute::ActivityFrequency,
                 EDGE_FREQUENCY => RequestedAttribute::EdgeFrequency,
                 REPETITIONS => RequestedAttribute::Repetitions,
                 name => RequestedAttribute::Column {
@@ -1368,23 +1351,16 @@ mod tests {
     }
 
     #[test]
-    fn a_place_one_group_reaches_more_often_is_a_frequency_finding() {
+    fn an_edge_one_group_follows_more_often_is_a_frequency_finding() {
         let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
         let mut half: Vec<Trace> = same_trace(&CASE_IDS[..5], &[("A", 0, 10), ("B", 1, 10)]);
         half.extend(same_trace(&CASE_IDS[5..], &[("A", 0, 10)]));
         let dfg = dfg_with(
             &log(&through_b),
             Some(&log(&half)),
-            &[ACTIVITY_FREQUENCY, EDGE_FREQUENCY],
+            &[EDGE_FREQUENCY],
             false,
         );
-
-        let reach = node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
-            .test
-            .as_ref()
-            .unwrap();
-        assert!(reach.significant);
-        assert_eq!(reach.higher.as_deref(), Some("a"));
 
         let follow = transition(&dfg, "A", "B").attributes[EDGE_FREQUENCY]
             .test
@@ -1396,19 +1372,16 @@ mod tests {
     }
 
     #[test]
-    fn a_place_one_group_never_reaches_has_no_frequency_test() {
+    fn an_edge_one_group_never_follows_has_no_frequency_test() {
         let through_b = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
         let a_only = same_trace(&CASE_IDS, &[("A", 0, 10)]);
         let dfg = dfg_with(
             &log(&through_b),
             Some(&log(&a_only)),
-            &[ACTIVITY_FREQUENCY, EDGE_FREQUENCY],
+            &[EDGE_FREQUENCY],
             false,
         );
 
-        assert!(node(&dfg, "B").attributes[ACTIVITY_FREQUENCY]
-            .test
-            .is_none());
         assert!(transition(&dfg, "A", "B").attributes[EDGE_FREQUENCY]
             .test
             .is_none());
@@ -1421,17 +1394,17 @@ mod tests {
     }
 
     #[test]
-    fn a_place_every_case_reaches_has_no_frequency_test() {
-        let a = same_trace(&CASE_IDS, &[("A", 0, 10)]);
-        let dfg = dfg_with(&log(&a), Some(&log(&a)), &[ACTIVITY_FREQUENCY], false);
+    fn an_edge_every_case_follows_has_no_frequency_test() {
+        let a = same_trace(&CASE_IDS, &[("A", 0, 10), ("B", 1, 10)]);
+        let dfg = dfg_with(&log(&a), Some(&log(&a)), &[EDGE_FREQUENCY], false);
 
-        let reach = &node(&dfg, "A").attributes[ACTIVITY_FREQUENCY];
-        assert!(reach.test.is_none());
-        let Summary::Categorical { counts, .. } = &reach.summaries["a"] else {
+        let follow = &transition(&dfg, "A", "B").attributes[EDGE_FREQUENCY];
+        assert!(follow.test.is_none());
+        let Summary::Categorical { counts, .. } = &follow.summaries["a"] else {
             panic!("a frequency is categorical");
         };
-        assert_eq!(counts["Reached"], 10);
-        assert!(!counts.contains_key("Not reached"));
+        assert_eq!(counts["Followed"], 10);
+        assert!(!counts.contains_key("Not followed"));
     }
 
     #[test]

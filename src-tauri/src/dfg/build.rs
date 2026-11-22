@@ -92,9 +92,7 @@ pub(super) fn plan(
                 column: DURATION.to_string(),
             }),
             RequestedAttribute::ActivityDuration => {}
-            RequestedAttribute::ActivityFrequency
-            | RequestedAttribute::EdgeFrequency
-            | RequestedAttribute::Repetitions => {}
+            RequestedAttribute::EdgeFrequency | RequestedAttribute::Repetitions => {}
             RequestedAttribute::Column { name } => {
                 let Some(column) = mapping.iter().find(|column| &column.name == name) else {
                     continue;

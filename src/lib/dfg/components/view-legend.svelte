@@ -33,12 +33,12 @@
 
   const comparing = $derived(groups.length > 1);
   const split = $derived(splitting(groups.length));
+  const bar = $derived(comparing && !split && view.nodeBar !== "off");
   const built = $derived(builtAttributes(graph));
   const figure = $derived(nodeFigure(view, figureAttributes(graph)));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   const stat = $derived(view.statistic === "median" ? "Median" : "Mean");
-  const tint = shade("group-original", null);
-  const shades = [0, 0.5, 1].map((step) => shade("group-original", step));
+  const tint = shade("group-original");
 
   /** Made-up figures for the drawing, sized to fit it. */
   function samples(figure: NodeFigure): string[] {
@@ -128,18 +128,15 @@
   {/if}
 {/snippet}
 
-{#snippet shadeGlyph()}
-  <span class="flex gap-1">
-    {#each shades as step, index (index)}
-      <span
-        class="box-border size-4.5 rounded-[0.25rem] border"
-        style="background:{step.fill};border-color:{step.border}"
-      ></span>
+{#snippet barGlyph()}
+  <span class="bg-muted flex h-1.5 w-15.5 overflow-hidden">
+    {#each groups as group, index (group.id)}
+      <span style="width:{index === 0 ? 60 : 40}%;background:var(--{group.color})"></span>
     {/each}
   </span>
 {/snippet}
-{#snippet shadeTitle()}
-  Darker = more {view.measure}
+{#snippet barTitle()}
+  Split between groups
 {/snippet}
 
 {#snippet edgeGlyph()}
@@ -240,7 +237,15 @@
           nodeTitle,
           comparing ? "One figure per group, in toolbar order" : "Under the activity name"
         )}
-        {@render row(shadeGlyph, shadeTitle, "Shaded against every activity drawn")}
+        {#if bar}
+          {@render row(
+            barGlyph,
+            barTitle,
+            view.nodeBar === "adjusted"
+              ? `Each group's ${view.measure} per case it holds`
+              : `Each group's share of the ${view.measure} at the activity`
+          )}
+        {/if}
         {#if edgeLabel !== "off"}
           {@render row(edgeGlyph, edgeLabelTitle, comparing ? `${edgeSub}, per group` : edgeSub)}
         {/if}

@@ -5,7 +5,7 @@
  * alone reaches has nothing to compare against.
  */
 import type { Counts, Method, PlaceBlock, ResponseDfg } from "$lib/dfg/invokers/types";
-import { ACTIVITY_FREQUENCY, EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
+import { EDGE_FREQUENCY, REPETITIONS } from "$lib/dfg/types";
 import { edgeId, type LitPath } from "$lib/dfg/utils/fold";
 import type { Simplified } from "$lib/dfg/utils/simplify";
 import { formatDecimal } from "$lib/format";
@@ -148,23 +148,56 @@ const HELD = "Held";
 
 /** The category a frequency counts its hits under. Mirrors `src-tauri/src/dfg/mod.rs`. */
 const HIT: Record<string, string> = {
-  [ACTIVITY_FREQUENCY]: "Reached",
   [EDGE_FREQUENCY]: "Followed",
   [REPETITIONS]: "More than once"
 };
 
 const VERB: Record<string, string> = {
-  [ACTIVITY_FREQUENCY]: "more often",
   [EDGE_FREQUENCY]: "more often",
   [REPETITIONS]: "more often runs it more than once"
 };
 
 /**
- * The verdict of a test the DFG words on its own, with the figures in the order
- * the Groups are compared: "Group 2 more often · 72% vs 65%" for a frequency
- * or a value, "Group 1 more often runs it more than once · 42% vs 18%" for
- * Repetitions. `null` for any other attribute or a test that did not come out
- * significant.
+ * The category a two-by-two counts its hits under: what a frequency, Repetitions
+ * or a value's test compares the share of. `null` for any other attribute.
+ */
+export function hitCategory(finding: Pick<Finding, "attribute" | "value">): string | null {
+  return finding.value === null ? (HIT[finding.attribute] ?? null) : HELD;
+}
+
+/**
+ * Each Group's share of its cases in `hit`, from 0 to 1, keyed by Group id,
+ * with the cases counted in it and out of. A Group with no cases reads 0 of 0.
+ */
+export function hitShares(
+  block: PlaceBlock,
+  hit: string,
+  groups: { id: string }[]
+): Record<string, { share: number; hits: number; n: number }> {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const summary = block.summaries[group.id];
+      if (summary?.type !== "categorical" || summary.n === 0) {
+        return [group.id, { share: 0, hits: 0, n: 0 }];
+      }
+      const hits = summary.counts[hit] ?? 0;
+      return [group.id, { share: hits / summary.n, hits, n: summary.n }];
+    })
+  );
+}
+
+/** A share from 0 to 1 as a whole percent, keeping one decimal below 10% so a rare step keeps its ratio. */
+export function sharePercent(share: number): string {
+  const percent = share * 100;
+  return `${percent < 10 ? formatDecimal(percent, 1) : Math.round(percent)}%`;
+}
+
+/**
+ * The verdict of a test the DFG words on its own, the higher Group first and
+ * each figure beside its Group: "Night more often · 34% vs Day 16%" for a
+ * frequency or a value, "Night more often runs it more than once · 30% vs Day
+ * 10%" for Repetitions. `null` for any other attribute or a test that did not
+ * come out significant.
  */
 export function builtInVerdict(
   finding: Pick<Finding, "attribute" | "value" | "block">,
@@ -172,17 +205,15 @@ export function builtInVerdict(
 ): string | null {
   const { attribute, block } = finding;
   if (!block.test?.significant) return null;
-  const hit = finding.value === null ? HIT[attribute] : HELD;
+  const hit = hitCategory(finding);
   const higher = groups.find((group) => group.id === block.test?.higher);
-  if (hit === undefined || !higher) return null;
-  const shares = groups.map((group) => {
-    const summary = block.summaries[group.id];
-    if (summary?.type !== "categorical" || summary.n === 0) return "0%";
-    const share = ((summary.counts[hit] ?? 0) / summary.n) * 100;
-    return `${share < 10 ? formatDecimal(share, 1) : Math.round(share)}%`;
-  });
+  if (hit === null || !higher) return null;
+  const shares = hitShares(block, hit, groups);
+  const others = groups
+    .filter((group) => group.id !== higher.id)
+    .map((group) => `${group.name} ${sharePercent(shares[group.id].share)}`);
   const verb = finding.value === null ? VERB[attribute] : "more often";
-  return `${higher.name} ${verb} · ${shares.join(" vs ")}`;
+  return `${higher.name} ${verb} · ${sharePercent(shares[higher.id].share)} vs ${others.join(" vs ")}`;
 }
 
 /**
@@ -209,16 +240,30 @@ const METHOD_NAMES: Record<Method, string> = {
   fisher: "Fisher's exact test"
 };
 
-/** The Significance Test in full. The p shown is before the correction across places. */
-export function placeTestLine(block: PlaceBlock, groups: { id: string; name: string }[]): string {
+/**
+ * How much larger the larger median is than the smaller one, as a whole
+ * percent: "+80%". `null` without two Groups' numbers or with a median at or
+ * below zero.
+ */
+export function medianIncrease(block: PlaceBlock, groups: { id: string }[]): string | null {
+  const medians = groups.map((group) => {
+    const summary = block.summaries[group.id];
+    return summary?.type === "numerical" ? summary.median : null;
+  });
+  if (medians.length < 2 || medians.some((median) => median === null || median <= 0)) return null;
+  const known = medians as number[];
+  const increase = Math.max(...known) / Math.min(...known) - 1;
+  return `+${Math.round(increase * 100)}%`;
+}
+
+/** The Significance Test, its p before the correction across places and its effect size. */
+export function placeTestLine(block: PlaceBlock): string {
   const test = block.test;
   if (!test) return "";
   const name = METHOD_NAMES[block.method ?? (test.test === "chi2" ? "chi2" : "mannWhitney")];
-  const effect = test.test === "chi2" ? "phi or Cramér's V" : "rank-biserial r";
-  const higher = groups.find((group) => group.id === test.higher);
-  const direction = higher && test.significant ? ` · ${higher.name} higher` : "";
+  const effect = test.test === "chi2" ? "Cramér's V" : "rank-biserial r";
   const p = test.pValue === 0 ? "p < 1e-15" : `p = ${formatPValue(test.pValue)}`;
-  return `${name} · ${p} before correcting across places · ${effect} ${test.effectSize.toFixed(2)}${direction}`;
+  return `${name} · ${p} · ${effect} ${test.effectSize.toFixed(2)}`;
 }
 
 /** Every place that carries at least one finding, by `placeKey`. */
