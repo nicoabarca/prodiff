@@ -10,6 +10,7 @@ import {
   builtInVerdict,
   benjaminiHochberg,
   graphFindings,
+  hitShares,
   placeTestLine,
   nodeDifferences,
   rank,
@@ -229,10 +230,10 @@ describe("builtInVerdict", () => {
     method: "chi2"
   });
 
-  it("names the Group that follows it more often, with both shares in order", () => {
+  it("names the Group that follows it more often first, each share beside its Group", () => {
     expect(
       builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: follow("a") }, groups)
-    ).toBe("Day more often · 72% vs 60%");
+    ).toBe("Day more often · 72% vs Night 60%");
   });
 
   it("keeps a decimal on a share below 10%, so a rare step keeps its ratio", () => {
@@ -244,7 +245,7 @@ describe("builtInVerdict", () => {
       }
     };
     expect(builtInVerdict({ attribute: EDGE_FREQUENCY, value: null, block: rare }, groups)).toMatch(
-      /^Day more often · 2[.,]6% vs 0[.,]9%$/
+      /^Day more often · 2[.,]6% vs Night 0[.,]9%$/
     );
   });
 
@@ -255,6 +256,23 @@ describe("builtInVerdict", () => {
     expect(
       builtInVerdict({ attribute: "Amount", value: null, block: follow("a") }, groups)
     ).toBeNull();
+  });
+});
+
+describe("hitShares", () => {
+  it("reads each Group's share of its cases in the category, with the counts", () => {
+    const block: PlaceBlock = {
+      summaries: {
+        a: { type: "categorical", n: 4000, counts: { Followed: 628, "Not followed": 3372 } },
+        b: { type: "categorical", n: 0, counts: {} }
+      },
+      test: null,
+      method: null
+    };
+    expect(hitShares(block, "Followed", [{ id: "a" }, { id: "b" }])).toEqual({
+      a: { share: 0.157, hits: 628, n: 4000 },
+      b: { share: 0, hits: 0, n: 0 }
+    });
   });
 });
 
@@ -274,7 +292,7 @@ describe("builtInVerdict on Repetitions", () => {
       method: "chi2"
     };
     expect(builtInVerdict({ attribute: REPETITIONS, value: null, block: block }, groups)).toBe(
-      "Day more often runs it more than once · 42% vs 18%"
+      "Day more often runs it more than once · 42% vs Night 18%"
     );
   });
 });
@@ -315,7 +333,7 @@ describe("a categorical attribute", () => {
 
   it("says which Group held the value more often, with both shares", () => {
     expect(builtInVerdict({ attribute: "Who", value: "Ana", block: held(40, 10) }, groups)).toBe(
-      "Day more often · 40% vs 10%"
+      "Day more often · 40% vs Night 10%"
     );
   });
 });

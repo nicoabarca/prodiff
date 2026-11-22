@@ -107,11 +107,22 @@
     </div>
 
     {#if Object.keys(data.split).length > 0}
-      <div class="bg-muted flex h-1.5 w-full overflow-hidden" aria-hidden="true">
-        {#each data.groups as group (group.id)}
-          <span style="width:{(data.split[group.id] ?? 0) * 100}%;background:var(--{group.color})"
-          ></span>
-        {/each}
+      <div class="flex w-full flex-col gap-0.5">
+        <div
+          class="flex justify-between font-mono text-[0.5625rem] leading-none font-medium tabular-nums"
+        >
+          {#each data.groups as group (group.id)}
+            <span style="color:var(--{group.color})">
+              {Math.round((data.split[group.id] ?? 0) * 100)}%
+            </span>
+          {/each}
+        </div>
+        <div class="bg-muted flex h-1.5 w-full overflow-hidden" aria-hidden="true">
+          {#each data.groups as group (group.id)}
+            <span style="width:{(data.split[group.id] ?? 0) * 100}%;background:var(--{group.color})"
+            ></span>
+          {/each}
+        </div>
       </div>
     {/if}
 

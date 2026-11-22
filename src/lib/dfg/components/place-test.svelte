@@ -18,7 +18,15 @@
   import { isPointed, point } from "$lib/dfg/state/view.svelte";
   import { placeOutliers } from "$lib/dfg/state/dfg.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import { builtInVerdict, placeTestLine, unanimous, type Finding } from "$lib/dfg/utils/findings";
+  import GroupShares from "$lib/dfg/components/group-shares.svelte";
+  import {
+    builtInVerdict,
+    hitCategory,
+    hitShares,
+    placeTestLine,
+    unanimous,
+    type Finding
+  } from "$lib/dfg/utils/findings";
   import { colorVar } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { cn } from "$lib/utils";
@@ -63,6 +71,8 @@
   const duration = $derived(isDurationAttribute(finding.attribute));
   const higher = $derived(higherGroup(block.test, groups));
   const differs = $derived(block.test?.significant ?? false);
+  /** The category a two-by-two compares the share of, drawn as one bar per Group. */
+  const hit = $derived(hitCategory(finding));
 
   /** What the attribute measures at this place, for the ones whose name does not say. */
   const caption = $derived.by(() => {
@@ -73,8 +83,11 @@
     switch (finding.attribute) {
       case TRANSITION_TIME:
         return `Time waited on the edge ${label}.`;
-      case EDGE_FREQUENCY:
-        return `Share of each group's cases that follow ${label}.`;
+      case EDGE_FREQUENCY: {
+        if (finding.place.kind !== "edge") return null;
+        const [source, target] = label.split(" → ");
+        return `Of each group's cases that reach ${source}, the share that go straight on to ${target}. A case that passes ${source} several times can take several ways out, so the ways out can add up to more than 100%.`;
+      }
       case REPETITIONS:
         return `Share of the cases that reach ${label} and run it more than once.`;
       default:
@@ -174,12 +187,16 @@
       {#if caption}
         <p class="text-muted-foreground text-[0.625rem]">{caption}</p>
       {/if}
-      <SummaryCompare
-        summaries={block.summaries}
-        {duration}
-        load={placeOutliers(finding.place, finding.attribute)}
-        title={attributeLabel(finding.attribute)}
-      />
+      {#if hit !== null}
+        <GroupShares shares={hitShares(block, hit, groups)} {groups} />
+      {:else}
+        <SummaryCompare
+          summaries={block.summaries}
+          {duration}
+          load={placeOutliers(finding.place, finding.attribute)}
+          title={attributeLabel(finding.attribute)}
+        />
+      {/if}
       {#if !block.test}
         <p class="text-muted-foreground text-[0.625rem]">
           {unanimous(block, groups) ?? untestable(block, groups)}

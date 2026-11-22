@@ -60,7 +60,10 @@
     onChooseAttributes: () => void;
   } = $props();
 
-  let onlyDifferences = $state(false);
+  let onlyDifferences = $state(true);
+
+  /** The attributes whose places without a difference are shown under Only differences. */
+  const revealed = new SvelteSet<string>();
 
   const tested = $derived(findings.filter((finding) => finding.block.test).length);
   const significant = $derived(
@@ -104,7 +107,7 @@
     untrack(() => {
       const attribute = finding.attribute;
       opened.add(attribute);
-      if (!finding.block.test?.significant) onlyDifferences = false;
+      if (!finding.block.test?.significant) revealed.add(attribute);
     });
   });
 
@@ -240,9 +243,11 @@
       {#each attributes as row (row.attribute)}
         {@const open = isOpen(row.attribute)}
         {@const share = row.tested > 0 ? (row.significant / row.tested) * 100 : 0}
-        {@const places = onlyDifferences
+        {@const hiding = onlyDifferences && !revealed.has(row.attribute)}
+        {@const places = hiding
           ? row.places.filter((finding) => finding.block.test?.significant)
           : row.places}
+        {@const hidden = row.places.length - places.length}
         <Collapsible.Root
           {open}
           onOpenChange={() =>
@@ -287,6 +292,24 @@
                 No place on the graph differs on this attribute.
               </p>
             {/each}
+            {#if hidden > 0}
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-foreground border-border w-full cursor-pointer border-t px-6 py-2 text-left text-[0.6875rem] underline"
+                onclick={() => revealed.add(row.attribute)}
+              >
+                Show {hidden}
+                {hidden === 1 ? "place" : "places"} without a difference
+              </button>
+            {:else if hiding === false && onlyDifferences && row.places.some((finding) => !finding.block.test?.significant)}
+              <button
+                type="button"
+                class="text-muted-foreground hover:text-foreground border-border w-full cursor-pointer border-t px-6 py-2 text-left text-[0.6875rem] underline"
+                onclick={() => revealed.delete(row.attribute)}
+              >
+                Hide the places without a difference
+              </button>
+            {/if}
           </Collapsible.Content>
         </Collapsible.Root>
       {/each}

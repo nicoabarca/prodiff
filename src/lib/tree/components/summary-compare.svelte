@@ -163,7 +163,9 @@
           <span class="font-semibold">{delta.leader}</span>
           {delta.word} by {delta.amount} at the median
           {#if delta.percent !== null}
-            <span class="text-muted-foreground">· {Math.abs(delta.percent).toFixed(0)}%</span>
+            <span class="text-muted-foreground">
+              · {Math.abs(delta.percent).toFixed(0)}% {delta.word}
+            </span>
           {/if}
         {/if}
       </p>
