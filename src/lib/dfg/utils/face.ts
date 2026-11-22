@@ -7,7 +7,7 @@ import { formatDuration, formatNumber } from "$lib/format";
 import { TRANSITION_TIME } from "$lib/analysis/attributes";
 import type { AttributeBlock } from "$lib/analysis/types";
 import type { Counts, ResponseDfg } from "$lib/dfg/invokers/types";
-import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
+import type { EdgeLabel, FaceGroup, Measure } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
@@ -39,16 +39,21 @@ export function faceCounts(
 }
 
 /**
- * The figure a node's shade is drawn from: its union across the Groups in the
- * measure shown. `null` for Start and End, and where nothing reached it.
+ * The share of each Group's cases that reach an activity, from 0 to 1, keyed
+ * by Group id: what a node's bars are drawn to, and what Activity Frequency
+ * tests. A Group holding no cases reads 0.
  */
-export function shadeValue(
-  node: { kind: NodeKind; counts: Record<string, Counts> },
-  measure: Measure
-): number | null {
-  if (node.kind !== "activity") return null;
-  const total = unionCount(node.counts, measure);
-  return total === 0 ? null : total;
+export function reachShares(
+  counts: Record<string, Counts>,
+  groups: FaceGroup[],
+  caseCounts: Map<string, number>
+): Record<string, number> {
+  return Object.fromEntries(
+    groups.map((group) => {
+      const total = caseCounts.get(group.id) ?? 0;
+      return [group.id, total === 0 ? 0 : (counts[group.id]?.cases ?? 0) / total];
+    })
+  );
 }
 
 /** Edge thickness, between 1.5 and 8, scaled against the busiest edge drawn. */
@@ -223,8 +228,7 @@ export function busiest(of: { counts: Record<string, Counts> }[], measure: Measu
 /**
  * One Group's counts divided by how many cases that Group holds: the share of
  * its cases for `cases`, events per case for `events`. What a split panel
- * shades and thickens by, so a Group ten times larger does not draw ten times
- * thicker.
+ * thickens by, so a Group ten times larger does not draw ten times thicker.
  */
 export function perCase(
   counts: Record<string, Counts>,

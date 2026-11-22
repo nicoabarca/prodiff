@@ -29,10 +29,9 @@
     faceCounts,
     membership,
     perCase,
-    shadeValue,
+    reachShares,
     transitionsById
   } from "$lib/dfg/utils/face";
-  import { shadeSteps } from "$lib/groups/utils/shade";
   import { builtAttributes, paintedAttribute, shownEdgeLabel } from "$lib/dfg/utils/display";
   import { faded } from "$lib/dfg/utils/emphasis";
   import { figureAttributes, nodeFigure, nodeFigures } from "$lib/dfg/utils/figure";
@@ -102,7 +101,7 @@
   const caseCounts = $derived(new Map(graph.groups.map((group) => [group.id, group.caseCount])));
 
   /**
-   * The counts a panel shades and thickens by. A split panel narrows them to
+   * The counts a panel thickens edges by. A split panel narrows them to
    * its one Group, per case of that Group, and ranks them against every
    * Group's, so both panels draw on one scale.
    */
@@ -273,34 +272,12 @@
       })
     );
 
-    // A split panel shades against every Group's figures, then keeps its own.
-    const shadedIds: (string | null)[] = focus === null ? [null] : [...caseCounts.keys()];
-    const allSteps = shadeSteps(
-      shadedIds.flatMap((id) =>
-        simplified.nodes.map((node) =>
-          shadeValue(
-            {
-              ...node,
-              counts: id === null ? node.counts : { [id]: perCase(node.counts, id, caseCounts) }
-            },
-            view.measure
-          )
-        )
-      ),
-      "log"
-    );
-    const own = focus === null ? 0 : shadedIds.indexOf(focus);
-    const steps = allSteps.slice(
-      own * simplified.nodes.length,
-      (own + 1) * simplified.nodes.length
-    );
-
     // A split panel draws only what its own Group reaches. The box stays in the
     // placement either way, so dropping it here never moves the rest.
     const unreachedNode = (counts: Record<string, Counts>) =>
       focus !== null && (counts[focus]?.cases ?? 0) === 0;
 
-    const nodes: Node[] = simplified.nodes.flatMap((node, index) => {
+    const nodes: Node[] = simplified.nodes.flatMap((node) => {
       const box = boxes.get(node.id);
       if (!box) return [];
       if (unreachedNode(node.counts)) return [];
@@ -330,7 +307,7 @@
                     shown
                   )
                 : faceCounts(node.counts, shown, view.measure),
-            shadeStep: steps[index],
+            reach: node.kind === "activity" ? reachShares(node.counts, shown, caseCounts) : {},
             differences: differences.get(node.id) ?? null,
             membership: focus === null ? owner : owner === focus ? focus : null,
             selected: selected.id === node.id,

@@ -113,15 +113,17 @@ export interface FaceGroup {
  * `focus` names the one Group a split panel prints; `null` is the comparative
  * canvas, which prints every Group it was given. `membership` is the Group whose
  * accent the node reads in, `null` being the Original's grey: on a split panel
- * only an activity that Group alone reaches carries an accent. `added` is the
- * slider move that added the node, which it glows for, or 0.
+ * only an activity that Group alone reaches carries an accent. `reach` is the
+ * share of each Group's cases reaching an activity, from 0 to 1, empty for Start
+ * and End. `added` is the slider move that added the node, which it glows for,
+ * or 0.
  */
 export interface DfgNodeData {
   label: string;
   kind: NodeKind;
   groups: FaceGroup[];
   counts: Record<string, string | null>;
-  shadeStep: number | null;
+  reach: Record<string, number>;
   differences: NodeDifferences | null;
   membership: string | null;
   selected: boolean;

@@ -15,7 +15,7 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const tint = $derived(shade(accent, null));
+  const tint = $derived(shade(accent));
   const reaching = $derived(data.groups.filter((group) => (data.cases[group.id] ?? 0) > 0));
   const shared = $derived(reaching.length > 1);
   const total = $derived(reaching.reduce((sum, group) => sum + data.cases[group.id], 0));

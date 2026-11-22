@@ -37,8 +37,7 @@
   const figure = $derived(nodeFigure(view, figureAttributes(graph)));
   const edgeLabel = $derived(shownEdgeLabel(view.edgeLabel, built));
   const stat = $derived(view.statistic === "median" ? "Median" : "Mean");
-  const tint = shade("group-original", null);
-  const shades = [0, 0.5, 1].map((step) => shade("group-original", step));
+  const tint = shade("group-original");
 
   /** Made-up figures for the drawing, sized to fit it. */
   function samples(figure: NodeFigure): string[] {
@@ -128,18 +127,17 @@
   {/if}
 {/snippet}
 
-{#snippet shadeGlyph()}
-  <span class="flex gap-1">
-    {#each shades as step, index (index)}
-      <span
-        class="box-border size-4.5 rounded-[0.25rem] border"
-        style="background:{step.fill};border-color:{step.border}"
-      ></span>
+{#snippet barGlyph()}
+  <span class="flex w-15.5 flex-col gap-0.5">
+    {#each groups as group, index (group.id)}
+      <span class="bg-muted flex h-1 w-full overflow-hidden">
+        <span style="width:{[70, 45][index] ?? 70}%;background:var(--{group.color})"></span>
+      </span>
     {/each}
   </span>
 {/snippet}
-{#snippet shadeTitle()}
-  Darker = more {view.measure}
+{#snippet barTitle()}
+  Share of cases reaching it
 {/snippet}
 
 {#snippet edgeGlyph()}
@@ -240,7 +238,11 @@
           nodeTitle,
           comparing ? "One figure per group, in toolbar order" : "Under the activity name"
         )}
-        {@render row(shadeGlyph, shadeTitle, "Shaded against every activity drawn")}
+        {@render row(
+          barGlyph,
+          barTitle,
+          comparing ? "One bar per group, of all that group's cases" : "Of all the cases"
+        )}
         {#if edgeLabel !== "off"}
           {@render row(edgeGlyph, edgeLabelTitle, comparing ? `${edgeSub}, per group` : edgeSub)}
         {/if}

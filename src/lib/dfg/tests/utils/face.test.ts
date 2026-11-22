@@ -11,7 +11,7 @@ import {
   edgeWait,
   faceCounts,
   perCase,
-  shadeValue
+  reachShares
 } from "$lib/dfg/utils/face";
 
 describe("faceCounts", () => {
@@ -32,26 +32,36 @@ describe("faceCounts", () => {
   });
 });
 
-describe("shadeValue", () => {
-  const counts = {
-    a: { cases: 3, events: 9 },
-    b: { cases: 2, events: 4 }
-  };
+describe("reachShares", () => {
+  const groups = [
+    { id: "a", name: "Large", color: "group-2" },
+    { id: "b", name: "Small", color: "group-3" }
+  ];
 
-  it("is the union across the Groups in the measure shown", () => {
-    expect(shadeValue({ kind: "activity", counts }, "cases")).toBe(5);
-    expect(shadeValue({ kind: "activity", counts }, "events")).toBe(13);
+  it("divides each Group's cases reaching the activity by that Group's own cases", () => {
+    const shares = reachShares(
+      { a: { cases: 500, events: 900 }, b: { cases: 50, events: 60 } },
+      groups,
+      new Map([
+        ["a", 1000],
+        ["b", 100]
+      ])
+    );
+
+    expect(shares).toEqual({ a: 0.5, b: 0.5 });
   });
 
-  it("is missing for Start and End", () => {
-    expect(shadeValue({ kind: "start", counts }, "cases")).toBeNull();
-    expect(shadeValue({ kind: "end", counts }, "cases")).toBeNull();
-  });
+  it("reads 0 for a Group that never reaches it or holds no cases", () => {
+    const shares = reachShares(
+      { a: { cases: 3, events: 3 } },
+      groups,
+      new Map([
+        ["a", 0],
+        ["b", 10]
+      ])
+    );
 
-  it("is missing where nothing reached the node", () => {
-    expect(
-      shadeValue({ kind: "activity", counts: { a: { cases: 0, events: 0 } } }, "cases")
-    ).toBeNull();
+    expect(shares).toEqual({ a: 0, b: 0 });
   });
 });
 

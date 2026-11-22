@@ -15,7 +15,7 @@
   const accent = $derived(
     data.groups.find((group) => group.id === data.membership)?.color ?? "group-original"
   );
-  const shaded = $derived(shade(accent, data.shadeStep));
+  const tint = $derived(shade(accent));
   /** On a split panel, an activity this panel's Group alone reaches. */
   const only = $derived(data.focus !== null && data.membership === data.focus);
 </script>
@@ -78,15 +78,15 @@
       : ''} {data.dimmed ? 'opacity-25' : ''} {data.highlighted
       ? 'shadow-[0_0_1rem_0.25rem_rgba(99,102,241,0.55)]'
       : ''}"
-    style="background:{shaded.fill};border-color:{data.highlighted
+    style="background:{tint.fill};border-color:{data.highlighted
       ? 'var(--color-indigo-500)'
-      : shaded.border};border-width:{data.highlighted ? '0.125rem' : ''}"
+      : tint.border};border-width:{data.highlighted ? '0.125rem' : ''}"
   >
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">
         <span
           class="line-clamp-2 text-[0.6875rem] leading-tight font-medium"
-          style="color:{shaded.ink ?? `var(--${accent})`}"
+          style="color:var(--{accent})"
         >
           {data.label}
         </span>
@@ -101,19 +101,17 @@
     <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
       {#each data.groups as group (group.id)}
         {#if data.counts[group.id]}
-          <span
-            class="flex items-center gap-1"
-            style="color:{shaded.ink ?? `var(--${group.color})`}"
-          >
-            {#if shaded.ink}
-              <span
-                class="size-1.5 rounded-full ring-1 ring-white/70"
-                style="background:var(--{group.color})"
-              ></span>
-            {/if}
-            {data.counts[group.id]}
-          </span>
+          <span style="color:var(--{group.color})">{data.counts[group.id]}</span>
         {/if}
+      {/each}
+    </div>
+
+    <div class="flex w-full flex-col gap-0.5" aria-hidden="true">
+      {#each data.groups as group (group.id)}
+        <div class="bg-muted flex h-1 w-full overflow-hidden">
+          <span style="width:{(data.reach[group.id] ?? 0) * 100}%;background:var(--{group.color})"
+          ></span>
+        </div>
       {/each}
     </div>
 
