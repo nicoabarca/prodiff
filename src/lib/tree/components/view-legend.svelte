@@ -6,16 +6,17 @@
    * those settings can be changed with it in view.
    */
   import type { Snippet } from "svelte";
-  import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
+  import { isDurationAttribute } from "$lib/analysis/attributes";
   import { Button } from "$lib/components/ui/button/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { shade } from "$lib/groups/utils/shade";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { hasSignificant } from "$lib/tree/utils/effect";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
+  import { edgeEffect, effectColor, hasSignificant } from "$lib/tree/utils/effect";
   import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/tree/utils/figure";
-  import { visibleNodes } from "$lib/tree/utils/tree";
+  import { hasTransitionTime, visibleNodes } from "$lib/tree/utils/tree";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
   import Info from "@lucide/svelte/icons/info";
@@ -47,10 +48,9 @@
     return tree.nodes.filter((node) => visible.ids.has(node.id));
   });
 
-  const edgeLabels = $derived(
-    view.edgeLabels && attributes.some((attribute) => attribute.name === TRANSITION_TIME)
-  );
+  const edgeLabels = $derived(view.edgeLabels && hasTransitionTime(tree));
   const significant = $derived(drawn.some(hasSignificant));
+  const edgeFinding = $derived(drawn.some((node) => edgeEffect(node) !== null));
 
   const focusName = $derived.by(() => {
     if (!comparing) return null;
@@ -123,19 +123,34 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex gap-1">
-    {#each [{ count: 2, step: 2 }, { count: 1, step: 4 }] as badge (badge.step)}
-      <span
-        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
-        style="background:var(--effect-{badge.step});color:var(--effect-{badge.step}-foreground)"
-      >
-        {badge.count}
-      </span>
-    {/each}
+  <span class="flex items-center gap-1">
+    <span
+      class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+      style="background:{effectColor(3).fill};color:{effectColor(3).ink}"
+    >
+      2
+    </span>
+    <EffectMeter step={3} vertical />
   </span>
 {/snippet}
 {#snippet badgeTitle()}
   Significant differences
+{/snippet}
+
+{#snippet edgeFindingGlyph()}
+  <span class="flex items-center gap-1.25">
+    <span class="h-8 w-0.5" style="background:{EDGE}"></span>
+    <span
+      class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] py-px pr-3 pl-1 font-mono text-[0.5625rem] leading-tight"
+      style="border-color:{effectColor(3).fill}"
+    >
+      62d
+      <EffectMeter step={3} vertical class="absolute -top-1 right-0 translate-x-1/2" />
+    </span>
+  </span>
+{/snippet}
+{#snippet edgeFindingTitle()}
+  Waiting time differs
 {/snippet}
 
 {#snippet startGlyph()}
@@ -178,7 +193,18 @@
           {@render row(widthGlyph, widthTitle, "Thicker lines carry more cases")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this step. Darker = larger effect")}
+          {@render row(
+            badgeGlyph,
+            badgeTitle,
+            "How many at this step. Bars and colour = strongest effect"
+          )}
+        {/if}
+        {#if edgeFinding}
+          {@render row(
+            edgeFindingGlyph,
+            edgeFindingTitle,
+            "Border and bars in the colour of its effect, sand to wine. Click it to compare"
+          )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins here")}
       </div>

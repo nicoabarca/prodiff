@@ -64,31 +64,22 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  /* Group accents: d3-scale-chromatic's schemePaired, in its own order. Same
-       values in both themes. */
-  --group-1: #a6cee3;
+  /* Group accents, in the order new Groups claim them: blue, teal, purple,
+       sky, petrol, mauve. Each sits at least CIEDE2000 16 from every
+       `--effect-*` step and 11 from every other Group, in normal, deuteran,
+       protan and tritan vision. Same values in both themes. */
 
-  --group-2: #1f78b4;
+  --group-2: #5471f5;
 
-  --group-3: #b2df8a;
+  --group-4: #228d77;
 
-  --group-4: #33a02c;
+  --group-6: #802baf;
 
-  --group-5: #fb9a99;
+  --group-8: #30add6;
 
-  --group-6: #e31a1c;
+  --group-10: #004f6a;
 
-  --group-7: #fdbf6f;
-
-  --group-8: #ff7f00;
-
-  --group-9: #cab2d6;
-
-  --group-10: #6a3d9a;
-
-  --group-11: #ffff99;
-
-  --group-12: #b15928;
+  --group-12: #ab7aa0;
 
   /* The Original stays grey. */
   --group-original: oklch(0.45 0.007 85);
@@ -98,19 +89,16 @@
   /* How long a tree node takes to fade between drawn and dimmed. */
   --tree-dim-duration: 300ms;
 
-  /* Effect magnitude: a sequential ramp, one hue. The foreground flips at step
-       3, where dark text stops carrying. */
-  --effect-1: oklch(0.95 0.035 25);
-  --effect-1-foreground: oklch(0.42 0.16 25);
-
-  --effect-2: oklch(0.88 0.08 25);
-  --effect-2-foreground: oklch(0.4 0.17 25);
-
-  --effect-3: oklch(0.55 0.2 25);
-  --effect-3-foreground: oklch(0.99 0.01 25);
-
-  --effect-4: oklch(0.43 0.17 25);
-  --effect-4-foreground: oklch(0.99 0.01 25);
+  /* A significant difference, one step per effect band: negligible, small,
+       moderate, large. Each foreground is the ink on its own fill. */
+  --effect-1: oklch(0.82 0.09 60);
+  --effect-2: oklch(0.72 0.14 48);
+  --effect-3: oklch(0.6 0.18 32);
+  --effect-4: oklch(0.45 0.16 22);
+  --effect-foreground-1: oklch(0.24 0.04 55);
+  --effect-foreground-2: oklch(0.2 0.04 45);
+  --effect-foreground-3: oklch(0.99 0.01 32);
+  --effect-foreground-4: oklch(0.99 0.01 22);
 
   --radius: 0rem;
 
@@ -182,17 +170,14 @@
 
   --tree-enter: oklch(0.673 0.182 276.935);
 
-  --effect-1: oklch(0.28 0.05 25);
-  --effect-1-foreground: oklch(0.85 0.07 25);
-
-  --effect-2: oklch(0.37 0.11 25);
-  --effect-2-foreground: oklch(0.93 0.05 25);
-
-  --effect-3: oklch(0.65 0.19 25);
-  --effect-3-foreground: oklch(0.16 0.03 25);
-
-  --effect-4: oklch(0.75 0.16 25);
-  --effect-4-foreground: oklch(0.16 0.03 25);
+  --effect-1: oklch(0.85 0.08 62);
+  --effect-2: oklch(0.76 0.13 50);
+  --effect-3: oklch(0.67 0.17 34);
+  --effect-4: oklch(0.57 0.17 22);
+  --effect-foreground-1: oklch(0.2 0.04 60);
+  --effect-foreground-2: oklch(0.18 0.04 50);
+  --effect-foreground-3: oklch(0.16 0.03 34);
+  --effect-foreground-4: oklch(0.99 0.01 22);
 
   --sidebar: oklch(0.205 0 0);
 
@@ -242,27 +227,15 @@
 
   --color-chart-1: var(--chart-1);
 
-  --color-group-1: var(--group-1);
-
   --color-group-2: var(--group-2);
-
-  --color-group-3: var(--group-3);
 
   --color-group-4: var(--group-4);
 
-  --color-group-5: var(--group-5);
-
   --color-group-6: var(--group-6);
-
-  --color-group-7: var(--group-7);
 
   --color-group-8: var(--group-8);
 
-  --color-group-9: var(--group-9);
-
   --color-group-10: var(--group-10);
-
-  --color-group-11: var(--group-11);
 
   --color-group-12: var(--group-12);
 

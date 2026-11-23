@@ -12,10 +12,11 @@
   import { splitting, view } from "$lib/dfg/state/view.svelte";
   import type { FaceGroup } from "$lib/dfg/types";
   import { builtAttributes, shownEdgeLabel } from "$lib/dfg/utils/display";
-  import { EFFECT_STROKE } from "$lib/dfg/utils/face";
   import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
   import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { shade } from "$lib/groups/utils/shade";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
+  import { effectColor, type EffectStep } from "$lib/tree/utils/effect";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -31,6 +32,7 @@
 
   let open = $state(false);
 
+  const STEPS: EffectStep[] = [1, 2, 3, 4];
   const comparing = $derived(groups.length > 1);
   const split = $derived(splitting(groups.length));
   const built = $derived(builtAttributes(graph));
@@ -72,8 +74,8 @@
         : "Cases that take this step"
   );
 
-  /** What a red edge differs in, or `null` when no edge is coloured by a test. */
-  const redFor = $derived.by(() => {
+  /** What an edge on the effect ramp differs in, or `null` when no edge is coloured by a test. */
+  const heatFor = $derived.by(() => {
     if (!comparing) return null;
     if (edgeLabel === "waiting") return "Differs in waiting time";
     if (edgeLabel === "frequency" || edgeLabel === "share") {
@@ -172,16 +174,16 @@
   Line width = {view.measure}
 {/snippet}
 
-{#snippet redGlyph()}
+{#snippet heatGlyph()}
   <span class="flex h-7.5 items-stretch gap-1.75">
     <span class="w-0.75" style="background:{EDGE}"></span>
-    {#each Object.values(EFFECT_STROKE) as stroke (stroke)}
-      <span class="w-0.75" style="background:{stroke}"></span>
+    {#each STEPS as step (step)}
+      <span class="w-0.75" style="background:{effectColor(step).fill}"></span>
     {/each}
   </span>
 {/snippet}
-{#snippet redTitle()}
-  {redFor}
+{#snippet heatTitle()}
+  {heatFor}
 {/snippet}
 
 {#snippet ownGlyph()}
@@ -196,15 +198,14 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex gap-1">
-    {#each [{ count: 2, step: 2 }, { count: 1, step: 4 }] as badge (badge.step)}
-      <span
-        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
-        style="background:var(--effect-{badge.step});color:var(--effect-{badge.step}-foreground)"
-      >
-        {badge.count}
-      </span>
-    {/each}
+  <span class="flex items-center gap-1">
+    <span
+      class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+      style="background:{effectColor(3).fill};color:{effectColor(3).ink}"
+    >
+      2
+    </span>
+    <EffectMeter step={3} vertical />
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -247,18 +248,22 @@
         {#if view.edgeWidth === "scaled"}
           {@render row(widthGlyph, widthTitle, `Thicker lines carry more ${view.measure}`)}
         {/if}
-        {#if redFor}
+        {#if heatFor}
           {@render row(
-            redGlyph,
-            redTitle,
-            "Grey: no significant difference. Paler red for a negligible effect, darker for a large one"
+            heatGlyph,
+            heatTitle,
+            "Grey: no significant difference. Sand to wine: a significant one, small to large"
           )}
         {/if}
         {#if comparing && !split}
           {@render row(ownGlyph, ownTitle, "An edge in a group's colour is followed by it alone")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Darker = larger effect")}
+          {@render row(
+            badgeGlyph,
+            badgeTitle,
+            "How many at this activity. Bars and colour = strongest effect"
+          )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins and ends on a dashed edge")}
       </div>

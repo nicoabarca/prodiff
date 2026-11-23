@@ -79,7 +79,6 @@ describe("figureAttributes", () => {
     expect(attributes).toEqual([
       { kind: "number", name: "alpha" },
       { kind: "number", name: "zeta" },
-      { kind: "number", name: TRANSITION_TIME },
       { kind: "category", name: "channel", value: "web" }
     ]);
   });
@@ -140,12 +139,12 @@ describe("nodeFigures", () => {
     expect(nodeFigures(node({ eventLevel }), figure, "median", {}, groups)).toEqual(["3", null]);
   });
 
-  it("formats a duration's statistic and reads Transition Time off its own block", () => {
+  it("never reads Transition Time, which belongs to the edge into the node", () => {
     const transitionTime = { summaries: { b: numerical(60_000, 1_000) }, test: null };
     const figure = { kind: "number", name: TRANSITION_TIME } as const;
     expect(nodeFigures(node({ transitionTime }), figure, "median", {}, groups)).toEqual([
       null,
-      "1s"
+      null
     ]);
   });
 

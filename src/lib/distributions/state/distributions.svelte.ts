@@ -8,7 +8,7 @@ import type { ResponseNodeDistributions } from "$lib/distributions/invokers/type
 import type { Encoding, Scope, Sort } from "$lib/distributions/types";
 import { built, isStale } from "$lib/tree/state/build.svelte";
 import { comparedIds, relationReady } from "$lib/groups/state/comparison.svelte";
-import { selected } from "$lib/tree/state/tree.svelte";
+import { selectedNode } from "$lib/tree/state/tree.svelte";
 import { nodeDepth, nodeTarget, subtreeVariants, visibleNodes } from "$lib/tree/utils/tree";
 import { treeOutliers } from "$lib/tree/invokers/tree-outliers";
 import type { OutlierLoad } from "$lib/analysis/types";
@@ -115,7 +115,7 @@ let request: {
  */
 export async function loadDistributions(project: Project, attributes: string[]) {
   const tree = built.tree;
-  const nodeId = selected.id;
+  const nodeId = selectedNode();
   if (!tree || nodeId === null || isStale() || attributes.length === 0 || !relationReady()) return;
 
   const depth = nodeDepth(tree, nodeId);

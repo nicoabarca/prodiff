@@ -1,13 +1,13 @@
 <script lang="ts">
   import { built } from "$lib/tree/state/build.svelte";
-  import { selected } from "$lib/tree/state/tree.svelte";
+  import { selectedNode } from "$lib/tree/state/tree.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import JsonInspector from "$lib/devtools/components/json-inspector.svelte";
   import { findNode, treeSummary } from "$lib/devtools/tree/utils/inspect";
 
   let { tree }: { tree: ResponseDirectedTree } = $props();
 
-  const node = $derived(findNode(tree, selected.id));
+  const node = $derived(findNode(tree, selectedNode()));
 
   const tabs = $derived([
     { value: "tree", label: "Tree", name: "tree", data: tree, openDepth: 1 },

@@ -32,9 +32,9 @@
     toggleExpanded
   } from "$lib/distributions/state/distributions.svelte";
   import { autoBuild, built, isStale, retryBuild } from "$lib/tree/state/build.svelte";
-  import { selected, settings, view } from "$lib/tree/state/tree.svelte";
+  import { selectedNode, settings, view } from "$lib/tree/state/tree.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import { attributeOptions } from "$lib/analysis/attributes";
+  import { TRANSITION_TIME, attributeOptions } from "$lib/analysis/attributes";
   import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { nodeDepth, stepContext } from "$lib/tree/utils/tree";
   import { untrack } from "svelte";
@@ -47,11 +47,17 @@
   const project = $derived(currentProject());
   const tree = $derived(built.tree);
   const node = $derived(
-    tree && selected.id !== null ? (tree.nodes.find((n) => n.id === selected.id) ?? null) : null
+    tree && selectedNode() !== null
+      ? (tree.nodes.find((n) => n.id === selectedNode()) ?? null)
+      : null
   );
+  const parentLabel = $derived.by(() => {
+    const parent = node?.parent;
+    return parent == null ? null : (tree?.nodes.find((n) => n.id === parent)?.label ?? null);
+  });
 
   $effect(() => {
-    if (project && (!built.tree || selected.id === null)) {
+    if (project && (!built.tree || selectedNode() === null)) {
       goto(`/app/projects/${project.id}/tree`, { replaceState: true });
     }
   });
@@ -131,7 +137,7 @@
   $effect(() => {
     const names = requested.map((card) => card.name);
     void [
-      selected.id,
+      selectedNode(),
       charts.scope,
       built.key,
       view.significantOnly,
@@ -346,6 +352,7 @@
             {#if distribution}
               <DistributionChart
                 attribute={card.name}
+                from={card.name === TRANSITION_TIME ? parentLabel : null}
                 {distribution}
                 test={card.test}
                 {compare}

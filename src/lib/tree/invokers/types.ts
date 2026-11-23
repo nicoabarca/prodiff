@@ -18,6 +18,10 @@ export interface ResponseDirectedTree {
   hasActivityDuration: boolean;
 }
 
+/**
+ * One node of the tree. A node has one parent, so `transitionTime` describes
+ * the edge from the parent into this node, never the node itself.
+ */
 export interface TreeNode {
   id: number;
   parent: number | null;

@@ -72,6 +72,12 @@ export type EffectBand = "negligible" | "small" | "moderate" | "large";
  */
 export type Standing = "finding" | "weak" | "untested";
 
+/**
+ * What the detail panel shows: a node, or the edge into `childId` from its
+ * parent. A tree node has one parent, so its child names the edge.
+ */
+export type TreeSelection = { kind: "node"; id: number } | { kind: "edge"; childId: number };
+
 export interface Visible {
   ids: Set<number>;
   hiddenBelow: Map<number, number>;

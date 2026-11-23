@@ -198,23 +198,13 @@ describe("edgeStroke", () => {
     expect(edgeStroke(both, [], groups)).toBeNull();
   });
 
-  it("reddens with the strongest effect among its significant tests", () => {
-    expect(edgeStroke(both, [wait(test(0.05))], groups)).toContain("var(--effect-3) 40%");
+  it("takes the strongest significant test's step on the effect ramp", () => {
+    expect(edgeStroke(both, [wait(test(0.05))], groups)).toBe("var(--effect-1)");
     expect(edgeStroke(both, [wait(test(0.6))], groups)).toBe("var(--effect-4)");
-    expect(edgeStroke(both, [wait(test(0.05)), wait(test(0.6))], groups)).toBe("var(--effect-4)");
-    expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toContain(
-      "var(--effect-3) 40%"
+    expect(edgeStroke(both, [wait(test(0.35)), wait(test(0.2))], groups)).toBe("var(--effect-3)");
+    expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toBe(
+      "var(--effect-1)"
     );
-  });
-
-  it("takes one stroke per effect band, each redder than the last", () => {
-    const strokes = [0.05, 0.2, 0.4, 0.6].map((effect) =>
-      edgeStroke(both, [wait(test(effect))], groups)
-    );
-    expect(new Set(strokes).size).toBe(4);
-    expect(strokes[0]).toContain("var(--muted-foreground)");
-    expect(strokes[1]).toContain("var(--effect-3) 70%");
-    expect(strokes[2]).toBe("var(--effect-3)");
   });
 });
 
