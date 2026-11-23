@@ -30,7 +30,7 @@ const UNIFORM_EDGE_WIDTH = 1.5;
 // Svelte Flow draws an edge label in a portal outside the edge group, so a
 // class on the edge never reaches it and its dimming rides on this style.
 export const EDGE_LABEL_STYLE =
-  "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--muted-foreground);background:var(--background);padding:0 0.25rem;white-space:nowrap";
+  "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--edge-label);background:var(--background);padding:0 0.25rem;white-space:nowrap";
 
 export function stableKeys(tree: ResponseDirectedTree): Map<number, string> {
   const keys = new Map<number, string>();

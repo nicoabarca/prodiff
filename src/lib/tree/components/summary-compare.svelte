@@ -118,14 +118,18 @@
   });
 
   /**
-   * What the bars encode: the gap with two Groups, plain share with one.
+   * What the bars encode: the size of the gap with two Groups, plain share with one.
    * Colour follows the Group the value leans towards.
    */
   const bars = $derived(
     compare && drawn.length > 1
       ? categories
-          .map((c) => ({ ...c, value: c.gap, side: c.gap < 0 ? drawn[0].id : drawn.at(-1)!.id }))
-          .sort((x, y) => Math.abs(y.value) - Math.abs(x.value))
+          .map((c) => ({
+            ...c,
+            value: Math.abs(c.gap),
+            side: c.gap < 0 ? drawn[0].id : drawn.at(-1)!.id
+          }))
+          .sort((x, y) => y.value - x.value)
       : categories
           .map((c) => ({ ...c, value: c.shares[drawn[0]?.id] ?? 0, side: drawn[0]?.id ?? "" }))
           .sort((x, y) => y.value - x.value)
@@ -140,15 +144,13 @@
    * the longest bar's label clear of the category-name gutter.
    */
   const domain = $derived.by((): [number, number] => {
-    const largest = Math.max(...bars.map((b) => Math.abs(b.value)), 0.1);
-    return compare ? [-largest * 1.55, largest * 1.55] : [0, largest * 1.3];
+    const largest = Math.max(...bars.map((b) => b.value), 0.1);
+    return [0, largest * 1.3];
   });
 
   const barLabel = (value: number) => {
     if (!compare) return `${value.toFixed(1)}%`;
-    // No sign under 0.05: rounding turns a 0.04 gap into a direction it does not have.
-    const sign = Math.abs(value) < 0.05 ? "" : value > 0 ? "+" : "−";
-    return `${sign}${Math.abs(value).toFixed(1)} pp`;
+    return `${Math.abs(value).toFixed(1)} pp`;
   };
 </script>
 
@@ -176,6 +178,7 @@
         formatCount={formatNumber}
         orientation="horizontal"
         contain="window"
+        legend
         {...expansion}
       />
     {/if}
@@ -195,10 +198,10 @@
         <span class="inline-flex min-w-0 items-center gap-1">
           <span class="size-2 shrink-0" style="background:{accent[drawn[0].id]}" aria-hidden="true"
           ></span>
-          <Fit text="◀ {drawn[0].name}" />
+          <Fit text={drawn[0].name} />
         </span>
         <span class="inline-flex min-w-0 items-center gap-1">
-          <Fit text="{drawn.at(-1)?.name} ▶" class="text-right" />
+          <Fit text={drawn.at(-1)?.name ?? ""} class="text-right" />
           <span
             class="size-2 shrink-0"
             style="background:{accent[drawn.at(-1)!.id]}"
@@ -215,13 +218,6 @@
     </div>
 
     <div class="relative">
-      {#if compare}
-        <div
-          class="bg-sidebar pointer-events-none absolute inset-y-0 z-10 w-0.5"
-          style="left:calc(50% + {(PAD_LEFT - PAD_RIGHT) / 2 - 1}px)"
-          aria-hidden="true"
-        ></div>
-      {/if}
       <Chart.Container
         config={{}}
         class="aspect-auto h-[calc(1.375rem*var(--rows))] w-full"

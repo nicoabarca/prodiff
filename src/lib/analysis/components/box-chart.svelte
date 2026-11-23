@@ -56,7 +56,13 @@
   // A label lies along a horizontal axis and stacks up a vertical one, so it
   // needs the room its own text takes in that direction.
   const clearance = $derived(horizontal ? 0.16 : 0.07);
-  const ticks = $derived.by(() =>
+  /** A horizontal plot without the band axis labels its low end on the value axis. */
+  const ticks = $derived.by(() => {
+    const interior = interiorRungs();
+    if (!horizontal || bandLabels || interior === undefined) return interior;
+    return [low, ...interior.filter((value) => position(value) - position(low) >= clearance)];
+  });
+  const interiorRungs = () =>
     interiorTicks(
       low,
       high,
@@ -69,8 +75,7 @@
       format,
       position,
       clearance
-    )
-  );
+    );
   const band = $derived(scaleBand().padding(0.35));
   const chartPadding = $derived(
     padding ??
@@ -106,22 +111,13 @@
   {#snippet children({ context })}
     <Svg>
       {#if horizontal}
-        <Axis
-          placement="left"
-          rule
-          grid={false}
-          format={noLabel}
-          tickLength={bandLabels ? 4 : 0}
-        />
+        {#if bandLabels}
+          <Axis placement="left" rule grid={false} format={noLabel} tickLength={4} />
+        {/if}
         <Axis placement="bottom" grid rule {ticks} {format} />
       {:else}
         <Axis placement="left" grid rule {ticks} {format} />
-        <Axis
-          placement="bottom"
-          rule
-          format={noLabel}
-          tickLength={bandLabels ? 4 : 0}
-        />
+        <Axis placement="bottom" rule format={noLabel} tickLength={bandLabels ? 4 : 0} />
       {/if}
       <ChartClipPath>
         {#each rows as box (box.id)}

@@ -58,6 +58,7 @@
   {drawn}
   highlighted={shownVariant.key}
   canvas="tree"
+  floating
   onStage={setStaged}
   onToggle={toggleStaged}
   onHighlight={(key) => (shownVariant.key = shownVariant.key === key ? null : key)}
