@@ -64,8 +64,8 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  /* Group accents, in the order new Groups claim them. No hue near the red of
-       `--effect`. Same values in both themes. */
+  /* Group accents, in the order new Groups claim them. No hue near the yellow
+       to red of `--effect-*`. Same values in both themes. */
 
   --group-2: #2a6fdb;
 
@@ -87,10 +87,16 @@
   /* How long a tree node takes to fade between drawn and dimmed. */
   --tree-dim-duration: 300ms;
 
-  /* A significant difference. Its magnitude is drawn as a length, never as
-       a shade of this colour. */
-  --effect: oklch(0.58 0.2 25);
-  --effect-foreground: oklch(0.99 0.01 25);
+  /* A significant difference, one step per effect band: negligible, small,
+       moderate, large. Each foreground is the ink on its own fill. */
+  --effect-1: oklch(0.8 0.16 88);
+  --effect-2: oklch(0.72 0.17 62);
+  --effect-3: oklch(0.64 0.19 42);
+  --effect-4: oklch(0.56 0.2 25);
+  --effect-foreground-1: oklch(0.25 0.05 75);
+  --effect-foreground-2: oklch(0.22 0.05 55);
+  --effect-foreground-3: oklch(0.99 0.01 42);
+  --effect-foreground-4: oklch(0.99 0.01 25);
 
   --radius: 0rem;
 
@@ -162,8 +168,14 @@
 
   --tree-enter: oklch(0.673 0.182 276.935);
 
-  --effect: oklch(0.66 0.19 25);
-  --effect-foreground: oklch(0.16 0.03 25);
+  --effect-1: oklch(0.84 0.15 90);
+  --effect-2: oklch(0.77 0.16 65);
+  --effect-3: oklch(0.7 0.18 45);
+  --effect-4: oklch(0.65 0.2 25);
+  --effect-foreground-1: oklch(0.2 0.04 75);
+  --effect-foreground-2: oklch(0.18 0.04 55);
+  --effect-foreground-3: oklch(0.16 0.03 42);
+  --effect-foreground-4: oklch(0.16 0.03 25);
 
   --sidebar: oklch(0.205 0 0);
 

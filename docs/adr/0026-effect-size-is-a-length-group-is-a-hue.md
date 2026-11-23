@@ -1,6 +1,6 @@
 # Effect size is a length, a Group is a hue
 
-**Status:** Accepted.
+**Status:** Superseded by 0027 for how magnitude is drawn. Its Group colours stand.
 
 Effect size came in four bands (negligible, small, moderate, large), drawn as four shades of one red. Groups took the dark half of ColorBrewer's Paired scheme, which includes a red, an orange and a brown. Two problems followed. A red, orange or brown Group read as a finding. The two pale steps, negligible and small, could not be told apart on a mark of a few pixels.
 

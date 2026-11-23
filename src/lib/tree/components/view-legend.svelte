@@ -10,11 +10,10 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { shade } from "$lib/groups/utils/shade";
-  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { edgeEffect, hasSignificant } from "$lib/tree/utils/effect";
+  import { edgeEffect, effectColor, hasSignificant, type EffectStep } from "$lib/tree/utils/effect";
   import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/tree/utils/figure";
   import { hasTransitionTime, visibleNodes } from "$lib/tree/utils/tree";
   import { cn } from "$lib/utils";
@@ -28,6 +27,7 @@
 
   let open = $state(false);
 
+  const STEPS: EffectStep[] = [1, 2, 3, 4];
   const groups = $derived(comparedGroups());
   const comparing = $derived(groups.length > 1);
   const attributes = $derived(figureAttributes(tree));
@@ -123,13 +123,15 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex items-center gap-1">
-    <span
-      class="flex size-4.5 items-center justify-center rounded-full bg-(--effect) font-mono text-[0.625rem] font-semibold text-(--effect-foreground)"
-    >
-      2
-    </span>
-    <EffectMeter step={3} vertical />
+  <span class="flex items-center gap-0.5">
+    {#each STEPS as step (step)}
+      <span
+        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+        style="background:{effectColor(step).fill};color:{effectColor(step).ink}"
+      >
+        2
+      </span>
+    {/each}
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -139,12 +141,18 @@
 {#snippet edgeFindingGlyph()}
   <span class="flex items-center gap-1.25">
     <span class="h-8 w-0.5" style="background:{EDGE}"></span>
-    <span
-      class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] border-(--effect) py-px pr-3 pl-1 font-mono text-[0.5625rem] leading-tight"
-    >
-      62d
-      <EffectMeter step={3} vertical class="absolute -top-1 right-0 translate-x-1/2" />
-    </span>
+    {#each STEPS as step (step)}
+      <span
+        class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] px-1 py-px font-mono text-[0.5625rem] leading-tight"
+        style="border-color:{effectColor(step).fill}"
+      >
+        62d
+        <span
+          class="absolute -top-[0.046875rem] -right-[0.046875rem] size-1.5 translate-x-1/2 -translate-y-1/2 rounded-full ring-1 ring-(--background)"
+          style="background:{effectColor(step).fill}"
+        ></span>
+      </span>
+    {/each}
   </span>
 {/snippet}
 {#snippet edgeFindingTitle()}
@@ -191,13 +199,13 @@
           {@render row(widthGlyph, widthTitle, "Thicker lines carry more cases")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this step. Bars = strongest effect")}
+          {@render row(badgeGlyph, badgeTitle, "How many at this step. Yellow to red = strongest effect, small to large")}
         {/if}
         {#if edgeFinding}
           {@render row(
             edgeFindingGlyph,
             edgeFindingTitle,
-            "Red border on the edge. Bars = effect. Click it to compare"
+            "Coloured border on the edge, yellow to red as the effect grows. Click it to compare"
           )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins here")}

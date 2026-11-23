@@ -198,11 +198,12 @@ describe("edgeStroke", () => {
     expect(edgeStroke(both, [], groups)).toBeNull();
   });
 
-  it("is red whenever a test differs significantly, whatever its effect", () => {
-    expect(edgeStroke(both, [wait(test(0.05))], groups)).toBe("var(--effect)");
-    expect(edgeStroke(both, [wait(test(0.6))], groups)).toBe("var(--effect)");
+  it("takes the strongest significant test's step on the effect ramp", () => {
+    expect(edgeStroke(both, [wait(test(0.05))], groups)).toBe("var(--effect-1)");
+    expect(edgeStroke(both, [wait(test(0.6))], groups)).toBe("var(--effect-4)");
+    expect(edgeStroke(both, [wait(test(0.35)), wait(test(0.2))], groups)).toBe("var(--effect-3)");
     expect(edgeStroke(both, [wait(test(0.6, false)), wait(test(0.05))], groups)).toBe(
-      "var(--effect)"
+      "var(--effect-1)"
     );
   });
 });

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { BaseEdge, EdgeLabel, getSmoothStepPath, type EdgeProps } from "@xyflow/svelte";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
-  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
-  import type { EdgeFinding, TreeEdgeData } from "$lib/tree/utils/flow";
+  import { effectColor } from "$lib/tree/utils/effect";
+  import type { TreeEdgeData } from "$lib/tree/utils/flow";
 
   let {
     id,
@@ -24,23 +24,55 @@
   const waits = $derived(edge?.waits ?? []);
   const finding = $derived(edge?.finding ?? null);
   const clickable = $derived(edge?.clickable ?? false);
+  const color = $derived(finding ? effectColor(finding.step).fill : null);
+  const owner = $derived(edge?.owner ?? null);
+
+  /**
+   * The edge from where only its Group still runs on the fork at `labelY` down
+   * to the child, with the same rounded corner.
+   */
+  const branch = $derived.by(() => {
+    const dx = targetX - sourceX;
+    if (Math.abs(dx) < 1) return `M ${sourceX} ${labelY} L ${targetX} ${targetY}`;
+    const turn = Math.sign(dx);
+    const radius = Math.min(5, Math.abs(dx) / 2, (targetY - labelY) / 2);
+    const from = owner?.from ?? 0;
+    return [
+      `M ${from === 0 ? sourceX + turn * radius : sourceX + from} ${labelY}`,
+      `L ${targetX - turn * radius} ${labelY}`,
+      `Q ${targetX} ${labelY} ${targetX} ${labelY + radius}`,
+      `L ${targetX} ${targetY}`
+    ].join(" ");
+  });
 
   function select() {
     if (clickable) edge?.onSelect();
   }
 </script>
 
-{#snippet mark(finding: EdgeFinding, className: string)}
-  <Tooltip.Root>
-    <Tooltip.Trigger class="block {className}" aria-label="Waiting time differs on this edge">
-      <EffectMeter step={finding.step} vertical />
-    </Tooltip.Trigger>
-    <Tooltip.Content>Waiting time differs on this edge · {finding.band}</Tooltip.Content>
-  </Tooltip.Root>
+{#snippet values()}
+  <span class="flex flex-col items-start gap-px leading-tight">
+    {#each waits as wait (wait.id)}
+      <span class="inline-flex items-center gap-1">
+        {#if waits.length > 1}
+          <span class="size-1.5 rounded-full" style="background:var(--{wait.color})"></span>
+        {/if}
+        {wait.value}
+      </span>
+    {/each}
+  </span>
 {/snippet}
 
 <g class={clickable ? "cursor-pointer" : undefined}>
   <BaseEdge {id} {path} {style} interactionWidth={clickable ? 20 : 0} />
+  {#if owner}
+    <path
+      d={owner.trunk ? path : branch}
+      fill="none"
+      class="pointer-events-none"
+      style="{style};stroke:var(--{owner.color})"
+    />
+  {/if}
 </g>
 
 {#if waits.length > 0}
@@ -48,23 +80,24 @@
     x={labelX}
     y={labelY}
     style={finding
-      ? `${labelStyle};border:0.09375rem solid var(--effect);border-radius:0.1875rem;padding-right:0.75rem`
+      ? `${labelStyle};border:0.09375rem solid ${color};border-radius:0.1875rem`
       : labelStyle}
     class={clickable ? "cursor-pointer" : undefined}
     onclick={select}
   >
-    <span class="flex flex-col items-start gap-px leading-tight">
-      {#each waits as wait (wait.id)}
-        <span class="inline-flex items-center gap-1">
-          {#if waits.length > 1}
-            <span class="size-1.5 rounded-full" style="background:var(--{wait.color})"></span>
-          {/if}
-          {wait.value}
-        </span>
-      {/each}
-    </span>
     {#if finding}
-      {@render mark(finding, "absolute -top-1 right-0 translate-x-1/2")}
+      <Tooltip.Root>
+        <Tooltip.Trigger class="block text-left">{@render values()}</Tooltip.Trigger>
+        <Tooltip.Content>Waiting time differs on this edge · {finding.band}</Tooltip.Content>
+      </Tooltip.Root>
+      <!-- Centred on the midline of the label's top right border corner. -->
+      <span
+        class="pointer-events-none absolute -top-[0.046875rem] -right-[0.046875rem] size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-(--background)"
+        style="background:{color}"
+        aria-hidden="true"
+      ></span>
+    {:else}
+      {@render values()}
     {/if}
   </EdgeLabel>
 {:else if finding}
@@ -75,6 +108,13 @@
     class={clickable ? "cursor-pointer" : undefined}
     onclick={select}
   >
-    {@render mark(finding, "")}
+    <Tooltip.Root>
+      <Tooltip.Trigger
+        class="block size-2.5 rounded-full ring-1 ring-(--card)"
+        style="background:{color}"
+        aria-label="Waiting time differs on this edge"
+      />
+      <Tooltip.Content>Waiting time differs on this edge · {finding.band}</Tooltip.Content>
+    </Tooltip.Root>
   </EdgeLabel>
 {/if}

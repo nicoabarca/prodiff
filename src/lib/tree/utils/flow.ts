@@ -16,13 +16,7 @@ import type {
 import { edgeEffect, effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { nodeFigures, type NodeFigure } from "$lib/tree/utils/figure";
 import { layoutTree } from "$lib/tree/utils/layout";
-import {
-  caseSplit,
-  children,
-  groupCasesAt,
-  groupIds,
-  membership
-} from "$lib/tree/utils/tree";
+import { caseSplit, children, groupCasesAt, groupIds, membership } from "$lib/tree/utils/tree";
 import { formatDuration } from "$lib/format";
 
 // Narrow enough that a deep tree fits on screen; activity names wrap to three
@@ -117,11 +111,26 @@ export interface EdgeFinding {
   step: 1 | 2 | 3 | 4;
 }
 
+/**
+ * The Group colour an edge is painted in where only that Group's cases run.
+ * `trunk` is true when its parent belongs to the same Group, so the whole edge
+ * is that Group's. Otherwise the colour starts on the fork's horizontal run
+ * `from` flow units right of the parent's centre (negative is left): past the
+ * last sibling on that side that belongs to another Group or is shared, where
+ * only this Group's edges still run.
+ */
+export interface EdgeOwner {
+  color: string;
+  trunk: boolean;
+  from: number;
+}
+
 /** An edge is clickable when it carries Transition Time; the edges leaving Start never do. */
 export interface TreeEdgeData {
   childId: number;
   waits: EdgeWait[];
   finding: EdgeFinding | null;
+  owner: EdgeOwner | null;
   clickable: boolean;
   selected: boolean;
   onSelect: () => void;
@@ -156,6 +165,7 @@ export function toFlow(
   const kids = children(tree);
   const ids = groupIds(tree);
   const keys = stableKeys(tree);
+  const byId = new Map(tree.nodes.map((node) => [node.id, node]));
 
   const nodeCases = (node: TreeNode) => {
     const counted = visible.cases.get(node.id);
@@ -170,6 +180,31 @@ export function toFlow(
     volume: (id) => casesById.get(id) ?? 0,
     orderKey: (id) => keys.get(id) ?? ""
   });
+
+  const owner = (node: TreeNode): EdgeOwner | null => {
+    if (ids.length < 2) return null;
+    const own = membership(node, ids);
+    const group = options.groups.find((candidate) => candidate.id === own);
+    if (!group) return null;
+    const parent = byId.get(node.parent as number);
+    if (parent !== undefined && membership(parent, ids) === own) {
+      return { color: group.color, trunk: true, from: 0 };
+    }
+    const centre = (id: number) => placed.get(id)?.x ?? 0;
+    const reach = centre(node.id) - centre(node.parent as number);
+    const blockers = shown
+      .filter((sibling) => sibling.parent === node.parent && sibling.id !== node.id)
+      .filter((sibling) => membership(sibling, ids) !== own)
+      .map((sibling) => centre(sibling.id) - centre(node.parent as number))
+      .filter(
+        (offset) => Math.sign(offset) === Math.sign(reach) && Math.abs(offset) < Math.abs(reach)
+      );
+    const from = blockers.reduce(
+      (farthest, offset) => (Math.abs(offset) > Math.abs(farthest) ? offset : farthest),
+      0
+    );
+    return { color: group.color, trunk: false, from };
+  };
 
   const busiest = Math.max(1, ...casesById.values());
   // The Start root is synthetic, so the edges leaving it are drawn dashed.
@@ -235,6 +270,7 @@ export function toFlow(
           childId: node.id,
           waits: options.edgeLabels ? edgeWaits(node, options.groups, options.statistic) : [],
           finding: effect === null ? null : { band: effectBand(effect), step: effectStep(effect) },
+          owner: selected ? null : owner(node),
           clickable: node.transitionTime !== null && !roots.has(node.parent as number),
           selected,
           onSelect: () => options.onSelectEdge(node.id)

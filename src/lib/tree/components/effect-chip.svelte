@@ -8,7 +8,7 @@
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { Test } from "$lib/analysis/types";
   import { cn } from "$lib/utils";
-  import { effectBand } from "$lib/tree/utils/effect";
+  import { effectBand, effectColor, effectStep } from "$lib/tree/utils/effect";
   import { testLine } from "$lib/tree/utils/verdict";
 
   let {
@@ -21,13 +21,14 @@
   const label = $derived(!test ? "" : !test.significant ? "not enough evidence" : (band ?? ""));
   // A failed test stays neutral.
   const significant = $derived(test?.significant ?? false);
+  const color = $derived(test ? effectColor(effectStep(test.effectSize)) : null);
 </script>
 
 {#snippet chip()}
   {#if significant}
     <Badge
       class={cn("border-(--ink)/20 bg-(--fill) text-(--ink)", className)}
-      style="--fill:var(--effect);--ink:var(--effect-foreground)"
+      style="--fill:{color?.fill};--ink:{color?.ink}"
     >
       {label}
     </Badge>

@@ -231,6 +231,85 @@ describe("toFlow edges", () => {
     expect(intoCheck.finding).toEqual({ band: "large", step: 4 });
   });
 
+  it("paints an edge in the Group that alone reaches its child, the trunk only when the parent is that Group's too", () => {
+    const owned = {
+      ...tree,
+      nodes: [
+        ...tree.nodes,
+        node({ id: 3, parent: 1, label: "Pay", cases: { a: 0, b: 3 }, variantKey: "w" }),
+        node({ id: 4, parent: 3, label: "Close", cases: { a: 0, b: 3 }, variantKey: "w" })
+      ]
+    };
+    const drawn = toFlow(
+      owned,
+      { ...visible, ids: new Set([0, 1, 2, 3, 4]) },
+      {
+        groups: [
+          { id: "a", name: "a", color: "group-a" },
+          { id: "b", name: "b", color: "group-b" }
+        ],
+        figure: { kind: "cases" },
+        statistic: "mean",
+        focus: "all",
+        edgeLabels: false,
+        edgeWidth: "uniform",
+        selected: null,
+        onToggleCollapse: () => {},
+        onSelectEdge: () => {}
+      }
+    ).edges.map((edge) => (edge.data as TreeEdgeData).owner);
+    expect(drawn).toEqual([
+      null,
+      null,
+      { color: "group-b", trunk: false, from: expect.any(Number) },
+      { color: "group-b", trunk: true, from: 0 }
+    ]);
+  });
+
+  it("starts a Group's colour past the last sibling on its side that is shared", () => {
+    // Siblings sit by volume, least on the left: Fine, Check, Pay, Late.
+    const forked = {
+      ...tree,
+      nodes: [
+        ...tree.nodes,
+        node({ id: 3, parent: 1, label: "Fine", cases: { a: 0, b: 1 }, variantKey: "w" }),
+        node({ id: 5, parent: 1, label: "Pay", cases: { a: 0, b: 5 }, variantKey: "x" }),
+        node({ id: 6, parent: 1, label: "Late", cases: { a: 0, b: 6 }, variantKey: "y" })
+      ]
+    };
+    const flow = toFlow(
+      forked,
+      {
+        ...visible,
+        ids: new Set([0, 1, 2, 3, 5, 6]),
+        cases: new Map(forked.nodes.map((n) => [n.id, n.cases]))
+      },
+      {
+        groups: [
+          { id: "a", name: "a", color: "group-a" },
+          { id: "b", name: "b", color: "group-b" }
+        ],
+        figure: { kind: "cases" },
+        statistic: "mean",
+        focus: "all",
+        edgeLabels: false,
+        edgeWidth: "uniform",
+        selected: null,
+        onToggleCollapse: () => {},
+        onSelectEdge: () => {}
+      }
+    );
+    const x = (id: number) =>
+      flow.nodes.find((drawn) => drawn.id === flow.keys.get(id))!.position.x;
+    const from = (id: number) =>
+      (flow.edges.find((edge) => edge.target === flow.keys.get(id))!.data as TreeEdgeData).owner
+        ?.from;
+    expect(from(3)).toBe(x(2) - x(1));
+    expect(from(3)).toBeLessThan(0);
+    expect(from(5)).toBe(0);
+    expect(from(6)).toBe(0);
+  });
+
   it("makes only edges carrying Transition Time clickable", () => {
     expect(edges().map((edge) => (edge.data as TreeEdgeData).clickable)).toEqual([false, true]);
   });

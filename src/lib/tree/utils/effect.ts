@@ -27,10 +27,16 @@ export function effectBand(effectSize: number): EffectBand {
   return "large";
 }
 
+export type EffectStep = 1 | 2 | 3 | 4;
+
 /** The band's step on the `--effect-*` ramp, 1 (negligible) to 4 (large). */
-export function effectStep(effectSize: number): 1 | 2 | 3 | 4 {
-  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as
-    1 | 2 | 3 | 4;
+export function effectStep(effectSize: number): EffectStep {
+  return { negligible: 1, small: 2, moderate: 3, large: 4 }[effectBand(effectSize)] as EffectStep;
+}
+
+/** The step's colour and the ink drawn on it, as CSS colours. */
+export function effectColor(step: EffectStep): { fill: string; ink: string } {
+  return { fill: `var(--effect-${step})`, ink: `var(--effect-foreground-${step})` };
 }
 
 export function standing(block: AttributeBlock): Standing {

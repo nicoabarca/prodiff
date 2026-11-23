@@ -15,7 +15,7 @@
     import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
   import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { shade } from "$lib/groups/utils/shade";
-  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
+  import { effectColor, type EffectStep } from "$lib/tree/utils/effect";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import { cn } from "$lib/utils";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
@@ -31,6 +31,7 @@
 
   let open = $state(false);
 
+  const STEPS: EffectStep[] = [1, 2, 3, 4];
   const comparing = $derived(groups.length > 1);
   const split = $derived(splitting(groups.length));
   const built = $derived(builtAttributes(graph));
@@ -72,8 +73,8 @@
         : "Cases that take this step"
   );
 
-  /** What a red edge differs in, or `null` when no edge is coloured by a test. */
-  const redFor = $derived.by(() => {
+  /** What an edge on the effect ramp differs in, or `null` when no edge is coloured by a test. */
+  const heatFor = $derived.by(() => {
     if (!comparing) return null;
     if (edgeLabel === "waiting") return "Differs in waiting time";
     if (edgeLabel === "frequency" || edgeLabel === "share") {
@@ -172,14 +173,16 @@
   Line width = {view.measure}
 {/snippet}
 
-{#snippet redGlyph()}
+{#snippet heatGlyph()}
   <span class="flex h-7.5 items-stretch gap-1.75">
     <span class="w-0.75" style="background:{EDGE}"></span>
-    <span class="w-0.75 bg-(--effect)"></span>
+    {#each STEPS as step (step)}
+      <span class="w-0.75" style="background:{effectColor(step).fill}"></span>
+    {/each}
   </span>
 {/snippet}
-{#snippet redTitle()}
-  {redFor}
+{#snippet heatTitle()}
+  {heatFor}
 {/snippet}
 
 {#snippet ownGlyph()}
@@ -194,13 +197,15 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex items-center gap-1">
-    <span
-      class="flex size-4.5 items-center justify-center rounded-full bg-(--effect) font-mono text-[0.625rem] font-semibold text-(--effect-foreground)"
-    >
-      2
-    </span>
-    <EffectMeter step={3} vertical />
+  <span class="flex items-center gap-0.5">
+    {#each STEPS as step (step)}
+      <span
+        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+        style="background:{effectColor(step).fill};color:{effectColor(step).ink}"
+      >
+        2
+      </span>
+    {/each}
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -243,18 +248,18 @@
         {#if view.edgeWidth === "scaled"}
           {@render row(widthGlyph, widthTitle, `Thicker lines carry more ${view.measure}`)}
         {/if}
-        {#if redFor}
+        {#if heatFor}
           {@render row(
-            redGlyph,
-            redTitle,
-            "Grey: no significant difference. Red: a significant one"
+            heatGlyph,
+            heatTitle,
+            "Grey: no significant difference. Yellow to red: a significant one, small to large"
           )}
         {/if}
         {#if comparing && !split}
           {@render row(ownGlyph, ownTitle, "An edge in a group's colour is followed by it alone")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Bars = strongest effect")}
+          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Yellow to red = strongest effect, small to large")}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins and ends on a dashed edge")}
       </div>

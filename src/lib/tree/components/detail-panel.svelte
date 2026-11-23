@@ -7,7 +7,6 @@
   import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
-  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import SummaryCompare from "$lib/tree/components/summary-compare.svelte";
   import VariantSteps from "$lib/tree/components/variant-steps.svelte";
   import { colorVar, formatNumber, formatPercent } from "$lib/format";
@@ -15,7 +14,7 @@
   import type { AttributeBlock } from "$lib/analysis/types";
   import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
   import type { Standing, TreeSelection } from "$lib/tree/types";
-  import { effectBand, effectStep, rankedBlocks } from "$lib/tree/utils/effect";
+  import { effectBand, effectColor, rankedBlocks } from "$lib/tree/utils/effect";
   import { higherGroup, testLine, untestable, verdict } from "$lib/tree/utils/verdict";
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
@@ -157,10 +156,7 @@
         </span>
       </span>
       {#if compare && block.test}
-        <span class="flex items-center gap-2">
-          <EffectMeter step={block.test.significant ? effectStep(block.test.effectSize) : 0} />
-          <EffectChip test={block.test} tooltip={false} />
-        </span>
+        <EffectChip test={block.test} tooltip={false} />
       {:else}
         <span></span>
       {/if}
@@ -251,12 +247,16 @@
               </p>
               <p>
                 <span class="font-semibold">Magnitude</span> ranks the whole attribute: negligible below
-                0.10, small below 0.30, moderate below 0.50, large at 0.50 and up.
+                0.10, small below 0.30, moderate below 0.50, large at 0.50 and up. Its colour runs from
+                yellow to red as the effect grows.
               </p>
               <div class="grid grid-cols-4 gap-1">
                 {#each ["negligible", "small", "moderate", "large"] as band, index (band)}
                   <span class="flex flex-col items-center gap-1">
-                    <EffectMeter step={(index + 1) as 1 | 2 | 3 | 4} />
+                    <span
+                      class="h-1.5 w-full rounded-[0.09375rem]"
+                      style="background:{effectColor((index + 1) as 1 | 2 | 3 | 4).fill}"
+                    ></span>
                     <span class="text-muted-foreground text-[0.625rem]">{band}</span>
                   </span>
                 {/each}

@@ -11,6 +11,7 @@ import type { EdgeLabel, FaceGroup, Measure, NodeKind } from "$lib/dfg/types";
 import type { Finding } from "$lib/dfg/utils/findings";
 import { edgeId, unionCount } from "$lib/dfg/utils/fold";
 import type { Statistic } from "$lib/tree/types";
+import { effectColor, effectStep } from "$lib/tree/utils/effect";
 import type { EdgeWait } from "$lib/tree/utils/flow";
 
 /** The thinnest and thickest an edge is ever drawn, in SVG user units. */
@@ -75,8 +76,8 @@ export function membership(counts: Record<string, Counts>, groups: FaceGroup[]):
 /**
  * The colour an edge is stroked in, as a CSS colour. An edge one compared
  * Group alone follows takes that Group's colour. An edge where any test differs
- * significantly is `--effect` red, whichever Group is higher. `null` for the
- * default grey.
+ * significantly takes the strongest such test's step on the `--effect-*` ramp,
+ * whichever Group is higher. `null` for the default grey.
  */
 export function edgeStroke(
   counts: Record<string, Counts>,
@@ -87,7 +88,10 @@ export function edgeStroke(
     const owner = groups.find((group) => group.id === membership(counts, groups));
     if (owner) return `var(--${owner.color})`;
   }
-  return blocks.some((block) => block.test?.significant) ? "var(--effect)" : null;
+  const effects = blocks.flatMap((block) =>
+    block.test?.significant ? [block.test.effectSize] : []
+  );
+  return effects.length > 0 ? effectColor(effectStep(Math.max(...effects))).fill : null;
 }
 
 /**
