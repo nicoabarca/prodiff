@@ -18,7 +18,12 @@
     OutlierLoad,
     Outliers
   } from "$lib/analysis/types";
-  import { fullDomain, symlogConstant, type BoxRow } from "$lib/analysis/utils/box-plot";
+  import {
+    fullDomain,
+    symlogConstant,
+    TAIL_FULL_SHARE,
+    type BoxRow
+  } from "$lib/analysis/utils/box-plot";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
   type Request<T> =
@@ -179,6 +184,9 @@
     );
   });
   const horizontal = $derived(orientation === "horizontal");
+  /** A count with its share of the Group's cases, when the Group's size is known. */
+  const withShare = (count: number, n: number | undefined) =>
+    n ? `${formatCount(count)} · ${((count / n) * 100).toFixed(1)}%` : formatCount(count);
   const padding = $derived(
     horizontal ? { left: 8, right: 16, bottom: 28 } : { left: 64, right: 12, bottom: 8, top: 8 }
   );
@@ -190,8 +198,8 @@
     ["Q3", (row: BoxRow) => format(row.q3)],
     ["Max", (row: BoxRow) => format(row.max)],
     ["IQR", (row: BoxRow) => format(row.q3 - row.q1)],
-    ["Below", (row: BoxRow) => formatCount(row.outliersLow)],
-    ["Above", (row: BoxRow) => formatCount(row.outliersHigh)]
+    ["Below", (row: BoxRow) => withShare(row.outliersLow, row.n)],
+    ["Above", (row: BoxRow) => withShare(row.outliersHigh, row.n)]
   ] as const);
 </script>
 
@@ -200,8 +208,13 @@
     <Dialog.Header>
       <Dialog.Title>{title}</Dialog.Title>
       <Dialog.Description>
-        Every value, with one dot per outlier. The scale is linear near zero and logarithmic beyond
-        it.
+        {#if mode === "letters"}
+          Every value, with one dot per outlier.
+        {:else}
+          Every value. Past the whiskers, each bar is as thick as its share of the Group's cases,
+          and a bar with {TAIL_FULL_SHARE * 100}% of them fills the row.
+        {/if}
+        The scale is linear near zero and logarithmic beyond it.
         {#if mode === "letters"}
           Each box past the middle one holds the next half of the tail: eighths, sixteenths and
           further out, until about 8 to 16 cases are left on each side. Only those cases are dots.
@@ -284,6 +297,7 @@
           {formatCount}
           {orientation}
           {dots}
+          dotStyle={mode === "letters" ? "jitter" : "histogram"}
           {letters}
           {padding}
           bandLabels={false}

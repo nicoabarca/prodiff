@@ -4,6 +4,9 @@
    * optional dots per Group and an HTML `overlay` placed in plot coordinates.
    * A Group with `letters` is drawn as a letter-value plot: one box per letter
    * value, each thinner and paler than the one inside it, and no whiskers.
+   * `dotStyle` "histogram" draws `dots` as a tail histogram: bars binned along
+   * the value axis and mirrored across the band, each as thick as its share
+   * of the Group's cases.
    * `hover` picks what the pointer reads: a Group's box figures, or the value
    * under it on the value axis.
    */
@@ -11,7 +14,7 @@
   import { scaleBand, scaleSymlog } from "d3-scale";
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
   import { interiorTicks } from "$lib/analysis/utils/axis";
-  import { dotOffsets, type BoxRow } from "$lib/analysis/utils/box-plot";
+  import { dotOffsets, tailBins, tailThickness, type BoxRow } from "$lib/analysis/utils/box-plot";
   import type { LetterBox } from "$lib/analysis/types";
   import Fit from "$lib/components/fit/fit.svelte";
 
@@ -33,6 +36,7 @@
     bandLabels = true,
     hover = "box",
     dots,
+    dotStyle = "jitter",
     letters,
     overlay
   }: {
@@ -49,11 +53,14 @@
     bandLabels?: boolean;
     hover?: "box" | "value";
     dots?: Record<string, number[]>;
+    dotStyle?: "jitter" | "histogram";
     letters?: Record<string, LetterBox[]>;
     overlay?: Snippet<[Place]>;
   } = $props();
 
   const horizontal = $derived(orientation === "horizontal");
+  /** Pixels each tail histogram bar covers along the value axis. */
+  const TAIL_BIN = 4;
   const low = $derived(domain[0]);
   const high = $derived(domain[1]);
   const scale = $derived(scaleSymlog().constant(constant));
@@ -179,7 +186,26 @@
               strokeWidth={1.5}
             />
           {/if}
-          {#if dots}
+          {#if dots && dotStyle === "histogram"}
+            {@const value = horizontal ? context.xScale : context.yScale}
+            {@const band = horizontal ? context.yScale : context.xScale}
+            {@const middle = center(band, box.id)}
+            {@const full = band.bandwidth?.() ?? 0}
+            {@const n = box.n ?? (dots[box.id]?.length || 1)}
+            {#each tailBins( (dots[box.id] ?? []).map( (v) => value(v) ), TAIL_BIN ) as bin (bin.start)}
+              {@const thickness = Math.max(2, tailThickness(bin.count, n) * full)}
+              <rect
+                x={horizontal ? bin.start : middle - thickness / 2}
+                y={horizontal ? middle - thickness / 2 : bin.start}
+                width={horizontal ? TAIL_BIN - 1 : thickness}
+                height={horizontal ? thickness : TAIL_BIN - 1}
+                fill={box.color}
+                fill-opacity="0.55"
+                class="pointer-events-none"
+                data-tail-count={bin.count}
+              />
+            {/each}
+          {:else if dots}
             {@const values = dots[box.id] ?? []}
             {#each dotOffsets(values.length) as share, index (index)}
               <circle
