@@ -12,9 +12,10 @@
   import { splitting, view } from "$lib/dfg/state/view.svelte";
   import type { FaceGroup } from "$lib/dfg/types";
   import { builtAttributes, shownEdgeLabel } from "$lib/dfg/utils/display";
-    import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
+  import { figureAttributes, nodeFigure, type NodeFigure } from "$lib/dfg/utils/figure";
   import { nodeDifferences, type Finding } from "$lib/dfg/utils/findings";
   import { shade } from "$lib/groups/utils/shade";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import { effectColor, type EffectStep } from "$lib/tree/utils/effect";
   import FigureName from "$lib/tree/components/figure-name.svelte";
   import { cn } from "$lib/utils";
@@ -197,15 +198,14 @@
 {/snippet}
 
 {#snippet badgeGlyph()}
-  <span class="flex items-center gap-0.5">
-    {#each STEPS as step (step)}
-      <span
-        class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
-        style="background:{effectColor(step).fill};color:{effectColor(step).ink}"
-      >
-        2
-      </span>
-    {/each}
+  <span class="flex items-center gap-1">
+    <span
+      class="flex size-4.5 items-center justify-center rounded-full font-mono text-[0.625rem] font-semibold"
+      style="background:{effectColor(3).fill};color:{effectColor(3).ink}"
+    >
+      2
+    </span>
+    <EffectMeter step={3} vertical />
   </span>
 {/snippet}
 {#snippet badgeTitle()}
@@ -252,14 +252,18 @@
           {@render row(
             heatGlyph,
             heatTitle,
-            "Grey: no significant difference. Yellow to red: a significant one, small to large"
+            "Grey: no significant difference. Sand to wine: a significant one, small to large"
           )}
         {/if}
         {#if comparing && !split}
           {@render row(ownGlyph, ownTitle, "An edge in a group's colour is followed by it alone")}
         {/if}
         {#if significant}
-          {@render row(badgeGlyph, badgeTitle, "How many at this activity. Yellow to red = strongest effect, small to large")}
+          {@render row(
+            badgeGlyph,
+            badgeTitle,
+            "How many at this activity. Bars and colour = strongest effect"
+          )}
         {/if}
         {@render row(startGlyph, startTitle, "Every case begins and ends on a dashed edge")}
       </div>

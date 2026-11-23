@@ -1,8 +1,10 @@
 <script lang="ts">
   /**
    * How many significant differences a node carries, on its top right corner,
-   * filled in the strongest one's step on the effect ramp.
+   * filled in the strongest one's step on the effect ramp, with that step as
+   * a meter hanging below it.
    */
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import type { EffectBand } from "$lib/tree/types";
   import { effectColor, type EffectStep } from "$lib/tree/utils/effect";
@@ -18,6 +20,11 @@
     style="--fill:{color.fill};--ink:{color.ink}"
   >
     {count}
+    <EffectMeter
+      {step}
+      vertical
+      class="absolute top-[calc(100%+0.1875rem)] left-1/2 -translate-x-1/2"
+    />
   </Tooltip.Trigger>
   <Tooltip.Content>
     {count} significant difference{count === 1 ? "" : "s"} here · strongest is {band}

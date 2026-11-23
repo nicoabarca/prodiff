@@ -1,6 +1,7 @@
 <script lang="ts">
   import { BaseEdge, EdgeLabel, getSmoothStepPath, type EdgeProps } from "@xyflow/svelte";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import EffectMeter from "$lib/tree/components/effect-meter.svelte";
   import { effectColor } from "$lib/tree/utils/effect";
   import type { TreeEdgeData } from "$lib/tree/utils/flow";
 
@@ -80,7 +81,7 @@
     x={labelX}
     y={labelY}
     style={finding
-      ? `${labelStyle};border:0.09375rem solid ${color};border-radius:0.1875rem`
+      ? `${labelStyle};border:0.09375rem solid ${color};border-radius:0.1875rem;padding-right:0.75rem`
       : labelStyle}
     class={clickable ? "cursor-pointer" : undefined}
     onclick={select}
@@ -90,12 +91,11 @@
         <Tooltip.Trigger class="block text-left">{@render values()}</Tooltip.Trigger>
         <Tooltip.Content>Waiting time differs on this edge · {finding.band}</Tooltip.Content>
       </Tooltip.Root>
-      <!-- Centred on the midline of the label's top right border corner. -->
-      <span
-        class="pointer-events-none absolute -top-[0.046875rem] -right-[0.046875rem] size-2.5 translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-(--background)"
-        style="background:{color}"
-        aria-hidden="true"
-      ></span>
+      <EffectMeter
+        step={finding.step}
+        vertical
+        class="pointer-events-none absolute -top-1 right-0 translate-x-1/2"
+      />
     {:else}
       {@render values()}
     {/if}
@@ -109,11 +109,9 @@
     onclick={select}
   >
     <Tooltip.Root>
-      <Tooltip.Trigger
-        class="block size-2.5 rounded-full ring-1 ring-(--card)"
-        style="background:{color}"
-        aria-label="Waiting time differs on this edge"
-      />
+      <Tooltip.Trigger class="block" aria-label="Waiting time differs on this edge">
+        <EffectMeter step={finding.step} vertical />
+      </Tooltip.Trigger>
       <Tooltip.Content>Waiting time differs on this edge · {finding.band}</Tooltip.Content>
     </Tooltip.Root>
   </EdgeLabel>
