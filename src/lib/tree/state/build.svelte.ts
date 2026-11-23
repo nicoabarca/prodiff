@@ -1,6 +1,7 @@
 import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { treeOutliers } from "$lib/tree/invokers/tree-outliers";
-import type { OutlierLoad } from "$lib/analysis/types";
+import type { BoxAlternatives, OutlierLoad } from "$lib/analysis/types";
+import { treeAdjustedBox } from "$lib/tree/invokers/tree-adjusted-box";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import {
   comparedGroups,
@@ -177,4 +178,26 @@ export function caseOutliers(attribute: string): OutlierLoad | undefined {
   if (!source || !built.tree || isStale()) return undefined;
   const { project, groups } = source;
   return () => treeOutliers(project, groups, { kind: "case", attribute });
+}
+
+/** Fetches the other drawings of one node's attribute, `undefined` while no current tree is on screen. */
+export function nodeAlternatives(nodeId: number, attribute: string): BoxAlternatives | undefined {
+  const tree = built.tree;
+  if (!source || !tree || isStale()) return undefined;
+  const { project, groups } = source;
+  const visible = visibleNodes(tree, view, selectedVariants());
+  const target = nodeTarget(tree, visible, nodeId, "atStep", attribute, false);
+  return {
+    adjusted: () => treeAdjustedBox(project, groups, target)
+  };
+}
+
+/** Fetches the other drawings of one case-level attribute, `undefined` while no current tree is on screen. */
+export function caseAlternatives(attribute: string): BoxAlternatives | undefined {
+  if (!source || !built.tree || isStale()) return undefined;
+  const { project, groups } = source;
+  const target = { kind: "case", attribute } as const;
+  return {
+    adjusted: () => treeAdjustedBox(project, groups, target)
+  };
 }

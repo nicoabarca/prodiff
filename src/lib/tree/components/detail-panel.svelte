@@ -20,7 +20,7 @@
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { nodeOutliers } from "$lib/tree/state/build.svelte";
+  import { nodeAlternatives, nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -180,6 +180,10 @@
         {duration}
         load={node && Object.values(block.summaries).some((summary) => summary.type === "numerical")
           ? nodeOutliers(node.id, name)
+          : undefined}
+        alternatives={node &&
+        Object.values(block.summaries).some((summary) => summary.type === "numerical")
+          ? nodeAlternatives(node.id, name)
           : undefined}
         title={attributeLabel(name)}
       />

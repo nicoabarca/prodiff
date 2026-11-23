@@ -11,7 +11,7 @@
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import type { AttributeBlock, OutlierLoad, Summary } from "$lib/analysis/types";
+  import type { AttributeBlock, BoxAlternatives, OutlierLoad, Summary } from "$lib/analysis/types";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
   import { caseOutliers } from "$lib/tree/state/build.svelte";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
@@ -26,12 +26,14 @@
     caseLevel,
     groupIds,
     cappedByCeiling = false,
-    outliers = caseOutliers
+    outliers = caseOutliers,
+    alternatives
   }: {
     caseLevel: Record<string, AttributeBlock>;
     groupIds: string[];
     cappedByCeiling?: boolean;
     outliers?: (attribute: string) => OutlierLoad | undefined;
+    alternatives?: (attribute: string) => BoxAlternatives | undefined;
   } = $props();
 
   const groups = $derived(comparedGroups());
@@ -122,6 +124,7 @@
                   summaries={attribute.summaries}
                   compare={comparing}
                   load={outliers(attribute.name)}
+                  alternatives={alternatives?.(attribute.name)}
                   title={attributeLabel(attribute.name)}
                 />
                 <TrimmedNote {groups} attribute={attribute.name} />

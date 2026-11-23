@@ -50,6 +50,23 @@ export interface Outliers {
 /** Fetches one box plot's outliers, keyed by Group id. */
 export type OutlierLoad = () => Promise<Record<string, Outliers>>;
 
+/**
+ * One Group's box under the adjusted box plot rule: whiskers moved by the
+ * medcouple, a skew measure from -1 to 1, and the values past them.
+ */
+export interface AdjustedBox {
+  medcouple: number;
+  whiskerLow: number;
+  whiskerHigh: number;
+  low: number[];
+  high: number[];
+}
+
+/** Fetchers for the other ways the full-size box plot can draw the same values, keyed by Group id. */
+export interface BoxAlternatives {
+  adjusted: () => Promise<Record<string, AdjustedBox>>;
+}
+
 export interface Test {
   test: "mannwhitney" | "chi2";
   statistic: number;

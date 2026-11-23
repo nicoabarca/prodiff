@@ -2,20 +2,22 @@
   /**
    * One box plot at full size: every value on a symlog axis, with one dot per
    * outlier. The outliers are fetched each time the Dialog opens; a response
-   * that a later open or a close has overtaken is dropped.
+   * that a later open or a close has overtaken is dropped. With
+   * `alternatives`, a switch redraws the same values under the adjusted box
+   * plot rule, fetched the first time it is picked while the Dialog is open.
    */
   import { untrack } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
-  import type { OutlierLoad, Outliers } from "$lib/analysis/types";
+  import type { AdjustedBox, BoxAlternatives, OutlierLoad, Outliers } from "$lib/analysis/types";
   import { fullDomain, symlogConstant, type BoxRow } from "$lib/analysis/utils/box-plot";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
-  type Request =
+  type Request<T> =
     | { status: "idle" }
     | { status: "loading" }
-    | { status: "ready"; outliers: Record<string, Outliers> }
+    | { status: "ready"; data: T }
     | { status: "error"; message: string };
 
   let {
@@ -23,6 +25,7 @@
     title,
     rows,
     load,
+    alternatives,
     format,
     formatCount,
     orientation = "vertical"
@@ -31,23 +34,48 @@
     title: string;
     rows: BoxRow[];
     load: OutlierLoad;
+    alternatives?: BoxAlternatives;
     format: (value: number) => string;
     formatCount: (value: number) => string;
     orientation?: "vertical" | "horizontal";
   } = $props();
 
-  let request = $state<Request>({ status: "idle" });
+  let request = $state<Request<Record<string, Outliers>>>({ status: "idle" });
   let latest = 0;
+
+  type Mode = "tukey" | "adjusted";
+  const MODES: { value: Mode; label: string }[] = [
+    { value: "tukey", label: "Box plot" },
+    { value: "adjusted", label: "Adjusted for skew" }
+  ];
+  let mode = $state<Mode>("tukey");
+
+  let adjustedRequest = $state<Request<Record<string, AdjustedBox>>>({ status: "idle" });
+  let latestAdjusted = 0;
 
   function fetchOutliers() {
     const mine = ++latest;
     request = { status: "loading" };
     load().then(
-      (outliers) => {
-        if (mine === latest) request = { status: "ready", outliers };
+      (data) => {
+        if (mine === latest) request = { status: "ready", data };
       },
       (cause) => {
         if (mine === latest) request = { status: "error", message: String(cause) };
+      }
+    );
+  }
+
+  function fetchAdjusted() {
+    if (!alternatives) return;
+    const mine = ++latestAdjusted;
+    adjustedRequest = { status: "loading" };
+    alternatives.adjusted().then(
+      (data) => {
+        if (mine === latestAdjusted) adjustedRequest = { status: "ready", data };
+      },
+      (cause) => {
+        if (mine === latestAdjusted) adjustedRequest = { status: "error", message: String(cause) };
       }
     );
   }
@@ -58,14 +86,44 @@
     } else {
       latest += 1;
       request = { status: "idle" };
+      latestAdjusted += 1;
+      adjustedRequest = { status: "idle" };
     }
   });
+
+  $effect(() => {
+    if (!open) return;
+    if (mode === "adjusted" && untrack(() => adjustedRequest.status === "idle")) {
+      untrack(fetchAdjusted);
+    }
+  });
+
+  /** What the plot draws: the Tukey rows, or the same rows with that mode's whiskers and counts. */
+  const active = $derived(mode === "adjusted" ? adjustedRequest : request);
+  const shown = $derived.by((): BoxRow[] => {
+    if (mode !== "adjusted" || adjustedRequest.status !== "ready") return rows;
+    const boxes = adjustedRequest.data;
+    return rows.map((row) => {
+      const box = boxes[row.id];
+      if (!box) return row;
+      return {
+        ...row,
+        whiskerLow: box.whiskerLow,
+        whiskerHigh: box.whiskerHigh,
+        outliersLow: box.low.length,
+        outliersHigh: box.high.length
+      };
+    });
+  });
+  const medcouples = $derived(
+    mode === "adjusted" && adjustedRequest.status === "ready" ? adjustedRequest.data : null
+  );
 
   const domain = $derived(fullDomain(rows));
   const constant = $derived(symlogConstant(rows, domain[0], domain[1]));
   const dots = $derived.by(() => {
-    if (request.status !== "ready") return undefined;
-    const { outliers } = request;
+    if (active.status !== "ready") return undefined;
+    const outliers: Record<string, Outliers> = active.data;
     return Object.fromEntries(
       rows.map((row) => {
         const found = outliers[row.id];
@@ -97,7 +155,25 @@
       <Dialog.Description>
         Every value, with one dot per outlier. The scale is linear near zero and logarithmic beyond
         it.
+        {#if mode === "adjusted"}
+          Whiskers follow the adjusted box plot rule, which widens them on the skewed side by the
+          medcouple (MC), a skew measure from -1 to 1.
+        {/if}
       </Dialog.Description>
+      {#if alternatives}
+        <div class="flex gap-1" role="group" aria-label="Drawing">
+          {#each MODES as option (option.value)}
+            <Button
+              variant={mode === option.value ? "default" : "outline"}
+              size="sm"
+              aria-pressed={mode === option.value}
+              onclick={() => (mode = option.value)}
+            >
+              {option.label}
+            </Button>
+          {/each}
+        </div>
+      {/if}
       <table class="w-max text-[0.6875rem]">
         <thead>
           <tr class="text-muted-foreground">
@@ -105,10 +181,13 @@
             {#each columns as [heading] (heading)}
               <th class="px-2 text-right font-normal">{heading}</th>
             {/each}
+            {#if medcouples}
+              <th class="px-2 text-right font-normal">MC</th>
+            {/if}
           </tr>
         </thead>
         <tbody class="font-mono tabular-nums">
-          {#each rows as row (row.id)}
+          {#each shown as row (row.id)}
             <tr>
               <td class="pr-4 font-sans font-semibold">
                 <span class="flex items-center gap-1.5">
@@ -120,20 +199,31 @@
               {#each columns as [heading, cell] (heading)}
                 <td class="px-2 text-right whitespace-nowrap">{cell(row)}</td>
               {/each}
+              {#if medcouples}
+                <td class="px-2 text-right whitespace-nowrap">
+                  {medcouples[row.id]?.medcouple.toFixed(2) ?? "—"}
+                </td>
+              {/if}
             </tr>
           {/each}
         </tbody>
       </table>
     </Dialog.Header>
     <div class="relative min-h-0">
-      {#if request.status === "error"}
+      {#if active.status === "error"}
         <div class="flex h-full flex-col items-center justify-center gap-2 text-center">
-          <p class="text-destructive text-xs">{request.message}</p>
-          <Button variant="outline" size="sm" onclick={fetchOutliers}>Retry</Button>
+          <p class="text-destructive text-xs">{active.message}</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onclick={mode === "adjusted" ? fetchAdjusted : fetchOutliers}
+          >
+            Retry
+          </Button>
         </div>
       {:else}
         <BoxChart
-          {rows}
+          rows={shown}
           {domain}
           {constant}
           {format}
@@ -144,7 +234,7 @@
           bandLabels={false}
           hover="value"
         />
-        {#if request.status !== "ready"}
+        {#if active.status !== "ready"}
           <div class="absolute inset-0 flex items-center justify-center">
             <LoaderCircle
               class="text-muted-foreground size-8 animate-spin"

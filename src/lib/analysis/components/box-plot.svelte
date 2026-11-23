@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
   import BoxPlotDialog from "$lib/analysis/components/box-plot-dialog.svelte";
-  import type { BoxStats, OutlierLoad } from "$lib/analysis/types";
+  import type { BoxAlternatives, BoxStats, OutlierLoad } from "$lib/analysis/types";
   import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import {
     boxRows,
@@ -13,7 +13,9 @@
     type OutlierLabel
   } from "$lib/analysis/utils/box-plot";
 
-  type Expansion = { load?: undefined; title?: undefined } | { load: OutlierLoad; title: string };
+  type Expansion =
+    | { load?: undefined; alternatives?: undefined; title?: undefined }
+    | { load: OutlierLoad; alternatives?: BoxAlternatives; title: string };
 
   let {
     boxes,
@@ -26,6 +28,7 @@
     contain = "container",
     legend = false,
     load,
+    alternatives,
     title
   }: {
     boxes: Record<string, BoxStats | null>;
@@ -181,6 +184,7 @@
         {title}
         {rows}
         {load}
+        {alternatives}
         {format}
         {formatCount}
         {orientation}

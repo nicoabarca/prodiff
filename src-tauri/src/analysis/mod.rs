@@ -5,6 +5,7 @@
 //! Nothing here knows about trees, graphs or nodes. The views build their own
 //! structure and hang these types off it.
 
+pub mod adjusted;
 pub mod reduction;
 pub mod stats;
 
@@ -131,6 +132,21 @@ pub const NOT_NUMERIC: &str = "This attribute has no numeric values here.";
 pub struct Outliers {
     pub low: Vec<f64>,
     pub high: Vec<f64>,
+}
+
+/// Each Group's adjusted box, keyed by its id. `values[i]` belongs to `ids[i]`.
+pub fn adjusted_by_group(
+    ids: &[String],
+    values: Vec<Vec<f64>>,
+) -> HashMap<String, adjusted::AdjustedBox> {
+    ids.iter()
+        .cloned()
+        .zip(values)
+        .map(|(id, mut values)| {
+            stats::sort(&mut values);
+            (id, adjusted::adjusted_box(&values))
+        })
+        .collect()
 }
 
 /// Each Group's outliers, keyed by its id. `values[i]` belongs to `ids[i]`.

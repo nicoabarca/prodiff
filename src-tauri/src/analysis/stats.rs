@@ -22,7 +22,7 @@ pub fn quantile(sorted: &[f64], q: f64) -> f64 {
 }
 
 /// Percentiles the whiskers fall back to when the IQR is zero.
-const FLAT_WHISKERS: (f64, f64) = (0.025, 0.975);
+pub const FLAT_WHISKERS: (f64, f64) = (0.025, 0.975);
 
 /// Where a box plot's whiskers reach, and how much is past them.
 ///

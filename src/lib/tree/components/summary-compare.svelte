@@ -5,7 +5,7 @@
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
   import { colorVar, formatDecimal, formatDuration, formatNumber, tickLabel } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
-  import type { OutlierLoad, Summary } from "$lib/analysis/types";
+  import type { BoxAlternatives, OutlierLoad, Summary } from "$lib/analysis/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
   import ChevronUp from "@lucide/svelte/icons/chevron-up";
 
@@ -14,16 +14,18 @@
     compare = true,
     duration = false,
     load,
+    alternatives,
     title
   }: {
     summaries: Record<string, Summary | null>;
     compare?: boolean;
     duration?: boolean;
     load?: OutlierLoad;
+    alternatives?: BoxAlternatives;
     title?: string;
   } = $props();
 
-  const expansion = $derived(load && title ? { load, title } : {});
+  const expansion = $derived(load && title ? { load, alternatives, title } : {});
 
   const groups = $derived(comparedGroups());
 
