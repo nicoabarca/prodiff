@@ -64,20 +64,22 @@
 
   --chart-5: oklch(0.424 0.199 265.638);
 
-  /* Group accents, in the order new Groups claim them. No hue near the yellow
-       to red of `--effect-*`. Same values in both themes. */
+  /* Group accents, in the order new Groups claim them: blue, teal, purple,
+       sky, petrol, mauve. Each sits at least CIEDE2000 16 from every
+       `--effect-*` step and 11 from every other Group, in normal, deuteran,
+       protan and tritan vision. Same values in both themes. */
 
-  --group-2: #2a6fdb;
+  --group-2: #5471f5;
 
-  --group-4: #0f9488;
+  --group-4: #228d77;
 
-  --group-6: #5a9e1f;
+  --group-6: #802baf;
 
-  --group-8: #7b4fc9;
+  --group-8: #30add6;
 
-  --group-10: #b08d00;
+  --group-10: #004f6a;
 
-  --group-12: #5f7285;
+  --group-12: #ab7aa0;
 
   /* The Original stays grey. */
   --group-original: oklch(0.45 0.007 85);
