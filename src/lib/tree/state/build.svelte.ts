@@ -2,6 +2,7 @@ import { directedTree } from "$lib/tree/invokers/directed-tree";
 import { treeOutliers } from "$lib/tree/invokers/tree-outliers";
 import type { BoxAlternatives, OutlierLoad } from "$lib/analysis/types";
 import { treeAdjustedBox } from "$lib/tree/invokers/tree-adjusted-box";
+import { treeLetterValues } from "$lib/tree/invokers/tree-letter-values";
 import type { ResponseDirectedTree } from "$lib/tree/invokers/types";
 import {
   comparedGroups,
@@ -188,7 +189,8 @@ export function nodeAlternatives(nodeId: number, attribute: string): BoxAlternat
   const visible = visibleNodes(tree, view, selectedVariants());
   const target = nodeTarget(tree, visible, nodeId, "atStep", attribute, false);
   return {
-    adjusted: () => treeAdjustedBox(project, groups, target)
+    adjusted: () => treeAdjustedBox(project, groups, target),
+    letterValues: () => treeLetterValues(project, groups, target)
   };
 }
 
@@ -198,6 +200,7 @@ export function caseAlternatives(attribute: string): BoxAlternatives | undefined
   const { project, groups } = source;
   const target = { kind: "case", attribute } as const;
   return {
-    adjusted: () => treeAdjustedBox(project, groups, target)
+    adjusted: () => treeAdjustedBox(project, groups, target),
+    letterValues: () => treeLetterValues(project, groups, target)
   };
 }

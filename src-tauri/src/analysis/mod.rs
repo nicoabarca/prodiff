@@ -6,6 +6,7 @@
 //! structure and hang these types off it.
 
 pub mod adjusted;
+pub mod letter_values;
 pub mod reduction;
 pub mod stats;
 
@@ -145,6 +146,21 @@ pub fn adjusted_by_group(
         .map(|(id, mut values)| {
             stats::sort(&mut values);
             (id, adjusted::adjusted_box(&values))
+        })
+        .collect()
+}
+
+/// Each Group's letter-value plot, keyed by its id. `values[i]` belongs to `ids[i]`.
+pub fn letter_values_by_group(
+    ids: &[String],
+    values: Vec<Vec<f64>>,
+) -> HashMap<String, letter_values::LetterValues> {
+    ids.iter()
+        .cloned()
+        .zip(values)
+        .map(|(id, mut values)| {
+            stats::sort(&mut values);
+            (id, letter_values::letter_values(&values))
         })
         .collect()
 }

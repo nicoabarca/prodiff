@@ -2,6 +2,8 @@
   /**
    * The drawing core of a box plot: one row per Group over `domain`, plus
    * optional dots per Group and an HTML `overlay` placed in plot coordinates.
+   * A Group with `letters` is drawn as a letter-value plot: one box per letter
+   * value, each thinner and paler than the one inside it, and no whiskers.
    * `hover` picks what the pointer reads: a Group's box figures, or the value
    * under it on the value axis.
    */
@@ -10,6 +12,7 @@
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
   import { interiorTicks } from "$lib/analysis/utils/axis";
   import { dotOffsets, type BoxRow } from "$lib/analysis/utils/box-plot";
+  import type { LetterBox } from "$lib/analysis/types";
   import Fit from "$lib/components/fit/fit.svelte";
 
   type Padding = { top?: number; right?: number; bottom?: number; left?: number };
@@ -30,6 +33,7 @@
     bandLabels = true,
     hover = "box",
     dots,
+    letters,
     overlay
   }: {
     rows: BoxRow[];
@@ -45,6 +49,7 @@
     bandLabels?: boolean;
     hover?: "box" | "value";
     dots?: Record<string, number[]>;
+    letters?: Record<string, LetterBox[]>;
     overlay?: Snippet<[Place]>;
   } = $props();
 
@@ -121,7 +126,36 @@
       {/if}
       <ChartClipPath>
         {#each rows as box (box.id)}
-          {#if box.whiskerLow === box.whiskerHigh}
+          {@const boxes = letters?.[box.id]}
+          {#if boxes && boxes.length > 0}
+            {@const value = horizontal ? context.xScale : context.yScale}
+            {@const across = horizontal ? context.yScale : context.xScale}
+            {@const middle = center(across, box.id)}
+            {@const full = across.bandwidth?.() ?? 0}
+            {#each [...boxes].reverse() as letter (letter.depth)}
+              {@const thickness = full * Math.pow(0.82, letter.depth - 2)}
+              {@const from = value(horizontal ? letter.lower : letter.upper)}
+              {@const to = value(horizontal ? letter.upper : letter.lower)}
+              <rect
+                x={horizontal ? from : middle - thickness / 2}
+                y={horizontal ? middle - thickness / 2 : from}
+                width={horizontal ? Math.max(1, to - from) : thickness}
+                height={horizontal ? thickness : Math.max(1, to - from)}
+                fill={box.color}
+                fill-opacity={0.45 * Math.pow(0.78, letter.depth - 2)}
+                stroke={letter.depth === 2 ? box.color : "none"}
+                stroke-width="1.5"
+              />
+            {/each}
+            <line
+              x1={horizontal ? value(box.median) : middle - full / 2}
+              x2={horizontal ? value(box.median) : middle + full / 2}
+              y1={horizontal ? middle - full / 2 : value(box.median)}
+              y2={horizontal ? middle + full / 2 : value(box.median)}
+              stroke={box.color}
+              stroke-width="2"
+            />
+          {:else if box.whiskerLow === box.whiskerHigh}
             <circle
               cx={horizontal ? context.xScale(box.median) : center(context.xScale, box.id)}
               cy={horizontal ? center(context.yScale, box.id) : context.yScale(box.median)}

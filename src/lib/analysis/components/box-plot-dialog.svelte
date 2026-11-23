@@ -4,13 +4,20 @@
    * outlier. The outliers are fetched each time the Dialog opens; a response
    * that a later open or a close has overtaken is dropped. With
    * `alternatives`, a switch redraws the same values under the adjusted box
-   * plot rule, fetched the first time it is picked while the Dialog is open.
+   * plot rule or as a letter-value plot, each fetched the first time it is
+   * picked while the Dialog is open.
    */
   import { untrack } from "svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
-  import type { AdjustedBox, BoxAlternatives, OutlierLoad, Outliers } from "$lib/analysis/types";
+  import type {
+    AdjustedBox,
+    BoxAlternatives,
+    LetterValues,
+    OutlierLoad,
+    Outliers
+  } from "$lib/analysis/types";
   import { fullDomain, symlogConstant, type BoxRow } from "$lib/analysis/utils/box-plot";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
 
@@ -43,15 +50,18 @@
   let request = $state<Request<Record<string, Outliers>>>({ status: "idle" });
   let latest = 0;
 
-  type Mode = "tukey" | "adjusted";
+  type Mode = "tukey" | "adjusted" | "letters";
   const MODES: { value: Mode; label: string }[] = [
     { value: "tukey", label: "Box plot" },
-    { value: "adjusted", label: "Adjusted for skew" }
+    { value: "adjusted", label: "Adjusted for skew" },
+    { value: "letters", label: "Letter-value" }
   ];
   let mode = $state<Mode>("tukey");
 
   let adjustedRequest = $state<Request<Record<string, AdjustedBox>>>({ status: "idle" });
   let latestAdjusted = 0;
+  let lettersRequest = $state<Request<Record<string, LetterValues>>>({ status: "idle" });
+  let latestLetters = 0;
 
   function fetchOutliers() {
     const mine = ++latest;
@@ -62,6 +72,20 @@
       },
       (cause) => {
         if (mine === latest) request = { status: "error", message: String(cause) };
+      }
+    );
+  }
+
+  function fetchLetters() {
+    if (!alternatives) return;
+    const mine = ++latestLetters;
+    lettersRequest = { status: "loading" };
+    alternatives.letterValues().then(
+      (data) => {
+        if (mine === latestLetters) lettersRequest = { status: "ready", data };
+      },
+      (cause) => {
+        if (mine === latestLetters) lettersRequest = { status: "error", message: String(cause) };
       }
     );
   }
@@ -88,6 +112,8 @@
       request = { status: "idle" };
       latestAdjusted += 1;
       adjustedRequest = { status: "idle" };
+      latestLetters += 1;
+      lettersRequest = { status: "idle" };
     }
   });
 
@@ -96,11 +122,25 @@
     if (mode === "adjusted" && untrack(() => adjustedRequest.status === "idle")) {
       untrack(fetchAdjusted);
     }
+    if (mode === "letters" && untrack(() => lettersRequest.status === "idle")) {
+      untrack(fetchLetters);
+    }
   });
 
   /** What the plot draws: the Tukey rows, or the same rows with that mode's whiskers and counts. */
-  const active = $derived(mode === "adjusted" ? adjustedRequest : request);
+  const active = $derived(
+    mode === "adjusted" ? adjustedRequest : mode === "letters" ? lettersRequest : request
+  );
   const shown = $derived.by((): BoxRow[] => {
+    if (mode === "letters" && lettersRequest.status === "ready") {
+      const plots = lettersRequest.data;
+      return rows.map((row) => {
+        const plot = plots[row.id];
+        return plot
+          ? { ...row, outliersLow: plot.low.length, outliersHigh: plot.high.length }
+          : row;
+      });
+    }
     if (mode !== "adjusted" || adjustedRequest.status !== "ready") return rows;
     const boxes = adjustedRequest.data;
     return rows.map((row) => {
@@ -117,6 +157,13 @@
   });
   const medcouples = $derived(
     mode === "adjusted" && adjustedRequest.status === "ready" ? adjustedRequest.data : null
+  );
+  const letters = $derived(
+    mode === "letters" && lettersRequest.status === "ready"
+      ? Object.fromEntries(
+          Object.entries(lettersRequest.data).map(([id, plot]) => [id, plot.boxes])
+        )
+      : undefined
   );
 
   const domain = $derived(fullDomain(rows));
@@ -155,7 +202,10 @@
       <Dialog.Description>
         Every value, with one dot per outlier. The scale is linear near zero and logarithmic beyond
         it.
-        {#if mode === "adjusted"}
+        {#if mode === "letters"}
+          Each box past the middle one holds the next half of the tail: eighths, sixteenths and
+          further out, until about 8 to 16 cases are left on each side. Only those cases are dots.
+        {:else if mode === "adjusted"}
           Whiskers follow the adjusted box plot rule, which widens them on the skewed side by the
           medcouple (MC), a skew measure from -1 to 1.
         {/if}
@@ -216,7 +266,11 @@
           <Button
             variant="outline"
             size="sm"
-            onclick={mode === "adjusted" ? fetchAdjusted : fetchOutliers}
+            onclick={mode === "adjusted"
+              ? fetchAdjusted
+              : mode === "letters"
+                ? fetchLetters
+                : fetchOutliers}
           >
             Retry
           </Button>
@@ -230,6 +284,7 @@
           {formatCount}
           {orientation}
           {dots}
+          {letters}
           {padding}
           bandLabels={false}
           hover="value"

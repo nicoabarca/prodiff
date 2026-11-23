@@ -62,9 +62,27 @@ export interface AdjustedBox {
   high: number[];
 }
 
+export interface LetterBox {
+  depth: number;
+  lower: number;
+  upper: number;
+}
+
+/**
+ * One Group's letter-value plot: nested boxes from the fourths outwards, each
+ * halving the tail left by the one before, and the values past the last box.
+ */
+export interface LetterValues {
+  median: number;
+  boxes: LetterBox[];
+  low: number[];
+  high: number[];
+}
+
 /** Fetchers for the other ways the full-size box plot can draw the same values, keyed by Group id. */
 export interface BoxAlternatives {
   adjusted: () => Promise<Record<string, AdjustedBox>>;
+  letterValues: () => Promise<Record<string, LetterValues>>;
 }
 
 export interface Test {
