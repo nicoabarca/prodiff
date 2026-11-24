@@ -20,7 +20,7 @@
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { nodeOutliers } from "$lib/tree/state/build.svelte";
+  import { nodeAlternatives, nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -181,6 +181,10 @@
         load={node && Object.values(block.summaries).some((summary) => summary.type === "numerical")
           ? nodeOutliers(node.id, name)
           : undefined}
+        alternatives={node &&
+        Object.values(block.summaries).some((summary) => summary.type === "numerical")
+          ? nodeAlternatives(node.id, name)
+          : undefined}
         title={attributeLabel(name)}
       />
       {#if !block.test}
@@ -202,7 +206,7 @@
 {/snippet}
 
 <aside
-  class="border-border bg-sidebar flex w-[30rem] shrink-0 flex-col border-l"
+  class="border-border bg-sidebar absolute top-1.5 right-1.5 z-10 flex max-h-2/3 w-[30rem] max-w-[calc(100%-0.75rem)] flex-col overflow-hidden rounded-lg border shadow-lg"
   data-tour="tree-detail-panel"
 >
   {#if !node}
@@ -272,7 +276,7 @@
 
       <div class="flex flex-col gap-1">
         <span class="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
-          Variant
+          {node.variantKey === null ? "Partial Variant" : "Variant"}
         </span>
         <VariantSteps {steps} />
       </div>

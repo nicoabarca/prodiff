@@ -3,7 +3,7 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
   import BoxPlotDialog from "$lib/analysis/components/box-plot-dialog.svelte";
-  import type { BoxStats, OutlierLoad } from "$lib/analysis/types";
+  import type { BoxAlternatives, BoxStats, OutlierLoad } from "$lib/analysis/types";
   import Maximize2 from "@lucide/svelte/icons/maximize-2";
   import {
     boxRows,
@@ -13,28 +13,35 @@
     type OutlierLabel
   } from "$lib/analysis/utils/box-plot";
 
-  type Expansion = { load?: undefined; title?: undefined } | { load: OutlierLoad; title: string };
+  type Expansion =
+    | { load?: undefined; alternatives?: undefined; title?: undefined }
+    | { load: OutlierLoad; alternatives?: BoxAlternatives; title: string };
 
   let {
     boxes,
     groups,
     format,
+    pointerFormat,
     formatCount,
     orientation = "vertical",
     ladder = [],
     constant,
     contain = "container",
+    legend = false,
     load,
+    alternatives,
     title
   }: {
     boxes: Record<string, BoxStats | null>;
     groups: { id: string; name: string; color: string }[];
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     formatCount: (value: number) => string;
     orientation?: "vertical" | "horizontal";
     ladder?: number[];
     constant?: number;
     contain?: "container" | "window";
+    legend?: boolean;
   } & Expansion = $props();
 
   let expanded = $state(false);
@@ -58,7 +65,7 @@
   const highRoom = $derived(anyHigh ? room(labels.map((entry) => entry.high)) : 0);
   const padding = $derived(
     horizontal
-      ? { left: 120 + lowRoom, right: Math.max(8, highRoom), bottom: 20 }
+      ? { left: (legend ? 24 : 120) + lowRoom, right: Math.max(8, highRoom), bottom: 20 }
       : { left: 52, right: 12, bottom: anyLow ? 36 : 24, top: anyHigh ? 20 : 8 }
   );
   const expandable = $derived(load !== undefined && (anyHigh || anyLow));
@@ -100,6 +107,7 @@
         {contain}
         {padding}
         {bandLabelOffset}
+        bandLabels={!legend}
       >
         {#snippet overlay(place)}
           {#each labels as { row, high, low } (row.id)}
@@ -145,6 +153,20 @@
         {/snippet}
       </BoxChart>
     </div>
+    {#if legend}
+      <div class="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-1 text-[0.625rem]">
+        {#each rows as row (row.id)}
+          <span class="inline-flex min-w-0 items-center gap-1.5">
+            <span
+              class="size-2 shrink-0 rounded-full"
+              style:background={row.color}
+              aria-hidden="true"
+            ></span>
+            <span class="min-w-0 [overflow-wrap:break-word]">{row.name}</span>
+          </span>
+        {/each}
+      </div>
+    {/if}
     {#if expandable && load && title}
       <div class="flex justify-end">
         <Button
@@ -164,7 +186,9 @@
         {title}
         {rows}
         {load}
+        {alternatives}
         {format}
+        {pointerFormat}
         {formatCount}
         {orientation}
       />

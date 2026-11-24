@@ -71,11 +71,33 @@ export function outlierLabels(
   };
 }
 
+/** The share of a Group's cases that fills a tail histogram bar across the whole band. */
+export const TAIL_FULL_SHARE = 0.05;
+
+export interface TailBin {
+  start: number;
+  count: number;
+}
+
 /**
- * Where each of `count` dots sits across its band, as a share of the band
- * width: the golden-ratio sequence folded into the middle 60%, so equal values
- * stay apart and the same data always lands in the same place.
+ * Outliers binned along the value axis for a tail histogram: `positions` are
+ * pixels from the start of the axis, cut into bins `width` pixels wide.
+ * Ascending by `start`, empty bins left out.
  */
-export function dotOffsets(count: number): number[] {
-  return Array.from({ length: count }, (_, index) => 0.2 + 0.6 * ((index * 0.618) % 1));
+export function tailBins(positions: number[], width: number): TailBin[] {
+  const counts = new Map<number, number>();
+  for (const position of positions) {
+    if (!Number.isFinite(position)) continue;
+    const bin = Math.floor(position / width);
+    counts.set(bin, (counts.get(bin) ?? 0) + 1);
+  }
+  return [...counts.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([bin, count]) => ({ start: bin * width, count }));
+}
+
+/** How much of the band a bar with `count` of a Group's `n` cases spans, from 0 to 1. */
+export function tailThickness(count: number, n: number): number {
+  if (n <= 0) return 0;
+  return Math.min(1, count / n / TAIL_FULL_SHARE);
 }

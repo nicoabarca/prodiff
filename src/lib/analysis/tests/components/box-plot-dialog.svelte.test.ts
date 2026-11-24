@@ -92,7 +92,13 @@ const retry = () =>
   [...document.body.querySelectorAll("button")].find(
     (button) => button.textContent?.trim() === "Retry"
   );
-const dots = () => document.body.querySelectorAll("circle[r='2.5']").length;
+/** Outliers drawn, as dots or as the cases inside tail histogram bars. */
+const dots = () =>
+  document.body.querySelectorAll("circle[r='2.5']").length +
+  [...document.body.querySelectorAll<SVGElement>("[data-tail-count]")].reduce(
+    (sum, bar) => sum + Number(bar.dataset.tailCount),
+    0
+  );
 
 test("loads while the promise is pending", () => {
   const load = vi.fn<Load>(() => deferred().promise);

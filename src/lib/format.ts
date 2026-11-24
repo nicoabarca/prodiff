@@ -49,6 +49,16 @@ export function formatDuration(millis: number | null): string {
   return durationParts(millis, 2);
 }
 
+/**
+ * A duration in milliseconds read off a value axis: whole and tenths of a
+ * second under a minute ("0.3s"), else as `formatDuration` writes it.
+ */
+export function formatDurationFine(millis: number): string {
+  if (Math.abs(millis) >= 60_000) return durationParts(millis, 2);
+  const seconds = Math.round(millis / 100) / 10;
+  return `${seconds === 0 ? 0 : seconds}s`;
+}
+
 /** Every non-zero unit of a duration ("1d 2h 30m 15s"). */
 export function formatDurationParts(millis: number): string {
   return durationParts(millis, DURATION_UNITS.length);

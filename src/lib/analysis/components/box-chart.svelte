@@ -2,14 +2,17 @@
   /**
    * The drawing core of a box plot: one row per Group over `domain`, plus
    * optional dots per Group and an HTML `overlay` placed in plot coordinates.
+   * `dots` are drawn past the whiskers as a tail histogram.
    * `hover` picks what the pointer reads: a Group's box figures, or the value
    * under it on the value axis.
    */
   import type { Snippet } from "svelte";
   import { scaleBand, scaleSymlog } from "d3-scale";
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
-  import { interiorTicks } from "$lib/analysis/utils/axis";
-  import { dotOffsets, type BoxRow } from "$lib/analysis/utils/box-plot";
+  import { valueTicks } from "$lib/analysis/utils/axis";
+  import type { BoxRow } from "$lib/analysis/utils/box-plot";
+  import TailHistogram from "$lib/analysis/components/tail-histogram.svelte";
+  import ValueHover from "$lib/analysis/components/value-hover.svelte";
   import Fit from "$lib/components/fit/fit.svelte";
 
   type Padding = { top?: number; right?: number; bottom?: number; left?: number };
@@ -21,6 +24,7 @@
     domain,
     constant,
     format,
+    pointerFormat,
     formatCount,
     ladder = [],
     orientation = "vertical",
@@ -36,6 +40,7 @@
     domain: [number, number];
     constant: number;
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     formatCount: (value: number) => string;
     ladder?: number[];
     orientation?: "vertical" | "horizontal";
@@ -52,24 +57,13 @@
   const low = $derived(domain[0]);
   const high = $derived(domain[1]);
   const scale = $derived(scaleSymlog().constant(constant));
-  const position = $derived(scale.copy().domain([low, high]).range([0, 1]));
-  // A label lies along a horizontal axis and stacks up a vertical one, so it
-  // needs the room its own text takes in that direction.
-  const clearance = $derived(horizontal ? 0.16 : 0.07);
-  const ticks = $derived.by(() =>
-    interiorTicks(
-      low,
-      high,
-      ladder.length > 0
-        ? ladder
-        : scale
-            .copy()
-            .domain([low, high])
-            .ticks(horizontal ? 3 : 4),
-      format,
-      position,
-      clearance
-    )
+  /** A horizontal plot without the band axis labels its low end on the value axis. */
+  const ticks = $derived(
+    valueTicks(low, high, constant, format, {
+      horizontal,
+      ladder,
+      labelLow: horizontal && !bandLabels
+    })
   );
   const band = $derived(scaleBand().padding(0.35));
   const chartPadding = $derived(
@@ -82,13 +76,6 @@
   const noLabel = () => "";
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
-  /** Pixels from the plot's start along the value axis to the pointer, null while it is outside. */
-  let pointer = $state<number | null>(null);
-  const across = (
-    axis: { (value: string): number; bandwidth?: () => number },
-    id: string,
-    share: number
-  ) => axis(id) + (axis.bandwidth?.() ?? 0) * share;
 </script>
 
 <Chart
@@ -106,22 +93,13 @@
   {#snippet children({ context })}
     <Svg>
       {#if horizontal}
-        <Axis
-          placement="left"
-          rule
-          grid={false}
-          format={noLabel}
-          tickLength={bandLabels ? 4 : 0}
-        />
+        {#if bandLabels}
+          <Axis placement="left" rule grid={false} format={noLabel} tickLength={4} />
+        {/if}
         <Axis placement="bottom" grid rule {ticks} {format} />
       {:else}
         <Axis placement="left" grid rule {ticks} {format} />
-        <Axis
-          placement="bottom"
-          rule
-          format={noLabel}
-          tickLength={bandLabels ? 4 : 0}
-        />
+        <Axis placement="bottom" rule format={noLabel} tickLength={bandLabels ? 4 : 0} />
       {/if}
       <ChartClipPath>
         {#each rows as box (box.id)}
@@ -150,21 +128,17 @@
             />
           {/if}
           {#if dots}
-            {@const values = dots[box.id] ?? []}
-            {#each dotOffsets(values.length) as share, index (index)}
-              <circle
-                cx={horizontal
-                  ? context.xScale(values[index])
-                  : across(context.xScale, box.id, share)}
-                cy={horizontal
-                  ? across(context.yScale, box.id, share)
-                  : context.yScale(values[index])}
-                r="2.5"
-                fill={box.color}
-                fill-opacity="0.5"
-                class="pointer-events-none"
-              />
-            {/each}
+            {@const value = horizontal ? context.xScale : context.yScale}
+            {@const band = horizontal ? context.yScale : context.xScale}
+            <TailHistogram
+              values={dots[box.id] ?? []}
+              n={box.n ?? (dots[box.id]?.length || 1)}
+              color={box.color}
+              {horizontal}
+              position={value}
+              middle={center(band, box.id)}
+              full={band.bandwidth?.() ?? 0}
+            />
           {/if}
         {/each}
         {#if hover === "box"}
@@ -210,40 +184,11 @@
 
     {#if hover === "value"}
       {@const value = horizontal ? context.xScale : context.yScale}
-      <Html>
-        <div
-          role="presentation"
-          class="absolute inset-0 cursor-crosshair"
-          onpointermove={(event) => (pointer = horizontal ? event.offsetX : event.offsetY)}
-          onpointerleave={() => (pointer = null)}
-        >
-          {#if pointer !== null}
-            {#if horizontal}
-              <div
-                class="bg-foreground/40 pointer-events-none absolute inset-y-0 w-px"
-                style="left:{pointer}px"
-              ></div>
-              <span
-                class="bg-popover text-popover-foreground border-border pointer-events-none absolute top-full -translate-x-1/2 border px-1 py-0.5 font-mono text-[0.625rem] whitespace-nowrap tabular-nums"
-                style="left:{pointer}px"
-              >
-                {format(value.invert(pointer))}
-              </span>
-            {:else}
-              <div
-                class="bg-foreground/40 pointer-events-none absolute inset-x-0 h-px"
-                style="top:{pointer}px"
-              ></div>
-              <span
-                class="bg-popover text-popover-foreground border-border pointer-events-none absolute right-full -translate-y-1/2 border px-1 py-0.5 font-mono text-[0.625rem] whitespace-nowrap tabular-nums"
-                style="top:{pointer}px"
-              >
-                {format(value.invert(pointer))}
-              </span>
-            {/if}
-          {/if}
-        </div>
-      </Html>
+      <ValueHover
+        {horizontal}
+        invert={(pixel) => value.invert?.(pixel) ?? Number.NaN}
+        format={pointerFormat ?? format}
+      />
     {:else}
       <Tooltip.Root contained={contain} props={{ root: { class: "w-max" } }}>
         {#snippet children({ data: box })}

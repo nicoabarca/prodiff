@@ -7,6 +7,7 @@
     autoBuild,
     build,
     built,
+    caseAlternatives,
     forgetOtherProject,
     inputsReady,
     retryBuild
@@ -28,7 +29,6 @@
   import ViewLegend from "$lib/tree/components/view-legend.svelte";
   import LoaderCircle from "@lucide/svelte/icons/loader-circle";
   import Network from "@lucide/svelte/icons/network";
-  import PanelRight from "@lucide/svelte/icons/panel-right";
   import Play from "@lucide/svelte/icons/play";
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
 
@@ -58,11 +58,6 @@
   let comparing = $state(false);
   let variantsOpen = $state(false);
   let buildSettingsOpen = $state(false);
-
-  let panelOpen = $state(false);
-  $effect(() => {
-    panelOpen = selected.at !== null;
-  });
 
   $effect(() => {
     if (!project) return;
@@ -96,14 +91,11 @@
           caseLevel={caseLevelBlocks(built.tree)}
           groupIds={built.tree.groups.map((group) => group.id)}
           cappedByCeiling={built.tree.cappedByCeiling}
+          alternatives={caseAlternatives}
         />
       {/if}
 
       <div class="flex min-h-0 flex-1">
-        {#if built.tree && variantsOpen}
-          <VariantPanel {project} tree={built.tree} onClose={() => (variantsOpen = false)} />
-        {/if}
-
         <div class="relative flex min-h-0 min-w-0 flex-1 flex-col">
           {#if built.tree}
             <div class="flex min-h-0 flex-1">
@@ -126,29 +118,30 @@
                     <RotateCcw />
                   </Button>
                 {/if}
-                {#if selected.at !== null}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    class="bg-background/90 absolute top-3 right-3 z-10 backdrop-blur"
-                    aria-pressed={panelOpen}
-                    onclick={() => (panelOpen = !panelOpen)}
+                {#if variantsOpen}
+                  <div
+                    class="pointer-events-none absolute top-1.5 bottom-1.5 left-1.5 z-10 flex max-w-[calc(100%-0.75rem)] flex-col"
                   >
-                    <PanelRight data-icon="inline-start" />
-                    {panelOpen ? "Hide" : "Show"} differences panel
-                  </Button>
+                    <div class="pointer-events-auto flex min-h-0 flex-1">
+                      <VariantPanel
+                        {project}
+                        tree={built.tree}
+                        onClose={() => (variantsOpen = false)}
+                      />
+                    </div>
+                  </div>
+                {/if}
+                {#if selected.at !== null}
+                  <DetailPanel
+                    tree={built.tree}
+                    selection={selected.at}
+                    distributionsHref="/app/projects/{project.id}/distributions"
+                    onClose={() => (selected.at = null)}
+                    onCompare={() => (comparing = true)}
+                    onOpenBuildSettings={() => (buildSettingsOpen = true)}
+                  />
                 {/if}
               </div>
-              {#if panelOpen}
-                <DetailPanel
-                  tree={built.tree}
-                  selection={selected.at}
-                  distributionsHref="/app/projects/{project.id}/distributions"
-                  onClose={() => (selected.at = null)}
-                  onCompare={() => (comparing = true)}
-                  onOpenBuildSettings={() => (buildSettingsOpen = true)}
-                />
-              {/if}
             </div>
           {:else if choosingAttributes}
             <div class="bg-sidebar min-h-0 flex-1"></div>

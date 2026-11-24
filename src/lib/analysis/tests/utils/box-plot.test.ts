@@ -1,7 +1,8 @@
 import { expect, test } from "vitest";
 import type { BoxStats } from "$lib/analysis/types";
 import {
-  dotOffsets,
+  tailBins,
+  tailThickness,
   fullDomain,
   outlierLabels,
   symlogConstant,
@@ -80,12 +81,16 @@ test("falls back to an eighth of the domain when no box has spread", () => {
   expect(symlogConstant([box({ q1: 3, q3: 3 })], 0, 80)).toBe(10);
 });
 
-test("spreads dots over the middle of the band", () => {
-  const offsets = dotOffsets(3);
-  expect(offsets).toHaveLength(3);
-  for (const offset of offsets) {
-    expect(offset).toBeGreaterThanOrEqual(0.2);
-    expect(offset).toBeLessThanOrEqual(0.8);
-  }
-  expect(new Set(offsets).size).toBe(3);
+test("tailBins counts positions per bin and leaves empty bins out", () => {
+  expect(tailBins([0, 1, 3.9, 4, 12.5, Number.NaN], 4)).toEqual([
+    { start: 0, count: 3 },
+    { start: 4, count: 1 },
+    { start: 12, count: 1 }
+  ]);
+});
+
+test("tailThickness is the share of cases over the full share, capped at the band", () => {
+  expect(tailThickness(25, 1000)).toBeCloseTo(0.5);
+  expect(tailThickness(500, 1000)).toBe(1);
+  expect(tailThickness(3, 0)).toBe(0);
 });

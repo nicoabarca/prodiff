@@ -3,7 +3,7 @@
    * A test's magnitude as four rounded bars, each filled in its own step on
    * the `--effect-*` ramp up to the test's step and grey after it. `vertical`
    * stacks them bottom up, largest on top, on a card coloured chip whose
-   * radius is the bars' radius plus its padding.
+   * radius is the bars' radius plus its padding, ringed in the test's step.
    */
   import type { EffectBand } from "$lib/tree/types";
   import { effectColor, type EffectStep } from "$lib/tree/utils/effect";
@@ -22,10 +22,13 @@
   class={cn(
     "flex gap-[0.0625rem]",
     vertical
-      ? "bg-card ring-border w-3 flex-col items-center rounded-[0.21875rem] p-0.5 shadow-sm ring-1"
+      ? "bg-card w-3 flex-col items-center rounded-[0.21875rem] p-0.5 shadow-sm ring-1"
       : "items-center",
     className
   )}
+  style={vertical
+    ? `--tw-ring-color:${step ? effectColor(step).fill : "var(--border)"}`
+    : undefined}
   role="img"
   aria-label={step ? `Magnitude: ${BANDS[step - 1]}` : "No magnitude"}
 >
