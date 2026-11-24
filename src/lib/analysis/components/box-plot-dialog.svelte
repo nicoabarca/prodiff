@@ -41,6 +41,7 @@
     load,
     alternatives,
     format,
+    pointerFormat,
     formatCount,
     orientation = "vertical"
   }: {
@@ -50,6 +51,7 @@
     load: OutlierLoad;
     alternatives?: BoxAlternatives;
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     formatCount: (value: number) => string;
     orientation?: "vertical" | "horizontal";
   } = $props();
@@ -291,6 +293,7 @@
               {domain}
               {constant}
               {format}
+              {pointerFormat}
               {orientation}
               {padding}
             />
@@ -303,6 +306,7 @@
               {domain}
               {constant}
               {format}
+              {pointerFormat}
               {orientation}
               {padding}
             />
@@ -313,6 +317,7 @@
             {domain}
             {constant}
             {format}
+            {pointerFormat}
             {formatCount}
             {orientation}
             {dots}

@@ -6,7 +6,7 @@
   import type { DurationShape } from "$lib/distributions/invokers/types";
   import type { CurveRow } from "$lib/distributions/types";
   import { curveRows } from "$lib/distributions/utils/distributions";
-  import { colorVar, formatDuration, formatNumber } from "$lib/format";
+  import { colorVar, formatDuration, formatDurationFine, formatNumber } from "$lib/format";
   import type { OutlierLoad } from "$lib/analysis/types";
 
   let {
@@ -159,6 +159,7 @@
     ladder={shape.logEdges}
     constant={linearBelow}
     format={formatDuration}
+    pointerFormat={formatDurationFine}
     formatCount={formatNumber}
     {...expansion}
   />

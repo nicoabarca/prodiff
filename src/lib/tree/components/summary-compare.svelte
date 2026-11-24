@@ -3,7 +3,13 @@
   import { BarChart, Tooltip } from "layerchart";
   import * as Chart from "$lib/components/ui/chart/index.js";
   import BoxPlot from "$lib/analysis/components/box-plot.svelte";
-  import { colorVar, formatDecimal, formatDuration, formatNumber, tickLabel } from "$lib/format";
+  import {
+    colorVar,
+    formatDuration,
+    formatDurationFine,
+    formatNumber,
+    tickLabel
+  } from "$lib/format";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { BoxAlternatives, OutlierLoad, Summary } from "$lib/analysis/types";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -42,8 +48,11 @@
   const PAD_LEFT = 128;
   const PAD_RIGHT = 60;
 
+  const pointerFormat = $derived(duration ? formatDurationFine : undefined);
   const format = (value: number) =>
-    duration ? formatDuration(value) : formatDecimal(value, Math.abs(value) < 10 ? 2 : 0);
+    duration
+      ? formatDuration(value)
+      : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
 
   // ---------------------------------------------------------------- numeric
 
@@ -177,6 +186,7 @@
         boxes={numeric}
         groups={boxGroups}
         {format}
+        {pointerFormat}
         formatCount={formatNumber}
         orientation="horizontal"
         contain="window"

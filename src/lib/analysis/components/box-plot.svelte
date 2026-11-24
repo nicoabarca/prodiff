@@ -21,6 +21,7 @@
     boxes,
     groups,
     format,
+    pointerFormat,
     formatCount,
     orientation = "vertical",
     ladder = [],
@@ -34,6 +35,7 @@
     boxes: Record<string, BoxStats | null>;
     groups: { id: string; name: string; color: string }[];
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     formatCount: (value: number) => string;
     orientation?: "vertical" | "horizontal";
     ladder?: number[];
@@ -186,6 +188,7 @@
         {load}
         {alternatives}
         {format}
+        {pointerFormat}
         {formatCount}
         {orientation}
       />

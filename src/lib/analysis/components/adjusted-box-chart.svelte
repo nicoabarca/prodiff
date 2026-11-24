@@ -21,6 +21,7 @@
     domain,
     constant,
     format,
+    pointerFormat,
     orientation = "vertical",
     padding
   }: {
@@ -29,6 +30,7 @@
     domain: [number, number];
     constant: number;
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     orientation?: "vertical" | "horizontal";
     padding: Padding;
   } = $props();
@@ -99,6 +101,10 @@
         {/each}
       </ChartClipPath>
     </Svg>
-    <ValueHover {horizontal} invert={(pixel) => value.invert?.(pixel) ?? Number.NaN} {format} />
+    <ValueHover
+      {horizontal}
+      invert={(pixel) => value.invert?.(pixel) ?? Number.NaN}
+      format={pointerFormat ?? format}
+    />
   {/snippet}
 </Chart>

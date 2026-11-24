@@ -1,5 +1,11 @@
 import { expect, test } from "vitest";
-import { formatCompact, formatDuration, formatDurationParts, tickLabel } from "$lib/format";
+import {
+  formatCompact,
+  formatDuration,
+  formatDurationFine,
+  formatDurationParts,
+  tickLabel
+} from "$lib/format";
 
 test("a compact count rounds to one decimal of its largest unit", () => {
   expect(formatCompact(999)).toBe("999");
@@ -15,6 +21,14 @@ test("a duration reads as its two largest units", () => {
   expect(formatDuration(0)).toBe("0s");
   expect(formatDuration(48 * 60_000 + 48_000)).toBe("48m 48s");
   expect(formatDuration(2 * 86_400_000 + 3 * 3_600_000 + 4 * 60_000)).toBe("2d 3h");
+});
+
+test("a fine duration keeps tenths of a second under a minute", () => {
+  expect(formatDurationFine(0)).toBe("0s");
+  expect(formatDurationFine(340)).toBe("0.3s");
+  expect(formatDurationFine(-20)).toBe("0s");
+  expect(formatDurationFine(12_450)).toBe("12.5s");
+  expect(formatDurationFine(65_300)).toBe("1m 5s");
 });
 
 test("a negative duration keeps its sign and its magnitude", () => {

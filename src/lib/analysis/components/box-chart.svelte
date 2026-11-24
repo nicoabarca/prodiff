@@ -24,6 +24,7 @@
     domain,
     constant,
     format,
+    pointerFormat,
     formatCount,
     ladder = [],
     orientation = "vertical",
@@ -39,6 +40,7 @@
     domain: [number, number];
     constant: number;
     format: (value: number) => string;
+    pointerFormat?: (value: number) => string;
     formatCount: (value: number) => string;
     ladder?: number[];
     orientation?: "vertical" | "horizontal";
@@ -182,7 +184,11 @@
 
     {#if hover === "value"}
       {@const value = horizontal ? context.xScale : context.yScale}
-      <ValueHover {horizontal} invert={(pixel) => value.invert?.(pixel) ?? Number.NaN} {format} />
+      <ValueHover
+        {horizontal}
+        invert={(pixel) => value.invert?.(pixel) ?? Number.NaN}
+        format={pointerFormat ?? format}
+      />
     {:else}
       <Tooltip.Root contained={contain} props={{ root: { class: "w-max" } }}>
         {#snippet children({ data: box })}
