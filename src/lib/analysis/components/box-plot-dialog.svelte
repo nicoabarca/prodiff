@@ -11,6 +11,8 @@
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import BoxChart from "$lib/analysis/components/box-chart.svelte";
+  import AdjustedBoxChart from "$lib/analysis/components/adjusted-box-chart.svelte";
+  import LetterValueChart from "$lib/analysis/components/letter-value-chart.svelte";
   import type {
     AdjustedBox,
     BoxAlternatives,
@@ -163,19 +165,11 @@
   const medcouples = $derived(
     mode === "adjusted" && adjustedRequest.status === "ready" ? adjustedRequest.data : null
   );
-  const letters = $derived(
-    mode === "letters" && lettersRequest.status === "ready"
-      ? Object.fromEntries(
-          Object.entries(lettersRequest.data).map(([id, plot]) => [id, plot.boxes])
-        )
-      : undefined
-  );
-
   const domain = $derived(fullDomain(rows));
   const constant = $derived(symlogConstant(rows, domain[0], domain[1]));
   const dots = $derived.by(() => {
-    if (active.status !== "ready") return undefined;
-    const outliers: Record<string, Outliers> = active.data;
+    if (request.status !== "ready") return undefined;
+    const outliers = request.data;
     return Object.fromEntries(
       rows.map((row) => {
         const found = outliers[row.id];
@@ -223,7 +217,7 @@
           medcouple (MC), a skew measure from -1 to 1.
         {/if}
       </Dialog.Description>
-      {#if alternatives}
+      {#if alternatives && import.meta.env.DEV}
         <div class="flex gap-1" role="group" aria-label="Drawing">
           {#each MODES as option (option.value)}
             <Button
@@ -289,20 +283,44 @@
           </Button>
         </div>
       {:else}
-        <BoxChart
-          rows={shown}
-          {domain}
-          {constant}
-          {format}
-          {formatCount}
-          {orientation}
-          {dots}
-          dotStyle={mode === "letters" ? "jitter" : "histogram"}
-          {letters}
-          {padding}
-          bandLabels={false}
-          hover="value"
-        />
+        {#if mode === "letters"}
+          {#if lettersRequest.status === "ready"}
+            <LetterValueChart
+              {rows}
+              plots={lettersRequest.data}
+              {domain}
+              {constant}
+              {format}
+              {orientation}
+              {padding}
+            />
+          {/if}
+        {:else if mode === "adjusted"}
+          {#if adjustedRequest.status === "ready"}
+            <AdjustedBoxChart
+              {rows}
+              boxes={adjustedRequest.data}
+              {domain}
+              {constant}
+              {format}
+              {orientation}
+              {padding}
+            />
+          {/if}
+        {:else}
+          <BoxChart
+            {rows}
+            {domain}
+            {constant}
+            {format}
+            {formatCount}
+            {orientation}
+            {dots}
+            {padding}
+            bandLabels={false}
+            hover="value"
+          />
+        {/if}
         {#if active.status !== "ready"}
           <div class="absolute inset-0 flex items-center justify-center">
             <LoaderCircle

@@ -1,7 +1,6 @@
 import { expect, test } from "vitest";
 import type { BoxStats } from "$lib/analysis/types";
 import {
-  dotOffsets,
   tailBins,
   tailThickness,
   fullDomain,
@@ -80,16 +79,6 @@ test("falls back to the widest IQR", () => {
 
 test("falls back to an eighth of the domain when no box has spread", () => {
   expect(symlogConstant([box({ q1: 3, q3: 3 })], 0, 80)).toBe(10);
-});
-
-test("spreads dots over the middle of the band", () => {
-  const offsets = dotOffsets(3);
-  expect(offsets).toHaveLength(3);
-  for (const offset of offsets) {
-    expect(offset).toBeGreaterThanOrEqual(0.2);
-    expect(offset).toBeLessThanOrEqual(0.8);
-  }
-  expect(new Set(offsets).size).toBe(3);
 });
 
 test("tailBins counts positions per bin and leaves empty bins out", () => {

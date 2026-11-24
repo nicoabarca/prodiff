@@ -71,15 +71,6 @@ export function outlierLabels(
   };
 }
 
-/**
- * Where each of `count` dots sits across its band, as a share of the band
- * width: the golden-ratio sequence folded into the middle 60%, so equal values
- * stay apart and the same data always lands in the same place.
- */
-export function dotOffsets(count: number): number[] {
-  return Array.from({ length: count }, (_, index) => 0.2 + 0.6 * ((index * 0.618) % 1));
-}
-
 /** The share of a Group's cases that fills a tail histogram bar across the whole band. */
 export const TAIL_FULL_SHARE = 0.05;
 

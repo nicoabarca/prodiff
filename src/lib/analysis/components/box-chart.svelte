@@ -2,20 +2,17 @@
   /**
    * The drawing core of a box plot: one row per Group over `domain`, plus
    * optional dots per Group and an HTML `overlay` placed in plot coordinates.
-   * A Group with `letters` is drawn as a letter-value plot: one box per letter
-   * value, each thinner and paler than the one inside it, and no whiskers.
-   * `dotStyle` "histogram" draws `dots` as a tail histogram: bars binned along
-   * the value axis and mirrored across the band, each as thick as its share
-   * of the Group's cases.
+   * `dots` are drawn past the whiskers as a tail histogram.
    * `hover` picks what the pointer reads: a Group's box figures, or the value
    * under it on the value axis.
    */
   import type { Snippet } from "svelte";
   import { scaleBand, scaleSymlog } from "d3-scale";
   import { Axis, BoxPlot, Chart, ChartClipPath, Highlight, Html, Svg, Tooltip } from "layerchart";
-  import { interiorTicks } from "$lib/analysis/utils/axis";
-  import { dotOffsets, tailBins, tailThickness, type BoxRow } from "$lib/analysis/utils/box-plot";
-  import type { LetterBox } from "$lib/analysis/types";
+  import { valueTicks } from "$lib/analysis/utils/axis";
+  import type { BoxRow } from "$lib/analysis/utils/box-plot";
+  import TailHistogram from "$lib/analysis/components/tail-histogram.svelte";
+  import ValueHover from "$lib/analysis/components/value-hover.svelte";
   import Fit from "$lib/components/fit/fit.svelte";
 
   type Padding = { top?: number; right?: number; bottom?: number; left?: number };
@@ -36,8 +33,6 @@
     bandLabels = true,
     hover = "box",
     dots,
-    dotStyle = "jitter",
-    letters,
     overlay
   }: {
     rows: BoxRow[];
@@ -53,41 +48,21 @@
     bandLabels?: boolean;
     hover?: "box" | "value";
     dots?: Record<string, number[]>;
-    dotStyle?: "jitter" | "histogram";
-    letters?: Record<string, LetterBox[]>;
     overlay?: Snippet<[Place]>;
   } = $props();
 
   const horizontal = $derived(orientation === "horizontal");
-  /** Pixels each tail histogram bar covers along the value axis. */
-  const TAIL_BIN = 4;
   const low = $derived(domain[0]);
   const high = $derived(domain[1]);
   const scale = $derived(scaleSymlog().constant(constant));
-  const position = $derived(scale.copy().domain([low, high]).range([0, 1]));
-  // A label lies along a horizontal axis and stacks up a vertical one, so it
-  // needs the room its own text takes in that direction.
-  const clearance = $derived(horizontal ? 0.16 : 0.07);
   /** A horizontal plot without the band axis labels its low end on the value axis. */
-  const ticks = $derived.by(() => {
-    const interior = interiorRungs();
-    if (!horizontal || bandLabels || interior === undefined) return interior;
-    return [low, ...interior.filter((value) => position(value) - position(low) >= clearance)];
-  });
-  const interiorRungs = () =>
-    interiorTicks(
-      low,
-      high,
-      ladder.length > 0
-        ? ladder
-        : scale
-            .copy()
-            .domain([low, high])
-            .ticks(horizontal ? 3 : 4),
-      format,
-      position,
-      clearance
-    );
+  const ticks = $derived(
+    valueTicks(low, high, constant, format, {
+      horizontal,
+      ladder,
+      labelLow: horizontal && !bandLabels
+    })
+  );
   const band = $derived(scaleBand().padding(0.35));
   const chartPadding = $derived(
     padding ??
@@ -99,13 +74,6 @@
   const noLabel = () => "";
   const center = (axis: { (value: string): number; bandwidth?: () => number }, id: string) =>
     axis(id) + (axis.bandwidth?.() ?? 0) / 2;
-  /** Pixels from the plot's start along the value axis to the pointer, null while it is outside. */
-  let pointer = $state<number | null>(null);
-  const across = (
-    axis: { (value: string): number; bandwidth?: () => number },
-    id: string,
-    share: number
-  ) => axis(id) + (axis.bandwidth?.() ?? 0) * share;
 </script>
 
 <Chart
@@ -133,36 +101,7 @@
       {/if}
       <ChartClipPath>
         {#each rows as box (box.id)}
-          {@const boxes = letters?.[box.id]}
-          {#if boxes && boxes.length > 0}
-            {@const value = horizontal ? context.xScale : context.yScale}
-            {@const across = horizontal ? context.yScale : context.xScale}
-            {@const middle = center(across, box.id)}
-            {@const full = across.bandwidth?.() ?? 0}
-            {#each [...boxes].reverse() as letter (letter.depth)}
-              {@const thickness = full * Math.pow(0.82, letter.depth - 2)}
-              {@const from = value(horizontal ? letter.lower : letter.upper)}
-              {@const to = value(horizontal ? letter.upper : letter.lower)}
-              <rect
-                x={horizontal ? from : middle - thickness / 2}
-                y={horizontal ? middle - thickness / 2 : from}
-                width={horizontal ? Math.max(1, to - from) : thickness}
-                height={horizontal ? thickness : Math.max(1, to - from)}
-                fill={box.color}
-                fill-opacity={0.45 * Math.pow(0.78, letter.depth - 2)}
-                stroke={letter.depth === 2 ? box.color : "none"}
-                stroke-width="1.5"
-              />
-            {/each}
-            <line
-              x1={horizontal ? value(box.median) : middle - full / 2}
-              x2={horizontal ? value(box.median) : middle + full / 2}
-              y1={horizontal ? middle - full / 2 : value(box.median)}
-              y2={horizontal ? middle + full / 2 : value(box.median)}
-              stroke={box.color}
-              stroke-width="2"
-            />
-          {:else if box.whiskerLow === box.whiskerHigh}
+          {#if box.whiskerLow === box.whiskerHigh}
             <circle
               cx={horizontal ? context.xScale(box.median) : center(context.xScale, box.id)}
               cy={horizontal ? center(context.yScale, box.id) : context.yScale(box.median)}
@@ -186,41 +125,18 @@
               strokeWidth={1.5}
             />
           {/if}
-          {#if dots && dotStyle === "histogram"}
+          {#if dots}
             {@const value = horizontal ? context.xScale : context.yScale}
             {@const band = horizontal ? context.yScale : context.xScale}
-            {@const middle = center(band, box.id)}
-            {@const full = band.bandwidth?.() ?? 0}
-            {@const n = box.n ?? (dots[box.id]?.length || 1)}
-            {#each tailBins( (dots[box.id] ?? []).map( (v) => value(v) ), TAIL_BIN ) as bin (bin.start)}
-              {@const thickness = Math.max(2, tailThickness(bin.count, n) * full)}
-              <rect
-                x={horizontal ? bin.start : middle - thickness / 2}
-                y={horizontal ? middle - thickness / 2 : bin.start}
-                width={horizontal ? TAIL_BIN - 1 : thickness}
-                height={horizontal ? thickness : TAIL_BIN - 1}
-                fill={box.color}
-                fill-opacity="0.55"
-                class="pointer-events-none"
-                data-tail-count={bin.count}
-              />
-            {/each}
-          {:else if dots}
-            {@const values = dots[box.id] ?? []}
-            {#each dotOffsets(values.length) as share, index (index)}
-              <circle
-                cx={horizontal
-                  ? context.xScale(values[index])
-                  : across(context.xScale, box.id, share)}
-                cy={horizontal
-                  ? across(context.yScale, box.id, share)
-                  : context.yScale(values[index])}
-                r="2.5"
-                fill={box.color}
-                fill-opacity="0.5"
-                class="pointer-events-none"
-              />
-            {/each}
+            <TailHistogram
+              values={dots[box.id] ?? []}
+              n={box.n ?? (dots[box.id]?.length || 1)}
+              color={box.color}
+              {horizontal}
+              position={value}
+              middle={center(band, box.id)}
+              full={band.bandwidth?.() ?? 0}
+            />
           {/if}
         {/each}
         {#if hover === "box"}
@@ -266,40 +182,7 @@
 
     {#if hover === "value"}
       {@const value = horizontal ? context.xScale : context.yScale}
-      <Html>
-        <div
-          role="presentation"
-          class="absolute inset-0 cursor-crosshair"
-          onpointermove={(event) => (pointer = horizontal ? event.offsetX : event.offsetY)}
-          onpointerleave={() => (pointer = null)}
-        >
-          {#if pointer !== null}
-            {#if horizontal}
-              <div
-                class="bg-foreground/40 pointer-events-none absolute inset-y-0 w-px"
-                style="left:{pointer}px"
-              ></div>
-              <span
-                class="bg-popover text-popover-foreground border-border pointer-events-none absolute top-full -translate-x-1/2 border px-1 py-0.5 font-mono text-[0.625rem] whitespace-nowrap tabular-nums"
-                style="left:{pointer}px"
-              >
-                {format(value.invert(pointer))}
-              </span>
-            {:else}
-              <div
-                class="bg-foreground/40 pointer-events-none absolute inset-x-0 h-px"
-                style="top:{pointer}px"
-              ></div>
-              <span
-                class="bg-popover text-popover-foreground border-border pointer-events-none absolute right-full -translate-y-1/2 border px-1 py-0.5 font-mono text-[0.625rem] whitespace-nowrap tabular-nums"
-                style="top:{pointer}px"
-              >
-                {format(value.invert(pointer))}
-              </span>
-            {/if}
-          {/if}
-        </div>
-      </Html>
+      <ValueHover {horizontal} invert={(pixel) => value.invert?.(pixel) ?? Number.NaN} {format} />
     {:else}
       <Tooltip.Root contained={contain} props={{ root: { class: "w-max" } }}>
         {#snippet children({ data: box })}
