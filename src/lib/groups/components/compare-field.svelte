@@ -43,7 +43,7 @@
             style="background:{colorVar(group.color)}"
             aria-hidden="true"
           ></span>
-          <Fit text={group.name} focusable={false} class="max-w-40 shrink-0" />
+          <Fit text={group.name} focusable={false} class="max-w-40" />
         {/each}
         {#if groups.length < 2 && groups[0]?.id !== ORIGINAL_ID}
           <Badge>+ Add a group</Badge>
