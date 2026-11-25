@@ -20,11 +20,9 @@
 
   const displayedAttributes = $derived(draftAttributes ?? settings.value.attributes);
 
-  function toggle(name: string, on: boolean) {
+  function change(next: string[]) {
     saveError = null;
-    draftAttributes = on
-      ? [...displayedAttributes, name]
-      : displayedAttributes.filter((attribute) => attribute !== name);
+    draftAttributes = next;
   }
 
   async function commit(edited: string[]) {
@@ -47,11 +45,12 @@
 </script>
 
 <AttributesField
+  {project}
   {options}
   selected={displayedAttributes}
   caption="Attributes tested · rebuilds tree"
   note={NOTE}
   error={saveError}
-  onToggle={toggle}
+  onChange={change}
   bind:open
 />
