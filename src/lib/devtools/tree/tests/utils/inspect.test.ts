@@ -24,7 +24,6 @@ const tree: ResponseDirectedTree = {
   variantsTotal: 1,
   variantsIncluded: 1,
   caseCoverage: 1,
-  cappedByCeiling: false,
   transitionTimeBasis: "completeOnly",
   hasActivityDuration: false
 };

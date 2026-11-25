@@ -36,7 +36,6 @@ function tree(variantsTotal = 2): ResponseDirectedTree {
     variantsTotal,
     variantsIncluded: 2,
     caseCoverage: 1,
-    cappedByCeiling: false,
     transitionTimeBasis: "completeOnly",
     hasActivityDuration: false
   };

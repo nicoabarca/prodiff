@@ -90,7 +90,6 @@
         <CaseStrip
           caseLevel={caseLevelBlocks(built.tree)}
           groupIds={built.tree.groups.map((group) => group.id)}
-          cappedByCeiling={built.tree.cappedByCeiling}
           alternatives={caseAlternatives}
         />
       {/if}

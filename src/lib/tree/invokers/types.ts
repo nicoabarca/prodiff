@@ -13,7 +13,6 @@ export interface ResponseDirectedTree {
   variantsTotal: number;
   variantsIncluded: number;
   caseCoverage: number;
-  cappedByCeiling: boolean;
   transitionTimeBasis: "startComplete" | "completeOnly";
   hasActivityDuration: boolean;
 }
