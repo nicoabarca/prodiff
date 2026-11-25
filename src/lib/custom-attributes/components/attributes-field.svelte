@@ -6,29 +6,30 @@
    */
   import Fit from "$lib/components/fit/fit.svelte";
   import SettingField from "$lib/components/layout/setting-field.svelte";
-  import { Checkbox } from "$lib/components/ui/checkbox/index.js";
-  import { Label } from "$lib/components/ui/label/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
-  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
+  import AttributePicker from "$lib/custom-attributes/components/attribute-picker.svelte";
   import { attributeLabel } from "$lib/custom-attributes/state/custom-attributes.svelte";
+  import type { Project } from "$lib/event-log/types";
   import FlaskConical from "@lucide/svelte/icons/flask-conical";
 
   let {
+    project,
     options,
     selected,
     caption,
     note,
     error = null,
     open = $bindable(false),
-    onToggle
+    onChange
   }: {
+    project: Project;
     options: string[];
     selected: string[];
     caption: string;
     note: string;
     error?: string | null;
     open?: boolean;
-    onToggle: (name: string, on: boolean) => void;
+    onChange: (next: string[]) => void;
   } = $props();
 
   /** The first few attributes by name, the rest as a count. */
@@ -53,28 +54,13 @@
       </SettingField>
     {/snippet}
   </Popover.Trigger>
-  <Popover.Content class="w-80">
-    <div class="flex flex-col gap-2">
-      <Label class="text-xs">Attributes to test</Label>
-      <div class="flex max-h-48 flex-col gap-1.5 overflow-y-auto">
-        {#each options as name (name)}
-          <label class="flex items-center gap-2 text-xs">
-            <Checkbox
-              checked={selected.includes(name)}
-              onCheckedChange={(checked) => onToggle(name, checked === true)}
-            />
-            <span><AttributeName {name} /></span>
-          </label>
-        {:else}
-          <p class="text-muted-foreground text-xs">
-            This project has no attribute columns beyond the required fields.
-          </p>
-        {/each}
-      </div>
-      <p class="text-muted-foreground text-[0.625rem]">{note}</p>
-      {#if error}
-        <p class="text-destructive text-xs">Could not save build settings: {error}</p>
-      {/if}
-    </div>
+  <Popover.Content
+    class="flex max-h-[min(32rem,70vh)] w-[28rem] max-w-[calc(100vw-2rem)] flex-col gap-2"
+  >
+    <AttributePicker {project} {options} {selected} {onChange} class="flex-1" />
+    <p class="text-muted-foreground text-[0.625rem]">{note}</p>
+    {#if error}
+      <p class="text-destructive text-xs">Could not save build settings: {error}</p>
+    {/if}
   </Popover.Content>
 </Popover.Root>

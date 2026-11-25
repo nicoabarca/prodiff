@@ -1,9 +1,8 @@
 <script lang="ts">
   import { attributeOptions } from "$lib/analysis/attributes";
   import { customColumns } from "$lib/custom-attributes/state/custom-attributes.svelte";
-  import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
+  import AttributePicker from "$lib/custom-attributes/components/attribute-picker.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
-  import { Checkbox } from "$lib/components/ui/checkbox/index.js";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
   import { build } from "$lib/tree/state/build.svelte";
   import { saveSettings, settings } from "$lib/tree/state/tree.svelte";
@@ -31,20 +30,12 @@
     open = true;
   });
 
-  function toggle(attribute: string, checked: boolean) {
-    chosen = checked ? [...chosen, attribute] : chosen.filter((name) => name !== attribute);
-  }
+  const count = $derived(options.filter((name) => chosen.includes(name)).length);
 
-  function granularity(attribute: string) {
-    return project.columns.find((column) => column.name === attribute)?.scope === "case"
-      ? "case"
-      : "event";
-  }
-
-  async function confirm() {
+  async function confirm(attributes: string[]) {
     await saveSettings(project.id, {
       ...settings.value,
-      attributes: chosen,
+      attributes,
       attributesChosen: true
     });
     build(project);
@@ -53,7 +44,7 @@
 
 <Dialog.Root bind:open>
   <Dialog.Content
-    class="sm:max-w-lg"
+    class="sm:max-w-[40rem]"
     showCloseButton={false}
     onInteractOutside={(event) => event.preventDefault()}
     onEscapeKeydown={(event) => event.preventDefault()}
@@ -61,32 +52,25 @@
     <Dialog.Header>
       <Dialog.Title>Choose attributes to test</Dialog.Title>
       <Dialog.Description>
-        These attributes are tested for differences between groups in the tree. You can change this
-        later in Build settings.
+        The tree tests these attributes for differences between groups. You can change them later
+        from Attributes tested in the toolbar.
       </Dialog.Description>
     </Dialog.Header>
 
-    <div class="flex flex-col gap-2">
-      {#each options as attribute (attribute)}
-        <label class="flex items-center gap-2 text-xs">
-          <Checkbox
-            checked={chosen.includes(attribute)}
-            onCheckedChange={(checked) => toggle(attribute, checked === true)}
-          />
-          <span>
-            <AttributeName name={attribute} />
-            <span class="text-muted-foreground">({granularity(attribute)})</span>
-          </span>
-        </label>
-      {:else}
-        <p class="text-muted-foreground text-xs">
-          This project has no attribute columns beyond the required fields.
-        </p>
-      {/each}
-    </div>
+    <AttributePicker
+      {project}
+      {options}
+      selected={chosen}
+      onChange={(next) => (chosen = next)}
+      class="max-h-[60vh]"
+    />
 
     <Dialog.Footer>
-      <Button onclick={confirm}>Confirm</Button>
+      <Button variant="outline" onclick={() => confirm([])}>Skip</Button>
+      <Button disabled={count === 0} onclick={() => confirm(chosen)}>
+        Test {count}
+        {count === 1 ? "attribute" : "attributes"}
+      </Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
