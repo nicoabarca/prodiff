@@ -1,5 +1,5 @@
 /**
- * The box an edge label takes: one line per Group, stacked, in 0.625rem
+ * The box an edge label takes: one line per Group, stacked, in 0.8125rem
  * monospace. ELK lays these boxes out with the graph, so a label sits on its
  * own edge and never on a node or on another label. Sizes are in the CSS
  * pixels ELK and Svelte Flow both work in.
@@ -12,8 +12,8 @@ export interface Size {
   height: number;
 }
 
-const CHAR_WIDTH = 6.1;
-const LINE_HEIGHT = 13;
+const CHAR_WIDTH = 7.9;
+const LINE_HEIGHT = 17;
 const PADDING_X = 8;
 const PADDING_Y = 4;
 const DOT = 10;

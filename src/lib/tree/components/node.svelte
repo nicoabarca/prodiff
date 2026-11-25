@@ -66,7 +66,7 @@
       <Tooltip.Root>
         <Tooltip.Trigger class="min-w-0 text-center">
           <span
-            class="line-clamp-3 text-[0.6875rem] leading-tight font-medium"
+            class="line-clamp-3 text-[0.9375rem] leading-tight font-medium [overflow-wrap:anywhere]"
             style="color:var(--{accent})"
           >
             {data.label}
@@ -78,7 +78,7 @@
 
     {#if shared}
       <span
-        class="-mt-0.5 font-mono text-[0.5625rem] leading-none tabular-nums opacity-75"
+        class="-mt-0.5 font-mono text-[0.75rem] leading-none tabular-nums opacity-75"
         style="color:var(--{accent})"
       >
         {formatCompact(total)}
@@ -87,7 +87,7 @@
 
     <div class="flex w-full flex-col gap-0.5">
       <div
-        class="flex gap-1 font-mono text-[0.5625rem] leading-none font-medium tabular-nums {shared
+        class="flex gap-1 font-mono text-[0.75rem] leading-none font-medium tabular-nums {shared
           ? 'justify-between'
           : 'justify-center'}"
       >
@@ -109,7 +109,7 @@
     </div>
 
     {#if data.figures.some((figure) => figure !== null)}
-      <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
+      <div class="flex w-full items-center justify-center gap-2 text-[0.8125rem] font-medium">
         {#each data.groups as group, index (group.id)}
           {#if data.figures[index] !== null && data.figures[index] !== undefined}
             <span style="color:var(--{group.color})">{data.figures[index]}</span>
@@ -125,17 +125,17 @@
     {#if data.hiddenBelow > 0 || data.hasChildren}
       <button
         type="button"
-        class="text-muted-foreground hover:text-foreground bg-card border-border absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 border px-1 text-[0.625rem]"
+        class="text-muted-foreground hover:text-foreground bg-card border-border absolute -bottom-2 left-1/2 flex -translate-x-1/2 items-center gap-0.5 border px-1 text-[0.75rem]"
         onclick={(event) => {
           event.stopPropagation();
           data.onToggleCollapse();
         }}
       >
         {#if data.hiddenBelow > 0}
-          <ChevronRight class="size-3" aria-hidden="true" />
+          <ChevronRight class="size-3.5" aria-hidden="true" />
           +{data.hiddenBelow}
         {:else}
-          <ChevronDown class="size-3" aria-hidden="true" />
+          <ChevronDown class="size-3.5" aria-hidden="true" />
         {/if}
       </button>
     {/if}

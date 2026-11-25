@@ -1,7 +1,7 @@
 <script lang="ts">
   /**
-   * A test's magnitude as four rounded bars, each filled in its own step on
-   * the `--effect-*` ramp up to the test's step and grey after it. `vertical`
+   * A test's magnitude as four rounded bars, filled in the test's step on the
+   * `--effect-*` ramp up to that step and faint grey after it. `vertical`
    * stacks them bottom up, largest on top, on a card coloured chip whose
    * radius is the bars' radius plus its padding, ringed in the test's step.
    */
@@ -16,13 +16,14 @@
   }: { step: 0 | EffectStep; vertical?: boolean; class?: string } = $props();
 
   const BANDS: EffectBand[] = ["negligible", "small", "moderate", "large"];
+  const fill = $derived(step === 0 ? null : effectColor(step).fill);
 </script>
 
 <span
   class={cn(
     "flex gap-[0.0625rem]",
     vertical
-      ? "bg-card w-3 flex-col items-center rounded-[0.21875rem] p-0.5 shadow-sm ring-1"
+      ? "bg-card w-3.5 flex-col items-center rounded-[0.21875rem] p-0.5 shadow-sm ring-1"
       : "items-center",
     className
   )}
@@ -36,10 +37,10 @@
     <span
       class={cn(
         "block shrink-0 rounded-[0.09375rem]",
-        vertical ? "h-0.75 w-2" : "h-1.5 w-2.5",
-        i > step && "bg-muted-foreground/30"
+        "h-1.5 w-2.5",
+        i > step && "bg-muted-foreground/15"
       )}
-      style={i <= step ? `background:${effectColor(i).fill}` : undefined}
+      style={i <= step && fill ? `background:${fill}` : undefined}
     ></span>
   {/each}
 </span>

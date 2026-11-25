@@ -85,7 +85,7 @@
     <Tooltip.Root>
       <Tooltip.Trigger class="min-w-0 text-center">
         <span
-          class="line-clamp-2 text-[0.6875rem] leading-tight font-medium"
+          class="line-clamp-2 text-[0.9375rem] leading-tight font-medium"
           style="color:{shaded.ink ?? `var(--${accent})`}"
         >
           {data.label}
@@ -98,7 +98,7 @@
       </Tooltip.Content>
     </Tooltip.Root>
 
-    <div class="flex w-full items-center justify-center gap-2 text-[0.625rem] font-medium">
+    <div class="flex w-full items-center justify-center gap-2 text-[0.8125rem] font-medium">
       {#each data.groups as group (group.id)}
         {#if data.counts[group.id]}
           <span

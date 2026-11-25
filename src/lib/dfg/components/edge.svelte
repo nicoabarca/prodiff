@@ -57,7 +57,7 @@
     <span
       class="transition-opacity duration-200 {edge.dimmed
         ? 'opacity-15'
-        : ''} bg-background text-muted-foreground flex flex-col items-start gap-px px-1 py-0.5 font-mono text-[0.625rem] leading-tight whitespace-nowrap"
+        : ''} bg-background text-muted-foreground flex flex-col items-start gap-px px-1 py-0.5 font-mono text-[0.8125rem] leading-tight whitespace-nowrap"
     >
       {#each edge.label as line (line.id)}
         <span class="inline-flex items-center gap-1">

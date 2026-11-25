@@ -16,13 +16,10 @@ import type {
 import { edgeEffect, effectBand, effectStep, peakEffect } from "$lib/tree/utils/effect";
 import { nodeFigures, type NodeFigure } from "$lib/tree/utils/figure";
 import { layoutTree } from "$lib/tree/utils/layout";
+import { MIN_HEIGHT, MIN_WIDTH, nodeSize } from "$lib/tree/utils/node-size";
 import { caseSplit, children, groupCasesAt, groupIds, membership } from "$lib/tree/utils/tree";
-import { formatDuration } from "$lib/format";
+import { formatCompact, formatDuration, formatPercent } from "$lib/format";
 
-// Narrow enough that a deep tree fits on screen; activity names wrap to three
-// lines inside it.
-export const NODE_WIDTH = 170;
-export const NODE_HEIGHT = 80;
 const RANK_SEP = 60;
 const NODE_SEP = 24;
 const UNIFORM_EDGE_WIDTH = 1.5;
@@ -30,7 +27,9 @@ const UNIFORM_EDGE_WIDTH = 1.5;
 // Svelte Flow draws an edge label in a portal outside the edge group, so a
 // class on the edge never reaches it and its dimming rides on this style.
 export const EDGE_LABEL_STYLE =
-  "font-size:0.625rem;font-family:ui-monospace,monospace;color:var(--edge-label);background:var(--background);padding:0 0.25rem;white-space:nowrap";
+  "font-size:0.8125rem;font-family:ui-monospace,monospace;color:var(--edge-label);background:var(--background);padding:0 0.25rem;white-space:nowrap";
+
+type Face = Pick<TreeNodeData, "cases" | "split" | "figures">;
 
 export function stableKeys(tree: ResponseDirectedTree): Map<number, string> {
   const keys = new Map<number, string>();
@@ -172,9 +171,33 @@ export function toFlow(
     return counted ? Object.values(counted).reduce((sum, cases) => sum + cases, 0) : 0;
   };
   const casesById = new Map(shown.map((node) => [node.id, nodeCases(node)]));
+  const faces = new Map<number, Face>(
+    shown.map((node) => {
+      const cases = visible.cases.get(node.id) ?? {};
+      const figures =
+        options.figure.kind === "cases"
+          ? []
+          : nodeFigures(node, options.figure, options.statistic, cases, tree.groups);
+      return [node.id, { cases, split: caseSplit(cases), figures }];
+    })
+  );
+  const sizeOf = (node: TreeNode) => {
+    if (node.parent === null) return { width: MIN_WIDTH, height: MIN_HEIGHT };
+    const { cases, split, figures } = faces.get(node.id) as Face;
+    const reaching = options.groups.filter((group) => (cases[group.id] ?? 0) > 0);
+    const shared = reaching.length > 1;
+    return nodeSize({
+      label: node.label,
+      total: shared ? formatCompact(casesById.get(node.id) ?? 0) : null,
+      counts: reaching.map(
+        (group) =>
+          formatCompact(cases[group.id]) + (shared ? ` (${formatPercent(split[group.id])})` : "")
+      ),
+      figures: figures.filter((figure) => figure !== null && figure !== undefined)
+    });
+  };
   const placed = layoutTree(shown, {
-    nodeWidth: NODE_WIDTH,
-    nodeHeight: NODE_HEIGHT,
+    size: (id) => sizeOf(byId.get(id) as TreeNode),
     rankSep: RANK_SEP,
     nodeSep: NODE_SEP,
     volume: (id) => casesById.get(id) ?? 0,
@@ -190,7 +213,10 @@ export function toFlow(
     if (parent !== undefined && membership(parent, ids) === own) {
       return { color: group.color, trunk: true, from: 0 };
     }
-    const centre = (id: number) => placed.get(id)?.x ?? 0;
+    const centre = (id: number) => {
+      const box = placed.get(id);
+      return box ? box.x + box.width / 2 : 0;
+    };
     const reach = centre(node.id) - centre(node.parent as number);
     const blockers = shown
       .filter((sibling) => sibling.parent === node.parent && sibling.id !== node.id)
@@ -211,16 +237,16 @@ export function toFlow(
   const roots = new Set(shown.filter((node) => node.parent === null).map((node) => node.id));
 
   const nodes: Node[] = shown.map((node) => {
-    const point = placed.get(node.id) ?? { x: 0, y: 0 };
-    const cases = visible.cases.get(node.id) ?? {};
+    const box = placed.get(node.id) ?? { x: 0, y: 0, width: 0, height: 0 };
+    const { cases, split, figures } = faces.get(node.id) as Face;
     const peak = peakEffect(node);
     const key = keys.get(node.id) as string;
     return {
       id: key,
       type: "activity",
-      position: { x: point.x, y: point.y },
-      width: NODE_WIDTH,
-      height: NODE_HEIGHT,
+      position: { x: box.x, y: box.y },
+      width: box.width,
+      height: box.height,
       draggable: false,
       data: {
         nodeId: node.id,
@@ -229,11 +255,8 @@ export function toFlow(
         membership: membership(node, ids),
         groups: options.groups,
         cases,
-        split: caseSplit(cases),
-        figures:
-          options.figure.kind === "cases"
-            ? []
-            : nodeFigures(node, options.figure, options.statistic, cases, tree.groups),
+        split,
+        figures,
         significantCount: significantCount(node),
         peakBand: peak === null ? null : effectBand(peak),
         peakStep: peak === null ? null : effectStep(peak),
