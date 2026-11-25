@@ -33,6 +33,7 @@
 
   let open = $state(false);
   let format = $state<ImageFormat>("png");
+  let background = $state<"white" | "transparent">("white");
   let sizing = $state<"auto" | "custom">("auto");
   let width = $state(1920);
   let height = $state(1080);
@@ -66,8 +67,8 @@
       await settle();
       const bounds = flow.getNodesBounds(flow.getNodes());
       const placed = frame(bounds, sizing === "auto" ? null : { width, height });
-      const background = getComputedStyle(document.body).backgroundColor;
-      const bytes = await capture(viewport, format, placed, background);
+      const transparent = format !== "jpeg" && background === "transparent";
+      const bytes = await capture(viewport, format, placed, transparent ? undefined : "#ffffff");
       await writeFile(path, bytes);
       toast.success("Image saved", { id, description: path });
     } catch (error) {
@@ -108,6 +109,24 @@
         {/each}
       </ToggleGroup.Root>
     </div>
+
+    {#if format !== "jpeg"}
+      <div class="space-y-1.5">
+        <Label class="text-xs">Background</Label>
+        <ToggleGroup.Root
+          type="single"
+          size="sm"
+          variant="outline"
+          value={background}
+          onValueChange={(value) => {
+            if (value) background = value as typeof background;
+          }}
+        >
+          <ToggleGroup.Item value="white">White</ToggleGroup.Item>
+          <ToggleGroup.Item value="transparent">Transparent</ToggleGroup.Item>
+        </ToggleGroup.Root>
+      </div>
+    {/if}
 
     <div class="space-y-1.5">
       <Label class="text-xs">Size</Label>

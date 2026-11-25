@@ -90,7 +90,6 @@ describe("toFlow", () => {
     variantsTotal: 3,
     variantsIncluded: 3,
     caseCoverage: 1,
-    cappedByCeiling: false,
     transitionTimeBasis: "completeOnly",
     hasActivityDuration: false
   };
@@ -194,7 +193,6 @@ describe("toFlow edges", () => {
     variantsTotal: 1,
     variantsIncluded: 1,
     caseCoverage: 1,
-    cappedByCeiling: false,
     transitionTimeBasis: "completeOnly",
     hasActivityDuration: false
   };

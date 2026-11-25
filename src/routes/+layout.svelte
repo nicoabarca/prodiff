@@ -2,6 +2,7 @@
   import "../app.css";
   import { Toaster } from "$lib/components/ui/sonner/index.js";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
+  import FitTooltip from "$lib/components/fit/fit-tooltip.svelte";
   import BootScreen from "$lib/db/components/boot-screen.svelte";
   import DatabaseProblem from "$lib/db/components/database-problem.svelte";
   import { dbProblem, initDb } from "$lib/db/client";
@@ -45,7 +46,11 @@
 {:else if boot.stage !== "ready"}
   <BootScreen projectCount={projects.length} />
 {:else}
-  <Tooltip.Provider>
+  <!-- `ignoreNonKeyboardFocus`: a popover or dialog focuses its first control on
+       open, and a tooltip opened by that focus becomes the top dismissible layer,
+       so an outside click would close only the tooltip and leave the popover open. -->
+  <Tooltip.Provider ignoreNonKeyboardFocus>
+    <FitTooltip />
     {@render children()}
   </Tooltip.Provider>
 {/if}

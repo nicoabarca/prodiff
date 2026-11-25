@@ -50,6 +50,41 @@ export interface Outliers {
 /** Fetches one box plot's outliers, keyed by Group id. */
 export type OutlierLoad = () => Promise<Record<string, Outliers>>;
 
+/**
+ * One Group's box under the adjusted box plot rule: whiskers moved by the
+ * medcouple, a skew measure from -1 to 1, and the values past them.
+ */
+export interface AdjustedBox {
+  medcouple: number;
+  whiskerLow: number;
+  whiskerHigh: number;
+  low: number[];
+  high: number[];
+}
+
+export interface LetterBox {
+  depth: number;
+  lower: number;
+  upper: number;
+}
+
+/**
+ * One Group's letter-value plot: nested boxes from the fourths outwards, each
+ * halving the tail left by the one before, and the values past the last box.
+ */
+export interface LetterValues {
+  median: number;
+  boxes: LetterBox[];
+  low: number[];
+  high: number[];
+}
+
+/** Fetchers for the other ways the full-size box plot can draw the same values, keyed by Group id. */
+export interface BoxAlternatives {
+  adjusted: () => Promise<Record<string, AdjustedBox>>;
+  letterValues: () => Promise<Record<string, LetterValues>>;
+}
+
 export interface Test {
   test: "mannwhitney" | "chi2";
   statistic: number;

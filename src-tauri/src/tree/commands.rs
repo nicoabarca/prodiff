@@ -9,7 +9,11 @@ use super::distributions::{
     distributions, node_values, NodeDistributions, Scope, TreeOutlierTarget,
 };
 use super::{build, case_values, DirectedTree};
-use crate::analysis::{outliers_by_group, read_groups, Outliers};
+use crate::analysis::adjusted::AdjustedBox;
+use crate::analysis::letter_values::LetterValues;
+use crate::analysis::{
+    adjusted_by_group, letter_values_by_group, outliers_by_group, read_groups, GroupLog, Outliers,
+};
 use crate::column_mapping::ColumnMapping;
 use crate::event_log::storage::project_dir_for_app;
 use crate::parsing::commands::off_main_thread;
@@ -112,26 +116,75 @@ pub async fn tree_outliers(
     let dir = project_dir_for_app(&app, &project_id)?;
     off_main_thread(move || {
         let logs = read_groups(&dir, &groups, &columns)?;
-        let values = match &target {
-            TreeOutlierTarget::Node {
-                variants,
-                depth,
-                scope,
-                attribute,
-                finite_only,
-            } => node_values(
-                &logs,
-                &columns,
-                attribute,
-                variants,
-                *depth,
-                *scope,
-                *finite_only,
-            )?,
-            TreeOutlierTarget::Case { attribute } => case_values(&logs, &columns, attribute)?,
-        };
+        let values = target_values(&logs, &columns, &target)?;
         let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
         Ok(outliers_by_group(&ids, values))
     })
     .await
+}
+
+/// The adjusted box plot of the same values `tree_outliers` reads, keyed by
+/// Group id: whiskers moved by the medcouple, and the values past them.
+#[tauri::command]
+pub async fn tree_adjusted_box(
+    app: tauri::AppHandle,
+    project_id: String,
+    groups: Vec<String>,
+    columns: Vec<ColumnMapping>,
+    target: TreeOutlierTarget,
+) -> Result<HashMap<String, AdjustedBox>, String> {
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let logs = read_groups(&dir, &groups, &columns)?;
+        let values = target_values(&logs, &columns, &target)?;
+        let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
+        Ok(adjusted_by_group(&ids, values))
+    })
+    .await
+}
+
+/// The letter-value plot of the same values `tree_outliers` reads, keyed by
+/// Group id.
+#[tauri::command]
+pub async fn tree_letter_values(
+    app: tauri::AppHandle,
+    project_id: String,
+    groups: Vec<String>,
+    columns: Vec<ColumnMapping>,
+    target: TreeOutlierTarget,
+) -> Result<HashMap<String, LetterValues>, String> {
+    let dir = project_dir_for_app(&app, &project_id)?;
+    off_main_thread(move || {
+        let logs = read_groups(&dir, &groups, &columns)?;
+        let values = target_values(&logs, &columns, &target)?;
+        let ids: Vec<String> = logs.iter().map(|log| log.id.clone()).collect();
+        Ok(letter_values_by_group(&ids, values))
+    })
+    .await
+}
+
+/// The values one outlier target names, one list per Group in `logs` order.
+fn target_values(
+    logs: &[GroupLog],
+    columns: &[ColumnMapping],
+    target: &TreeOutlierTarget,
+) -> Result<Vec<Vec<f64>>, String> {
+    Ok(match target {
+        TreeOutlierTarget::Node {
+            variants,
+            depth,
+            scope,
+            attribute,
+            finite_only,
+        } => node_values(
+            logs,
+            columns,
+            attribute,
+            variants,
+            *depth,
+            *scope,
+            *finite_only,
+        )?,
+        TreeOutlierTarget::Case { attribute } => case_values(logs, columns, attribute)?,
+    })
 }

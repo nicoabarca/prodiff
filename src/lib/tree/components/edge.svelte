@@ -55,9 +55,7 @@
   <span class="flex flex-col items-start gap-px leading-tight">
     {#each waits as wait (wait.id)}
       <span class="inline-flex items-center gap-1">
-        {#if waits.length > 1}
-          <span class="size-1.5 rounded-full" style="background:var(--{wait.color})"></span>
-        {/if}
+        <span class="size-1.5 rounded-full" style="background:var(--{wait.color})"></span>
         {wait.value}
       </span>
     {/each}

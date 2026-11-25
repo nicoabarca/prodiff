@@ -16,8 +16,12 @@ export const defaultTreeSettings: TreeSettings = {
   attributesChosen: false
 };
 
-/** What a cold build and a freshly seeded picker both open on. */
+/**
+ * What a cold build and a freshly seeded picker both open on: the fewest
+ * Variants holding `DEFAULT_COVERAGE` of the cases, at most `DEFAULT_MAX_VARIANTS`.
+ */
 export const DEFAULT_COVERAGE = 0.8;
+export const DEFAULT_MAX_VARIANTS = 10;
 
 /**
  * What the node face shows under the activity name. `share` is a Group's cases

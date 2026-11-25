@@ -18,3 +18,13 @@ export interface CustomAttribute {
   createdAt: string;
   editedAt: string;
 }
+
+/** Whether an attribute holds one value per case or per event, or is derived by the app. */
+export type AttributeGranularity = "case" | "event" | "derived";
+
+/** One attribute as the picker lists it, with its data type as the user reads it. */
+export interface AttributeRow {
+  name: string;
+  granularity: AttributeGranularity;
+  dataType: string;
+}

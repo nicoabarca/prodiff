@@ -4,7 +4,6 @@
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Collapsible from "$lib/components/ui/collapsible/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
-  import * as ScrollArea from "$lib/components/ui/scroll-area/index.js";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
   import EffectChip from "$lib/tree/components/effect-chip.svelte";
   import EffectMeter from "$lib/tree/components/effect-meter.svelte";
@@ -20,7 +19,7 @@
   import { TRANSITION_TIME, isDurationAttribute } from "$lib/analysis/attributes";
   import { caseSplit, membership, pathTo, visibleNodes } from "$lib/tree/utils/tree";
   import { selectedVariants, view } from "$lib/tree/state/tree.svelte";
-  import { nodeOutliers } from "$lib/tree/state/build.svelte";
+  import { nodeAlternatives, nodeOutliers } from "$lib/tree/state/build.svelte";
   import { cn } from "$lib/utils";
   import { SvelteSet } from "svelte/reactivity";
   import ChartColumn from "@lucide/svelte/icons/chart-column";
@@ -181,6 +180,10 @@
         load={node && Object.values(block.summaries).some((summary) => summary.type === "numerical")
           ? nodeOutliers(node.id, name)
           : undefined}
+        alternatives={node &&
+        Object.values(block.summaries).some((summary) => summary.type === "numerical")
+          ? nodeAlternatives(node.id, name)
+          : undefined}
         title={attributeLabel(name)}
       />
       {#if !block.test}
@@ -202,7 +205,7 @@
 {/snippet}
 
 <aside
-  class="border-border bg-sidebar flex w-[30rem] shrink-0 flex-col border-l"
+  class="border-border bg-sidebar absolute top-1.5 right-1.5 z-10 flex max-h-[calc(100%-0.75rem)] w-[30rem] max-w-[calc(100%-0.75rem)] flex-col overflow-hidden rounded-lg border shadow-lg"
   data-tour="tree-detail-panel"
 >
   {#if !node}
@@ -272,7 +275,7 @@
 
       <div class="flex flex-col gap-1">
         <span class="text-muted-foreground text-[0.625rem] font-medium tracking-wide uppercase">
-          Variant
+          {node.variantKey === null ? "Partial Variant" : "Variant"}
         </span>
         <VariantSteps {steps} />
       </div>
@@ -316,11 +319,11 @@
           <Button size="sm" onclick={onCompare}>Choose a second group</Button>
         </div>
       {/if}
-      <ScrollArea.Root class="min-h-0 flex-1">
+      <div class="min-h-0 flex-1 overflow-y-auto">
         {#if node.transitionTime}
           {@render row(TRANSITION_TIME, node.transitionTime)}
         {/if}
-      </ScrollArea.Root>
+      </div>
     {:else if flat.length === 0}
       <div class="text-muted-foreground flex flex-1 flex-col items-start gap-3 px-4 py-3.5 text-xs">
         <p>No attributes selected. Choose attributes to test differences in the tree.</p>
@@ -336,12 +339,12 @@
         <Button size="sm" onclick={onCompare}>Choose a second group</Button>
       </div>
       <!-- `min-h-0` is load-bearing: a flex item's automatic minimum size is its
-           content, so without it the scroll root grows past the panel. -->
-      <ScrollArea.Root class="min-h-0 flex-1">
+           content, so without it the list grows past the panel. -->
+      <div class="min-h-0 flex-1 overflow-y-auto">
         {#each flat as [name, block] (name)}
           {@render row(name, block)}
         {/each}
-      </ScrollArea.Root>
+      </div>
     {:else}
       <Tabs.Root
         value={tab}
@@ -360,7 +363,7 @@
             {/each}
           </Tabs.List>
         </div>
-        <ScrollArea.Root class="min-h-0 flex-1">
+        <div class="min-h-0 flex-1 overflow-y-auto">
           {#each tabs as { value, empty } (value)}
             <Tabs.Content {value}>
               {#each ranked[value] as [name, block] (name)}
@@ -370,7 +373,7 @@
               {/each}
             </Tabs.Content>
           {/each}
-        </ScrollArea.Root>
+        </div>
       </Tabs.Root>
     {/if}
 

@@ -64,6 +64,8 @@ pub fn run() {
             tree::commands::list_variants,
             tree::commands::node_distributions,
             tree::commands::tree_outliers,
+            tree::commands::tree_adjusted_box,
+            tree::commands::tree_letter_values,
             dfg::commands::dfg,
             dfg::commands::dfg_outliers,
             custom_attributes::commands::update_custom_attributes,

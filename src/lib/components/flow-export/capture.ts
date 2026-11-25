@@ -5,13 +5,14 @@ const RENDER = { png: toPng, jpeg: toJpeg, svg: toSvg } satisfies Record<ImageFo
 
 /**
  * Renders a Svelte Flow viewport element to image bytes, placed by `placed`
- * rather than by the transform the user has panned and zoomed to.
+ * rather than by the transform the user has panned and zoomed to. An undefined
+ * `backgroundColor` leaves the background transparent.
  */
 export async function capture(
   viewport: HTMLElement,
   format: ImageFormat,
   placed: Frame,
-  backgroundColor: string
+  backgroundColor: string | undefined
 ): Promise<Uint8Array> {
   const url = await RENDER[format](viewport, {
     backgroundColor,

@@ -17,20 +17,14 @@
     const kept = selection.attributes.filter((attribute) => available.has(attribute));
     if (kept.length !== selection.attributes.length) setAttributes(kept);
   });
-
-  function toggle(name: string, on: boolean) {
-    const next = new Set(selection.attributes);
-    if (on) next.add(name);
-    else next.delete(name);
-    setAttributes([...next]);
-  }
 </script>
 
 <AttributesField
+  {project}
   {options}
   selected={selection.attributes}
   caption="Attributes tested · rebuilds graph"
   note={NOTE}
-  onToggle={toggle}
+  onChange={setAttributes}
   bind:open
 />

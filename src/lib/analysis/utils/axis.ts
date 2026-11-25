@@ -1,3 +1,5 @@
+import { scaleSymlog } from "d3-scale";
+
 /**
  * Interior rungs of an axis: strictly inside the span, at most one per label,
  * and never closer to the last one kept than `clearance` of the axis length.
@@ -32,4 +34,37 @@ export function interiorTicks(
     last = at;
   }
   return ticks.length >= 2 ? ticks : undefined;
+}
+
+/**
+ * The ticks of a symlog value axis from `low` to `high`: `ladder` when it has
+ * rungs, else the scale's own, thinned by `interiorTicks`. With `labelLow`,
+ * `low` is a tick too, for a plot whose band axis carries no labels.
+ */
+export function valueTicks(
+  low: number,
+  high: number,
+  constant: number,
+  format: (value: number) => string,
+  {
+    horizontal,
+    ladder = [],
+    labelLow = false
+  }: { horizontal: boolean; ladder?: number[]; labelLow?: boolean }
+): number[] | undefined {
+  const scale = scaleSymlog().constant(constant).domain([low, high]);
+  const position = scale.copy().range([0, 1]);
+  // A label lies along a horizontal axis and stacks up a vertical one, so it
+  // needs the room its own text takes in that direction.
+  const clearance = horizontal ? 0.16 : 0.07;
+  const interior = interiorTicks(
+    low,
+    high,
+    ladder.length > 0 ? ladder : scale.ticks(horizontal ? 3 : 4),
+    format,
+    position,
+    clearance
+  );
+  if (!labelLow || interior === undefined) return interior;
+  return [low, ...interior.filter((value) => position(value) - position(low) >= clearance)];
 }

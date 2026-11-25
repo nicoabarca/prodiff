@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { cn } from "$lib/utils";
   /**
    * Which Variants the next build is made of. Everything here edits a staged
    * selection; only Apply writes it through, and only then does the view
@@ -35,6 +36,7 @@
     drawn,
     highlighted,
     canvas,
+    floating = false,
     onStage,
     onToggle,
     onHighlight,
@@ -53,6 +55,7 @@
     drawn: Set<string>;
     highlighted: string | null;
     canvas: "tree" | "graph";
+    floating?: boolean;
     onStage: (keys: Iterable<string>) => void;
     onToggle: (key: string) => void;
     onHighlight: (key: string) => void;
@@ -275,8 +278,13 @@
   }}
 />
 
-<div class="flex min-h-0 shrink-0" style:width="{width}rem">
-  <div class="bg-card flex min-w-0 flex-1 flex-col border-r shadow-lg">
+<div class={cn("flex min-h-0", !floating && "shrink-0")} style:width="{width}rem">
+  <div
+    class={cn(
+      "bg-card flex min-w-0 flex-1 flex-col shadow-lg",
+      floating ? "overflow-hidden rounded-lg border" : "border-r"
+    )}
+  >
     <div class="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b px-3 py-2.5">
       <span class="text-[0.8125rem] font-semibold">Variants</span>
       {#if dirty}

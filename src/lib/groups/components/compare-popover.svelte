@@ -254,7 +254,7 @@
 
 <div
   class={cn(
-    "border-border flex w-62 shrink-0 flex-col",
+    "border-border flex w-(--bits-popover-anchor-width) shrink-0 flex-col",
     editor && (editorSide === "left" ? "border-l" : "border-r")
   )}
 >
