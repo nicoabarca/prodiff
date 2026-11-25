@@ -45,7 +45,10 @@
 {:else if boot.stage !== "ready"}
   <BootScreen projectCount={projects.length} />
 {:else}
-  <Tooltip.Provider>
+  <!-- `ignoreNonKeyboardFocus`: a popover or dialog focuses its first control on
+       open, and a tooltip opened by that focus becomes the top dismissible layer,
+       so an outside click would close only the tooltip and leave the popover open. -->
+  <Tooltip.Provider ignoreNonKeyboardFocus>
     {@render children()}
   </Tooltip.Provider>
 {/if}
