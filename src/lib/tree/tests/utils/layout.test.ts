@@ -2,8 +2,7 @@ import { describe, expect, it } from "vitest";
 import { layoutTree, type LayoutNode } from "$lib/tree/utils/layout";
 
 const options = (volumes: Record<number, number>, orderKeys: Record<number, string> = {}) => ({
-  nodeWidth: 100,
-  nodeHeight: 50,
+  size: () => ({ width: 100, height: 50 }),
   rankSep: 50,
   nodeSep: 20,
   volume: (id: number) => volumes[id] ?? 0,
@@ -65,7 +64,7 @@ describe("layoutTree", () => {
 
   it("treats a node whose parent is absent as a root", () => {
     const placed = layoutTree([{ id: 4, parent: 99 }], options({ 4: 1 }));
-    expect(placed.get(4)).toEqual({ x: 0, y: 0 });
+    expect(placed.get(4)).toEqual({ x: 0, y: 0, width: 100, height: 50 });
   });
 
   it("lays out a chain deep enough to blow a recursive walk", () => {
@@ -74,5 +73,33 @@ describe("layoutTree", () => {
     const placed = layoutTree(chain, options({}));
     expect(placed.size).toBe(20000);
     expect((placed.get(19999) as { y: number }).y).toBe(19999 * 100);
+  });
+
+  it("keeps a wide node clear of its neighbour in the same row", () => {
+    // 0 ─ 1 ─ 3 (wide) ─ 5   and   0 ─ 2 ─ 4 (wide) ─ 6
+    const chains: LayoutNode[] = [
+      ...fork,
+      { id: 3, parent: 1 },
+      { id: 4, parent: 2 },
+      { id: 5, parent: 3 },
+      { id: 6, parent: 4 }
+    ];
+    const wide = new Set([3, 4]);
+    const placed = layoutTree(chains, {
+      ...options({ 1: 1, 2: 2 }),
+      size: (id) => ({ width: wide.has(id) ? 180 : 100, height: 50 })
+    });
+    const three = placed.get(3) as { x: number; width: number };
+    const four = placed.get(4) as { x: number };
+    expect(four.x - (three.x + three.width)).toBeGreaterThanOrEqual(20);
+  });
+
+  it("gives every node in a row the row's tallest height", () => {
+    const placed = layoutTree(fork, {
+      ...options({ 1: 1, 2: 2 }),
+      size: (id) => ({ width: 100, height: id === 2 ? 90 : 50 })
+    });
+    expect((placed.get(1) as { height: number }).height).toBe(90);
+    expect((placed.get(0) as { height: number }).height).toBe(50);
   });
 });

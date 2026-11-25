@@ -81,7 +81,7 @@
     x={labelX}
     y={labelY}
     style={finding
-      ? `${labelStyle};border:0.09375rem solid ${color};border-radius:0.1875rem;padding-right:0.75rem`
+      ? `${labelStyle};border:0.09375rem solid ${color};border-radius:0.1875rem;padding-right:0.875rem`
       : labelStyle}
     class={clickable ? "cursor-pointer" : undefined}
     onclick={select}

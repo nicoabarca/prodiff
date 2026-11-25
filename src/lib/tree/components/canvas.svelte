@@ -11,6 +11,7 @@
   import { figureAttributes, nodeFigure } from "$lib/tree/utils/figure";
   import { EDGE_LABEL_STYLE, toFlow, type TreeEdgeData } from "$lib/tree/utils/flow";
   import { diffKeys } from "$lib/tree/utils/diff";
+  import { loadNodeFonts } from "$lib/tree/utils/node-size";
   import type { Point } from "$lib/tree/utils/layout";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import { selected, selectedVariants, shownVariant, view } from "$lib/tree/state/tree.svelte";
@@ -66,8 +67,14 @@
     view.collapsed = next;
   }
 
-  const flow = $derived(
-    toFlow(tree, visible, {
+  // Node sizes are measured in the node's fonts. A canvas never asks for a
+  // font, so they are loaded here and the layout runs again once they are in.
+  let fontsLoaded = $state(false);
+  loadNodeFonts().then(() => (fontsLoaded = true));
+
+  const flow = $derived.by(() => {
+    void fontsLoaded;
+    return toFlow(tree, visible, {
       groups: flowGroups,
       figure: nodeFigure(view, attributes),
       statistic: view.statistic,
@@ -77,8 +84,8 @@
       selected: selected.at,
       onToggleCollapse: toggleCollapse,
       onSelectEdge: (childId) => (selected.at = { kind: "edge", childId })
-    })
-  );
+    });
+  });
 
   const LIT_EDGE_STYLE =
     "stroke:var(--color-indigo-500);filter:drop-shadow(0 0 0.25rem rgb(99 102 241 / 0.9)) drop-shadow(0 0 0.75rem rgb(99 102 241 / 0.5))";

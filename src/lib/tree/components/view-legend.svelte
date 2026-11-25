@@ -141,7 +141,7 @@
   <span class="flex items-center gap-1.25">
     <span class="h-8 w-0.5" style="background:{EDGE}"></span>
     <span
-      class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] py-px pr-3 pl-1 font-mono text-[0.5625rem] leading-tight"
+      class="text-muted-foreground relative rounded-[0.1875rem] border-[0.09375rem] py-px pr-3.5 pl-1 font-mono text-[0.5625rem] leading-tight"
       style="border-color:{effectColor(3).fill}"
     >
       62d

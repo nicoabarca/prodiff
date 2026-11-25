@@ -16,7 +16,7 @@
 
 <Tooltip.Root>
   <Tooltip.Trigger
-    class="absolute -top-2 -right-2 flex size-4.5 items-center justify-center rounded-full bg-(--fill) font-mono text-[0.625rem] font-semibold text-(--ink) ring-1 ring-(--ink)/30"
+    class="absolute -top-3 -right-3 flex size-6 items-center justify-center rounded-full bg-(--fill) font-mono text-[0.75rem] font-semibold text-(--ink) ring-1 ring-(--ink)/30"
     style="--fill:{color.fill};--ink:{color.ink}"
   >
     {count}
