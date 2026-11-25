@@ -58,6 +58,20 @@ describe("an empty selection", () => {
     expect(selection.selectedVariants()).toEqual(new Set(["a", "b"]));
   });
 
+  it("is re-seeded with at most ten Variants when more are needed for the coverage default", async () => {
+    const many = Array.from({ length: 20 }, (_, i) => ({
+      key: `v${i}`,
+      activities: [`V${i}`],
+      cases: { g1: 1 }
+    }));
+    listVariants.mockResolvedValue(many);
+    const { selection, persisted } = harness("coverage");
+
+    await selection.loadVariants(project);
+
+    expect(persisted.keys).toEqual(many.slice(0, 10).map((row) => row.key));
+  });
+
   it("stands for every Variant under 'all'", async () => {
     const { selection, persisted, persist } = harness("all");
 

@@ -50,7 +50,6 @@ function treeOf(nodes: TreeNode[]): ResponseDirectedTree {
     variantsTotal: 0,
     variantsIncluded: 0,
     caseCoverage: 0,
-    cappedByCeiling: false,
     transitionTimeBasis: "completeOnly",
     hasActivityDuration: false
   };

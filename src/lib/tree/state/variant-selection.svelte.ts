@@ -1,13 +1,13 @@
 import { comparedIds, comparisonKey, relationReady } from "$lib/groups/state/comparison.svelte";
 import { listVariants } from "$lib/tree/invokers/list-variants";
 import type { ResponseVariantRow } from "$lib/tree/invokers/types";
-import { DEFAULT_COVERAGE } from "$lib/tree/types";
+import { DEFAULT_COVERAGE, DEFAULT_MAX_VARIANTS } from "$lib/tree/types";
 import { sameSelection, variantsCovering } from "$lib/tree/utils/variants";
 import type { Project } from "$lib/event-log/types";
 
 /**
  * What an empty persisted selection stands for. `"coverage"` means "not chosen
- * yet" and is re-seeded from `DEFAULT_COVERAGE` the first time the list loads;
+ * yet" and is re-seeded from `DEFAULT_COVERAGE`, capped at `DEFAULT_MAX_VARIANTS`, the first time the list loads;
  * `"all"` means every Variant and is left as it is.
  */
 export type EmptySelection = "coverage" | "all";
@@ -83,7 +83,7 @@ export function createVariantSelection(options: VariantSelectionOptions) {
       variants.dropped = previous.length - kept.length;
       const next =
         kept.length === 0 && options.onEmpty === "coverage"
-          ? [...variantsCovering(rows, DEFAULT_COVERAGE)]
+          ? [...variantsCovering(rows, DEFAULT_COVERAGE)].slice(0, DEFAULT_MAX_VARIANTS)
           : kept;
       if (next.length !== previous.length || next.some((k, i) => k !== previous[i])) {
         await options.persist(project, next);

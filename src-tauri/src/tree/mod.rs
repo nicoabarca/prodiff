@@ -24,12 +24,10 @@ use crate::column_mapping::{
 use polars::prelude::*;
 use std::collections::HashMap;
 
-/// How many Variants a build ships at most, so a pathological log can't hand
-/// the renderer tens of thousands of nodes. Reported via `cappedByCeiling`.
-const MAX_VARIANTS: usize = 400;
 /// What a build with no explicit limit opens on: the fewest Variants holding
-/// this share of the cases.
+/// this share of the cases, at most `DEFAULT_MAX_VARIANTS` of them.
 const DEFAULT_COVERAGE: f64 = 0.8;
+const DEFAULT_MAX_VARIANTS: usize = 10;
 
 #[derive(serde::Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -60,7 +58,6 @@ pub struct DirectedTree {
     pub variants_total: usize,
     pub variants_included: usize,
     pub case_coverage: f64,
-    pub capped_by_ceiling: bool,
     pub transition_time_basis: &'static str,
     pub has_activity_duration: bool,
 }
@@ -312,18 +309,18 @@ pub fn variant_rows(
 /// Variants included, which is why the selection is a build input.
 ///
 /// `selection` is what the picker has checked, as of the last build. `None` is a
-/// cold build and opens on `DEFAULT_COVERAGE` of the cases.
+/// cold build and opens on `DEFAULT_COVERAGE` of the cases, capped at
+/// `DEFAULT_MAX_VARIANTS` Variants.
 ///
 /// A selected Variant that no longer exists under these chains is dropped: the
 /// chains can change between the picker's last read and this call.
 fn cut_variants(
     groups: &[Option<GroupRows>; 2],
     selection: Option<&[String]>,
-) -> (Vec<String>, usize, f64, bool) {
+) -> (Vec<String>, usize, f64) {
     let counts = variant_counts(groups);
     let total_cases: i64 = counts.values().map(|c| c[0] + c[1]).sum();
     let total_variants = counts.len();
-    let capped = total_variants > MAX_VARIANTS;
 
     let covered_by = |keys: &[String]| -> i64 {
         keys.iter()
@@ -340,21 +337,13 @@ fn cut_variants(
     };
 
     if let Some(selection) = selection {
-        // The ceiling still binds, to stop a pathological selection handing the
-        // renderer tens of thousands of nodes. Ordering by cases keeps the
-        // truncation predictable.
-        let mut kept: Vec<String> = selection
+        let kept: Vec<String> = selection
             .iter()
             .filter(|k| counts.contains_key(*k))
             .cloned()
             .collect();
-        kept.sort_by(|a, b| {
-            let (ca, cb) = (counts[a][0] + counts[a][1], counts[b][0] + counts[b][1]);
-            cb.cmp(&ca).then_with(|| a.cmp(b))
-        });
-        kept.truncate(MAX_VARIANTS);
         let covered = covered_by(&kept);
-        return (kept, total_variants, coverage(covered), capped);
+        return (kept, total_variants, coverage(covered));
     }
 
     let mut ordered: Vec<(String, i64)> = counts
@@ -372,14 +361,14 @@ fn cut_variants(
         if covered >= target && !included.is_empty() {
             break;
         }
-        if included.len() >= MAX_VARIANTS {
+        if included.len() >= DEFAULT_MAX_VARIANTS {
             break;
         }
         covered += count;
         included.push(key);
     }
 
-    (included, total_variants, coverage(covered), capped)
+    (included, total_variants, coverage(covered))
 }
 
 /// Builds the tree and everything hanging off it. With one Group no test runs
@@ -397,7 +386,7 @@ pub fn build(
     let ids = group_ids(logs);
     let groups = read_logs(logs, mapping, &attrs)?;
 
-    let (included, variants_total, case_coverage, capped_by_ceiling) =
+    let (included, variants_total, case_coverage) =
         cut_variants(&groups, selection);
     let included: std::collections::HashSet<String> = included.into_iter().collect();
 
@@ -555,7 +544,6 @@ pub fn build(
         variants_total,
         variants_included: included.len(),
         case_coverage,
-        capped_by_ceiling,
         transition_time_basis: if has_start {
             "startComplete"
         } else {
@@ -732,6 +720,49 @@ fn case_level_blocks(
 mod tests {
     use super::*;
     use crate::time::datetime_column;
+
+    /// One Group whose cases each run a single activity, so `sizes[i]` cases
+    /// share the Variant `V{i}`.
+    fn variants_sized(sizes: &[usize]) -> [Option<GroupRows>; 2] {
+        let activities: Vec<String> = sizes
+            .iter()
+            .enumerate()
+            .flat_map(|(i, &n)| std::iter::repeat(format!("V{i:02}")).take(n))
+            .collect();
+        let cases = activities.len();
+        let rows = GroupRows {
+            case_ids: (0..cases).map(|c| c.to_string()).collect(),
+            bounds: (0..cases).map(|c| (c, c + 1)).collect(),
+            activities,
+            values: Vec::new(),
+            transition: vec![None; cases],
+        };
+        [Some(rows), None]
+    }
+
+    #[test]
+    fn a_cold_build_opens_on_the_variants_reaching_the_coverage_default() {
+        let (included, total, _) = cut_variants(&variants_sized(&[50, 30, 15, 5]), None);
+        assert_eq!(included, ["V00", "V01"]);
+        assert_eq!(total, 4);
+    }
+
+    #[test]
+    fn a_cold_build_opens_on_at_most_ten_variants() {
+        let (included, total, coverage) = cut_variants(&variants_sized(&[1; 20]), None);
+        assert_eq!(included.len(), DEFAULT_MAX_VARIANTS);
+        assert_eq!(total, 20);
+        assert_eq!(coverage, 0.5);
+    }
+
+    #[test]
+    fn an_explicit_selection_is_not_capped_at_the_default() {
+        let groups = variants_sized(&[1; 20]);
+        let all: Vec<String> = (0..20).map(|i| format!("V{i:02}")).collect();
+        let (included, _, coverage) = cut_variants(&groups, Some(&all));
+        assert_eq!(included.len(), 20);
+        assert_eq!(coverage, 1.0);
+    }
 
     #[test]
     fn the_resolution_policy_picks_which_end_of_the_case_is_read() {
@@ -1079,7 +1110,6 @@ mod tests {
         assert_eq!(tree.variants_total, 3, "the log still has three");
         assert_eq!(tree.variants_included, 1, "`A` alone covers 9 of 11 cases");
         assert_eq!(tree.nodes.len(), 2, "Start plus the one included leaf");
-        assert!(!tree.capped_by_ceiling);
 
         // Selecting all three brings the tail back.
         let full = build_selecting(&df, None, &[], &[&["A"], &["B"], &["C"]]);
@@ -1189,30 +1219,6 @@ mod tests {
         );
     }
 
-    /// The ceiling still binds an explicit selection: it exists to stop a
-    /// pathological pick handing the renderer tens of thousands of nodes.
-    #[test]
-    fn a_selection_larger_than_the_ceiling_is_truncated() {
-        // One distinct single-activity Variant per case, so the log is wider
-        // than the ceiling.
-        let count = MAX_VARIANTS + 10;
-        let ids: Vec<String> = (0..count).map(|i| format!("c{i}")).collect();
-        let names: Vec<String> = (0..count).map(|i| format!("A{i}")).collect();
-        let activities: Vec<[&str; 1]> = names.iter().map(|n| [n.as_str()]).collect();
-
-        let traces: Vec<(&str, &[&str], &[i64])> = ids
-            .iter()
-            .zip(&activities)
-            .map(|(id, act)| (id.as_str(), &act[..], &[10i64][..]))
-            .collect();
-        let df = log(&traces);
-
-        let all: Vec<&[&str]> = activities.iter().map(|act| &act[..]).collect();
-        let tree = build_selecting(&df, None, &[], &all);
-        assert_eq!(tree.variants_total, count);
-        assert_eq!(tree.variants_included, MAX_VARIANTS, "truncated to ceiling");
-        assert!(tree.capped_by_ceiling);
-    }
 
     #[test]
     fn a_node_only_one_group_reaches_carries_no_test() {

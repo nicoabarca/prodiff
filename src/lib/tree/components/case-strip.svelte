@@ -5,10 +5,8 @@
    * Measured once per case across each Group, so no node changes them.
    */
   import AttributeName from "$lib/custom-attributes/components/attribute-name.svelte";
-  import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Popover from "$lib/components/ui/popover/index.js";
-  import * as Tooltip from "$lib/components/ui/tooltip/index.js";
   import TrimmedNote from "$lib/groups/components/trimmed-note.svelte";
   import { comparedGroups } from "$lib/groups/state/comparison.svelte";
   import type { AttributeBlock, BoxAlternatives, OutlierLoad, Summary } from "$lib/analysis/types";
@@ -20,18 +18,15 @@
   import { headline, testLine } from "$lib/tree/utils/verdict";
   import { cn } from "$lib/utils";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
-  import Info from "@lucide/svelte/icons/info";
 
   let {
     caseLevel,
     groupIds,
-    cappedByCeiling = false,
     outliers = caseOutliers,
     alternatives
   }: {
     caseLevel: Record<string, AttributeBlock>;
     groupIds: string[];
-    cappedByCeiling?: boolean;
     outliers?: (attribute: string) => OutlierLoad | undefined;
     alternatives?: (attribute: string) => BoxAlternatives | undefined;
   } = $props();
@@ -64,7 +59,7 @@
 
   let expanded = $state(true);
 
-  const hasContent = $derived(cappedByCeiling || attributes.length > 0);
+  const hasContent = $derived(attributes.length > 0);
 </script>
 
 {#if hasContent}
@@ -167,23 +162,6 @@
       {/if}
     {:else}
       <span class="flex-1"></span>
-    {/if}
-
-    {#if cappedByCeiling}
-      <Tooltip.Provider>
-        <Tooltip.Root>
-          <Tooltip.Trigger>
-            <Badge variant="secondary" class="h-6 cursor-help">
-              <Info data-icon="inline-start" />
-              Rarest variants left out
-            </Badge>
-          </Tooltip.Trigger>
-          <Tooltip.Content class="max-w-64 text-[0.6875rem]">
-            The log has more Variants than a build ships. The rarest ones are not in this tree at
-            all, whatever the slider says.
-          </Tooltip.Content>
-        </Tooltip.Root>
-      </Tooltip.Provider>
     {/if}
   </div>
 {/if}
